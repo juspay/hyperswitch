@@ -1,7 +1,7 @@
 // #[cfg(all(feature = "v2", feature = "customer_v2"))]
 // use crate::enums::SoftDeleteStatus;
 use common_enums::ApiVersion;
-use common_utils::{encryption::Encryption, id_type, pii};
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -16,8 +16,8 @@ use crate::schema_v2::customers;
 )]
 #[diesel(table_name = customers)]
 pub struct CustomerNew {
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
@@ -34,14 +34,14 @@ pub struct CustomerNew {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
+    pub fn get_customer_id(&self) -> common_utils::id_type::CustomerId {
         self.customer_id.clone()
     }
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
+    pub fn get_customer_id(&self) -> common_utils::id_type::CustomerId {
         todo!()
     }
 }
@@ -57,7 +57,6 @@ impl CustomerNew {
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
-            id: 0i32,
             customer_id: customer_new.customer_id,
             merchant_id: customer_new.merchant_id,
             name: customer_new.name,
@@ -91,7 +90,7 @@ impl From<CustomerNew> for Customer {
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct CustomerNew {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
@@ -103,7 +102,7 @@ pub struct CustomerNew {
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
+    pub merchant_customer_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
@@ -148,11 +147,10 @@ impl From<CustomerNew> for Customer {
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
 )]
-#[diesel(table_name = customers)]
+#[diesel(table_name = customers, primary_key(customer_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct Customer {
-    pub id: i32,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
@@ -174,7 +172,7 @@ pub struct Customer {
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct Customer {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
@@ -186,7 +184,7 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
+    pub merchant_customer_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,

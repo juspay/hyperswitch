@@ -50,9 +50,9 @@ pub async fn create_customer(
 
     let merchant_reference_id = customer_data.get_merchant_reference_id();
 
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = merchant_account.get_id();
 
-    let merchant_ref_id_customer_struct = MerchantReferenceIdForCustomer {
+    let merchant_reference_id_customer = MerchantReferenceIdForCustomer {
         customer_id: merchant_reference_id.as_ref(),
         merchant_id,
         merchant_account: &merchant_account,
@@ -66,7 +66,7 @@ pub async fn create_customer(
     // Consider a scenario where the address is inserted and then when inserting the customer,
     // it errors out, now the address that was inserted is not deleted
 
-    merchant_ref_id_customer_struct
+    merchant_reference_id_customer
         .verify_if_customer_not_present_by_optional_merchant_reference_id(db)
         .await?;
 
@@ -126,7 +126,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         // Setting default billing address to Db
         let address = self.get_address();
-        let merchant_id = &merchant_account.merchant_id;
+        let merchant_id = merchant_account.get_id();
         let key = key_store.key.get_inner().peek();
 
         let customer_billing_address_struct = AddressStructForDbEntry {
@@ -165,14 +165,13 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             customer_id: merchant_reference_id
                 .to_owned()
                 .ok_or(errors::CustomersErrorResponse::InternalServerError)?,
-            merchant_id: merchant_id.to_string(),
+            merchant_id: merchant_id.to_owned(),
             name: encryptable_customer.name,
             email: encryptable_customer.email,
             phone: encryptable_customer.phone,
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            id: None,
             connector_customer: None,
             address_id: address_from_db.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
@@ -224,7 +223,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer shipping address")?;
 
-        let merchant_id = merchant_account.merchant_id.clone();
+        let merchant_id = merchant_account.get_id().clone();
         let key = key_store.key.get_inner().peek();
 
         let encrypted_data = types::batch_encrypt(
@@ -247,7 +246,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         Ok(domain::Customer {
             id: common_utils::generate_time_ordered_id("cus"),
             merchant_customer_reference_id: merchant_reference_id.to_owned(),
-            merchant_id: merchant_id.to_string(),
+            merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email,
             phone: encryptable_customer.phone,
@@ -280,7 +279,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 struct AddressStructForDbEntry<'a> {
     address: Option<&'a api_models::payments::AddressDetails>,
     customer_data: &'a customers::CustomerRequest,
-    merchant_id: &'a str,
+    merchant_id: &'a id_type::MerchantId,
     customer_id: Option<&'a id_type::CustomerId>,
     storage_scheme: common_enums::MerchantStorageScheme,
     key_store: &'a domain::MerchantKeyStore,
@@ -328,7 +327,7 @@ impl<'a> AddressStructForDbEntry<'a> {
 
 struct MerchantReferenceIdForCustomer<'a> {
     customer_id: Option<&'a id_type::CustomerId>,
-    merchant_id: &'a str,
+    merchant_id: &'a id_type::MerchantId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
@@ -391,7 +390,7 @@ pub async fn retrieve_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -414,7 +413,7 @@ pub async fn retrieve_customer(
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
-    merchant_id: String,
+    merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
@@ -446,7 +445,7 @@ pub async fn delete_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -454,7 +453,7 @@ pub async fn delete_customer(
         .switch()?;
 
     let customer_mandates = db
-        .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
+        .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &req.customer_id)
         .await
         .switch()?;
 
@@ -467,7 +466,7 @@ pub async fn delete_customer(
     match db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             None,
         )
         .await
@@ -479,14 +478,14 @@ pub async fn delete_customer(
                     cards::delete_card_from_locker(
                         &state,
                         &req.customer_id,
-                        &merchant_account.merchant_id,
+                        merchant_account.get_id(),
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await
                     .switch()?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
-                    &merchant_account.merchant_id,
+                    merchant_account.get_id(),
                     &pm.payment_method_id,
                 )
                 .await
@@ -543,7 +542,7 @@ pub async fn delete_customer(
         .update_address_by_merchant_id_customer_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             update_address,
             &key_store,
         )
@@ -583,7 +582,7 @@ pub async fn delete_customer(
     db.update_customer_by_customer_id_merchant_id(
         key_manager_state,
         req.customer_id.clone(),
-        merchant_account.merchant_id,
+        merchant_account.get_id().to_owned(),
         customer_orig,
         updated_customer,
         &key_store,
@@ -627,7 +626,7 @@ pub async fn update_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -646,7 +645,7 @@ pub async fn update_customer(
                         customer_address,
                         key,
                         merchant_account.storage_scheme,
-                        merchant_account.merchant_id.clone(),
+                        merchant_account.get_id().clone(),
                     )
                     .await
                     .switch()
@@ -656,8 +655,9 @@ pub async fn update_customer(
                         .await
                         .switch()
                         .attach_printable(format!(
-                            "Failed while updating address: merchant_id: {}, customer_id: {:?}",
-                            merchant_account.merchant_id, customer_id
+                            "Failed while updating address: merchant_id: {:?}, customer_id: {:?}",
+                            merchant_account.get_id(),
+                            customer_id
                         ))?,
                 )
             }
@@ -668,7 +668,7 @@ pub async fn update_customer(
                     .get_domain_address(
                         &state,
                         customer_address,
-                        &merchant_account.merchant_id,
+                        merchant_account.get_id(),
                         &customer.customer_id,
                         key,
                         merchant_account.storage_scheme,
@@ -713,7 +713,7 @@ pub async fn update_customer(
         .update_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id.to_owned(),
-            merchant_account.merchant_id.to_owned(),
+            merchant_account.get_id().to_owned(),
             customer,
             storage::CustomerUpdate::Update {
                 name: encryptable_customer.name,

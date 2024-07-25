@@ -216,7 +216,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
-    // Itaubank, template code for future usage
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -247,6 +247,7 @@ pub enum RoutableConnectors {
     // Tsys,
     Tsys,
     Volt,
+    // Wellsfargo,
     Wise,
     Worldline,
     Worldpay,
@@ -3028,4 +3029,11 @@ pub enum SoftDeleteStatus {
 pub enum ApiVersion {
     V1,
     V2,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutRetryType {
+    SingleConnector,
+    MultiConnector,
 }

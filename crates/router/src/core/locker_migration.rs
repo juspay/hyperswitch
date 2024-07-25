@@ -20,7 +20,7 @@ use crate::{
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn rust_locker_migration(
     _state: SessionState,
-    _merchant_id: &str,
+    _merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
     todo!()
 }
@@ -28,7 +28,7 @@ pub async fn rust_locker_migration(
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn rust_locker_migration(
     state: SessionState,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -93,7 +93,7 @@ pub async fn call_to_locker(
     state: &SessionState,
     payment_methods: Vec<PaymentMethod>,
     customer_id: &id_type::CustomerId,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
@@ -163,7 +163,7 @@ pub async fn call_to_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
-                "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
+                "Card migration failed for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             ));
 
@@ -178,7 +178,7 @@ pub async fn call_to_locker(
         cards_moved += 1;
 
         logger::info!(
-                "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
+                "Card migrated for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             );
     }

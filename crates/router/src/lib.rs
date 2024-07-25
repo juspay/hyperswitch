@@ -47,6 +47,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
+    pub const ACCEPT_LANGUAGE: &str = "Accept-Language";
     pub const KEY: &str = "key";
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
@@ -59,6 +60,7 @@ pub mod headers {
     pub const NONCE: &str = "nonce";
     pub const TIMESTAMP: &str = "Timestamp";
     pub const TOKEN: &str = "token";
+    pub const USER_AGENT: &str = "User-Agent";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
@@ -144,6 +146,7 @@ pub fn mk_app(
     #[cfg(feature = "olap")]
     {
         server_app = server_app
+            .service(routes::Organization::server(state.clone()))
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))

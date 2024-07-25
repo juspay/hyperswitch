@@ -1176,6 +1176,7 @@ pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_connector_metadata(&self) -> Result<serde_json::Value, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -1195,6 +1196,11 @@ impl RefundsRequestData for types::RefundsData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_connector_metadata(&self) -> Result<serde_json::Value, Error> {
+        self.connector_metadata
+            .clone()
+            .ok_or_else(missing_field_err("connector_metadata"))
     }
 }
 
@@ -2811,7 +2817,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         Self::MandiriVaBankTransfer
                     }
-                    domain::payments::BankTransferData::Pix {} => Self::Pix,
+                    domain::payments::BankTransferData::Pix { .. } => Self::Pix,
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer

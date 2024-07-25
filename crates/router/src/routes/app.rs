@@ -58,7 +58,11 @@ use crate::analytics::AnalyticsProvider;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v2", feature = "v1"),
+    not(feature = "merchant_connector_account_v2")
+))]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
@@ -170,7 +174,6 @@ pub trait AppStateInfo {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
     fn add_request_id(&mut self, request_id: RequestId);
-    fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
 }
@@ -191,9 +194,6 @@ impl AppStateInfo for AppState {
         self.request_id.replace(request_id);
     }
 
-    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
-        self.api_client.add_merchant_id(merchant_id);
-    }
     fn add_flow_name(&mut self, flow_name: String) {
         self.api_client.add_flow_name(flow_name);
     }
@@ -344,6 +344,7 @@ impl AppState {
                             .expect("Failed to create store"),
                         kafka_client.clone(),
                         TenantID(tenant.get_schema().to_string()),
+                        tenant,
                     )
                     .await,
                 ),
@@ -377,22 +378,19 @@ impl AppState {
         .await
     }
 
-    pub fn get_req_state(&self) -> ReqState {
-        ReqState {
-            event_context: events::EventContext::new(self.event_handler.clone()),
-        }
-    }
     pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
     where
         F: FnOnce() -> E + Copy,
     {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
+        let mut event_handler = self.event_handler.clone();
+        event_handler.add_tenant(tenant_conf);
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
-            event_handler: self.event_handler.clone(),
+            event_handler,
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
@@ -803,7 +801,7 @@ pub struct Customers;
 ))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/customers").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
             route = route.service(web::resource("").route(web::post().to(customers_create)))
@@ -1028,6 +1026,22 @@ impl Blocklist {
     }
 }
 
+#[cfg(feature = "olap")]
+pub struct Organization;
+#[cfg(feature = "olap")]
+impl Organization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/organization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(organization_retrieve))
+                    .route(web::put().to(organization_update)),
+            )
+    }
+}
+
 pub struct MerchantAccount;
 
 #[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
@@ -1070,7 +1084,31 @@ impl MerchantAccount {
 
 pub struct MerchantConnectorAccount;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "merchant_connector_account_v2"
+))]
+impl MerchantConnectorAccount {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/connector_accounts").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            use super::admin::*;
+
+            route =
+                route.service(web::resource("").route(web::post().to(payment_connector_create)));
+        }
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/account").app_data(web::Data::new(state));

@@ -1,3 +1,4 @@
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
 use common_utils::id_type;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use diesel::BoolExpressionMethods;
@@ -26,7 +27,7 @@ impl Customer {
     pub async fn update_by_customer_id_merchant_id(
         _conn: &PgPooledConn,
         _customer_id: id_type::CustomerId,
-        _merchant_id: String,
+        _merchant_id: id_type::MerchantId,
         _customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
         // match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -57,7 +58,7 @@ impl Customer {
     pub async fn find_by_customer_id_merchant_id(
         _conn: &PgPooledConn,
         _customer_id: &id_type::CustomerId,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
         // generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
         //     conn,
@@ -69,7 +70,7 @@ impl Customer {
 
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -84,7 +85,7 @@ impl Customer {
     pub async fn find_optional_by_customer_id_merchant_id(
         _conn: &PgPooledConn,
         _customer_id: &id_type::CustomerId,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
         // generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
         //     conn,
@@ -99,8 +100,8 @@ impl Customer {
 impl Customer {
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: id_type::CustomerId,
-        merchant_id: String,
+        customer_id: common_utils::id_type::CustomerId,
+        merchant_id: common_utils::id_type::MerchantId,
         customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -126,8 +127,8 @@ impl Customer {
 
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -140,8 +141,8 @@ impl Customer {
 
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -152,7 +153,7 @@ impl Customer {
 
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -166,8 +167,8 @@ impl Customer {
 
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
