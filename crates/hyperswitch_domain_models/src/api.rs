@@ -104,9 +104,6 @@ pub struct GenericLinkFormData {
     pub css_data: String,
     pub sdk_url: String,
     pub html_meta_tags: String,
-    pub scripts: &'static str,
-    pub styles: &'static str,
-    pub document: &'static str,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]

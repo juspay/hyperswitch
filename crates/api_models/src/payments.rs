@@ -5266,12 +5266,10 @@ pub struct RetrievePaymentLinkRequest {
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkResponse {
-    /// URL for rendering the open payment link [deprecated soon; use link_open instead]
-    pub link: String,
     /// URL for rendering the open payment link
-    pub link_open: String,
+    pub link: String,
     /// URL for rendering the secure payment link
-    pub link_secure: Option<String>,
+    pub secure_link: Option<String>,
     /// Identifier for the payment link
     pub payment_link_id: String,
 }
@@ -5283,7 +5281,7 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Merchant
     pub merchant_id: String,
     /// Open payment link (without any security checks and listing SPMs)
-    pub link_open: String,
+    pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
@@ -5300,7 +5298,7 @@ pub struct RetrievePaymentLinkResponse {
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
     /// Secure payment link (with security checks and listing SPMs)
-    pub link_secure: Option<String>,
+    pub secure_link: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

@@ -49,22 +49,25 @@ pub fn build_generic_expired_link_html(
         .attach_printable("Failed to render expired link HTML template")
 }
 
-pub fn build_html_template(
+fn build_html_template(
     link_data: &GenericLinkFormData,
+    document: &'static str,
+    script: &'static str,
+    styles: &'static str,
 ) -> CustomResult<(Tera, Context), errors::ApiErrorResponse> {
     let mut tera: Tera = Tera::default();
     let mut context = Context::new();
 
     // Insert dynamic context in CSS
     let css_dynamic_context = "{{ color_scheme }}";
-    let css_template = link_data.styles.to_string();
+    let css_template = styles.to_string();
     let final_css = format!("{}\n{}", css_dynamic_context, css_template);
     let _ = tera.add_raw_template("document_styles", &final_css);
     context.insert("color_scheme", &link_data.css_data);
 
     // Insert dynamic context in JS
     let js_dynamic_context = "{{ script_data }}";
-    let js_template = link_data.scripts.to_string();
+    let js_template = script.to_string();
     let final_js = format!("{}\n{}", js_dynamic_context, js_template);
     let _ = tera.add_raw_template("document_scripts", &final_js);
     context.insert("script_data", &link_data.js_data);
@@ -82,7 +85,7 @@ pub fn build_html_template(
         .attach_printable("Failed to render JS template")?;
 
     // Insert HTML context
-    let html_template = link_data.document.to_string();
+    let html_template = document.to_string();
     let _ = tera.add_raw_template("html_template", &html_template);
     context.insert("css_style_tag", &css_style_tag);
     context.insert("js_script_tag", &js_script_tag);
@@ -93,7 +96,10 @@ pub fn build_html_template(
 pub fn build_payout_link_html(
     link_data: &GenericLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let (tera, mut context) = build_html_template(link_data)
+    let document = include_str!("../../core/generic_link/payout_link/initiate/index.html");
+    let script = include_str!("../../core/generic_link/payout_link/initiate/script.js");
+    let styles = include_str!("../../core/generic_link/payout_link/initiate/styles.css");
+    let (tera, mut context) = build_html_template(link_data, document, script, styles)
         .attach_printable("Failed to build context for payout link's HTML template")?;
     context.insert(
         "hyper_sdk_loader_script_tag",
@@ -111,9 +117,14 @@ pub fn build_payout_link_html(
 pub fn build_pm_collect_link_html(
     link_data: &GenericLinkFormData,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let (tera, mut context) = build_html_template(link_data).attach_printable(
-        "Failed to build context for payment method collect link's HTML template",
-    )?;
+    let document =
+        include_str!("../../core/generic_link/payment_method_collect/initiate/index.html");
+    let script = include_str!("../../core/generic_link/payment_method_collect/initiate/script.js");
+    let styles = include_str!("../../core/generic_link/payment_method_collect/initiate/styles.css");
+    let (tera, mut context) = build_html_template(link_data, document, script, styles)
+        .attach_printable(
+            "Failed to build context for payment method collect link's HTML template",
+        )?;
     context.insert(
         "hyper_sdk_loader_script_tag",
         &format!(

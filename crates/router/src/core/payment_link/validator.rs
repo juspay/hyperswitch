@@ -26,12 +26,12 @@ pub fn validate_secure_payment_link_render_request(
             )
         })?;
 
-    // Validate link_secure was generated
-    if payment_link.link_secure.clone().is_none() {
+    // Validate secure_link was generated
+    if payment_link.secure_link.clone().is_none() {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestUrl)).attach_printable_lazy(
             || {
                 format!(
-                    "Secure payment link was not generated for {}\nmissing link_secure",
+                    "Secure payment link was not generated for {}\nmissing secure_link",
                     link_id
                 )
             },

@@ -928,7 +928,7 @@ diesel::table! {
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
         #[max_length = 255]
-        link_secure -> Nullable<Varchar>,
+        secure_link -> Nullable<Varchar>,
     }
 }
 

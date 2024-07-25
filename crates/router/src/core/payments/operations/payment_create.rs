@@ -1224,7 +1224,7 @@ async fn create_payment_link(
         payment_id.clone()
     );
 
-    let link_secure = payment_link_config.allowed_domains.as_ref().map(|_| {
+    let secure_link = payment_link_config.allowed_domains.as_ref().map(|_| {
         format!(
             "{}/payment_link/s/{}/{}",
             domain_name,
@@ -1253,7 +1253,7 @@ async fn create_payment_link(
         description,
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
-        link_secure,
+        secure_link,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)
@@ -1264,8 +1264,7 @@ async fn create_payment_link(
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
         link: payment_link_db.link_to_pay.clone(),
-        link_open: payment_link_db.link_to_pay,
-        link_secure: payment_link_db.link_secure,
+        secure_link: payment_link_db.secure_link,
         payment_link_id: payment_link_db.payment_link_id,
     }))
 }

@@ -1236,14 +1236,14 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
         Self {
             payment_link_id: payment_link_config.payment_link_id,
             merchant_id: payment_link_config.merchant_id,
-            link_open: payment_link_config.link_to_pay,
+            link_to_pay: payment_link_config.link_to_pay,
             amount: payment_link_config.amount,
             created_at: payment_link_config.created_at,
             expiry: payment_link_config.fulfilment_time,
             description: payment_link_config.description,
             currency: payment_link_config.currency,
             status,
-            link_secure: payment_link_config.link_secure,
+            secure_link: payment_link_config.secure_link,
         }
     }
 }

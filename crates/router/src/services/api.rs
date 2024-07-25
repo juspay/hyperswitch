@@ -1869,7 +1869,7 @@ pub fn build_redirection_form(
     }
 }
 
-pub fn build_payment_link_template(
+fn build_payment_link_template(
     payment_link_data: PaymentLinkFormData,
 ) -> CustomResult<(Tera, Context), errors::ApiErrorResponse> {
     let mut tera = Tera::default();
