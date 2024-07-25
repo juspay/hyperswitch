@@ -290,16 +290,9 @@ jobs:
         uses: crate-ci/typos@master
 
 
-  just-hack:
-    name: check compilation for V2 features
-    runs-on: ${{ matrix.runner }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        runner:
-          - ubuntu-latest
-
+  check-v2:
+    name: Check compilation for V2 features
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -314,27 +307,16 @@ jobs:
         with:
           make-default: true
 
-      - name: Get rust version from Cargo.toml
-        shell: bash
-        run: |
-          rust_version=$(yq -oy '.workspace.package.rust-version' Cargo.toml)
-          echo "rust_version=${rust_version}" >> $GITHUB_ENV
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "${{ env.rust_version }}"
+          toolchain: stable 2 weeks ago
+          components: clippy
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2.33.28
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.0
         with:
           tool: sccache
-          checksum: true
-
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: cargo-hack
           checksum: true
 
       - name: Install just
@@ -342,10 +324,6 @@ jobs:
         with:
           tool: just
           checksum: true
-
-      - name: Install jq
-        shell: bash
-        run: .github/scripts/install-jq.sh
 
       - name: Deny warnings
         shell: bash
