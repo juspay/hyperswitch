@@ -59,7 +59,6 @@ use crate::analytics::AnalyticsProvider;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-
 pub use crate::{
     configs::settings,
     core::routing,
