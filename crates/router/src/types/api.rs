@@ -39,11 +39,15 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
-    access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
+    access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
+    webhooks::VerifyWebhookSource,
 };
-pub use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorCommonExt, CurrencyUnit};
+pub use hyperswitch_interfaces::api::{
+    ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
+    ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
+    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
+};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -51,7 +55,8 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
+    webhooks::*,
 };
 use crate::{
     configs::settings::Connectors,
@@ -60,72 +65,15 @@ use crate::{
         errors::{self, CustomResult},
         payments::types as payments_types,
     },
-    services::{
-        connector_integration_interface::ConnectorEnum, ConnectorIntegration,
-        ConnectorIntegrationV2, ConnectorRedirectResponse, ConnectorValidation,
-    },
+    services::{connector_integration_interface::ConnectorEnum, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
-pub trait ConnectorAccessToken:
-    ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-{
-}
-
-pub trait ConnectorAccessTokenV2:
-    ConnectorIntegrationV2<
-    AccessTokenAuth,
-    AccessTokenFlowData,
-    types::AccessTokenRequestData,
-    types::AccessToken,
->
-{
-}
 
 #[derive(Clone)]
 pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
-}
-
-pub trait ConnectorVerifyWebhookSource:
-    ConnectorIntegration<
-    VerifyWebhookSource,
-    types::VerifyWebhookSourceRequestData,
-    types::VerifyWebhookSourceResponseData,
->
-{
-}
-pub trait ConnectorVerifyWebhookSourceV2:
-    ConnectorIntegrationV2<
-    VerifyWebhookSource,
-    types::WebhookSourceVerifyData,
-    types::VerifyWebhookSourceRequestData,
-    types::VerifyWebhookSourceResponseData,
->
-{
-}
-
-#[derive(Clone, Debug)]
-pub struct MandateRevoke;
-
-pub trait ConnectorMandateRevoke:
-    ConnectorIntegration<
-    MandateRevoke,
-    types::MandateRevokeRequestData,
-    types::MandateRevokeResponseData,
->
-{
-}
-
-pub trait ConnectorMandateRevokeV2:
-    ConnectorIntegrationV2<
-    MandateRevoke,
-    types::MandateRevokeFlowData,
-    types::MandateRevokeRequestData,
-    types::MandateRevokeResponseData,
->
-{
 }
 
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
@@ -365,9 +313,11 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
                 enums::Connector::Billwerk => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Billwerk)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
                 }
-                enums::Connector::Bitpay => Ok(ConnectorEnum::Old(Box::new(&connector::Bitpay))),
+                enums::Connector::Bitpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Bitpay::new())))
+                }
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }

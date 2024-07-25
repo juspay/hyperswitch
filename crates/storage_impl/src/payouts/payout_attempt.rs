@@ -96,7 +96,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 let reverse_lookup = ReverseLookupNew {
                     lookup_id: format!(
                         "poa_{}_{}",
-                        &created_attempt.merchant_id, &created_attempt.payout_attempt_id,
+                        &created_attempt.merchant_id.get_string_repr(),
+                        &created_attempt.payout_attempt_id,
                     ),
                     pk_id: key_str.clone(),
                     sk_id: field.clone(),
@@ -197,7 +198,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         add_connector_payout_id_to_reverse_lookup(
                             self,
                             key_str.as_str(),
-                            this.merchant_id.as_str(),
+                            &this.merchant_id,
                             updated_attempt.payout_attempt_id.as_str(),
                             new.as_str(),
                             storage_scheme,
@@ -208,7 +209,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         add_connector_payout_id_to_reverse_lookup(
                             self,
                             key_str.as_str(),
-                            this.merchant_id.as_str(),
+                            &this.merchant_id,
                             updated_attempt.payout_attempt_id.as_str(),
                             new.as_str(),
                             storage_scheme,
@@ -236,7 +237,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
@@ -253,7 +254,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("poa_{merchant_id}_{payout_attempt_id}");
+                let lookup_id =
+                    format!("poa_{}_{payout_attempt_id}", merchant_id.get_string_repr());
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
@@ -296,7 +298,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_payout_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
@@ -311,7 +313,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("po_conn_payout_{merchant_id}_{connector_payout_id}");
+                let lookup_id = format!(
+                    "po_conn_payout_{}_{connector_payout_id}",
+                    merchant_id.get_string_repr()
+                );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                         .await,
@@ -355,7 +360,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
     async fn get_filters_for_payouts(
         &self,
         payouts: &[Payouts],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutListFilters, errors::StorageError> {
         self.router_store
@@ -407,7 +412,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
@@ -428,7 +433,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
@@ -450,7 +455,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
     async fn get_filters_for_payouts(
         &self,
         payouts: &[Payouts],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PayoutListFilters, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -639,14 +644,18 @@ impl DataModelExt for PayoutAttemptUpdate {
 async fn add_connector_payout_id_to_reverse_lookup<T: DatabaseStore>(
     store: &KVRouterStore<T>,
     key: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     updated_attempt_attempt_id: &str,
     connector_payout_id: &str,
     storage_scheme: MerchantStorageScheme,
 ) -> CustomResult<ReverseLookup, errors::StorageError> {
     let field = format!("poa_{}", updated_attempt_attempt_id);
     let reverse_lookup_new = ReverseLookupNew {
-        lookup_id: format!("po_conn_payout_{}_{}", merchant_id, connector_payout_id),
+        lookup_id: format!(
+            "po_conn_payout_{}_{}",
+            merchant_id.get_string_repr(),
+            connector_payout_id
+        ),
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payout_attempt".to_string(),

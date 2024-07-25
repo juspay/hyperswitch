@@ -36,7 +36,7 @@ pub trait PaymentIntentInterface {
         &self,
         state: &KeyManagerState,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
@@ -51,7 +51,7 @@ pub trait PaymentIntentInterface {
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -61,7 +61,7 @@ pub trait PaymentIntentInterface {
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -71,7 +71,7 @@ pub trait PaymentIntentInterface {
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -80,7 +80,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
@@ -97,7 +97,7 @@ pub struct CustomerData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,

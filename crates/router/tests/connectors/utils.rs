@@ -481,9 +481,11 @@ pub trait ConnectorActions: Connector {
         req: Req,
         info: Option<PaymentInfo>,
     ) -> RouterData<Flow, Req, Res> {
+        let merchant_id = common_utils::id_type::MerchantId::from(self.get_name().into()).unwrap();
+
         RouterData {
             flow: PhantomData,
-            merchant_id: self.get_name(),
+            merchant_id,
             customer_id: Some(common_utils::generate_customer_id_of_default_length()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
@@ -1001,7 +1003,6 @@ impl Default for PaymentSyncType {
             payment_experience: None,
             amount: MinorUnit::new(100),
             integrity_object: None,
-            browser_info: None,
         };
         Self(data)
     }

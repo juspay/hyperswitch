@@ -12,8 +12,6 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::types::domain::MerchantConnectorAccounts;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
@@ -29,6 +27,7 @@ use crate::types::domain::MerchantConnectorAccount;
 /// manner and chooses the first of them
 pub async fn get_merchant_default_config(
     db: &dyn StorageInterface,
+    // Cannot make this as merchant id domain type because, we are passing profile id also here
     merchant_id: &str,
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -188,8 +187,13 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let profile_id = current_business_profile.profile_id.clone();
 
-    let routing_cache_key =
-        cache::CacheKind::Routing(format!("routing_config_{merchant_id}_{profile_id}").into());
+    let routing_cache_key = cache::CacheKind::Routing(
+        format!(
+            "routing_config_{}_{profile_id}",
+            merchant_id.get_string_repr()
+        )
+        .into(),
+    );
 
     let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
         storage::enums::TransactionType::Payment => (Some(ref_val), None),
@@ -256,7 +260,7 @@ pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 impl MerchantConnectorAccounts {
     pub async fn get_all_mcas(
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         state: &SessionState,
     ) -> RouterResult<Self> {
@@ -390,7 +394,7 @@ impl<'hel> RoutingAlgorithmHelpers<'_> {
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &str,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
@@ -404,7 +408,7 @@ pub async fn validate_connectors_in_routing_config(
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_id.to_string(),
+            id: merchant_id.get_string_repr().to_owned(),
         })?;
     let name_mca_id_set = all_mcas
         .iter()
@@ -510,11 +514,4 @@ pub fn get_default_config_key(
         #[cfg(feature = "payouts")]
         storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
     }
-}
-pub fn get_payment_config_routing_id(merchant_id: &str) -> String {
-    format!("payment_config_id_{merchant_id}")
-}
-
-pub fn get_payment_method_surcharge_routing_id(merchant_id: &str) -> String {
-    format!("payment_method_surcharge_id_{merchant_id}")
 }

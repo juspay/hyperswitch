@@ -18,7 +18,7 @@ pub type FrmSaleType =
 
 #[derive(Debug, Clone)]
 pub struct FrmRouterData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector: String,
     pub payment_id: String,
     pub attempt_id: String,

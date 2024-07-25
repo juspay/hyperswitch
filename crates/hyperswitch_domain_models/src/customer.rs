@@ -4,7 +4,7 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type, pii,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    types::keymanager::{self, KeyManagerState, ToEncryptable},
 };
 use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
@@ -22,9 +22,8 @@ pub enum SoftDeleteStatus {
 
 #[derive(Clone, Debug)]
 pub struct Customer {
-    pub id: Option<i32>,
     pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub name: crypto::OptionalEncryptableName,
     pub email: crypto::OptionalEncryptableEmail,
     pub phone: crypto::OptionalEncryptablePhone,
@@ -49,9 +48,6 @@ impl super::behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            id: self.id.ok_or(ValidationError::MissingRequiredField {
-                field_name: "id".to_string(),
-            })?,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(|value| value.into()),
@@ -73,7 +69,7 @@ impl super::behaviour::Conversion for Customer {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_manager_identifier: keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -85,7 +81,7 @@ impl super::behaviour::Conversion for Customer {
                 phone: item.phone.clone(),
                 email: item.email.clone(),
             }),
-            Identifier::Merchant(item.merchant_id.clone()),
+            keymanager::Identifier::Merchant(item.merchant_id.clone()),
             key.peek(),
         )
         .await
@@ -98,7 +94,6 @@ impl super::behaviour::Conversion for Customer {
             })?;
 
         Ok(Self {
-            id: Some(item.id),
             customer_id: item.customer_id,
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
