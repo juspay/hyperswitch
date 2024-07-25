@@ -83,6 +83,10 @@ impl OrganizationInterface for super::MockDb {
         let org = storage::Organization {
             org_id: organization.org_id.clone(),
             org_name: organization.org_name,
+            organization_details: organization.organization_details,
+            metadata: organization.metadata,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
         organizations.push(org.clone());
         Ok(org)
@@ -118,8 +122,14 @@ impl OrganizationInterface for super::MockDb {
             .iter_mut()
             .find(|org| org.org_id == *org_id)
             .map(|org| match &update {
-                storage::OrganizationUpdate::Update { org_name } => storage::Organization {
+                storage::OrganizationUpdate::Update {
+                    org_name,
+                    organization_details,
+                    metadata,
+                } => storage::Organization {
                     org_name: org_name.clone(),
+                    organization_details: organization_details.clone(),
+                    metadata: metadata.clone(),
                     ..org.to_owned()
                 },
             })

@@ -21,8 +21,8 @@ pub struct CustomerRequest {
     pub customer_id: Option<id_type::CustomerId>,
     /// The identifier for the Merchant Account
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    #[serde(default = "unknown_merchant", skip)]
-    pub merchant_id: String,
+    #[serde(skip)]
+    pub merchant_id: id_type::MerchantId,
     /// The customer's name
     #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
     pub name: Option<Secret<String>>,
@@ -341,9 +341,4 @@ pub struct CustomerDeleteResponse {
     /// Whether payment methods deleted or not
     #[schema(example = false)]
     pub payment_methods_deleted: bool,
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-fn unknown_merchant() -> String {
-    String::from("merchant_unknown")
 }

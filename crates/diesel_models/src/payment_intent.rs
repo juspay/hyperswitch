@@ -1,5 +1,5 @@
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{encryption::Encryption, id_type, pii, types::MinorUnit};
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -15,12 +15,12 @@ use crate::schema_v2::payment_intent;
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -74,14 +74,13 @@ pub struct PaymentIntent {
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
-    pub id: Option<i32>,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -137,12 +136,12 @@ pub struct PaymentIntent {
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -208,7 +207,7 @@ pub enum PaymentIntentUpdate {
     PaymentCreateUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,
-        customer_id: Option<id_type::CustomerId>,
+        customer_id: Option<common_utils::id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         customer_details: Option<Encryption>,
@@ -271,7 +270,7 @@ pub struct PaymentIntentUpdateFields {
     pub currency: storage_enums::Currency,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub status: storage_enums::IntentStatus,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
     pub return_url: Option<String>,
@@ -301,7 +300,7 @@ pub struct PaymentIntentUpdateInternal {
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -1027,7 +1026,6 @@ mod tests {
     #[test]
     fn test_backwards_compatibility() {
         let serialized_payment_intent = r#"{
-    "id": 123,
     "payment_id": "payment_12345",
     "merchant_id": "merchant_67890",
     "status": "succeeded",

@@ -19,7 +19,7 @@ pub trait PayoutsInterface {
 
     async fn find_payout_by_merchant_id_payout_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
         _payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, errors::StorageError>;
@@ -34,7 +34,7 @@ pub trait PayoutsInterface {
 
     async fn find_optional_payout_by_merchant_id_payout_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
         _payout_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, errors::StorageError>;
@@ -42,7 +42,7 @@ pub trait PayoutsInterface {
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_constraints(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
@@ -50,7 +50,7 @@ pub trait PayoutsInterface {
     #[cfg(feature = "olap")]
     async fn filter_payouts_and_attempts(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
@@ -61,7 +61,7 @@ pub trait PayoutsInterface {
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_time_range_constraints(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
@@ -70,7 +70,7 @@ pub trait PayoutsInterface {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Payouts {
     pub payout_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub customer_id: id_type::CustomerId,
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
@@ -98,7 +98,7 @@ pub struct Payouts {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PayoutsNew {
     pub payout_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub customer_id: id_type::CustomerId,
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
@@ -129,7 +129,7 @@ impl Default for PayoutsNew {
 
         Self {
             payout_id: String::default(),
-            merchant_id: String::default(),
+            merchant_id: id_type::MerchantId::default(),
             customer_id: common_utils::generate_customer_id_of_default_length(),
             address_id: String::default(),
             payout_type: Some(storage_enums::PayoutType::default()),

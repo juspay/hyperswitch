@@ -24,7 +24,7 @@ pub trait BusinessProfileInterface {
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
         profile_name: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError>;
 
     async fn update_business_profile_by_profile_id(
@@ -36,12 +36,12 @@ pub trait BusinessProfileInterface {
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
     async fn list_business_profile_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<business_profile::BusinessProfile>, errors::StorageError>;
 }
 
@@ -74,7 +74,7 @@ impl BusinessProfileInterface for Store {
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
         profile_name: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         business_profile::BusinessProfile::find_by_profile_name_merchant_id(
@@ -106,7 +106,7 @@ impl BusinessProfileInterface for Store {
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         business_profile::BusinessProfile::delete_by_profile_id_merchant_id(
@@ -121,7 +121,7 @@ impl BusinessProfileInterface for Store {
     #[instrument(skip_all)]
     async fn list_business_profile_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<business_profile::BusinessProfile>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         business_profile::BusinessProfile::list_business_profile_by_merchant_id(&conn, merchant_id)
@@ -191,14 +191,14 @@ impl BusinessProfileInterface for MockDb {
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut business_profiles = self.business_profiles.lock().await;
         let index = business_profiles
             .iter()
-            .position(|bp| bp.profile_id == profile_id && bp.merchant_id == merchant_id)
+            .position(|bp| bp.profile_id == profile_id && bp.merchant_id == *merchant_id)
             .ok_or::<errors::StorageError>(errors::StorageError::ValueNotFound(format!(
-                "No business profile found for profile_id = {} and merchant_id = {}",
+                "No business profile found for profile_id = {} and merchant_id = {:?}",
                 profile_id, merchant_id
             )))?;
         business_profiles.remove(index);
@@ -207,14 +207,14 @@ impl BusinessProfileInterface for MockDb {
 
     async fn list_business_profile_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<business_profile::BusinessProfile>, errors::StorageError> {
         let business_profile_by_merchant_id = self
             .business_profiles
             .lock()
             .await
             .iter()
-            .filter(|business_profile| business_profile.merchant_id == merchant_id)
+            .filter(|business_profile| business_profile.merchant_id == *merchant_id)
             .cloned()
             .collect();
 
@@ -224,7 +224,7 @@ impl BusinessProfileInterface for MockDb {
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
         _profile_name: &str,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
