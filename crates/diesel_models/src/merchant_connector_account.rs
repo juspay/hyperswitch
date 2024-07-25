@@ -16,9 +16,8 @@ use crate::{enums as storage_enums, schema::merchant_connector_account};
     Selectable,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = merchant_connector_account, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = merchant_connector_account, primary_key(merchant_connector_id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantConnectorAccount {
-    pub id: i32,
     pub merchant_id: id_type::MerchantId,
     pub connector_name: String,
     pub connector_account_details: Encryption,
@@ -42,7 +41,7 @@ pub struct MerchantConnectorAccount {
     pub profile_id: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub pm_auth_config: Option<serde_json::Value>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
@@ -73,7 +72,7 @@ pub struct MerchantConnectorAccountNew {
     pub profile_id: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub pm_auth_config: Option<serde_json::Value>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
@@ -98,7 +97,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub pm_auth_config: Option<serde_json::Value>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: Option<storage_enums::ConnectorStatus>,
     pub connector_wallets_details: Option<Encryption>,
 }
