@@ -2672,7 +2672,7 @@ pub async fn list_payment_methods(
                             let mca = db
                             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                 key_manager_state,
-                                &merchant_account.merchant_id,
+                                merchant_account.get_id(),
                                 &inner_config.mca_id,
                                 &key_store,
                             )
