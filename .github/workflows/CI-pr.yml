@@ -332,7 +332,10 @@ jobs:
 
       - name: Deny warnings
         shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+        run: |
+          sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+          # Allow the `clippy::todo` lint for v2 checks
+          sed -i --null-data 's/    "-Wclippy::todo",\n//' .cargo/config.toml
 
       - name: Cargo hack_v2
         shell: bash
