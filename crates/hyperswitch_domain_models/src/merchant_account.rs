@@ -356,8 +356,10 @@ impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let id = self.get_id().to_owned();
+
         let setter = diesel_models::merchant_account::MerchantAccountSetter {
-            id: self.id,
+            id,
             return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,

@@ -41,8 +41,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
-    files::*, gsm::*, payment_link::*, user::*, user_role::*, verify_connector::*,
-    webhook_events::*,
+    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1117,7 +1116,7 @@ impl MerchantConnectorAccount {
             route = route
                 .service(
                     web::resource("/connectors/verify")
-                        .route(web::post().to(payment_connector_verify)),
+                        .route(web::post().to(super::verify_connector::payment_connector_verify)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors")

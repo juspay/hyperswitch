@@ -10,6 +10,9 @@ use crate::schema::merchant_account;
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use crate::schema_v2::merchant_account;
 
+/// Note: The order of fields in the struct is important.
+/// This should be in the same order as the fields in the schema.rs file, otherwise the code will not compile
+/// If two adjacent columns have the same type, then the compiler will not throw any error, but the fields read / written will be interchanged
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
@@ -55,9 +58,6 @@ pub struct MerchantAccount {
     pub pm_collect_link_config: Option<serde_json::Value>,
 }
 
-/// Note: The order of fields in the struct is important.
-/// This should be in the same order as the fields in the schema.rs file, otherwise the code will not compile
-/// If two adjacent columns have the same type, then the compiler will not throw any error, but the fields read / written will be interchanged
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
