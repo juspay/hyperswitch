@@ -407,7 +407,6 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         .change_context(ConfigError::InputConstructionError)?;
 
     for customer_payment_method in customer_payment_method_list.iter_mut() {
-
         let payment_token = customer_payment_method
             .payment_token
             .clone()
