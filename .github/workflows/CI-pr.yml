@@ -33,8 +33,6 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
-  # Use `sccache` for caching compilation artifacts
-  RUSTC_WRAPPER: sccache
 
 jobs:
   formatting:
@@ -87,6 +85,10 @@ jobs:
           fi
 
   check-msrv:
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
 
@@ -174,6 +176,10 @@ jobs:
   #         command: check ${{ matrix.checks }}
 
   test:
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+
     name: Run tests on stable toolchain
     runs-on: ${{ matrix.runner }}
 
@@ -315,9 +321,6 @@ jobs:
 
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.0
-        with:
-          tool: sccache
-          checksum: true
 
       - name: Install cargo-hack
         uses: taiki-e/install-action@v2.33.28
