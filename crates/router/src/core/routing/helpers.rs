@@ -15,6 +15,7 @@ use storage_impl::redis::cache;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
+    routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
 };
@@ -22,55 +23,56 @@ use crate::{
 /// provides the complete merchant routing dictionary that is basically a list of all the routing
 /// configs a merchant configured with an active_id field that specifies the current active routing
 /// config
-pub async fn get_merchant_routing_dictionary(
-    db: &dyn StorageInterface,
-    merchant_id: &str,
-) -> RouterResult<routing_types::RoutingDictionary> {
-    let key = get_routing_dictionary_key(merchant_id);
-    let maybe_dict = db.find_config_by_key(&key).await;
+// pub async fn get_merchant_routing_dictionary(
+//     db: &dyn StorageInterface,
+//     merchant_id: &str,
+// ) -> RouterResult<routing_types::RoutingDictionary> {
+//     let key = get_routing_dictionary_key(merchant_id);
+//     let maybe_dict = db.find_config_by_key(&key).await;
 
-    match maybe_dict {
-        Ok(config) => config
-            .config
-            .parse_struct("RoutingDictionary")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant routing dictionary has invalid structure"),
+//     match maybe_dict {
+//         Ok(config) => config
+//             .config
+//             .parse_struct("RoutingDictionary")
+//             .change_context(errors::ApiErrorResponse::InternalServerError)
+//             .attach_printable("Merchant routing dictionary has invalid structure"),
 
-        Err(e) if e.current_context().is_db_not_found() => {
-            let new_dictionary = routing_types::RoutingDictionary {
-                merchant_id: merchant_id.to_string(),
-                active_id: None,
-                records: Vec::new(),
-            };
+//         Err(e) if e.current_context().is_db_not_found() => {
+//             let new_dictionary = routing_types::RoutingDictionary {
+//                 merchant_id: merchant_id.to_owned(),
+//                 active_id: None,
+//                 records: Vec::new(),
+//             };
 
-            let serialized = new_dictionary
-                .encode_to_string_of_json()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error serializing newly created merchant dictionary")?;
+//             let serialized = new_dictionary
+//                 .encode_to_string_of_json()
+//                 .change_context(errors::ApiErrorResponse::InternalServerError)
+//                 .attach_printable("Error serializing newly created merchant dictionary")?;
 
-            let new_config = configs::ConfigNew {
-                key,
-                config: serialized,
-            };
+//             let new_config = configs::ConfigNew {
+//                 key,
+//                 config: serialized,
+//             };
 
-            db.insert_config(new_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error inserting new routing dictionary for merchant")?;
+//             db.insert_config(new_config)
+//                 .await
+//                 .change_context(errors::ApiErrorResponse::InternalServerError)
+//                 .attach_printable("Error inserting new routing dictionary for merchant")?;
 
-            Ok(new_dictionary)
-        }
+//             Ok(new_dictionary)
+//         }
 
-        Err(e) => Err(e)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error fetching routing dictionary for merchant"),
-    }
-}
+//         Err(e) => Err(e)
+//             .change_context(errors::ApiErrorResponse::InternalServerError)
+//             .attach_printable("Error fetching routing dictionary for merchant"),
+//     }
+// }
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
 pub async fn get_merchant_default_config(
     db: &dyn StorageInterface,
+    // Cannot make this as merchant id domain type because, we are passing profile id also here
     merchant_id: &str,
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -186,7 +188,7 @@ pub async fn update_routing_algorithm(
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
 pub async fn update_merchant_active_algorithm_ref(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     config_key: cache::CacheKind<'_>,
     algorithm_id: routing_types::RoutingAlgorithmRef,
@@ -218,8 +220,9 @@ pub async fn update_merchant_active_algorithm_ref(
         payment_link_config: None,
         pm_collect_link_config: None,
     };
-
+    let db = &*state.store;
     db.update_specific_fields_in_merchant(
+        &state.into(),
         &key_store.merchant_id,
         merchant_account_update,
         key_store,
@@ -249,14 +252,16 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let merchant_id = current_business_profile.merchant_id.clone();
 
-    #[cfg(feature = "business_profile_routing")]
     let profile_id = current_business_profile.profile_id.clone();
-    #[cfg(feature = "business_profile_routing")]
-    let routing_cache_key =
-        cache::CacheKind::Routing(format!("routing_config_{merchant_id}_{profile_id}").into());
 
-    #[cfg(not(feature = "business_profile_routing"))]
-    let routing_cache_key = cache::CacheKind::Routing(format!("dsl_{merchant_id}").into());
+    let routing_cache_key = cache::CacheKind::Routing(
+        format!(
+            "routing_config_{}_{profile_id}",
+            merchant_id.get_string_repr()
+        )
+        .into(),
+    );
+
     let (routing_algorithm, payout_routing_algorithm) = match transaction_type {
         storage::enums::TransactionType::Payment => (Some(ref_val), None),
         #[cfg(feature = "payouts")]
@@ -303,24 +308,25 @@ pub async fn update_business_profile_active_algorithm_ref(
 }
 
 pub async fn validate_connectors_in_routing_config(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &str,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
-    let all_mcas = db
+    let all_mcas = &*state
+        .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &state.into(),
             merchant_id,
             true,
             key_store,
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_id.to_string(),
+            id: merchant_id.get_string_repr().to_owned(),
         })?;
 
-    #[cfg(feature = "connector_choice_mca_id")]
     let name_mca_id_set = all_mcas
         .iter()
         .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
@@ -333,7 +339,6 @@ pub async fn validate_connectors_in_routing_config(
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
-    #[cfg(feature = "connector_choice_mca_id")]
     let check_connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
@@ -357,21 +362,6 @@ pub async fn validate_connectors_in_routing_config(
                 }
             );
         }
-
-        Ok(())
-    };
-
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    let check_connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
-        error_stack::ensure!(
-            name_set.contains(&choice.connector.to_string()),
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "connector with name '{}' not found for the given profile",
-                    choice.connector,
-                )
-            }
-        );
 
         Ok(())
     };
@@ -441,11 +431,4 @@ pub fn get_default_config_key(
         #[cfg(feature = "payouts")]
         storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
     }
-}
-pub fn get_payment_config_routing_id(merchant_id: &str) -> String {
-    format!("payment_config_id_{merchant_id}")
-}
-
-pub fn get_payment_method_surcharge_routing_id(merchant_id: &str) -> String {
-    format!("payment_method_surcharge_id_{merchant_id}")
 }

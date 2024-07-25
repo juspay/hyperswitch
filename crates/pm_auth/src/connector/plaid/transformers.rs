@@ -448,7 +448,6 @@ impl<F, T>
 pub struct PlaidAuthType {
     pub client_id: Secret<String>,
     pub secret: Secret<String>,
-    pub merchant_data: Option<types::MerchantRecipientData>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
@@ -458,16 +457,6 @@ impl TryFrom<&types::ConnectorAuthType> for PlaidAuthType {
             types::ConnectorAuthType::BodyKey { client_id, secret } => Ok(Self {
                 client_id: client_id.to_owned(),
                 secret: secret.to_owned(),
-                merchant_data: None,
-            }),
-            types::ConnectorAuthType::OpenBankingAuth {
-                api_key,
-                key1,
-                merchant_data,
-            } => Ok(Self {
-                client_id: api_key.to_owned(),
-                secret: key1.to_owned(),
-                merchant_data: Some(merchant_data.clone()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

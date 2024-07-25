@@ -5,9 +5,12 @@ use common_enums::{
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+use crate::schema::payment_attempt;
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+use crate::schema_v2::payment_attempt;
 use crate::{
     enums::{MandateDataType, MandateDetails},
-    schema::payment_attempt,
     PaymentAttemptNew,
 };
 
@@ -17,7 +20,7 @@ use crate::{
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptBatchNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub status: AttemptStatus,
     pub amount: i64,

@@ -52,7 +52,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -73,7 +73,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
