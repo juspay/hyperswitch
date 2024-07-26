@@ -462,12 +462,6 @@ pub struct CardDetails {
     pub card_cvv: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct BankDetails {
-    billing_email: Email,
-}
-
 pub struct MollieAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) profile_token: Option<Secret<String>>,

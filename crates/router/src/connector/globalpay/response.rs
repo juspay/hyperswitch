@@ -123,9 +123,9 @@ pub struct PaymentMethod {
     /// If enabled, this field indicates whether the payment method has been seen before or is
     /// new.
     /// * EXISTS -  Indicates that the payment method was seen on the platform before by this
-    /// merchant.
+    ///   merchant.
     /// * NEW - Indicates that the payment method was not seen on the platform before by this
-    /// merchant.
+    ///   merchant.
     pub fingerprint_presence_indicator: Option<String>,
     /// Unique Global Payments generated id used to reference a stored payment method on the
     /// Global Payments system. Often referred to as the payment method token. This value can be

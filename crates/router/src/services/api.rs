@@ -126,7 +126,7 @@ where
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
     tracing::Span::current().record("connector_name", &req.connector);
-    tracing::Span::current().record("payment_method", &req.payment_method.to_string());
+    tracing::Span::current().record("payment_method", req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
