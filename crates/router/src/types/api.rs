@@ -321,7 +321,7 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
-                enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(&connector::Boku))),
+                enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Braintree)))
                 }
