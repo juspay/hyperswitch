@@ -130,7 +130,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 /// Set the private fields of merchant account
 pub struct MerchantAccountSetter {
     pub id: common_utils::id_type::MerchantId,
-    pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -163,7 +162,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
             id: item.id,
-            return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
@@ -197,7 +195,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     id: common_utils::id_type::MerchantId,
-    pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -242,6 +239,10 @@ impl MerchantAccount {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
@@ -277,6 +278,46 @@ pub enum MerchantAccountUpdate {
     ModifiedAtUpdate,
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug)]
+pub enum MerchantAccountUpdate {
+    Update {
+        merchant_name: OptionalEncryptableName,
+        merchant_details: OptionalEncryptableValue,
+        webhook_details: Option<serde_json::Value>,
+        sub_merchants_enabled: Option<bool>,
+        parent_merchant_id: Option<common_utils::id_type::MerchantId>,
+        enable_payment_response_hash: Option<bool>,
+        payment_response_hash_key: Option<String>,
+        redirect_to_merchant_with_http_post: Option<bool>,
+        publishable_key: Option<String>,
+        locker_id: Option<String>,
+        metadata: Option<pii::SecretSerdeValue>,
+        routing_algorithm: Option<serde_json::Value>,
+        primary_business_details: Option<serde_json::Value>,
+        intent_fulfillment_time: Option<i64>,
+        frm_routing_algorithm: Option<serde_json::Value>,
+        payout_routing_algorithm: Option<serde_json::Value>,
+        default_profile: Option<Option<String>>,
+        payment_link_config: Option<serde_json::Value>,
+        pm_collect_link_config: Option<serde_json::Value>,
+    },
+    StorageSchemeUpdate {
+        storage_scheme: MerchantStorageScheme,
+    },
+    ReconUpdate {
+        recon_status: diesel_models::enums::ReconStatus,
+    },
+    UnsetDefaultProfile,
+    ModifiedAtUpdate,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         let now = date_time::now();
@@ -285,7 +326,79 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
             MerchantAccountUpdate::Update {
                 merchant_name,
                 merchant_details,
+                webhook_details,
                 return_url,
+                routing_algorithm,
+                sub_merchants_enabled,
+                parent_merchant_id,
+                enable_payment_response_hash,
+                payment_response_hash_key,
+                redirect_to_merchant_with_http_post,
+                publishable_key,
+                locker_id,
+                metadata,
+                primary_business_details,
+                intent_fulfillment_time,
+                frm_routing_algorithm,
+                payout_routing_algorithm,
+                default_profile,
+                payment_link_config,
+                pm_collect_link_config,
+            } => Self {
+                merchant_name: merchant_name.map(Encryption::from),
+                merchant_details: merchant_details.map(Encryption::from),
+                frm_routing_algorithm,
+                webhook_details,
+                routing_algorithm,
+                sub_merchants_enabled,
+                parent_merchant_id,
+                enable_payment_response_hash,
+                payment_response_hash_key,
+                redirect_to_merchant_with_http_post,
+                publishable_key,
+                locker_id,
+                metadata,
+                primary_business_details,
+                modified_at: Some(now),
+                intent_fulfillment_time,
+                payout_routing_algorithm,
+                default_profile,
+                payment_link_config,
+                pm_collect_link_config,
+                ..Default::default()
+            },
+            MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
+                storage_scheme: Some(storage_scheme),
+                modified_at: Some(now),
+                ..Default::default()
+            },
+            MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
+                recon_status: Some(recon_status),
+                modified_at: Some(now),
+                ..Default::default()
+            },
+            MerchantAccountUpdate::UnsetDefaultProfile => Self {
+                default_profile: Some(None),
+                modified_at: Some(now),
+                ..Default::default()
+            },
+            MerchantAccountUpdate::ModifiedAtUpdate => Self {
+                modified_at: Some(date_time::now()),
+                ..Default::default()
+            },
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
+    fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
+        let now = date_time::now();
+
+        match merchant_account_update {
+            MerchantAccountUpdate::Update {
+                merchant_name,
+                merchant_details,
                 webhook_details,
                 routing_algorithm,
                 sub_merchants_enabled,
@@ -307,7 +420,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
                 frm_routing_algorithm,
-                return_url,
                 webhook_details,
                 routing_algorithm,
                 sub_merchants_enabled,
@@ -360,7 +472,6 @@ impl super::behaviour::Conversion for MerchantAccount {
 
         let setter = diesel_models::merchant_account::MerchantAccountSetter {
             id,
-            return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
@@ -410,7 +521,6 @@ impl super::behaviour::Conversion for MerchantAccount {
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 id,
-                return_url: item.return_url,
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
@@ -460,7 +570,6 @@ impl super::behaviour::Conversion for MerchantAccount {
             id: self.id,
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
-            return_url: self.return_url,
             webhook_details: self.webhook_details,
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,

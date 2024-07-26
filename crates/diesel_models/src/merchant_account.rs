@@ -146,7 +146,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 )]
 #[diesel(table_name = merchant_account, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -180,7 +179,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
             id: item.id,
-            return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
@@ -213,7 +211,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 pub struct MerchantAccountSetter {
     pub id: common_utils::id_type::MerchantId,
-    pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -298,7 +295,6 @@ pub struct MerchantAccountNew {
 pub struct MerchantAccountNew {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
@@ -329,7 +325,6 @@ pub struct MerchantAccountNew {
 pub struct MerchantAccountUpdateInternal {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,

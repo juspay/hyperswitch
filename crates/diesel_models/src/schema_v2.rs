@@ -634,8 +634,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_account (id) {
-        #[max_length = 255]
-        return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
         #[max_length = 255]
         payment_response_hash_key -> Nullable<Varchar>,

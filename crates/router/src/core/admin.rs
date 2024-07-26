@@ -671,7 +671,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                             )
                         })
                         .await?,
-                    return_url: None,
                     webhook_details: None,
                     routing_algorithm: Some(serde_json::json!({
                         "algorithm_id": null,
@@ -899,6 +898,10 @@ pub async fn update_business_profile_cascade(
     Ok(())
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn merchant_account_update(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
@@ -2923,8 +2926,18 @@ pub async fn create_and_insert_business_profile(
     merchant_account: domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<storage::business_profile::BusinessProfile> {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let business_profile_new =
         admin::create_business_profile(state, merchant_account, request, key_store).await?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let business_profile_new = {
+        let _ = merchant_account;
+        admin::create_business_profile(state, request, key_store).await?
+    };
 
     let profile_name = business_profile_new.profile_name.clone();
 
