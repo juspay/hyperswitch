@@ -269,16 +269,15 @@ impl<F>
 
         let mandate_reference =
             if item.data.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {
-                let payment_method_id = item
+                let connector_mandate_id = item
                     .response
                     .body
                     .submit_single_payment_response
                     .submit_single_payment_result
                     .response
-                    .credit_card_token
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+                    .credit_card_token;
                 Some(types::MandateReference {
-                    connector_mandate_id: Some(payment_method_id),
+                    connector_mandate_id,
                     payment_method_id: None,
                 })
             } else {
@@ -444,19 +443,14 @@ impl<F>
             .tokenise_credit_card_response
             .return_value;
 
-        let mandate_reference = item
+        let connector_mandate_id = item
             .response
             .body
             .tokenise_credit_card_response
             .tokenise_credit_card_result
             .tokenise_credit_card_response
             .token
-            .map(|token| -> types::MandateReference {
-                types::MandateReference {
-                    connector_mandate_id: Some(token),
-                    payment_method_id: None,
-                }
-            });
+            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
 
         // transaction approved
         if response_code == 0 {
@@ -465,7 +459,10 @@ impl<F>
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
                     redirection_data: None,
-                    mandate_reference,
+                    mandate_reference: Some(types::MandateReference {
+                        connector_mandate_id: Some(connector_mandate_id),
+                        payment_method_id: None,
+                    }),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
