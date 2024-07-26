@@ -42,14 +42,14 @@ pub struct PayoutCreateRequest {
     pub merchant_id: Option<id_type::MerchantId>,
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
-    #[schema(value_type = u64, example = 1000)]
+    #[schema(value_type = Option<u64>, example = 1000)]
     #[mandatory_in(PayoutsCreateRequest = u64)]
     #[remove_in(PayoutsConfirmRequest)]
     #[serde(default, deserialize_with = "payments::amount::deserialize_option")]
     pub amount: Option<payments::Amount>,
 
     /// The currency of the payout request can be specified here
-    #[schema(value_type = Currency, example = "USD")]
+    #[schema(value_type = Option<Currency>, example = "USD")]
     #[mandatory_in(PayoutsCreateRequest = Currency)]
     #[remove_in(PayoutsConfirmRequest)]
     pub currency: Option<api_enums::Currency>,

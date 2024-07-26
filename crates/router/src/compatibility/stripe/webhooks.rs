@@ -5,10 +5,7 @@ use api_models::{
     webhooks::{self as api},
 };
 #[cfg(feature = "payouts")]
-use common_utils::{
-    crypto::Encryptable,
-    pii::{self, Email},
-};
+use common_utils::pii::{self, Email};
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 use error_stack::ResultExt;
 use router_env::logger;

@@ -18213,8 +18213,6 @@
       "PayoutConfirmRequest": {
         "type": "object",
         "required": [
-          "amount",
-          "currency",
           "billing",
           "client_secret"
         ],
@@ -18224,10 +18222,16 @@
             "format": "int64",
             "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 1000,
+            "nullable": true,
             "minimum": 0
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
           },
           "routing": {
             "allOf": [
@@ -18982,8 +18986,6 @@
       "PayoutUpdateRequest": {
         "type": "object",
         "required": [
-          "amount",
-          "currency",
           "billing"
         ],
         "properties": {
@@ -18992,10 +18994,16 @@
             "format": "int64",
             "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 1000,
+            "nullable": true,
             "minimum": 0
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
           },
           "routing": {
             "allOf": [

@@ -2098,9 +2098,9 @@ pub async fn response_handler(
         billing: address,
         auto_fulfill: payouts.auto_fulfill,
         customer_id: Some(customer_id),
-        customer: customer_details.as_ref().map(|customer| {
-            payment_api_types::CustomerDetailsResponse::foreign_from(customer).into()
-        }),
+        customer: customer_details
+            .as_ref()
+            .map(|customer| payment_api_types::CustomerDetailsResponse::foreign_from(customer)),
         client_secret: payouts.client_secret.to_owned(),
         return_url: payouts.return_url.to_owned(),
         business_country: payout_attempt.business_country,

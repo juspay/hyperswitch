@@ -126,7 +126,7 @@ pub async fn validate_create_request(
         // Create a new customer
         (None, Some(customer)) => {
             helpers::get_or_create_customer_details(
-                &state,
+                state,
                 &customer.foreign_into(),
                 merchant_account,
                 merchant_key_store,
