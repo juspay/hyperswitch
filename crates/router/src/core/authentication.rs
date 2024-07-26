@@ -20,7 +20,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     payment_method_data: payments::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
@@ -94,7 +94,7 @@ pub async fn perform_post_authentication(
     let authentication = state
         .store
         .find_authentication_by_merchant_id_authentication_id(
-            business_profile.merchant_id.clone(),
+            &business_profile.merchant_id,
             authentication_id.clone(),
         )
         .await

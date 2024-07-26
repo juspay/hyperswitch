@@ -128,7 +128,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist (id) {
+    blocklist (merchant_id, fingerprint_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -336,7 +336,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    dispute (id) {
+    dispute (dispute_id) {
         id -> Int4,
         #[max_length = 64]
         dispute_id -> Varchar,
@@ -587,7 +587,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    mandate (id) {
+    mandate (mandate_id) {
         id -> Int4,
         #[max_length = 64]
         mandate_id -> Varchar,
@@ -634,9 +634,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_account (id) {
-        id -> Int4,
-        #[max_length = 64]
-        merchant_id -> Varchar,
         #[max_length = 255]
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
@@ -670,6 +667,8 @@ diesel::table! {
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
+        #[max_length = 64]
+        id -> Varchar,
     }
 }
 
@@ -677,7 +676,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_connector_account (id) {
+    merchant_connector_account (merchant_connector_id) {
         id -> Int4,
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -733,6 +732,10 @@ diesel::table! {
         #[max_length = 32]
         org_id -> Varchar,
         org_name -> Nullable<Text>,
+        organization_details -> Nullable<Jsonb>,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -932,7 +935,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_methods (id) {
+    payment_methods (payment_method_id) {
         id -> Int4,
         #[max_length = 64]
         customer_id -> Varchar,
@@ -1097,7 +1100,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    refund (id) {
+    refund (merchant_id, refund_id) {
         id -> Int4,
         #[max_length = 64]
         internal_reference_id -> Varchar,
@@ -1166,7 +1169,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    roles (id) {
+    roles (role_id) {
         id -> Int4,
         #[max_length = 64]
         role_name -> Varchar,
@@ -1254,11 +1257,11 @@ diesel::table! {
         #[max_length = 64]
         user_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
-        org_id -> Varchar,
+        org_id -> Nullable<Varchar>,
         status -> UserStatus,
         #[max_length = 64]
         created_by -> Varchar,
@@ -1266,6 +1269,13 @@ diesel::table! {
         last_modified_by -> Varchar,
         created_at -> Timestamp,
         last_modified -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        entity_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        entity_type -> Nullable<Varchar>,
+        version -> UserRoleVersion,
     }
 }
 
@@ -1273,7 +1283,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    users (id) {
+    users (user_id) {
         id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,

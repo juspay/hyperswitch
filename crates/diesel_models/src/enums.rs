@@ -19,7 +19,8 @@ pub mod diesel_exports {
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
-        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;
@@ -205,7 +206,6 @@ pub enum FraudCheckType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
@@ -228,7 +228,6 @@ pub enum FraudCheckLastStep {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -249,7 +248,6 @@ pub enum UserStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -291,7 +289,6 @@ pub enum DashboardMetadata {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -301,4 +298,25 @@ pub enum TotpStatus {
     InProgress,
     #[default]
     NotSet,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::Display,
+)]
+#[diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UserRoleVersion {
+    #[default]
+    V1,
+    V2,
 }

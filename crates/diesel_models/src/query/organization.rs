@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, ExpressionMethods};
 
 use crate::{
@@ -11,14 +12,17 @@ impl OrganizationNew {
 }
 
 impl Organization {
-    pub async fn find_by_org_id(conn: &PgPooledConn, org_id: String) -> StorageResult<Self> {
+    pub async fn find_by_org_id(
+        conn: &PgPooledConn,
+        org_id: id_type::OrganizationId,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, dsl::org_id.eq(org_id))
             .await
     }
 
     pub async fn update_by_org_id(
         conn: &PgPooledConn,
-        org_id: String,
+        org_id: id_type::OrganizationId,
         update: OrganizationUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<

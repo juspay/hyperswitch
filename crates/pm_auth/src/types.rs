@@ -10,7 +10,7 @@ use masking::Secret;
 #[derive(Debug, Clone)]
 pub struct PaymentAuthRouterData<F, Request, Response> {
     pub flow: PhantomData<F>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub connector: Option<String>,
     pub request: Request,
     pub response: Result<Response, ErrorResponse>,
@@ -217,11 +217,6 @@ pub enum ConnectorAuthType {
     BodyKey {
         client_id: Secret<String>,
         secret: Secret<String>,
-    },
-    OpenBankingAuth {
-        api_key: Secret<String>,
-        key1: Secret<String>,
-        merchant_data: MerchantRecipientData,
     },
     #[default]
     NoKey,
