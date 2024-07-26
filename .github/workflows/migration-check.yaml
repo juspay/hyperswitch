@@ -27,12 +27,17 @@ jobs:
 
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: postgres
 
     services:
       postgres:
         image: postgres
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: postgres
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -40,6 +45,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+
 
     steps:
       - name: Checkout repository
