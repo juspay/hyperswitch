@@ -12,23 +12,18 @@ use crate::{
 };
 
 pub struct MifinityRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MifinityRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for MifinityRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
-
 pub mod auth_headers {
     pub const API_VERSION: &str = "api-version";
 }
@@ -69,7 +64,7 @@ pub struct MifinityPaymentsRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Money {
-    amount: String,
+    amount: StringMajorUnit,
     currency: String,
 }
 
