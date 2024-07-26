@@ -25,7 +25,7 @@ pub async fn ephemeral_key_create(
             helpers::make_ephemeral_key(
                 state,
                 req.get_merchant_reference_id(),
-                auth.merchant_account.merchant_id,
+                auth.merchant_account.get_id().to_owned(),
             )
         },
         &auth::ApiKeyAuth,

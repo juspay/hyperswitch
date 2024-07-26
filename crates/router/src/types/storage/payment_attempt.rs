@@ -153,7 +153,7 @@ mod tests {
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
         let attempt_id = Uuid::new_v4().to_string();
-        let merchant_id = Uuid::new_v4().to_string();
+        let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
         let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
@@ -195,12 +195,13 @@ mod tests {
     async fn test_payment_attempt_mandate_field() {
         let state = create_single_connection_test_transaction_pool().await;
         let uuid = Uuid::new_v4().to_string();
+        let merchant_id = common_utils::id_type::MerchantId::from("merchant1".into()).unwrap();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),
-            merchant_id: "1".to_string(),
+            merchant_id: merchant_id.clone(),
             connector: Some(connector),
             created_at: current_time.into(),
             modified_at: current_time.into(),
@@ -221,7 +222,7 @@ mod tests {
         let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &uuid,
-                "1",
+                &merchant_id,
                 &uuid,
                 enums::MerchantStorageScheme::PostgresOnly,
             )

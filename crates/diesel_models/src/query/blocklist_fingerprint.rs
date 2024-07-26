@@ -16,7 +16,7 @@ impl BlocklistFingerprintNew {
 impl BlocklistFingerprint {
     pub async fn find_by_merchant_id_fingerprint_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(

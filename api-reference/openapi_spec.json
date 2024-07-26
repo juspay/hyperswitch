@@ -9372,7 +9372,8 @@
           "payments",
           "refunds",
           "disputes",
-          "mandates"
+          "mandates",
+          "payouts"
         ]
       },
       "EventListItemResponse": {
@@ -11675,7 +11676,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64
           },
           "merchant_name": {
             "type": "string",
@@ -11933,6 +11934,7 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
@@ -12181,6 +12183,7 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
@@ -12303,6 +12306,8 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
+            "description": "pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt",
             "nullable": true
           },
           "status": {
@@ -13034,13 +13039,23 @@
           "organization_name": {
             "type": "string",
             "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
           }
         }
       },
       "OrganizationResponse": {
         "type": "object",
         "required": [
-          "organization_id"
+          "organization_id",
+          "modified_at",
+          "created_at"
         ],
         "properties": {
           "organization_id": {
@@ -13052,6 +13067,22 @@
           "organization_name": {
             "type": "string",
             "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -13446,7 +13477,9 @@
         "required": [
           "attempt_id",
           "status",
-          "amount"
+          "amount",
+          "created_at",
+          "modified_at"
         ],
         "properties": {
           "attempt_id": {
@@ -13509,6 +13542,18 @@
             ],
             "default": "three_ds",
             "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the payment attempt was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the payment attempt was last modified",
+            "example": "2022-09-10T10:11:12Z"
           },
           "cancellation_reason": {
             "type": "string",
@@ -18100,7 +18145,6 @@
       "PayoutCreateRequest": {
         "type": "object",
         "required": [
-          "merchant_id",
           "currency",
           "confirm",
           "payout_type",
@@ -18125,6 +18169,7 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
+            "nullable": true,
             "maxLength": 255
           },
           "amount": {
@@ -20856,7 +20901,8 @@
       "TransactionType": {
         "type": "string",
         "enum": [
-          "payment"
+          "payment",
+          "payout"
         ]
       },
       "UpdateApiKeyRequest": {

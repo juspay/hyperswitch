@@ -4,6 +4,52 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.26.0
+
+### Features
+
+- **connector:** [HELCIM] Move connector to hyperswitch_connectors ([#5287](https://github.com/juspay/hyperswitch/pull/5287)) ([`0f89a0a`](https://github.com/juspay/hyperswitch/commit/0f89a0acbfc2d55f415e0daeb27e8d9022e6a862))
+- **events:** Forward the tenant configuration as part of the kafka message ([#5224](https://github.com/juspay/hyperswitch/pull/5224)) ([`623cf4c`](https://github.com/juspay/hyperswitch/commit/623cf4c841847f109597ee50017d6cfc0b4d9982))
+
+### Bug Fixes
+
+- **cypress:** Fix cypress tests, failing due to error codes being recently changed ([#5425](https://github.com/juspay/hyperswitch/pull/5425)) ([`7228a87`](https://github.com/juspay/hyperswitch/commit/7228a874a3db43b89ae07941b04396215db394ef))
+- **euclid:** Change the address taken in SessionFlowRouting from shipping to billing address ([#5435](https://github.com/juspay/hyperswitch/pull/5435)) ([`9ca9545`](https://github.com/juspay/hyperswitch/commit/9ca9545318d8e62d62b4dc58a09b90fcdeb58870))
+
+### Refactors
+
+- **connector:** Add amount conversion framework to payone ([#4981](https://github.com/juspay/hyperswitch/pull/4981)) ([`5eccffa`](https://github.com/juspay/hyperswitch/commit/5eccffac9d9f2b3e38ad07f6e12907e2c135b840))
+- **user_roles:** Make org and merchant id nullable ([#5353](https://github.com/juspay/hyperswitch/pull/5353)) ([`0330aff`](https://github.com/juspay/hyperswitch/commit/0330aff958b80872fbd6a6fccc61ff1984c59511))
+
+**Full Changelog:** [`2024.07.25.0...2024.07.26.0`](https://github.com/juspay/hyperswitch/compare/2024.07.25.0...2024.07.26.0)
+
+- - -
+
+## 2024.07.25.0
+
+### Features
+
+- **connector:** [Itaubank] Add refund and rsync flow ([#5420](https://github.com/juspay/hyperswitch/pull/5420)) ([`920b323`](https://github.com/juspay/hyperswitch/commit/920b3236ee132dac446fc73de82d24806c6b5148))
+- **router:** Add merchant_connector_account create v2 api flow ([#5385](https://github.com/juspay/hyperswitch/pull/5385)) ([`98349a0`](https://github.com/juspay/hyperswitch/commit/98349a0c3bbc438e541a03e7fe1c005e5751e6e0))
+- Add create retrieve and update api endpoints for organization resource ([#5361](https://github.com/juspay/hyperswitch/pull/5361)) ([`26b8783`](https://github.com/juspay/hyperswitch/commit/26b878308f7e493d6adb8c08b54a5498406eb28a))
+- Create additional columns in organization table ([#5380](https://github.com/juspay/hyperswitch/pull/5380)) ([`65471da`](https://github.com/juspay/hyperswitch/commit/65471da57b19c8eb2922fba0350e06b37b53f45f))
+
+### Bug Fixes
+
+- **euclid:** Remove business_profile routing feature flag ([#5430](https://github.com/juspay/hyperswitch/pull/5430)) ([`e18ea7a`](https://github.com/juspay/hyperswitch/commit/e18ea7a7bab257a6082639e84da8d9e44f31168f))
+
+### Refactors
+
+- **connector:**
+  - Added amount conversion framework for billwerk ([#4972](https://github.com/juspay/hyperswitch/pull/4972)) ([`9d9dce9`](https://github.com/juspay/hyperswitch/commit/9d9dce90fc3dc2a51afa2b11035c4ae729329df4))
+  - Added amount conversion framework for bitpay ([#4973](https://github.com/juspay/hyperswitch/pull/4973)) ([`83dbb7a`](https://github.com/juspay/hyperswitch/commit/83dbb7a8daf44bdd3d8c0e98973bba4b90eb5861))
+- **core:** Patch file for removal of id from schema ([#5398](https://github.com/juspay/hyperswitch/pull/5398)) ([`ff3b9a2`](https://github.com/juspay/hyperswitch/commit/ff3b9a2a12cd7f7e6c20f81777f6862b1f229bd4))
+- **merchant_id:** Create domain type for `merchant_id` ([#5408](https://github.com/juspay/hyperswitch/pull/5408)) ([`7068fbf`](https://github.com/juspay/hyperswitch/commit/7068fbfbe2f561f71c2358d8d2a744d28672a892))
+
+**Full Changelog:** [`2024.07.24.0...2024.07.25.0`](https://github.com/juspay/hyperswitch/compare/2024.07.24.0...2024.07.25.0)
+
+- - -
+
 ## 2024.07.24.0
 
 ### Features

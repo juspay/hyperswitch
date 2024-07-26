@@ -72,8 +72,8 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
 }
 
 #[derive(Clone)]
-pub struct ValidateResult<'a> {
-    pub merchant_id: &'a str,
+pub struct ValidateResult {
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: api::PaymentIdType,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
@@ -81,11 +81,11 @@ pub struct ValidateResult<'a> {
 
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R> {
-    fn validate_request<'a, 'b>(
+    fn validate_request<'b>(
         &'b self,
         request: &R,
-        merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult)>;
 }
 
 pub struct GetTrackerResponse<'a, F: Clone, R> {
