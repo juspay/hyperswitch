@@ -75,16 +75,23 @@ impl Organization {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = organization, primary_key(org_id))]
 pub struct OrganizationNew {
-    #[cfg(feature = "v1")]
     org_id: id_type::OrganizationId,
-    #[cfg(feature = "v1")]
     org_name: Option<String>,
-    #[cfg(feature = "v2")]
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Insertable)]
+#[diesel(table_name = organization, primary_key(org_id))]
+pub struct OrganizationNew {
     id: id_type::OrganizationId,
-    #[cfg(feature = "v2")]
     organization_name: Option<String>,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -92,16 +99,25 @@ pub struct OrganizationNew {
     pub modified_at: time::PrimitiveDateTime,
 }
 
+#[cfg(feature = "v1")]
 impl OrganizationNew {
     pub fn new(id: id_type::OrganizationId, organization_name: Option<String>) -> Self {
         Self {
-            #[cfg(feature = "v1")]
             org_id: id,
-            #[cfg(feature = "v2")]
-            id,
-            #[cfg(feature = "v1")]
             org_name: organization_name,
-            #[cfg(feature = "v2")]
+            organization_details: None,
+            metadata: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl OrganizationNew {
+    pub fn new(id: id_type::OrganizationId, organization_name: Option<String>) -> Self {
+        Self {
+            id,
             organization_name,
             organization_details: None,
             metadata: None,
@@ -151,70 +167,54 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
     }
 }
 
+#[cfg(feature = "v1")]
 impl OrganizationBridge for Organization {
     fn get_organization_id(&self) -> id_type::OrganizationId {
-        #[cfg(feature = "v1")]
-        {
-            self.org_id.clone()
-        }
-        #[cfg(feature = "v2")]
-        {
-            self.id.clone()
-        }
+        self.org_id.clone()
     }
-
     fn get_organization_name(&self) -> Option<String> {
-        #[cfg(feature = "v1")]
-        {
-            self.org_name.clone()
-        }
-        #[cfg(feature = "v2")]
-        {
-            self.organization_name.clone()
-        }
+        self.org_name.clone()
     }
     fn set_organization_name(&mut self, organization_name: String) {
-        #[cfg(feature = "v1")]
-        {
-            self.org_name = Some(organization_name);
-        }
-        #[cfg(feature = "v2")]
-        {
-            self.organization_name = Some(organization_name);
-        }
+        self.org_name = Some(organization_name);
     }
 }
 
+#[cfg(feature = "v1")]
 impl OrganizationBridge for OrganizationNew {
     fn get_organization_id(&self) -> id_type::OrganizationId {
-        #[cfg(feature = "v1")]
-        {
-            self.org_id.clone()
-        }
-        #[cfg(feature = "v2")]
-        {
-            self.id.clone()
-        }
+        self.org_id.clone()
     }
-
     fn get_organization_name(&self) -> Option<String> {
-        #[cfg(feature = "v1")]
-        {
-            self.org_name.clone()
-        }
-        #[cfg(feature = "v2")]
-        {
-            self.organization_name.clone()
-        }
+        self.org_name.clone()
     }
     fn set_organization_name(&mut self, organization_name: String) {
-        #[cfg(feature = "v1")]
-        {
-            self.org_name = Some(organization_name);
-        }
-        #[cfg(feature = "v2")]
-        {
-            self.organization_name = Some(organization_name);
-        }
+        self.org_name = Some(organization_name);
+    }
+}
+
+#[cfg(feature = "v2")]
+impl OrganizationBridge for Organization {
+    fn get_organization_id(&self) -> id_type::OrganizationId {
+        self.id.clone()
+    }
+    fn get_organization_name(&self) -> Option<String> {
+        self.organization_name.clone()
+    }
+    fn set_organization_name(&mut self, organization_name: String) {
+        self.organization_name = Some(organization_name);
+    }
+}
+
+#[cfg(feature = "v2")]
+impl OrganizationBridge for OrganizationNew {
+    fn get_organization_id(&self) -> id_type::OrganizationId {
+        self.id.clone()
+    }
+    fn get_organization_name(&self) -> Option<String> {
+        self.organization_name.clone()
+    }
+    fn set_organization_name(&mut self, organization_name: String) {
+        self.organization_name = Some(organization_name);
     }
 }
