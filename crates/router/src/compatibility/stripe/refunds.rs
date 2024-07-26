@@ -26,7 +26,7 @@ pub async fn refund_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    tracing::Span::current().record("payment_id", &payload.payment_intent.clone());
+    tracing::Span::current().record("payment_id", payload.payment_intent.clone());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
@@ -76,7 +76,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         _ => Flow::RefundsRetrieve,
     };
 
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     Box::pin(wrap::compatibility_api_wrap::<
         _,
