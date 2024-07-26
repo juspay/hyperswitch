@@ -465,7 +465,7 @@ impl<F> TryFrom<&DlocalRouterData<&types::RefundsRouterData<F>>> for DlocalRefun
         item: &DlocalRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount:item.amount,
+            amount: item.amount,
             payment_id: item.router_data.request.connector_transaction_id.clone(),
             currency: item.router_data.request.currency,
             id: item.router_data.request.refund_id.clone(),

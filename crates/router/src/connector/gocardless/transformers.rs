@@ -532,7 +532,7 @@ pub struct GocardlessPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 pub struct GocardlessPayment {
-    amount: i64,
+    amount: MinorUnit,
     currency: enums::Currency,
     description: Option<String>,
     metadata: PaymentMetaData,
@@ -568,7 +568,7 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
             .into())
         }?;
         let payments = GocardlessPayment {
-            amount: item.router_data.request.amount,
+            amount: item.amount,
             currency: item.router_data.request.currency,
             description: item.router_data.description.clone(),
             metadata: PaymentMetaData {
