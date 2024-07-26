@@ -170,7 +170,7 @@ pub async fn update_merchant_active_algorithm_ref(
 
     Ok(())
 }
-// TODO: Move it to buisness_profile
+// TODO: Move it to business_profile
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
@@ -309,7 +309,7 @@ impl MerchantConnectorAccounts {
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-impl<'hel> RoutingAlgorithmHelpers<'_> {
+impl<'h> RoutingAlgorithmHelpers<'_> {
     fn connector_choice(
         &self,
         choice: &routing_types::RoutableConnectorChoice,
