@@ -1,35 +1,44 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::id_type;
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::user_roles};
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = user_roles)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = user_roles, check_for_backend(diesel::pg::Pg))]
 pub struct UserRole {
     pub id: i32,
     pub user_id: String,
-    pub merchant_id: String,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub role_id: String,
-    pub org_id: String,
+    pub org_id: Option<id_type::OrganizationId>,
     pub status: enums::UserStatus,
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
+    pub profile_id: Option<String>,
+    pub entity_id: Option<String>,
+    pub entity_type: Option<String>,
+    pub version: enums::UserRoleVersion,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = user_roles)]
 pub struct UserRoleNew {
     pub user_id: String,
-    pub merchant_id: String,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub role_id: String,
-    pub org_id: String,
+    pub org_id: Option<id_type::OrganizationId>,
     pub status: enums::UserStatus,
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
+    pub profile_id: Option<String>,
+    pub entity_id: Option<String>,
+    pub entity_type: Option<String>,
+    pub version: enums::UserRoleVersion,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

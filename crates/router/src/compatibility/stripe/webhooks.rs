@@ -167,16 +167,25 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
 #[cfg(feature = "payouts")]
 impl From<payout_models::PayoutCreateResponse> for StripePayoutResponse {
     fn from(res: payout_models::PayoutCreateResponse) -> Self {
+        let (name, email, phone, phone_country_code) = match res.customer {
+            Some(customer) => (
+                customer.name,
+                customer.email,
+                customer.phone,
+                customer.phone_country_code,
+            ),
+            None => (None, None, None, None),
+        };
         Self {
             id: res.payout_id,
             amount: res.amount.get_amount_as_i64(),
             currency: res.currency.to_string(),
             payout_type: res.payout_type,
             status: StripePayoutStatus::from(res.status),
-            name: res.name.map(Encryptable::into_inner),
-            email: res.email.map(|inner| inner.into()),
-            phone: res.phone.map(Encryptable::into_inner),
-            phone_country_code: res.phone_country_code,
+            name,
+            email,
+            phone,
+            phone_country_code,
             created: res.created.map(|t| t.assume_utc().unix_timestamp()),
             metadata: res.metadata,
             entity_type: res.entity_type,

@@ -69,6 +69,7 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::SetupFutureUsage(sfu) => sfu.to_string(),
             Self::CardRedirectType(crt) => crt.to_string(),
             Self::RealTimePaymentType(rtpt) => rtpt.to_string(),
+            Self::OpenBankingType(ob) => ob.to_string(),
         }
     }
 }

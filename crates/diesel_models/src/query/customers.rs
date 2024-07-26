@@ -1,4 +1,3 @@
-use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
@@ -18,8 +17,8 @@ impl CustomerNew {
 impl Customer {
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: id_type::CustomerId,
-        merchant_id: String,
+        customer_id: common_utils::id_type::CustomerId,
+        merchant_id: common_utils::id_type::MerchantId,
         customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -45,8 +44,8 @@ impl Customer {
 
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -59,8 +58,8 @@ impl Customer {
 
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -71,7 +70,7 @@ impl Customer {
 
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -85,8 +84,8 @@ impl Customer {
 
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,

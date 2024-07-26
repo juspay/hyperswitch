@@ -37,9 +37,9 @@ pub struct PayoutCreateRequest {
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(max_length = 255, value_type = String, example = "merchant_1668273825")]
+    #[schema(max_length = 255, value_type = Option<String>, example = "merchant_1668273825")]
     #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<id_type::MerchantId>,
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = u64, example = 1000)]
@@ -364,7 +364,7 @@ pub struct PayoutCreateResponse {
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, value_type = String, example = "merchant_1668273825")]
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 1000)]
@@ -521,7 +521,8 @@ pub struct PayoutAttemptResponse {
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
 pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
-    pub merchant_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
@@ -542,7 +543,8 @@ pub struct PayoutRetrieveRequest {
     pub force_sync: Option<bool>,
 
     /// The identifier for the Merchant Account.
-    pub merchant_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(
@@ -705,7 +707,8 @@ pub struct PayoutLinkResponse {
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PayoutLinkInitiateRequest {
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     pub payout_id: String,
 }
 

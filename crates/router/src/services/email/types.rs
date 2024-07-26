@@ -47,7 +47,7 @@ pub enum EmailBody {
     },
     ProFeatureRequest {
         feature_name: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         user_name: String,
         user_email: String,
     },
@@ -150,7 +150,7 @@ Email         : {user_email}
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct EmailToken {
     email: String,
-    merchant_id: Option<String>,
+    merchant_id: Option<common_utils::id_type::MerchantId>,
     flow: domain::Origin,
     exp: u64,
 }
@@ -158,7 +158,7 @@ pub struct EmailToken {
 impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
-        merchant_id: Option<String>,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
         flow: domain::Origin,
         settings: &configs::Settings,
     ) -> CustomResult<String, UserErrors> {
@@ -177,8 +177,8 @@ impl EmailToken {
         pii::Email::try_from(self.email.clone())
     }
 
-    pub fn get_merchant_id(&self) -> Option<&str> {
-        self.merchant_id.as_deref()
+    pub fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+        self.merchant_id.as_ref()
     }
 
     pub fn get_flow(&self) -> domain::Origin {
@@ -325,7 +325,7 @@ pub struct InviteUser {
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub auth_id: Option<String>,
 }
 
@@ -366,7 +366,7 @@ pub struct InviteRegisteredUser {
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub auth_id: Option<String>,
 }
 
@@ -476,7 +476,7 @@ impl EmailData for BizEmailProd {
 pub struct ProFeatureRequest {
     pub recipient_email: domain::UserEmail,
     pub feature_name: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: String,

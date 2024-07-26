@@ -20,7 +20,7 @@ impl RoutingAlgorithm {
     pub async fn find_by_algorithm_id_merchant_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -164,7 +164,7 @@ impl RoutingAlgorithm {
 
     pub async fn list_metadata_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<RoutingProfileMetadata>> {
@@ -224,7 +224,7 @@ impl RoutingAlgorithm {
 
     pub async fn list_metadata_by_merchant_id_transaction_type(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         transaction_type: &enums::TransactionType,
         limit: i64,
         offset: i64,

@@ -89,6 +89,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::refunds::refunds_update,
         routes::refunds::refunds_list,
 
+        // Routes for Organization
+        routes::organization::organization_create,
+        routes::organization::organization_retrieve,
+        routes::organization::organization_update,
+
         // Routes for merchant account
         routes::merchant_account::merchant_account_create,
         routes::merchant_account::retrieve_merchant_account,
@@ -194,6 +199,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::refunds::RefundResponse,
         api_models::refunds::RefundStatus,
         api_models::refunds::RefundUpdateRequest,
+        api_models::organization::OrganizationRequest,
+        api_models::organization::OrganizationResponse,
         api_models::admin::MerchantAccountCreate,
         api_models::admin::MerchantAccountUpdate,
         api_models::admin::MerchantAccountDeleteResponse,
@@ -257,6 +264,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::AuthorizationStatus,
         api_models::enums::PaymentMethodStatus,
         api_models::admin::MerchantConnectorCreate,
+        api_models::admin::AdditionalMerchantData,
+        api_models::admin::MerchantRecipientData,
+        api_models::admin::MerchantAccountData,
         api_models::admin::MerchantConnectorUpdate,
         api_models::admin::PrimaryBusinessDetails,
         api_models::admin::FrmConfigs,
@@ -558,6 +568,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentChargeResponse,
         api_models::refunds::ChargeRefunds,
         api_models::payments::CustomerDetailsResponse,
+        api_models::payments::OpenBankingData,
+        api_models::payments::OpenBankingSessionToken,
     )),
     modifiers(&SecurityAddon)
 )]

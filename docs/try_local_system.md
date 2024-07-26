@@ -228,10 +228,10 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features postgres
    ```
 
-5. Make sure your system has the `pkg-config` package, OpenSSL and make installed:
+5. Make sure your system has the `pkg-config` package and OpenSSL installed
 
    ```shell
-   sudo apt install pkg-config libssl-dev make
+   sudo apt install pkg-config libssl-dev
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -437,6 +437,14 @@ You can opt to use your favorite package manager instead.
    echo 'PQ_LIB_DIR="$(brew --prefix libpq)/lib"' >> ~/.zshrc
    ```
 
+5. Install a command runner called `just`:
+
+   In order to make running migrations easier, you can use a command runner called just
+
+   ```shell
+   cargo install just
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -480,8 +488,24 @@ Once you're done with setting up the dependencies, proceed with
 
 3. Run database migrations:
 
+   Export the `DATABASE_URL` env variable
+
    ```shell
-   make migrate database-url=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   export DATABASE_URL=$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   ```
+
+   Run the migrations
+
+   - If you have just installed
+
+   ```shell
+   just migrate
+   ```
+
+   - Using the diesel-cli command
+
+   ```shell
+   diesel migration run
    ```
 
 Once you're done with setting up the database, proceed with

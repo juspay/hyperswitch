@@ -1,40 +1,33 @@
-use api_models::admin;
+use std::collections::HashSet;
+
+use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::{
-    ext_traits::ValueExt,
-    id_type::CustomerId,
-    link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
-    types::MinorUnit,
-};
-use diesel_models::{
-    business_profile::BusinessProfile,
-    generic_link::{GenericLinkNew, PayoutLink},
-};
+use common_utils::ext_traits::OptionExt;
+use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
+use globset::Glob;
 pub use hyperswitch_domain_models::errors::StorageError;
-use masking::Secret;
-use router_env::{instrument, tracing};
-use time::Duration;
+use router_env::{instrument, logger, tracing};
+use url::Url;
 
 use super::helpers;
 use crate::{
-    consts,
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
+        errors::{self, RouterResult},
         utils as core_utils,
     },
     db::StorageInterface,
     routes::SessionState,
-    types::{api::payouts, domain, storage},
-    utils::{self, OptionExt},
+    types::{api::payouts, domain, storage, transformers::ForeignInto},
+    utils,
 };
 
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
@@ -63,8 +56,13 @@ pub async fn validate_create_request(
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
     merchant_key_store: &domain::MerchantKeyStore,
-) -> RouterResult<(String, Option<payouts::PayoutMethodData>, String)> {
-    let merchant_id = &merchant_account.merchant_id;
+) -> RouterResult<(
+    String,
+    Option<payouts::PayoutMethodData>,
+    String,
+    domain::Customer,
+)> {
+    let merchant_id = merchant_account.get_id();
 
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
@@ -94,7 +92,7 @@ pub async fn validate_create_request(
     .await
     .attach_printable_lazy(|| {
         format!(
-            "Unique violation while checking payout_id: {} against merchant_id: {}",
+            "Unique violation while checking payout_id: {} against merchant_id: {:?}",
             payout_id.to_owned(),
             merchant_id
         )
@@ -105,26 +103,59 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
-    // Customer ID
-    match (req.customer_id, req.customer) {
-        (Some(customer_id), Some(customer)) {
-            
+    // Customer creation
+    let customer = match (req.customer_id.clone(), req.customer.clone()) {
+        // Create a new customer if ID is unique, else throw error
+        (Some(_), Some(_)) => {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "customer_id cannot be passed when passing customer object".to_string()
+            }))
+            .attach_printable(
+                "ambiguous operation - both customer_id and customer passed in the request",
+            )
         }
-    }
+        // Fetch customer using id or else throw 404
+        (Some(customer_id), None) => db
+            .find_customer_optional_by_customer_id_merchant_id(
+                &state.into(),
+                &customer_id,
+                merchant_id,
+                merchant_key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError),
+        // Create a new customer
+        (None, Some(customer)) => {
+            helpers::get_or_create_customer_details(
+                &state,
+                &customer.foreign_into(),
+                merchant_account,
+                merchant_key_store,
+            )
+            .await
+        }
+        // Customer not present
+        (None, None) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer or customer_id"
+        }))
+        .attach_printable("customer or customer_id must be passed in the request"),
+    }?
+    .get_required_value("customer")
+    .change_context(errors::ApiErrorResponse::MissingRequiredField {
+        field_name: "customer or customer_id",
+    })?;
 
     // Payout token
     let payout_method_data = match req.payout_token.to_owned() {
         Some(payout_token) => {
-            let customer_id = req
-                .customer_id
-                .to_owned()
-                .unwrap_or_else(common_utils::generate_customer_id_of_default_length);
+            let customer_id = &customer.customer_id;
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(&payout_token),
-                &customer_id,
-                &merchant_account.merchant_id,
+                customer_id,
+                merchant_account.get_id(),
                 req.payout_type,
                 merchant_key_store,
                 None,
@@ -146,7 +177,7 @@ pub async fn validate_create_request(
     )
     .await?;
 
-    Ok((payout_id, payout_method_data, profile_id))
+    Ok((payout_id, payout_method_data, profile_id, customer))
 }
 
 pub fn validate_payout_link_request(confirm: Option<bool>) -> Result<(), errors::ApiErrorResponse> {
@@ -199,128 +230,97 @@ pub(super) fn validate_payout_list_request_for_joins(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn create_payout_link(
-    state: &SessionState,
-    business_profile: &BusinessProfile,
-    customer_id: &CustomerId,
-    merchant_id: &String,
-    req: &payouts::PayoutCreateRequest,
-    payout_id: &String,
-) -> RouterResult<PayoutLink> {
-    let payout_link_config_req = req.payout_link_config.to_owned();
-    // Create payment method collect link ID
-    let payout_link_id = core_utils::get_or_generate_id(
-        "payout_link_id",
-        &payout_link_config_req
-            .as_ref()
-            .and_then(|config| config.payout_link_id.clone()),
-        "payout_link",
-    )?;
+pub fn validate_payout_link_render_request(
+    request_headers: &header::HeaderMap,
+    payout_link: &PayoutLink,
+) -> RouterResult<()> {
+    let link_id = payout_link.link_id.to_owned();
+    let link_data = payout_link.link_data.to_owned();
 
-    // Fetch all configs
-    let default_config = &state.conf.generic_link.payout_link;
-    let profile_config = business_profile
-        .payout_link_config
-        .as_ref()
-        .map(|config| {
-            config
-                .clone()
-                .parse_value::<admin::BusinessPayoutLinkConfig>("BusinessPayoutLinkConfig")
+    // Fetch destination is "iframe"
+    match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
+        Some("iframe") => Ok(()),
+        Some(requestor) => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+            resource: "payout_link".to_string(),
+        }))
+        .attach_printable_lazy(|| {
+            format!(
+                "Access to payout_link [{}] is forbidden when requested through {}",
+                link_id, requestor
+            )
+        }),
+        None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+            resource: "payout_link".to_string(),
+        }))
+        .attach_printable_lazy(|| {
+            format!(
+                "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
+                link_id
+            )
+        }),
+    }?;
+
+    // Validate origin / referer
+    let domain_in_req = {
+        let origin_or_referer = request_headers
+            .get("origin")
+            .or_else(|| request_headers.get("referer"))
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                })
+            })
+            .attach_printable_lazy(|| {
+                format!(
+                    "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
+                    link_id
+                )
+            })?;
+
+        let url = Url::parse(origin_or_referer)
+            .map_err(|_| {
+                report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                })
+            })
+            .attach_printable_lazy(|| {
+                format!("Invalid URL found in request headers {}", origin_or_referer)
+            })?;
+
+        url.host_str()
+            .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
+            .or_else(|| url.host_str().map(String::from))
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                })
+            })
+            .attach_printable_lazy(|| {
+                format!("host or port not found in request headers {:?}", url)
+            })?
+    };
+
+    if is_domain_allowed(&domain_in_req, link_data.allowed_domains) {
+        Ok(())
+    } else {
+        Err(report!(errors::ApiErrorResponse::AccessForbidden {
+            resource: "payout_link".to_string(),
+        }))
+        .attach_printable_lazy(|| {
+            format!(
+                "Access to payout_link [{}] is forbidden from requestor - {}",
+                link_id, domain_in_req
+            )
         })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payout_link_config in business_profile",
-        })?;
-    let profile_ui_config = profile_config.as_ref().map(|c| c.config.ui_config.clone());
-    let ui_config = payout_link_config_req
-        .as_ref()
-        .and_then(|config| config.ui_config.clone())
-        .or(profile_ui_config);
-
-    // Form data to be injected in the link
-    let (logo, merchant_name, theme) = match ui_config {
-        Some(config) => (config.logo, config.merchant_name, config.theme),
-        _ => (None, None, None),
-    };
-    let payout_link_config = GenericLinkUiConfig {
-        logo,
-        merchant_name,
-        theme,
-    };
-    let client_secret = utils::generate_id(consts::ID_LENGTH, "payout_link_secret");
-    let base_url = profile_config
-        .as_ref()
-        .and_then(|c| c.config.domain_name.as_ref())
-        .map(|domain| format!("https://{}", domain))
-        .unwrap_or(state.base_url.clone());
-    let session_expiry = req
-        .session_expiry
-        .as_ref()
-        .map_or(default_config.expiry, |expiry| *expiry);
-    let url = format!("{base_url}/payout_link/{merchant_id}/{payout_id}");
-    let link = url::Url::parse(&url)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to form payout link URL - {}", url))?;
-    let req_enabled_payment_methods = payout_link_config_req
-        .as_ref()
-        .and_then(|req| req.enabled_payment_methods.to_owned());
-    let amount = req
-        .amount
-        .as_ref()
-        .get_required_value("amount")
-        .attach_printable("amount is a required value when creating payout links")?;
-    let currency = req
-        .currency
-        .as_ref()
-        .get_required_value("currency")
-        .attach_printable("currency is a required value when creating payout links")?;
-
-    let data = PayoutLinkData {
-        payout_link_id: payout_link_id.clone(),
-        customer_id: customer_id.clone(),
-        payout_id: payout_id.to_string(),
-        link,
-        client_secret: Secret::new(client_secret),
-        session_expiry,
-        ui_config: payout_link_config,
-        enabled_payment_methods: req_enabled_payment_methods,
-        amount: MinorUnit::from(*amount),
-        currency: *currency,
-    };
-
-    create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await
+    }
 }
 
-pub async fn create_payout_link_db_entry(
-    state: &SessionState,
-    merchant_id: &String,
-    payout_link_data: &PayoutLinkData,
-    return_url: Option<String>,
-) -> RouterResult<PayoutLink> {
-    let db: &dyn StorageInterface = &*state.store;
-
-    let link_data = serde_json::to_value(payout_link_data)
-        .map_err(|_| report!(errors::ApiErrorResponse::InternalServerError))
-        .attach_printable("Failed to convert PayoutLinkData to Value")?;
-
-    let payout_link = GenericLinkNew {
-        link_id: payout_link_data.payout_link_id.to_string(),
-        primary_reference: payout_link_data.payout_id.to_string(),
-        merchant_id: merchant_id.to_string(),
-        link_type: common_enums::GenericLinkType::PayoutLink,
-        link_status: GenericLinkStatus::PayoutLink(PayoutLinkStatus::Initiated),
-        link_data,
-        url: payout_link_data.link.to_string().into(),
-        return_url,
-        expiry: common_utils::date_time::now()
-            + Duration::seconds(payout_link_data.session_expiry.into()),
-        ..Default::default()
-    };
-
-    db.insert_payout_link(payout_link)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
-            message: "payout link already exists".to_string(),
-        })
+fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
+    allowed_domains.iter().any(|allowed_domain| {
+        Glob::new(allowed_domain)
+            .map(|glob| glob.compile_matcher().is_match(domain))
+            .map_err(|err| logger::error!("Invalid glob pattern! - {:?}", err))
+            .unwrap_or(false)
+    })
 }
