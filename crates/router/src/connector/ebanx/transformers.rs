@@ -3,6 +3,7 @@ use api_models::payouts::{Bank, PayoutMethodData};
 use common_enums::Currency;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
+use common_utils::types::FloatMajorUnit;
 #[cfg(feature = "payouts")]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -21,19 +22,16 @@ use crate::{
 };
 
 pub struct EbanxRouterData<T> {
-    pub amount: f64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&CurrencyUnit, Currency, i64, T)> for EbanxRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, currency, amount, item): (&CurrencyUnit, Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: utils::to_currency_base_unit_asf64(amount, currency)?,
+impl<T> From<(FloatMajorUnit, T)> for EbanxRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
+        Self {
+            amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -43,7 +41,7 @@ pub struct EbanxPayoutCreateRequest {
     integration_key: Secret<String>,
     external_reference: String,
     country: String,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: Currency,
     target: EbanxPayoutType,
     target_account: Secret<String>,
