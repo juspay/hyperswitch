@@ -67,10 +67,10 @@ jobs:
       - name: Verify `diesel migration redo for v1`
         shell: bash
         run: just migrate redo --locked-schema --all
-
+      
       - name: Drop `DB for v2 column ordering mismatch`
         shell: bash
-        run: just resurrect
+        run: just resurrect postgres
 
       - name: Verify `diesel migration run for v2`
         shell: bash
@@ -79,3 +79,4 @@ jobs:
       - name: Verify `diesel migration redo for v2`
         shell: bash
         run: just migrate_v2 redo --locked-schema --all
+

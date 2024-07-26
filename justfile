@@ -180,9 +180,9 @@ migrate_v2 operation=default_operation *args='':
     exit $EXIT_CODE
 
 # Drop database if exists and then create a new 'hyperswitch_db' Database
-resurrect:
-    psql -U postgres -c 'DROP DATABASE IF EXISTS  hyperswitch_db';
-    psql -U postgres -c 'CREATE DATABASE hyperswitch_db';
+resurrect *DATABASE_NAME='hyperswitch_db':
+    psql -U postgres -c 'DROP DATABASE IF EXISTS  {{ DATABASE_NAME }}';
+    psql -U postgres -c 'CREATE DATABASE {{ DATABASE_NAME }}';
 
 ci_hack:
     scripts/ci-checks.sh
