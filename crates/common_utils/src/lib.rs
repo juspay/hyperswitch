@@ -222,7 +222,7 @@ pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
 
 /// Generate a organization id with default length, with prefix as `org`
 pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
-    id_type::OrganizationId::new(generate_ref_id_with_default_length("org"))
+    id_type::OrganizationId::default()
 }
 
 /// Generate a nanoid with the given prefix and a default length
