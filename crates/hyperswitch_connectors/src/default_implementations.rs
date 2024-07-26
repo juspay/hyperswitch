@@ -138,6 +138,7 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_create_customer!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_pre_processing_steps{
     ($($path:ident::$connector:ident),*)=> {
