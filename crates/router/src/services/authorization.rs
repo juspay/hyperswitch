@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use common_enums::PermissionGroup;
+use common_utils::id_type;
 use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
 use router_env::logger;
@@ -31,7 +32,7 @@ where
 
     if let Ok(permissions) = get_permissions_from_cache(state, &token.role_id)
         .await
-        .map_err(|e| logger::error!("Failed to get permissions from cache {}", e))
+        .map_err(|e| logger::error!("Failed to get permissions from cache {e:?}"))
     {
         return Ok(permissions);
     }
@@ -45,7 +46,7 @@ where
 
     set_permissions_in_cache(state, &token.role_id, &permissions, cache_ttl)
         .await
-        .map_err(|e| logger::error!("Failed to set permissions in cache {}", e))
+        .map_err(|e| logger::error!("Failed to set permissions in cache {e:?}"))
         .ok();
     Ok(permissions)
 }
@@ -78,8 +79,8 @@ fn get_permissions_from_predefined_roles(role_id: &str) -> Option<Vec<permission
 async fn get_permissions_from_db<A>(
     state: &A,
     role_id: &str,
-    merchant_id: &str,
-    org_id: &str,
+    merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
 ) -> RouterResult<Vec<permissions::Permission>>
 where
     A: SessionStateInfo + Sync,

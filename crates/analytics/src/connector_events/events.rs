@@ -10,7 +10,7 @@ use crate::{
 pub trait ConnectorEventLogAnalytics: LoadRow<ConnectorEventsResult> {}
 
 pub async fn get_connector_events<T>(
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     query_param: ConnectorEventsRequest,
     pool: &T,
 ) -> FiltersResult<Vec<ConnectorEventsResult>>
@@ -56,7 +56,7 @@ where
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorEventsResult {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub connector_name: Option<String>,
     pub request_id: Option<String>,

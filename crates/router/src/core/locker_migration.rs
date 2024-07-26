@@ -14,13 +14,14 @@ use crate::{
 
 pub async fn rust_locker_migration(
     state: SessionState,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
     let db = state.store.as_ref();
-
+    let key_manager_state = &(&state).into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -28,13 +29,13 @@ pub async fn rust_locker_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let domain_customers = db
-        .list_customers_by_merchant_id(merchant_id, &key_store)
+        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -78,7 +79,7 @@ pub async fn call_to_locker(
     state: &SessionState,
     payment_methods: Vec<PaymentMethod>,
     customer_id: &id_type::CustomerId,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
@@ -130,6 +131,9 @@ pub async fn call_to_locker(
             card_network: card.card_brand,
             client_secret: None,
             payment_method_data: None,
+            billing: None,
+            connector_mandate_details: None,
+            network_transaction_id: None,
         };
 
         let add_card_result = cards::add_card_hs(
@@ -145,7 +149,7 @@ pub async fn call_to_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
-                "Card migration failed for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
+                "Card migration failed for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             ));
 
@@ -160,7 +164,7 @@ pub async fn call_to_locker(
         cards_moved += 1;
 
         logger::info!(
-                "Card migrated for merchant_id: {merchant_id}, customer_id: {customer_id:?}, payment_method_id: {} ",
+                "Card migrated for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
                 pm.payment_method_id
             );
     }

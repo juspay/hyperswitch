@@ -17,7 +17,6 @@ use crate::{
         },
         utils as core_utils,
     },
-    db::StorageInterface,
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -46,7 +45,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
-        let merchant_id = &merchant_account.merchant_id;
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (mut payment_intent, mut payment_attempt, currency, amount);
 
@@ -56,6 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -126,7 +126,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_account,
             key_store,
             payment_attempt.payment_method_id.clone(),
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
         )
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> = request
@@ -188,19 +188,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
 
+        let customer_id = payment_intent
+            .customer_id
+            .as_ref()
+            .or(request.get_customer_id())
+            .cloned();
+
         helpers::validate_customer_id_mandatory_cases(
             request.setup_future_usage.is_some(),
-            payment_intent
-                .customer_id
-                .as_ref()
-                .or(request.customer_id.as_ref()),
+            customer_id.as_ref(),
         )?;
 
         let shipping_address = helpers::create_or_update_address_for_payment_by_request(
-            db,
+            state,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.clone().as_deref(),
-            merchant_id.as_ref(),
+            merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
             payment_id.as_ref(),
@@ -213,7 +216,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .map(|shipping_address| shipping_address.address_id.clone());
 
         let billing_address = helpers::get_address_by_id(
-            db,
+            state,
             payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -223,7 +226,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
-            db,
+            state,
             payment_attempt.payment_method_billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -337,7 +340,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         };
 
         let customer_details = Some(CustomerDetails {
-            customer_id: request.customer_id.clone(),
+            customer_id,
             name: request.name.clone(),
             email: request.email.clone(),
             phone: request.phone.clone(),
@@ -361,7 +364,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
@@ -374,8 +377,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
+            state,
             Box::new(self),
-            db,
             payment_data,
             request,
             &key_store.merchant_id,
@@ -475,6 +478,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
 
         let updated_payment_intent = db
             .update_payment_intent(
+                &state.into(),
                 payment_intent,
                 payment_intent_update,
                 key_store,
@@ -496,15 +500,15 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAutho
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
-        operations::ValidateResult<'a>,
+        operations::ValidateResult,
     )> {
         let payment_id = request
             .payment_id
             .clone()
             .ok_or(report!(errors::ApiErrorResponse::PaymentNotFound))?;
 
-        let request_merchant_id = request.merchant_id.as_deref();
-        helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
+        let request_merchant_id = request.merchant_id.as_ref();
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "merchant_id".to_string(),
                 expected_format: "merchant_id from merchant account".to_string(),
@@ -524,7 +528,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAutho
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.merchant_id,
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(

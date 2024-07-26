@@ -40,6 +40,8 @@ mod dummy_connector_default_impl {
 
     impl<const T: u8> api::PaymentsPreProcessingV2 for connector::DummyConnector<T> {}
 
+    impl<const T: u8> api::PaymentsPostProcessingV2 for connector::DummyConnector<T> {}
+
     impl<const T: u8>
         services::ConnectorIntegrationV2<
             api::Authorize,
@@ -165,6 +167,16 @@ mod dummy_connector_default_impl {
             api::PreProcessing,
             types::PaymentFlowData,
             types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::PostProcessing,
+            types::PaymentFlowData,
+            types::PaymentsPostProcessingData,
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
@@ -359,6 +371,19 @@ mod dummy_connector_default_impl {
     }
 
     #[cfg(feature = "payouts")]
+    impl<const T: u8> api::PayoutSyncV2 for connector::DummyConnector<T> {}
+    #[cfg(feature = "payouts")]
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::PoSync,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+
+    #[cfg(feature = "payouts")]
     impl<const T: u8> api::PayoutRecipientAccountV2 for connector::DummyConnector<T> {}
     #[cfg(feature = "payouts")]
     impl<const T: u8>
@@ -531,6 +556,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl api::PaymentTokenV2 for $path::$connector{}
             impl api::ConnectorCustomerV2 for $path::$connector{}
             impl api::PaymentsPreProcessingV2 for $path::$connector{}
+            impl api::PaymentsPostProcessingV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
             for $path::$connector{}
@@ -590,6 +616,12 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 types::PaymentsPreProcessingData,
                 types::PaymentsResponseData,
             > for $path::$connector{}
+            impl services::ConnectorIntegrationV2<
+            api::PostProcessing,
+            types::PaymentFlowData,
+                types::PaymentsPostProcessingData,
+                types::PaymentsResponseData,
+            > for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<
                 api::AuthorizeSessionToken,
@@ -608,6 +640,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -619,6 +652,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -627,8 +661,8 @@ default_imp_for_new_connector_integration_payment!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -649,6 +683,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -659,11 +694,13 @@ default_imp_for_new_connector_integration_payment!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_refund {
@@ -689,6 +726,7 @@ default_imp_for_new_connector_integration_refund!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -700,6 +738,7 @@ default_imp_for_new_connector_integration_refund!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -708,8 +747,8 @@ default_imp_for_new_connector_integration_refund!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -730,6 +769,7 @@ default_imp_for_new_connector_integration_refund!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -740,11 +780,13 @@ default_imp_for_new_connector_integration_refund!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
@@ -765,6 +807,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -776,6 +819,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -784,8 +828,8 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -806,6 +850,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -816,11 +861,13 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -863,6 +910,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -874,6 +922,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -882,8 +931,8 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -904,6 +953,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -914,11 +964,13 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
@@ -943,6 +995,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -954,6 +1007,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -962,8 +1016,8 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -984,6 +1038,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -994,11 +1049,13 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 default_imp_for_new_connector_integration_submit_evidence!(
     connector::Aci,
@@ -1007,6 +1064,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1018,6 +1076,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1026,8 +1085,8 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1048,6 +1107,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1058,11 +1118,13 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
@@ -1098,6 +1160,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1109,6 +1172,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1117,8 +1181,8 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1139,6 +1203,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1149,11 +1214,13 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_payouts {
@@ -1171,6 +1238,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1182,6 +1250,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1192,6 +1261,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1212,6 +1282,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1222,11 +1293,13 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1254,6 +1327,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1265,6 +1339,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1273,8 +1348,8 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1295,6 +1370,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1305,11 +1381,13 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1337,6 +1415,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1348,6 +1427,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1356,8 +1436,8 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1378,6 +1458,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1388,11 +1469,13 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1420,6 +1503,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1431,6 +1515,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1439,8 +1524,8 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1461,6 +1546,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1471,11 +1557,13 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1503,6 +1591,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1514,6 +1603,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1522,8 +1612,8 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1544,6 +1634,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1554,11 +1645,13 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1586,6 +1679,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1597,6 +1691,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1605,8 +1700,8 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1627,6 +1722,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1637,11 +1733,13 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1669,6 +1767,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1680,6 +1779,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1688,8 +1788,8 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1710,6 +1810,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1720,11 +1821,101 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
+);
+
+#[cfg(feature = "payouts")]
+macro_rules! default_imp_for_new_connector_integration_payouts_sync {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutSyncV2 for $path::$connector {}
+            impl
+            services::ConnectorIntegrationV2<
+            api::PoSync,
+            types::PayoutFlowData,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "payouts")]
+default_imp_for_new_connector_integration_payouts_sync!(
+    connector::Adyenplatform,
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Square,
+    connector::Stax,
+    connector::Shift4,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wellsfargo,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "payouts")]
@@ -1752,6 +1943,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1763,6 +1955,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1771,8 +1964,8 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1793,6 +1986,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1803,11 +1997,13 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -1833,6 +2029,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1844,6 +2041,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1852,8 +2050,8 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1874,6 +2072,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1884,11 +2083,13 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_frm {
@@ -1906,6 +2107,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -1917,6 +2119,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -1927,6 +2130,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -1947,6 +2151,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -1957,11 +2162,13 @@ default_imp_for_new_connector_integration_frm!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -1989,6 +2196,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2000,6 +2208,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2008,8 +2217,8 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2030,6 +2239,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2040,11 +2250,13 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2072,6 +2284,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2083,6 +2296,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2091,8 +2305,8 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2113,6 +2327,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2123,11 +2338,13 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2155,6 +2372,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2166,6 +2384,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2174,8 +2393,8 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2196,6 +2415,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2206,11 +2426,13 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2238,6 +2460,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2249,6 +2472,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2257,8 +2481,8 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2279,6 +2503,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2289,11 +2514,13 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 #[cfg(feature = "frm")]
@@ -2321,6 +2548,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2332,6 +2560,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2340,8 +2569,8 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2362,6 +2591,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2372,11 +2602,13 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -2401,6 +2633,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2412,6 +2645,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2420,8 +2654,8 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2442,6 +2676,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2452,11 +2687,13 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_authentication {
@@ -2509,6 +2746,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Billwerk,
     connector::Bitpay,
@@ -2520,6 +2758,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Cryptopay,
     connector::Coinbase,
     connector::Cybersource,
+    connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
     connector::Fiserv,
@@ -2530,6 +2769,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
     connector::Mollie,
@@ -2550,6 +2790,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
+    connector::Razorpay,
     connector::Riskified,
     connector::Signifyd,
     connector::Square,
@@ -2560,9 +2801,11 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Threedsecureio,
     connector::Tsys,
     connector::Volt,
+    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Plaid
 );

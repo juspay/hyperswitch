@@ -1,9 +1,6 @@
-import confirmBody from "../../fixtures/confirm-body.json";
-import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
-import createPaymentBody from "../../fixtures/create-payment-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
@@ -34,7 +31,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createPaymentIntentTest(
-        createPaymentBody,
+        fixtures.createPaymentBody,
         req_data,
         res_data,
         "no_three_ds",
@@ -55,7 +52,13 @@ describe("Card - NoThreeDS payment flow test", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
+      cy.confirmCallTest(
+        fixtures.confirmBody,
+        req_data,
+        res_data,
+        true,
+        globalState
+      );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
@@ -82,7 +85,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPaymentTest(
-        createConfirmPaymentBody,
+        fixtures.createConfirmPaymentBody,
         req_data,
         res_data,
         "no_three_ds",

@@ -8,7 +8,7 @@ use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
 #[cfg(feature = "frm")]
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]
@@ -31,9 +31,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     headers,
     services::request,
-    types::{
-        api::fraud_check as frm_api, domain, fraud_check as frm_types, ErrorResponse, Response,
-    },
+    types::{api::fraud_check as frm_api, fraud_check as frm_types, ErrorResponse, Response},
     utils::BytesExt,
 };
 
@@ -572,15 +570,16 @@ impl api::IncomingWebhook for Riskified {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -592,7 +591,7 @@ impl api::IncomingWebhook for Riskified {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_account.merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -606,7 +605,7 @@ impl api::IncomingWebhook for Riskified {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(request.body.to_vec())

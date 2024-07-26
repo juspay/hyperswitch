@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use api_models::user_role as user_role_api;
 use common_enums::PermissionGroup;
+use common_utils::id_type;
 use diesel_models::user_role::UserRole;
 use error_stack::{report, ResultExt};
 use router_env::logger;
@@ -47,6 +48,7 @@ impl From<Permission> for user_role_api::Permission {
             Permission::WebhookEventWrite => Self::WebhookEventWrite,
             Permission::PayoutRead => Self::PayoutRead,
             Permission::PayoutWrite => Self::PayoutWrite,
+            Permission::GenerateReport => Self::GenerateReport,
         }
     }
 }
@@ -75,8 +77,8 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
 pub async fn validate_role_name(
     state: &SessionState,
     role_name: &domain::RoleName,
-    merchant_id: &str,
-    org_id: &str,
+    merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     let role_name_str = role_name.clone().get_role_name();
 
@@ -104,11 +106,18 @@ pub async fn set_role_permissions_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,
 ) -> bool {
+    let Some(ref merchant_id) = user_role.merchant_id else {
+        return false;
+    };
+
+    let Some(ref org_id) = user_role.org_id else {
+        return false;
+    };
     set_role_permissions_in_cache_if_required(
         state,
         user_role.role_id.as_str(),
-        user_role.merchant_id.as_str(),
-        user_role.org_id.as_str(),
+        merchant_id,
+        org_id,
     )
     .await
     .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
@@ -118,8 +127,8 @@ pub async fn set_role_permissions_in_cache_by_user_role(
 pub async fn set_role_permissions_in_cache_if_required(
     state: &SessionState,
     role_id: &str,
-    merchant_id: &str,
-    org_id: &str,
+    merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
         return Ok(());
@@ -147,15 +156,18 @@ pub async fn get_multiple_role_info_for_user_roles(
     user_roles: &[UserRole],
 ) -> UserResult<Vec<roles::RoleInfo>> {
     futures::future::try_join_all(user_roles.iter().map(|user_role| async {
-        let role = roles::RoleInfo::from_role_id(
-            state,
-            &user_role.role_id,
-            &user_role.merchant_id,
-            &user_role.org_id,
-        )
-        .await
-        .to_not_found_response(UserErrors::InternalServerError)
-        .attach_printable("Role for user role doesn't exist")?;
+        let Some(merchant_id) = &user_role.merchant_id else {
+            return Err(report!(UserErrors::InternalServerError))
+                .attach_printable("merchant_id not found for user_role");
+        };
+        let Some(org_id) = &user_role.org_id else {
+            return Err(report!(UserErrors::InternalServerError)
+                .attach_printable("org_id not found in user_role"));
+        };
+        let role = roles::RoleInfo::from_role_id(state, &user_role.role_id, merchant_id, org_id)
+            .await
+            .to_not_found_response(UserErrors::InternalServerError)
+            .attach_printable("Role for user role doesn't exist")?;
         Ok::<_, error_stack::Report<UserErrors>>(role)
     }))
     .await

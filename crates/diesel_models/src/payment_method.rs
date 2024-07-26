@@ -1,18 +1,19 @@
 use common_enums::MerchantStorageScheme;
-use common_utils::{id_type, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{encryption::Encryption, pii};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, enums as storage_enums, schema::payment_methods};
+use crate::{enums as storage_enums, schema::payment_methods};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payment_methods)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payment_methods, primary_key(payment_method_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
-    pub id: i32,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     #[diesel(deserialize_as = super::OptionalDieselArray<storage_enums::Currency>)]
     pub accepted_currency: Option<Vec<storage_enums::Currency>>,
@@ -50,8 +51,8 @@ pub struct PaymentMethod {
 )]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -327,7 +328,6 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
 impl From<&PaymentMethodNew> for PaymentMethod {
     fn from(payment_method_new: &PaymentMethodNew) -> Self {
         Self {
-            id: 0i32,
             customer_id: payment_method_new.customer_id.clone(),
             merchant_id: payment_method_new.merchant_id.clone(),
             payment_method_id: payment_method_new.payment_method_id.clone(),

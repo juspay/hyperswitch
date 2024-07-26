@@ -1,9 +1,6 @@
-import citConfirmBody from "../../fixtures/create-mandate-cit.json";
-import mitConfirmBody from "../../fixtures/create-mandate-mit.json";
-import getConnectorDetails from "../PaymentUtils/utils";
-import * as utils from "../PaymentUtils/utils";
-
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
@@ -38,7 +35,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
         console.log("det -> " + data.card);
         cy.citForMandatesCallTest(
-          citConfirmBody,
+          fixtures.citConfirmBody,
           req_data,
           res_data,
           7000,
@@ -53,7 +50,7 @@ describe("Card - SingleUse Mandates flow test", () => {
 
       it("Confirm No 3DS MIT", () => {
         cy.mitForMandatesCallTest(
-          mitConfirmBody,
+          fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",

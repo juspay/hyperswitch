@@ -613,6 +613,7 @@ pub async fn backfill_metadata(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            &state.into(),
             &user.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -706,13 +707,14 @@ pub async fn backfill_metadata(
 
 pub async fn get_merchant_connector_account_by_name(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: &str,
     key_store: &MerchantKeyStore,
 ) -> UserResult<Option<domain::MerchantConnectorAccount>> {
     state
         .store
         .find_merchant_connector_account_by_merchant_id_connector_name(
+            &state.into(),
             merchant_id,
             connector_name,
             key_store,

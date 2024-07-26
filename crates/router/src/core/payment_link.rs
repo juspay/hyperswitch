@@ -53,12 +53,13 @@ pub async fn initiate_payment_link_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             &merchant_id,
             &key_store,
@@ -119,8 +120,7 @@ pub async fn initiate_payment_link_flow(
             })?
     };
 
-    let (pub_key, currency, client_secret) = validate_sdk_requirements(
-        merchant_account.publishable_key,
+    let (currency, client_secret) = validate_sdk_requirements(
         payment_intent.currency,
         payment_intent.client_secret.clone(),
     )?;
@@ -229,7 +229,7 @@ pub async fn initiate_payment_link_flow(
         order_details,
         return_url,
         session_expiry,
-        pub_key,
+        pub_key: merchant_account.publishable_key,
         client_secret,
         merchant_logo: payment_link_config.logo.clone(),
         max_items_visible_after_collapse: 3,
@@ -294,14 +294,9 @@ fn get_meta_tags_html(payment_details: api_models::payments::PaymentLinkDetails)
 }
 
 fn validate_sdk_requirements(
-    pub_key: Option<String>,
     currency: Option<api_models::enums::Currency>,
     client_secret: Option<String>,
-) -> Result<(String, api_models::enums::Currency, String), errors::ApiErrorResponse> {
-    let pub_key = pub_key.ok_or(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "pub_key",
-    })?;
-
+) -> Result<(api_models::enums::Currency, String), errors::ApiErrorResponse> {
     let currency = currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
         field_name: "currency",
     })?;
@@ -309,7 +304,7 @@ fn validate_sdk_requirements(
     let client_secret = client_secret.ok_or(errors::ApiErrorResponse::MissingRequiredField {
         field_name: "client_secret",
     })?;
-    Ok((pub_key, currency, client_secret))
+    Ok((currency, client_secret))
 }
 
 pub async fn list_payment_link(
@@ -319,7 +314,7 @@ pub async fn list_payment_link(
 ) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
     let db = state.store.as_ref();
     let payment_link = db
-        .list_payment_link_by_merchant_id(&merchant.merchant_id, constraints)
+        .list_payment_link_by_merchant_id(merchant.get_id(), constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve payment link")?;
@@ -497,12 +492,13 @@ pub async fn get_payment_link_status(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &payment_id,
             &merchant_id,
             &key_store,

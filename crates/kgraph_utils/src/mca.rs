@@ -143,6 +143,9 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::DuitNow => Ok(dirval!(RealTimePaymentType = DuitNow)),
         api_enums::PaymentMethodType::PromptPay => Ok(dirval!(RealTimePaymentType = PromptPay)),
         api_enums::PaymentMethodType::VietQr => Ok(dirval!(RealTimePaymentType = VietQr)),
+        api_enums::PaymentMethodType::OpenBankingPIS => {
+            Ok(dirval!(OpenBankingType = OpenBankingPIS))
+        }
     }
 }
 
@@ -416,9 +419,11 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(GiftCardType));
     global_vector.append(collect_global_variants!(BankTransferType));
     global_vector.append(collect_global_variants!(CardRedirectType));
+    global_vector.append(collect_global_variants!(OpenBankingType));
     global_vector.push(dir::DirValue::PaymentMethod(
         dir::enums::PaymentMethod::Card,
     ));
+
     let global_vector = global_vector
         .into_iter()
         .filter(|global_value| !enabled_pmt.contains(global_value))
@@ -646,11 +651,7 @@ fn compile_merchant_connector_graph(
             None,
         )
         .map_err(KgraphError::GraphConstructionError)?;
-    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice {
-        connector,
-        #[cfg(not(feature = "connector_choice_mca_id"))]
-        sub_label: mca.business_sub_label.clone(),
-    }));
+    let connector_dir_val = dir::DirValue::Connector(Box::new(ast::ConnectorChoice { connector }));
 
     let connector_info = "Connector";
     let connector_node_id =
@@ -703,7 +704,64 @@ mod tests {
 
     fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
-
+        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        let stripe_account = MerchantConnectorResponse {
+            connector_type: api_enums::ConnectorType::FizOperations,
+            connector_name: "stripe".to_string(),
+            connector_id: "something".to_string(),
+            connector_label: Some("something".to_string()),
+            connector_account_details: masking::Secret::new(serde_json::json!({})),
+            disabled: None,
+            metadata: None,
+            payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
+                payment_method: api_enums::PaymentMethod::Card,
+                payment_method_types: Some(vec![
+                    RequestPaymentMethodTypes {
+                        payment_method_type: api_enums::PaymentMethodType::Credit,
+                        payment_experience: None,
+                        card_networks: Some(vec![
+                            api_enums::CardNetwork::Visa,
+                            api_enums::CardNetwork::Mastercard,
+                        ]),
+                        accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
+                            api_enums::Currency::INR,
+                        ])),
+                        accepted_countries: None,
+                        minimum_amount: Some(MinorUnit::new(10)),
+                        maximum_amount: Some(MinorUnit::new(1000)),
+                        recurring_enabled: true,
+                        installment_payment_enabled: true,
+                    },
+                    RequestPaymentMethodTypes {
+                        payment_method_type: api_enums::PaymentMethodType::Debit,
+                        payment_experience: None,
+                        card_networks: Some(vec![
+                            api_enums::CardNetwork::Maestro,
+                            api_enums::CardNetwork::JCB,
+                        ]),
+                        accepted_currencies: Some(AcceptedCurrencies::EnableOnly(vec![
+                            api_enums::Currency::GBP,
+                        ])),
+                        accepted_countries: None,
+                        minimum_amount: Some(MinorUnit::new(10)),
+                        maximum_amount: Some(MinorUnit::new(1000)),
+                        recurring_enabled: true,
+                        installment_payment_enabled: true,
+                    },
+                ]),
+            }]),
+            frm_configs: None,
+            connector_webhook_details: None,
+            profile_id: None,
+            applepay_verified_domains: None,
+            pm_auth_config: None,
+            status: api_enums::ConnectorStatus::Inactive,
+            additional_merchant_data: None,
+        };
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_connector_account_v2")
+        ))]
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
@@ -759,6 +817,7 @@ mod tests {
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
+            additional_merchant_data: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {

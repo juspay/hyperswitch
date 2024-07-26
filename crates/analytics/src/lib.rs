@@ -112,7 +112,7 @@ impl AnalyticsProvider {
         &self,
         metric: &PaymentMetrics,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -216,7 +216,7 @@ impl AnalyticsProvider {
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -326,7 +326,7 @@ impl AnalyticsProvider {
         &self,
         metric: &PaymentIntentMetrics,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -431,7 +431,7 @@ impl AnalyticsProvider {
         &self,
         metric: &RefundMetrics,
         dimensions: &[RefundDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -531,7 +531,7 @@ impl AnalyticsProvider {
         &self,
         metric: &FrmMetrics,
         dimensions: &[FrmDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &FrmFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -631,7 +631,7 @@ impl AnalyticsProvider {
         &self,
         metric: &DisputeMetrics,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -769,7 +769,7 @@ impl AnalyticsProvider {
     pub async fn get_active_payments_metrics(
         &self,
         metric: &ActivePaymentsMetrics,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         time_range: &TimeRange,
     ) -> types::MetricsResult<
@@ -796,7 +796,7 @@ impl AnalyticsProvider {
     pub async fn get_auth_event_metrics(
         &self,
         metric: &AuthEventMetrics,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -827,7 +827,7 @@ impl AnalyticsProvider {
         &self,
         metric: &ApiEventMetrics,
         dimensions: &[ApiEventDimensions],
-        pub_key: &str,
+        pub_key: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -854,7 +854,7 @@ impl AnalyticsProvider {
 
     pub async fn from_conf(
         config: &AnalyticsConfig,
-        tenant: &dyn storage_impl::config::ClickHouseConfig,
+        tenant: &dyn storage_impl::config::TenantConfig,
     ) -> Self {
         match config {
             AnalyticsConfig::Sqlx { sqlx } => {

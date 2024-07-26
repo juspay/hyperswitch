@@ -43,7 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         _payment_confirm_source: Option<common_enums::PaymentSource>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest>> {
         let db = &*state.store;
-        let merchant_id = &merchant_account.merchant_id;
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -51,6 +51,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -82,7 +83,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let shipping_address = helpers::get_address_by_id(
-            db,
+            state,
             payment_intent.shipping_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -92,7 +93,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         .await?;
 
         let billing_address = helpers::get_address_by_id(
-            db,
+            state,
             payment_intent.billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -102,7 +103,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         .await?;
 
         let payment_method_billing = helpers::get_address_by_id(
-            db,
+            state,
             payment_attempt.payment_method_billing_address_id.clone(),
             key_store,
             &payment_intent.payment_id,
@@ -128,7 +129,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    merchant_account.merchant_id.as_str(),
+                    merchant_account.get_id(),
                     mcd,
                 )
                 .await
@@ -212,7 +213,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b SessionState,
+        state: &'b SessionState,
         req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
@@ -242,9 +243,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
             };
 
         if let Some(payment_intent_update) = intent_status_update {
-            payment_data.payment_intent = db
+            payment_data.payment_intent = state
                 .store
                 .update_payment_intent(
+                    &state.into(),
                     payment_data.payment_intent,
                     payment_intent_update,
                     key_store,
@@ -254,7 +256,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         }
 
-        db.store
+        state
+            .store
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::VoidUpdate {
@@ -285,12 +288,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for Payment
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
-        operations::ValidateResult<'a>,
+        operations::ValidateResult,
     )> {
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.merchant_id,
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

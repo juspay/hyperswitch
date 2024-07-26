@@ -49,7 +49,7 @@ CREATE TABLE fraud_check (
     `modified_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `last_step` LowCardinality(String),
     `payment_capture_method` LowCardinality(String),
-    `sign_flag` Int8
+    `sign_flag` Int8,
     INDEX frmNameIndex frm_name TYPE bloom_filter GRANULARITY 1,
     INDEX frmStatusIndex frm_status TYPE bloom_filter GRANULARITY 1,
     INDEX paymentMethodIndex payment_method TYPE bloom_filter GRANULARITY 1,
