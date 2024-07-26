@@ -227,7 +227,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
 
-        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
+        let connector_router_data = bambora::BamboraRouterData::from((amount, req));
         let connector_req = bambora::BamboraPaymentsRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -491,7 +491,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req.request.currency,
         )?;
 
-        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
+        let connector_router_data = bambora::BamboraRouterData::from((amount, req));
 
         let connector_req =
             bambora::BamboraPaymentsCaptureRequest::try_from(connector_router_data)?;
@@ -586,7 +586,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             req.request.currency.unwrap_or_default(),
         )?;
 
-        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
+        let connector_router_data = bambora::BamboraRouterData::from((amount, req));
 
         let connector_req = bambora::BamboraVoidRequest::try_from(connector_router_data)?;
 
@@ -696,7 +696,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.currency,
         )?;
 
-        let connector_router_data = bambora::BamboraRouterData::try_from((amount, req))?;
+        let connector_router_data = bambora::BamboraRouterData::from((amount, req));
         let connector_req = bambora::BamboraRefundRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

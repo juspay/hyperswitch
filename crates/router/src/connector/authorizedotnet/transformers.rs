@@ -48,13 +48,12 @@ pub struct AuthorizedotnetRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(FloatMajorUnit, T)> for AuthorizedotnetRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(FloatMajorUnit, T)> for AuthorizedotnetRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 

@@ -43,13 +43,12 @@ pub struct CybersourceRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(StringMajorUnit, T)> for CybersourceRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, item): (StringMajorUnit, T)) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for CybersourceRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -62,9 +61,13 @@ pub struct CybersourceZeroMandateRequest {
     client_reference_information: ClientReferenceInformation,
 }
 
-impl TryFrom<&CybersourceRouterData<&types::SetupMandateRouterData>> for CybersourceZeroMandateRequest {
+impl TryFrom<&CybersourceRouterData<&types::SetupMandateRouterData>>
+    for CybersourceZeroMandateRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &CybersourceRouterData<&types::SetupMandateRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &CybersourceRouterData<&types::SetupMandateRouterData>,
+    ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
 
@@ -95,7 +98,12 @@ impl TryFrom<&CybersourceRouterData<&types::SetupMandateRouterData>> for Cyberso
             code: Some(item.router_data.connector_request_reference_id.clone()),
         };
 
-        let (payment_information, solution) = match item.router_data.request.payment_method_data.clone() {
+        let (payment_information, solution) = match item
+            .router_data
+            .request
+            .payment_method_data
+            .clone()
+        {
             domain::PaymentMethodData::Card(ccard) => {
                 let card_issuer = ccard.get_card_issuer();
                 let card_type = match card_issuer {

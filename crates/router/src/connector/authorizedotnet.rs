@@ -259,8 +259,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            authorizedotnet::AuthorizedotnetRouterData::try_from((amount, req))?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::from((amount, req));
         let connector_req =
             authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
 
@@ -448,8 +447,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            authorizedotnet::AuthorizedotnetRouterData::try_from((amount, req))?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::from((amount, req));
         let connector_req =
             authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -645,8 +643,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            authorizedotnet::AuthorizedotnetRouterData::try_from((amount, req))?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::from((amount, req));
         let connector_req = authorizedotnet::CreateRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -741,8 +738,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            authorizedotnet::AuthorizedotnetRouterData::try_from((amount, req))?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::from((amount, req));
         let connector_req =
             authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(&connector_router_data)?;
 
@@ -840,8 +836,7 @@ impl
             req.request.currency,
         )?;
 
-        let connector_router_data =
-            authorizedotnet::AuthorizedotnetRouterData::try_from((amount, req))?;
+        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::from((amount, req));
         let connector_req =
             authorizedotnet::PaypalConfirmRequest::try_from(&connector_router_data)?;
 
