@@ -681,24 +681,23 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
             PaymentIntentFetchConstraints::List(params) => {
-                query = match &params.order {
-                    Some(Order {
+                query = match params.order {
+                    Order {
                         on: SortOn::Amount,
                         by: SortBy::Asc,
-                    }) => query.order(pi_dsl::amount.asc()),
-                    Some(Order {
+                    } => query.order(pi_dsl::amount.asc()),
+                    Order {
                         on: SortOn::Amount,
                         by: SortBy::Desc,
-                    }) => query.order(pi_dsl::amount.desc()),
-                    Some(Order {
+                    } => query.order(pi_dsl::amount.desc()),
+                    Order {
                         on: SortOn::Created,
                         by: SortBy::Asc,
-                    }) => query.order(pi_dsl::created_at.asc()),
-                    Some(Order {
+                    } => query.order(pi_dsl::created_at.asc()),
+                    Order {
                         on: SortOn::Created,
                         by: SortBy::Desc,
-                    }) => query.order(pi_dsl::created_at.desc()),
-                    None => query.order(pi_dsl::created_at.desc()), // Default ordering
+                    } => query.order(pi_dsl::created_at.desc()),
                 };
 
                 if let Some(limit) = params.limit {
