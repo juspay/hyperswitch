@@ -1,10 +1,12 @@
 pub mod transformers;
 
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use error_stack::{report, Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as mifinity;
 
 use self::transformers::auth_headers;
+use super::utils::convert_amount;
 use crate::{
     configs::settings,
     consts,
@@ -232,7 +234,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,

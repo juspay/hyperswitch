@@ -1,4 +1,7 @@
-use common_utils::pii::{self, Email};
+use common_utils::{
+    pii::{self, Email},
+    types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -8,7 +11,7 @@ use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, api, domain, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 pub struct MifinityRouterData<T> {
