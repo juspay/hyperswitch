@@ -6,7 +6,7 @@ use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, types::keymanager::Identifier,
 };
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 
@@ -88,10 +88,20 @@ pub async fn generate_jwt_auth_token(
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
-        user_role.merchant_id.clone(),
+        user_role
+            .merchant_id
+            .as_ref()
+            .ok_or(report!(UserErrors::InternalServerError))
+            .attach_printable("merchant_id not found for user_role")?
+            .clone(),
         user_role.role_id.clone(),
         &state.conf,
-        user_role.org_id.clone(),
+        user_role
+            .org_id
+            .as_ref()
+            .ok_or(report!(UserErrors::InternalServerError))
+            .attach_printable("org_id not found for user_role")?
+            .clone(),
     )
     .await?;
     Ok(Secret::new(token))
@@ -124,7 +134,10 @@ pub fn get_dashboard_entry_response(
     let verification_days_left = get_verification_days_left(state, &user)?;
 
     Ok(user_api::DashboardEntryResponse {
-        merchant_id: user_role.merchant_id,
+        merchant_id: user_role.merchant_id.ok_or(
+            report!(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found for user_role"),
+        )?,
         token,
         name: user.get_name(),
         email: user.get_email(),
@@ -163,8 +176,16 @@ pub fn get_multiple_merchant_details_with_status(
     user_roles
         .into_iter()
         .map(|user_role| {
+            let Some(merchant_id) = &user_role.merchant_id else {
+                return Err(report!(UserErrors::InternalServerError))
+                    .attach_printable("merchant_id not found for user_role");
+            };
+            let Some(org_id) = &user_role.org_id else {
+                return Err(report!(UserErrors::InternalServerError)
+                    .attach_printable("org_id not found in user_role"));
+            };
             let merchant_account = merchant_account_map
-                .get(&user_role.merchant_id)
+                .get(merchant_id)
                 .ok_or(UserErrors::InternalServerError)
                 .attach_printable("Merchant account for user role doesn't exist")?;
 
@@ -174,12 +195,12 @@ pub fn get_multiple_merchant_details_with_status(
                 .attach_printable("Role info for user role doesn't exist")?;
 
             Ok(user_api::UserMerchantAccount {
-                merchant_id: user_role.merchant_id,
+                merchant_id: merchant_id.to_owned(),
                 merchant_name: merchant_account.merchant_name.clone(),
                 is_active: user_role.status == UserStatus::Active,
                 role_id: user_role.role_id,
                 role_name: role_info.get_role_name().to_string(),
-                org_id: user_role.org_id,
+                org_id: org_id.to_owned(),
             })
         })
         .collect()

@@ -106,11 +106,18 @@ pub async fn set_role_permissions_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,
 ) -> bool {
+    let Some(ref merchant_id) = user_role.merchant_id else {
+        return false;
+    };
+
+    let Some(ref org_id) = user_role.org_id else {
+        return false;
+    };
     set_role_permissions_in_cache_if_required(
         state,
         user_role.role_id.as_str(),
-        &user_role.merchant_id,
-        &user_role.org_id,
+        merchant_id,
+        org_id,
     )
     .await
     .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
@@ -149,15 +156,18 @@ pub async fn get_multiple_role_info_for_user_roles(
     user_roles: &[UserRole],
 ) -> UserResult<Vec<roles::RoleInfo>> {
     futures::future::try_join_all(user_roles.iter().map(|user_role| async {
-        let role = roles::RoleInfo::from_role_id(
-            state,
-            &user_role.role_id,
-            &user_role.merchant_id,
-            &user_role.org_id,
-        )
-        .await
-        .to_not_found_response(UserErrors::InternalServerError)
-        .attach_printable("Role for user role doesn't exist")?;
+        let Some(merchant_id) = &user_role.merchant_id else {
+            return Err(report!(UserErrors::InternalServerError))
+                .attach_printable("merchant_id not found for user_role");
+        };
+        let Some(org_id) = &user_role.org_id else {
+            return Err(report!(UserErrors::InternalServerError)
+                .attach_printable("org_id not found in user_role"));
+        };
+        let role = roles::RoleInfo::from_role_id(state, &user_role.role_id, merchant_id, org_id)
+            .await
+            .to_not_found_response(UserErrors::InternalServerError)
+            .attach_printable("Role for user role doesn't exist")?;
         Ok::<_, error_stack::Report<UserErrors>>(role)
     }))
     .await
