@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hyperswitch_db
       PGUSER: postgres
       PGPASSWORD: postgres
       PGHOST: localhost
@@ -63,7 +63,11 @@ jobs:
 
       - uses: baptiste0928/cargo-install@v2.2.0
         with:
-          crate: just
+          crate: just resurrect hyperswitch_db
+        
+      - name: Create database
+        shell: bash
+        run: just migrate run --locked-schema
 
       - name: Verify `diesel migration run for v1`
         shell: bash
@@ -75,7 +79,7 @@ jobs:
       
       - name: Drop `DB for v2 column ordering mismatch`
         shell: bash
-        run: just resurrect postgres
+        run: just resurrect hyperswitch_db
 
       - name: Verify `diesel migration run for v2`
         shell: bash
