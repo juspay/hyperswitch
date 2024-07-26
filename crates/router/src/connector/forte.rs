@@ -580,13 +580,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = convert_amount(
+        let refund_amount = convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
 
-        let connector_router_data = forte::ForteRouterData::from((amount, req));
+        let connector_router_data = forte::ForteRouterData::from((refund_amount, req));
         let connector_req = forte::ForteRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
