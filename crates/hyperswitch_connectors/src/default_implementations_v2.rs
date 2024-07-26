@@ -180,7 +180,11 @@ macro_rules! default_imp_for_new_connector_integration_payment {
     };
 }
 
-default_imp_for_new_connector_integration_payment!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_payment!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_new_connector_integration_refund {
     ($($path:ident::$connector:ident),*) => {
@@ -198,7 +202,11 @@ macro_rules! default_imp_for_new_connector_integration_refund {
     };
 }
 
-default_imp_for_new_connector_integration_refund!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_refund!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
     ($($path:ident::$connector:ident),*) => {
@@ -213,7 +221,8 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Fiserv,
-    connectors::Helcim
+    connectors::Helcim,
+    connectors::Stax
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -233,7 +242,11 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
     };
 }
 
-default_imp_for_new_connector_integration_accept_dispute!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_accept_dispute!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
     ($($path:ident::$connector:ident),*) => {
@@ -251,7 +264,11 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
     };
 }
 
-default_imp_for_new_connector_integration_submit_evidence!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_submit_evidence!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
     ($($path:ident::$connector:ident),*) => {
@@ -269,7 +286,11 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
     };
 }
 
-default_imp_for_new_connector_integration_defend_dispute!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_defend_dispute!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
     ($($path:ident::$connector:ident),*) => {
@@ -297,7 +318,11 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
     };
 }
 
-default_imp_for_new_connector_integration_file_upload!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_file_upload!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts_create {
@@ -317,7 +342,11 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_new_connector_integration_payouts_create!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_payouts_create!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
@@ -339,7 +368,8 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Fiserv,
-    connectors::Helcim
+    connectors::Helcim,
+    connectors::Stax
 );
 
 #[cfg(feature = "payouts")]
@@ -360,7 +390,11 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_new_connector_integration_payouts_fulfill!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_payouts_fulfill!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
@@ -380,7 +414,11 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_new_connector_integration_payouts_cancel!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_payouts_cancel!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts_quote {
@@ -400,7 +438,11 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_new_connector_integration_payouts_quote!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_payouts_quote!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
@@ -422,7 +464,8 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Fiserv,
-    connectors::Helcim
+    connectors::Helcim,
+    connectors::Stax
 );
 
 #[cfg(feature = "payouts")]
@@ -443,7 +486,11 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_new_connector_integration_payouts_sync!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_payouts_sync!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account {
@@ -465,7 +512,8 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Fiserv,
-    connectors::Helcim
+    connectors::Helcim,
+    connectors::Stax
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -486,7 +534,8 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Fiserv,
-    connectors::Helcim
+    connectors::Helcim,
+    connectors::Stax
 );
 
 #[cfg(feature = "frm")]
@@ -507,7 +556,11 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_new_connector_integration_frm_sale!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_frm_sale!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_new_connector_integration_frm_checkout {
@@ -527,7 +580,11 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_new_connector_integration_frm_checkout!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_frm_checkout!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_new_connector_integration_frm_transaction {
@@ -547,7 +604,11 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_new_connector_integration_frm_transaction!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_frm_transaction!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
@@ -567,7 +628,11 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_new_connector_integration_frm_fulfillment!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_new_connector_integration_frm_fulfillment!(
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_new_connector_integration_frm_record_return {
@@ -589,7 +654,8 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Fiserv,
-    connectors::Helcim
+    connectors::Helcim,
+    connectors::Stax
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -609,5 +675,6 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Fiserv,
-    connectors::Helcim
+    connectors::Helcim,
+    connectors::Stax
 );
