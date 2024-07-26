@@ -241,10 +241,10 @@ pub async fn update_business_profile_active_algorithm_ref(
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 #[derive(Clone, Debug)]
-pub struct RoutingAlgorithmHelpers<'hel> {
-    pub name_mca_id_set: ConnectNameAndMCAIdForProfile<'hel>,
-    pub name_set: ConnectNameForProfile<'hel>,
-    pub routing_algorithm: &'hel routing_types::RoutingAlgorithm,
+pub struct RoutingAlgorithmHelpers<'h> {
+    pub name_mca_id_set: ConnectNameAndMCAIdForProfile<'h>,
+    pub name_set: ConnectNameForProfile<'h>,
+    pub routing_algorithm: &'h routing_types::RoutingAlgorithm,
 }
 
 #[derive(Clone, Debug)]

@@ -39,32 +39,6 @@ where
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-struct RoutingFetchBusinessProfile(
-    diesel_models::business_profile::BusinessProfile, // transaction_type: &'a enums::TransactionType,
-);
-
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-impl RoutingFetchBusinessProfile {
-    pub async fn fetch_business_profile(
-        profile_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
-        db: &dyn StorageInterface,
-    ) -> RouterResult<Self> {
-        let business_profile = core_utils::validate_and_get_business_profile(
-            db,
-            Some(&profile_id.to_owned()),
-            merchant_id,
-        )
-        .await?
-        .get_required_value("BusinessProfile")
-        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_string(),
-        })?;
-
-        Ok(Self(business_profile))
-    }
-}
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
 struct RoutingAlgorithmUpdate {
     routing_algo: RoutingAlgorithm,
 }
@@ -201,16 +175,13 @@ pub async fn create_routing_config(
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         request.profile_id.as_ref(),
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
     )
     .await?
-    .get_required_value("BusinessProfile")
-    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
-        id: request.profile_id.unwrap_or("None".to_string()),
-    })?;
+    .get_required_value("BusinessProfile")?;
 
     let all_mcas = helpers::MerchantConnectorAccounts::get_all_mcas(
-        &merchant_account.get_id(),
+        merchant_account.get_id(),
         &key_store,
         &state,
     )
@@ -350,16 +321,18 @@ pub async fn link_routing_config(
     let db = state.store.as_ref();
 
     let routing_algorithm =
-        RoutingAlgorithmUpdate::fetch_routing_algo(&merchant_account.get_id(), &algorithm_id, db)
+        RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
             .await?;
-    let business_profile = RoutingFetchBusinessProfile::fetch_business_profile(
-        &routing_algorithm.routing_algo.profile_id,
-        &merchant_account.get_id(),
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
+        Some(&routing_algorithm.routing_algo.profile_id),
+        merchant_account.get_id(),
     )
-    .await?;
+    .await?
+    .get_required_value("BusinessProfile")?;
+
     let mut routing_ref = routing_types::RoutingAlgorithmRef::parse_routing_algorithm(
-        business_profile.0.routing_algorithm.clone(),
+        business_profile.routing_algorithm.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
@@ -369,7 +342,7 @@ pub async fn link_routing_config(
     // TODO move to business profile
     helpers::update_business_profile_active_algorithm_ref(
         db,
-        business_profile.0,
+        business_profile,
         routing_ref,
         transaction_type,
     )
