@@ -851,7 +851,7 @@ pub async fn add_payment_method_data(
         _ => Ok(store_default_payment_method(
             &req,
             &customer_id,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
         )),
     };
 
@@ -3827,7 +3827,7 @@ pub async fn list_customer_payment_method(
 
     let is_requires_cvv = db
         .find_config_by_key_unwrap_or(
-           merchant_account.get_id().get_requires_cvv_key(),
+            &merchant_account.get_id().get_requires_cvv_key(),
             Some("true".to_string()),
         )
         .await
@@ -4182,9 +4182,9 @@ impl SavedPMLPaymentsInfo {
         merchant_account: &domain::MerchantAccount,
         db: &dyn db::StorageInterface,
     ) -> errors::RouterResult<Self> {
-        let requires_cvv = db
+        let is_requires_cvv = db
             .find_config_by_key_unwrap_or(
-                format!("{}_requires_cvv", merchant_account.get_id()).as_str(),
+                &merchant_account.get_id().get_requires_cvv_key(),
                 Some("true".to_string()),
             )
             .await
@@ -4212,7 +4212,7 @@ impl SavedPMLPaymentsInfo {
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
             Some(profile_id).as_ref(),
-           merchant_account.get_id(),
+            merchant_account.get_id(),
         )
         .await?;
 
@@ -4305,7 +4305,7 @@ pub async fn list_customer_payment_method(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -4320,7 +4320,7 @@ pub async fn list_customer_payment_method(
     let saved_payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_status(
             customer_id,
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             common_enums::PaymentMethodStatus::Active,
             limit,
             merchant_account.storage_scheme,
@@ -4447,7 +4447,7 @@ async fn generate_saved_pm_response(
     let mca_enabled = get_mca_status(
         state,
         key_store,
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         is_connector_agnostic_mit_enabled,
         connector_mandate_details,
         pm.network_transaction_id.as_ref(),
@@ -5361,7 +5361,7 @@ async fn re_add_payment_method(
     delete_card_from_locker(
         state,
         customer_id,
-       merchant_account.get_id(),
+        merchant_account.get_id(),
         existing_pm
             .locker_id
             .as_ref()
@@ -5388,7 +5388,7 @@ async fn re_add_payment_method(
     if let Err(err) = add_card_resp {
         logger::error!(vault_err=?err);
         db.delete_payment_method_by_merchant_id_payment_method_id(
-           merchant_account.get_id(),
+            merchant_account.get_id(),
             &existing_pm.payment_method_id,
         )
         .await
@@ -5486,7 +5486,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             .find_customer_by_customer_id_merchant_id(
                 &(state).into(),
                 &customer_id,
-               merchant_account.get_id(),
+                merchant_account.get_id(),
                 key_store,
                 merchant_account.storage_scheme,
             )
@@ -5551,7 +5551,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             _ => Ok(store_default_payment_method(
                 req,
                 &customer.customer_id,
-               merchant_account.get_id(),
+                merchant_account.get_id(),
             )),
         };
 
@@ -5726,7 +5726,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             .find_customer_by_customer_id_merchant_id(
                 &(state).into(),
                 &customer_id,
-               merchant_account.get_id(),
+                merchant_account.get_id(),
                 key_store,
                 merchant_account.storage_scheme,
             )
@@ -5798,7 +5798,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             _ => Ok(store_default_payment_method(
                 req,
                 &customer.customer_id,
-               merchant_account.get_id(),
+                merchant_account.get_id(),
             )),
         }?;
 
@@ -5862,7 +5862,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                         )
                         .await?;
 
-                        resp.client_secret.clone_from(&existing_pm.client_secret)
+                        resp.client_secret.clone_from(&existing_pm.client_secret);
                         re_add_payment_method(
                             state,
                             req,
@@ -5905,7 +5905,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     &resp,
                     req,
                     key_store,
-                   merchant_account.get_id(),
+                    merchant_account.get_id(),
                     &customer.customer_id,
                     pm_metadata.cloned(),
                     None,

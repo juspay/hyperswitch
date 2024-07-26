@@ -106,7 +106,6 @@ impl
             ))]
             bank_transfer: None,
             #[cfg(all(
-                feature = "payouts",
                 any(feature = "v2", feature = "v1"),
                 not(feature = "payment_methods_v2")
             ))]

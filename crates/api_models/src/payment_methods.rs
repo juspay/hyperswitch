@@ -138,8 +138,7 @@ pub struct PaymentMethodCreate {
     /// payment method is created
     pub client_secret: Option<String>,
 
-    /// Payment method data to be passed in case of client
-    /// based flow
+    /// Payment method data to be passed
     pub payment_method_data: Option<PaymentMethodCreateData>,
 
     /// The billing details of the payment method
@@ -513,7 +512,7 @@ pub struct PaymentMethodResponse {
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
     #[schema(example = "merchant_1671528864")]
-    pub merchant_id:  id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
