@@ -1,6 +1,10 @@
 pub mod transformers;
 
-use common_utils::{ext_traits::XmlExt, request::RequestContent, types::{AmountConvertor, MinorUnitForConnector, MinorUnit}};
+use common_utils::{
+    ext_traits::XmlExt,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
@@ -505,7 +509,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-
         let refund_amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
