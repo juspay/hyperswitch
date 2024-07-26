@@ -1,7 +1,10 @@
 mod result_codes;
 pub mod transformers;
 
-use common_utils::{request::RequestContent, types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector}};
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
