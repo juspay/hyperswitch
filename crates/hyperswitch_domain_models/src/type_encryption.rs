@@ -69,6 +69,10 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError>;
 
+        /// Note to developer: While deprecating/removing this method please make sure
+        /// to remove own decrypt implementation of Merchant keystore and User keystore
+        /// crates/router/src/types/domain/user_key_store.rs
+        /// crates/hyperswitch_domain_models/src/merchant_key_store.rs
         async fn decrypt(
             encrypted_data: Encryption,
             key: &[u8],
@@ -986,7 +990,7 @@ where
     }
 }
 
-pub(crate) mod metrics {
+mod metrics {
     use router_env::{counter_metric, global_meter, histogram_metric, metrics_context, once_cell};
 
     metrics_context!(CONTEXT);

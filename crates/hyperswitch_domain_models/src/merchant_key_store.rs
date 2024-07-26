@@ -1,14 +1,13 @@
 use common_utils::{
-    crypto::Encryptable,
+    crypto::{self, DecodeMessage, Encryptable},
     custom_serde, date_time,
-    errors::{CustomResult, ValidationError},
+    encryption::Encryption,
+    errors::{self, CustomResult, ValidationError},
     types::keymanager::{self, KeyManagerState},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
-
-use crate::type_encryption::decrypt;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantKeyStore {
@@ -31,7 +30,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     }
 
     async fn convert_back(
-        state: &KeyManagerState,
+        _state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
         _key_manager_identifier: keymanager::Identifier,
@@ -39,9 +38,11 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     where
         Self: Sized,
     {
-        let identifier = keymanager::Identifier::Merchant(item.merchant_id.clone());
+        // let identifier = keymanager::Identifier::Merchant(item.merchant_id.clone());
         Ok(Self {
-            key: decrypt(state, item.key, identifier, key.peek())
+            //key: decrypt(state, item.key, identifier, key.peek())
+            // Replace this method call with above commented line while deprecating merchant key store
+            key: decrypt_merchant_key_store(item.key, key.peek())
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),
@@ -58,4 +59,30 @@ impl super::behaviour::Conversion for MerchantKeyStore {
             created_at: date_time::now(),
         })
     }
+}
+
+/// This is a temprory function to decrypt the merchant key store within application
+/// Since key in merchant key store is encrypted with master key in the application, decrypt can't be done with key manager service.
+/// Once application merchant key store is deprecated, this method should be removed.
+async fn decrypt_merchant_key_store(
+    encrypted_data: Encryption,
+    key: &[u8],
+) -> CustomResult<Encryptable<Secret<Vec<u8>>>, errors::CryptoError> {
+    metrics::MERCHANT_KEY_STORE_APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+    let encrypted = encrypted_data.into_inner();
+    let data = crypto::GcmAes256.decode_message(key, encrypted.clone())?;
+    Ok(Encryptable::new(data.into(), encrypted))
+}
+
+mod metrics {
+    use router_env::{counter_metric, global_meter, metrics_context, once_cell};
+
+    metrics_context!(CONTEXT);
+    global_meter!(GLOBAL_METER, "ROUTER_API");
+
+    // Encryption and Decryption metrics
+    counter_metric!(
+        MERCHANT_KEY_STORE_APPLICATION_DECRYPTION_COUNT,
+        GLOBAL_METER
+    );
 }
