@@ -7,6 +7,7 @@ use api_models::{
         self as routing_types, RoutingAlgorithmId, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
     },
 };
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
@@ -14,8 +15,9 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::{consts, core::errors::RouterResult, db::StorageInterface};
 use crate::{
-    consts,
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
@@ -28,8 +30,6 @@ use crate::{
     },
     utils::{self, OptionExt, ValueExt},
 };
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{core::errors::RouterResult, db::StorageInterface};
 pub enum TransactionData<'a, F>
 where
     F: Clone,
