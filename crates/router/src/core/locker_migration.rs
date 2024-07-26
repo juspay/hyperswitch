@@ -129,6 +129,23 @@ pub async fn call_to_locker(
             billing: None,
             connector_mandate_details: None,
             network_transaction_id: None,
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            card: Some(card_details),
+            #[cfg(all(
+                feature = "payouts",
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            bank_transfer: None,
+            #[cfg(all(
+                feature = "payouts",
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            wallet: None,
         };
 
         let add_card_result = cards::add_card_hs(

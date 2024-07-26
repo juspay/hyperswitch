@@ -405,6 +405,23 @@ pub async fn save_payout_data_to_locker(
                 billing: None,
                 connector_mandate_details: None,
                 network_transaction_id: None,
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                card: card_details.clone(),
+                #[cfg(all(
+                    feature = "payouts",
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                bank_transfer: None,
+                #[cfg(all(
+                    feature = "payouts",
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                wallet: None,
             };
 
             let pm_data = card_isin
@@ -486,13 +503,32 @@ pub async fn save_payout_data_to_locker(
                     card_network: None,
                     client_secret: None,
                     payment_method_data: if let Some(bank) = bank_details {
-                        Some(api::PaymentMethodCreateData::BankTransfer(bank))
+                        Some(api::PaymentMethodCreateData::BankTransfer(bank.clone()))
                     } else {
-                        wallet_details.map(api::PaymentMethodCreateData::Wallet)
+                        wallet_details
+                            .clone()
+                            .map(api::PaymentMethodCreateData::Wallet)
                     },
                     billing: None,
                     connector_mandate_details: None,
                     network_transaction_id: None,
+                    #[cfg(all(
+                        any(feature = "v1", feature = "v2"),
+                        not(feature = "payment_methods_v2")
+                    ))]
+                    card: None,
+                    #[cfg(all(
+                        feature = "payouts",
+                        any(feature = "v1", feature = "v2"),
+                        not(feature = "payment_methods_v2")
+                    ))]
+                    bank_transfer: bank_details,
+                    #[cfg(all(
+                        feature = "payouts",
+                        any(feature = "v1", feature = "v2"),
+                        not(feature = "payment_methods_v2")
+                    ))]
+                    wallet: wallet_details,
                 },
             )
         };

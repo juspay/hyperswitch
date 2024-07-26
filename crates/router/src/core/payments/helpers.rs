@@ -1362,7 +1362,9 @@ pub(crate) async fn get_payment_method_create_request(
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
-                        payment_method_data: Some(api::PaymentMethodCreateData::Card(card_detail)),
+                        payment_method_data: Some(api::PaymentMethodCreateData::Card(
+                            card_detail.clone(),
+                        )),
                         billing: None,
                         connector_mandate_details: None,
                         network_transaction_id: None,

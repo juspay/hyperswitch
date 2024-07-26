@@ -1331,6 +1331,23 @@ pub async fn update_customer_payment_method(
                 billing: None,
                 connector_mandate_details: None,
                 network_transaction_id: None,
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                card: Some(updated_card_details.clone()),
+                #[cfg(all(
+                    feature = "payouts",
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                bank_transfer: None,
+                #[cfg(all(
+                    feature = "payouts",
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                wallet: None,
             };
             new_pm.validate()?;
 
