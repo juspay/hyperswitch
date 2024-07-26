@@ -513,7 +513,7 @@ pub struct PaymentMethodResponse {
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
     #[schema(example = "merchant_1671528864")]
-    pub merchant_id: String,
+    pub merchant_id:  id_type::MerchantId,
 
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]

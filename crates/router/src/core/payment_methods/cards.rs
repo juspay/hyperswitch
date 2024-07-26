@@ -628,7 +628,7 @@ pub async fn get_client_secret_or_add_payment_method(
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| create_encrypted_data(state, &key_store, billing))
+        .async_map(|billing| create_encrypted_data(state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -666,7 +666,7 @@ pub async fn get_client_secret_or_add_payment_method(
             None,
             None,
             None,
-            &key_store,
+            key_store,
             connector_mandate_details,
             Some(enums::PaymentMethodStatus::AwaitingData),
             None,
@@ -748,13 +748,13 @@ pub async fn add_payment_method(
 
     // 1. Perform Preprocessing
     let preprocessing_response = pm_create_flow
-        .perform_preprocessing(&state, &req, merchant_account, key_store, data)
+        .perform_preprocessing(state, &req, merchant_account, key_store, data)
         .await?;
 
     // 2. Vault the payment method
     let vaulting_response = pm_create_flow
         .vault_payment_method(
-            &state,
+            state,
             &req,
             merchant_account,
             key_store,
@@ -764,7 +764,7 @@ pub async fn add_payment_method(
 
     // 3. Handle duplication
     let final_response = pm_create_flow
-        .handle_duplication(&state, &req, merchant_account, key_store, vaulting_response)
+        .handle_duplication(state, &req, merchant_account, key_store, vaulting_response)
         .await?
         .response
         .get_required_value("PaymentMethodResponse")?;
@@ -851,7 +851,7 @@ pub async fn add_payment_method_data(
         _ => Ok(store_default_payment_method(
             &req,
             &customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
         )),
     };
 
@@ -940,7 +940,7 @@ pub async fn add_payment_method_data(
                 if customer.default_payment_method_id.is_none() {
                     let _ = set_default_payment_method(
                         &state,
-                        merchant_account.get_id().clone(),
+                        merchant_account.get_id(),
                         key_store.clone(),
                         &customer_id,
                         pm_id,
@@ -3827,7 +3827,7 @@ pub async fn list_customer_payment_method(
 
     let is_requires_cvv = db
         .find_config_by_key_unwrap_or(
-            &merchant_account.get_id().get_requires_cvv_key(),
+           merchant_account.get_id().get_requires_cvv_key(),
             Some("true".to_string()),
         )
         .await
@@ -4201,7 +4201,7 @@ impl SavedPMLPaymentsInfo {
         let profile_id = core_utils::get_profile_id_from_business_details(
             payment_intent.business_country,
             payment_intent.business_label.as_ref(),
-            &merchant_account,
+            merchant_account,
             payment_intent.profile_id.as_ref(),
             db,
             false,
@@ -4212,7 +4212,7 @@ impl SavedPMLPaymentsInfo {
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
             Some(profile_id).as_ref(),
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
         )
         .await?;
 
@@ -4305,7 +4305,7 @@ pub async fn list_customer_payment_method(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -4320,7 +4320,7 @@ pub async fn list_customer_payment_method(
     let saved_payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_status(
             customer_id,
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             common_enums::PaymentMethodStatus::Active,
             limit,
             merchant_account.storage_scheme,
@@ -4447,7 +4447,7 @@ async fn generate_saved_pm_response(
     let mca_enabled = get_mca_status(
         state,
         key_store,
-        &merchant_account.get_id(),
+       merchant_account.get_id(),
         is_connector_agnostic_mit_enabled,
         connector_mandate_details,
         pm.network_transaction_id.as_ref(),
@@ -5319,7 +5319,7 @@ async fn make_pmd_and_update_payment_method(
         };
 
         let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
-            create_encrypted_data(&state, &key_store, updated_card)
+            create_encrypted_data(state, key_store, updated_card)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt Payment method card details")?,
@@ -5361,7 +5361,7 @@ async fn re_add_payment_method(
     delete_card_from_locker(
         state,
         customer_id,
-        &merchant_account.get_id(),
+       merchant_account.get_id(),
         existing_pm
             .locker_id
             .as_ref()
@@ -5388,7 +5388,7 @@ async fn re_add_payment_method(
     if let Err(err) = add_card_resp {
         logger::error!(vault_err=?err);
         db.delete_payment_method_by_merchant_id_payment_method_id(
-            &merchant_account.get_id(),
+           merchant_account.get_id(),
             &existing_pm.payment_method_id,
         )
         .await
@@ -5420,7 +5420,7 @@ async fn re_add_payment_method(
         .as_ref()
         .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
     let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
-        .async_map(|updated_pmd| create_encrypted_data(state, &key_store, updated_pmd))
+        .async_map(|updated_pmd| create_encrypted_data(state, key_store, updated_pmd))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5484,9 +5484,9 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
 
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                &(&*state).into(),
+                &(state).into(),
                 &customer_id,
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 key_store,
                 merchant_account.storage_scheme,
             )
@@ -5551,7 +5551,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             _ => Ok(store_default_payment_method(
                 req,
                 &customer.customer_id,
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
             )),
         };
 
@@ -5590,7 +5590,6 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
         key_store: &domain::MerchantKeyStore,
         data: pm_core::PaymentMethodVaultingData,
     ) -> errors::RouterResult<pm_core::PaymentMethodVaultingData> {
-        let db = &*state.store;
         let mut pm_resp = data.response.get_required_value("PaymentMethodResponse")?;
         let duplication_check = data.duplication_check;
         let pm = data.payment_method.get_required_value("PaymentMethod")?;
@@ -5675,7 +5674,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                 if customer.default_payment_method_id.is_none() {
                     let _ = set_default_payment_method(
                                 state,
-                                merchant_account.get_id().clone(),
+                                merchant_account.get_id(),
                                 key_store.clone(),
                                 &customer.customer_id,
                                 pm_id.clone(),
@@ -5725,9 +5724,9 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             .get_required_value("payment_method_type")?;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                &(&*state).into(),
+                &(state).into(),
                 &customer_id,
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
                 key_store,
                 merchant_account.storage_scheme,
             )
@@ -5799,7 +5798,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             _ => Ok(store_default_payment_method(
                 req,
                 &customer.customer_id,
-                &merchant_account.get_id(),
+               merchant_account.get_id(),
             )),
         }?;
 
@@ -5823,7 +5822,6 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
         key_store: &domain::MerchantKeyStore,
         data: pm_core::PaymentMethodVaultingData,
     ) -> errors::RouterResult<pm_core::PaymentMethodVaultingData> {
-        let db = &*state.store;
         let customer = data.customer.get_required_value("Customer")?;
         let mut resp = data.response.get_required_value("PaymentMethodResponse")?;
         let pmd = req
@@ -5864,7 +5862,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                         )
                         .await?;
 
-                        resp.client_secret = existing_pm.client_secret.clone();
+                        resp.client_secret.clone_from(&existing_pm.client_secret)
                         re_add_payment_method(
                             state,
                             req,
@@ -5895,7 +5893,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                 let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> =
                     data.payment_method_billing_address
                         .clone()
-                        .async_map(|billing| create_encrypted_data(state, &key_store, billing))
+                        .async_map(|billing| create_encrypted_data(state, key_store, billing))
                         .await
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5907,7 +5905,7 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     &resp,
                     req,
                     key_store,
-                    &merchant_account.get_id(),
+                   merchant_account.get_id(),
                     &customer.customer_id,
                     pm_metadata.cloned(),
                     None,
