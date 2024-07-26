@@ -374,7 +374,9 @@ impl ConnectorData {
                 ))),
                 enums::Connector::Ebanx => Ok(ConnectorEnum::Old(Box::new(&connector::Ebanx))),
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
-                enums::Connector::Forte => Ok(ConnectorEnum::Old(Box::new(&connector::Forte))),
+                enums::Connector::Forte => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
