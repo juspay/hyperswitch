@@ -483,7 +483,7 @@ impl MerchantAccountInterface for MockDb {
         let accounts = self.merchant_accounts.lock().await;
         let account: Option<domain::MerchantAccount> = accounts
             .iter()
-            .find(|account| account.merchant_id == *merchant_id)
+            .find(|account| account.get_id() == merchant_id)
             .cloned()
             .async_map(|a| async {
                 a.convert(
@@ -608,7 +608,7 @@ async fn publish_and_redact_all_merchant_account_cache(
 ) -> CustomResult<(), errors::StorageError> {
     let merchant_ids = merchant_accounts
         .iter()
-        .map(|m| m.merchant_id.get_string_repr().to_string());
+        .map(|merchant_account| merchant_account.get_id().get_string_repr().to_string());
     let publishable_keys = merchant_accounts
         .iter()
         .filter_map(|m| m.publishable_key.clone());
