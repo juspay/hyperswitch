@@ -217,7 +217,7 @@ fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u
 
 /// Generate a customer id with default length, with prefix as `cus`
 pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
-    id_type::CustomerId::new(generate_ref_id_with_default_length("cus"))
+    id_type::CustomerId::default()
 }
 
 /// Generate a organization id with default length, with prefix as `org`
