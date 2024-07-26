@@ -52,7 +52,6 @@ pub struct CmdLineConf {
 
 #[derive(clap::Parser)]
 pub enum Subcommand {
-    #[cfg(feature = "openapi")]
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
 }
