@@ -63,11 +63,11 @@ jobs:
 
       - uses: baptiste0928/cargo-install@v2.2.0
         with:
-          crate: just resurrect hyperswitch_db
+          crate: just
         
       - name: Create database
         shell: bash
-        run: just migrate run --locked-schema
+        run: just resurrect hyperswitch_db
 
       - name: Verify `diesel migration run for v1`
         shell: bash
