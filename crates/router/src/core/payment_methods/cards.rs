@@ -2356,7 +2356,8 @@ pub async fn list_payment_methods(
     .await?;
 
     // filter out connectors based on the business country
-    let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id.clone());
+    let filtered_mcas =
+        helpers::filter_mca_based_on_business_profile(all_mcas.clone(), profile_id.clone());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -2668,25 +2669,12 @@ pub async fn list_payment_methods(
 
                 if let Some(config) = pm_auth_config {
                     for inner_config in config.enabled_payment_methods.iter() {
-                        if inner_config.payment_method_type == *payment_method_type {
-                            let mca = db
-                            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                                key_manager_state,
-                                merchant_account.get_id(),
-                                &inner_config.mca_id,
-                                &key_store,
-                            )
-                            .await
-                            .to_not_found_response(
-                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: inner_config.mca_id.clone(),
-                                },
-                            )?;
+                        let is_active_mca = all_mcas
+                            .iter()
+                            .any(|mca| mca.merchant_connector_id == inner_config.mca_id);
 
-                            if mca.status != enums::ConnectorStatus::Active {
-                                continue;
-                            }
-
+                        if inner_config.payment_method_type == *payment_method_type && is_active_mca
+                        {
                             let pm = pmt_to_auth_connector
                                 .get(&inner_config.payment_method)
                                 .cloned();
