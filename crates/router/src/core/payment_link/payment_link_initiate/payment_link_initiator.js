@@ -68,4 +68,15 @@ function initializeSDK() {
   setTimeout(() => {
     document.body.removeChild(shimmer);
   }, 500);
+
+  /**
+   * Use - redirect to /payment_link/status
+   */
+  function redirectToStatus() {
+    var arr = window.location.pathname.split("/");
+    arr.splice(0, 2);
+    arr.unshift("status");
+    arr.unshift("payment_link");
+    window.location.href = window.location.origin + "/" + arr.join("/");
+  }
 }

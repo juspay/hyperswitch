@@ -50,7 +50,7 @@ if (!isFramed) {
     hyper = window.Hyper(pub_key, {
       isPreloadEnabled: false,
     });
-  // @ts-ignore
+    // @ts-ignore
     widgets = hyper.widgets({
       appearance: appearance,
       clientSecret: client_secret,
@@ -79,11 +79,11 @@ if (!isFramed) {
         },
       },
     };
-  // @ts-ignore
+    // @ts-ignore
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
-  // @ts-ignore
+    // @ts-ignore
     mountUnifiedCheckout("#unified-checkout");
-  // @ts-ignore
+    // @ts-ignore
     showSDK(paymentDetails.display_sdk_only);
 
     let shimmer = document.getElementById("payment-details-shimmer");
@@ -92,5 +92,16 @@ if (!isFramed) {
     setTimeout(() => {
       document.body.removeChild(shimmer);
     }, 500);
+  }
+
+  /**
+   * Use - redirect to /payment_link/status
+   */
+  function redirectToStatus() {
+    var arr = window.location.pathname.split("/");
+    arr.splice(0, 3);
+    arr.unshift("status");
+    arr.unshift("payment_link");
+    window.location.href = window.location.origin + "/" + arr.join("/");
   }
 }

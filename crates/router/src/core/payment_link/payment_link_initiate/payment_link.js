@@ -456,17 +456,6 @@ function showMessage(msg) {
   addText("#payment-message", msg);
 }
 
-/**
- * Use - redirect to /payment_link/status
- */
-function redirectToStatus() {
-  var arr = window.location.pathname.split("/");
-  arr.splice(0, 2);
-  arr.unshift("status");
-  arr.unshift("payment_link");
-  window.location.href = window.location.origin + "/" + arr.join("/");
-}
-
 function addText(id, msg) {
   var element = document.querySelector(id);
   element.innerText = msg;
