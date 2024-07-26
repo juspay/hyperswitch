@@ -181,6 +181,14 @@ migrate_v2 operation=default_operation *args='':
 
 # Drop database if exists and then create a new 'hyperswitch_db' Database
 resurrect *DATABASE_NAME='hyperswitch_db':
+    #! /usr/bin/env bash
+    set -euo pipefail
+    # Wait for PostgreSQL to be ready
+    until pg_isready -h localhost -p 5432; do
+      echo "Waiting for PostgreSQL..."
+      sleep 1
+    done
+
     psql -U postgres -c 'DROP DATABASE IF EXISTS  {{ DATABASE_NAME }}';
     psql -U postgres -c 'CREATE DATABASE {{ DATABASE_NAME }}';
 
