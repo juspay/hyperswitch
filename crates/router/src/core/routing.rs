@@ -1,6 +1,25 @@
 pub mod helpers;
 pub mod transformers;
 
+use super::payments;
+#[cfg(feature = "payouts")]
+use super::payouts;
+use crate::{
+    consts,
+    core::{
+        errors::{self, RouterResponse, StorageErrorExt},
+        metrics, utils as core_utils,
+    },
+    routes::SessionState,
+    services::api as service_api,
+    types::{
+        domain,
+        transformers::{ForeignInto, ForeignTryFrom},
+    },
+    utils::{self, OptionExt, ValueExt},
+};
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::{core::errors::RouterResult, db::StorageInterface};
 use api_models::{
     enums,
     routing::{
@@ -10,25 +29,6 @@ use api_models::{
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
-
-use super::payments;
-#[cfg(feature = "payouts")]
-use super::payouts;
-use crate::{
-    consts,
-    core::{
-        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        metrics, utils as core_utils,
-    },
-    db::StorageInterface,
-    routes::SessionState,
-    services::api as service_api,
-    types::{
-        domain,
-        transformers::{ForeignInto, ForeignTryFrom},
-    },
-    utils::{self, OptionExt, ValueExt},
-};
 pub enum TransactionData<'a, F>
 where
     F: Clone,
