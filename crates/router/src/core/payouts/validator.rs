@@ -106,14 +106,12 @@ pub async fn validate_create_request(
     // Customer creation
     let customer = match (req.customer_id.clone(), req.customer.clone()) {
         // Create a new customer if ID is unique, else throw error
-        (Some(_), Some(_)) => {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "customer_id cannot be passed when passing customer object".to_string()
-            }))
-            .attach_printable(
-                "ambiguous operation - both customer_id and customer passed in the request",
-            )
-        }
+        (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "customer_id cannot be passed when passing customer object".to_string()
+        }))
+        .attach_printable(
+            "ambiguous operation - both customer_id and customer passed in the request",
+        ),
         // Fetch customer using id or else throw 404
         (Some(customer_id), None) => db
             .find_customer_optional_by_customer_id_merchant_id(
