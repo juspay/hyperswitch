@@ -1,4 +1,4 @@
-use common_utils::{encryption::Encryption, id_type, pii};
+use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -9,8 +9,8 @@ use crate::schema::customers;
 )]
 #[diesel(table_name = customers)]
 pub struct CustomerNew {
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
@@ -33,7 +33,6 @@ impl CustomerNew {
 impl From<CustomerNew> for Customer {
     fn from(customer_new: CustomerNew) -> Self {
         Self {
-            id: 0i32,
             customer_id: customer_new.customer_id,
             merchant_id: customer_new.merchant_id,
             name: customer_new.name,
@@ -55,11 +54,10 @@ impl From<CustomerNew> for Customer {
 #[derive(
     Clone, Debug, Identifiable, Queryable, Selectable, serde::Deserialize, serde::Serialize,
 )]
-#[diesel(table_name = customers, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = customers, primary_key(customer_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct Customer {
-    pub id: i32,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,

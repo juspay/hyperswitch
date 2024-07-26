@@ -6,6 +6,7 @@ pub enum ApiIdentifier {
     Payments,
     Refunds,
     Webhooks,
+    Organization,
     MerchantAccount,
     MerchantConnector,
     Configs,
@@ -47,6 +48,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountDelete
             | Flow::MerchantTransferKey
             | Flow::MerchantAccountList => Self::MerchantAccount,
+
+            Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
+                Self::Organization
+            }
 
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig

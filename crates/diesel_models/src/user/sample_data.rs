@@ -20,7 +20,7 @@ use crate::{
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptBatchNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub status: AttemptStatus,
     pub amount: i64,
