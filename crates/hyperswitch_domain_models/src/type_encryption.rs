@@ -990,7 +990,7 @@ where
     }
 }
 
-mod metrics {
+pub mod metrics {
     use router_env::{counter_metric, global_meter, histogram_metric, metrics_context, once_cell};
 
     metrics_context!(CONTEXT);

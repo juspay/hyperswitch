@@ -63,7 +63,7 @@ impl super::behaviour::Conversion for UserKeyStore {
     }
 }
 
-/// This is a temprory function to decrypt the user key store within application
+/// This is a temporary function to decrypt the user key store within application
 /// Since key in user key store is encrypted with master key in the application, decrypt can't be done with key manager service.
 /// Once application user key store is deprecated, this method should be removed.
 async fn decrypt_user_key_store(
