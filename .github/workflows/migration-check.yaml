@@ -80,6 +80,10 @@ jobs:
       - name: Drop `DB for v2 column ordering mismatch`
         shell: bash
         run: just resurrect hyperswitch_db
+      
+      - name: Verify `diesel migration run for v1`
+        shell: bash
+        run: just migrate run --locked-schema
 
       - name: Verify `diesel migration run for v2`
         shell: bash

@@ -301,13 +301,13 @@ diesel::table! {
         default_payment_method_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
-        version -> ApiVersion,
         #[max_length = 64]
         merchant_customer_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
         default_shipping_address -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
