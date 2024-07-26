@@ -24,8 +24,12 @@ use tokio::sync::oneshot;
 use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "customer_v2")))]
+use super::payment_methods::*;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
@@ -50,8 +54,6 @@ use super::{
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
 #[cfg(feature = "olap")]
@@ -62,8 +64,6 @@ use crate::analytics::AnalyticsProvider;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(all(feature = "olap", not(feature = "v2")))]
-use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
@@ -343,6 +343,7 @@ impl AppState {
                             .expect("Failed to create store"),
                         kafka_client.clone(),
                         TenantID(tenant.get_schema().to_string()),
+                        tenant,
                     )
                     .await,
                 ),
@@ -376,22 +377,19 @@ impl AppState {
         .await
     }
 
-    pub fn get_req_state(&self) -> ReqState {
-        ReqState {
-            event_context: events::EventContext::new(self.event_handler.clone()),
-        }
-    }
     pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
     where
         F: FnOnce() -> E + Copy,
     {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
+        let mut event_handler = self.event_handler.clone();
+        event_handler.add_tenant(tenant_conf);
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
-            event_handler: self.event_handler.clone(),
+            event_handler,
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
@@ -1124,7 +1122,7 @@ impl MerchantConnectorAccount {
             route = route
                 .service(
                     web::resource("/connectors/verify")
-                        .route(web::post().to(payment_connector_verify)),
+                        .route(web::post().to(super::verify_connector::payment_connector_verify)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors")

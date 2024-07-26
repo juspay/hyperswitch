@@ -692,22 +692,13 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(
-        request,
-        payload,
-        state,
-        func,
-        api_auth,
-        request_state,
-        incoming_request_header
-    ),
+    skip(request, payload, state, func, api_auth, incoming_request_header),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
     incoming_request_header: &HeaderMap,
-    mut request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
@@ -728,12 +719,6 @@ where
         .await
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
-
-    request_state.event_context.record_info(request_id);
-    request_state
-        .event_context
-        .record_info(("flow".to_string(), flow.to_string()));
-    // request_state.event_context.record_info(request.clone());
 
     let mut app_state = state.get_ref().clone();
 
@@ -767,9 +752,6 @@ where
                 }
             })??
     };
-    request_state
-        .event_context
-        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
     // let tenant_id = "public".to_string();
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
@@ -779,6 +761,16 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id);
+    let mut request_state = session_state.get_req_state();
+
+    request_state.event_context.record_info(request_id);
+    request_state
+        .event_context
+        .record_info(("flow".to_string(), flow.to_string()));
+
+    request_state
+        .event_context
+        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
@@ -904,7 +896,6 @@ where
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
-    let req_state = state.get_req_state();
     let request_method = request.method().as_str();
     let url_path = request.path();
 
@@ -939,7 +930,6 @@ where
             &flow,
             state.clone(),
             incoming_request_header,
-            req_state,
             request,
             payload,
             func,
