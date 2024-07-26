@@ -27,7 +27,6 @@ jobs:
 
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-      PGDATABASE: postgres
       PGUSER: postgres
       PGPASSWORD: postgres
       PGHOST: localhost
