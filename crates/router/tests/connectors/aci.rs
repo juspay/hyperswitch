@@ -214,7 +214,7 @@ async fn payments_create_success() {
 
     static CV: aci::Aci = aci::Aci;
     let connector = utils::construct_connector_data_old(
-        Box::new(&CV),
+        Box::new(CV::new()),
         types::Connector::Aci,
         types::api::GetToken::Connector,
         None,
@@ -304,7 +304,7 @@ async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;
     let connector = utils::construct_connector_data_old(
-        Box::new(&CV),
+        Box::new(CV::new()),
         types::Connector::Aci,
         types::api::GetToken::Connector,
         None,
@@ -374,7 +374,7 @@ async fn refunds_create_failure() {
     let conf = Settings::new().unwrap();
     static CV: aci::Aci = aci::Aci;
     let connector = utils::construct_connector_data_old(
-        Box::new(&CV),
+        Box::new(CV::new()),
         types::Connector::Aci,
         types::api::GetToken::Connector,
         None,
