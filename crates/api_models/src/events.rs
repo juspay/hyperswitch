@@ -145,20 +145,6 @@ impl_api_event_type!(
     )
 );
 
-#[cfg(feature = "stripe")]
-impl_api_event_type!(
-    Miscellaneous,
-    (
-        StripeSetupIntentResponse,
-        StripeRefundResponse,
-        StripePaymentIntentListResponse,
-        StripePaymentIntentResponse,
-        CustomerDeleteResponse,
-        CustomerPaymentMethodListResponse,
-        CreateCustomerResponse
-    )
-);
-
 impl<T> ApiEventMetric for MetricsResponse<T> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)

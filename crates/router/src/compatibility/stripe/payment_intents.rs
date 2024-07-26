@@ -35,7 +35,7 @@ pub async fn payment_intents_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    tracing::Span::current().record("payment_id", &payload.id.clone().unwrap_or_default());
+    tracing::Span::current().record("payment_id", payload.id.clone().unwrap_or_default());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
@@ -181,7 +181,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         _ => Flow::PaymentsRetrieve,
     };
 
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
@@ -378,7 +378,7 @@ pub async fn payment_intents_capture(
         }
     };
 
-    tracing::Span::current().record("payment_id", &stripe_payload.payment_id.clone());
+    tracing::Span::current().record("payment_id", stripe_payload.payment_id.clone());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
@@ -442,7 +442,7 @@ pub async fn payment_intents_cancel(
         }
     };
 
-    tracing::Span::current().record("payment_id", &payment_id.clone());
+    tracing::Span::current().record("payment_id", payment_id.clone());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
