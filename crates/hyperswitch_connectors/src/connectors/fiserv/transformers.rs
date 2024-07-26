@@ -17,7 +17,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, CardData as CardDataUtil, PaymentsCancelRequestData, PaymentsSyncRequestData,
-        RouterData as RouterDataUtil,
+        RouterData as _,
     },
 };
 
