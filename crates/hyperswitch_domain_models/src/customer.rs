@@ -51,12 +51,12 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
+    pub version: ApiVersion,
     pub merchant_customer_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
-    pub version: ApiVersion,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]

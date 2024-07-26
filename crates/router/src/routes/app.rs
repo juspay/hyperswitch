@@ -24,7 +24,7 @@ use super::blocklist;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "customer_v2")))]
+#[cfg(all(any(feature = "olap", feature = "oltp")))]
 use super::payment_methods::*;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
@@ -63,7 +63,8 @@ use crate::routes::recon as recon_routes;
 #[cfg(all(
     feature = "olap",
     any(feature = "v2", feature = "v1"),
-    not(feature = "merchant_connector_account_v2")
+    not(feature = "merchant_connector_account_v2"),
+    not(feature = "customer_v2")
 ))]
 use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{

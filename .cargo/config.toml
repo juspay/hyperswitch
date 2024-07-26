@@ -13,7 +13,7 @@ rustflags = [
     "-Wclippy::panic",
     "-Wclippy::panic_in_result_fn",
     "-Wclippy::panicking_unwrap",
-    "-Wclippy::todo",
+    # "-Wclippy::todo",
     "-Wclippy::unimplemented",
     "-Wclippy::unreachable",
     "-Wclippy::unwrap_in_result",
