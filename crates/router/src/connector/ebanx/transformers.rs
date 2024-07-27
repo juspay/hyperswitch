@@ -1,6 +1,5 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::{Bank, PayoutMethodData};
-use common_enums::Currency;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
 use common_utils::types::FloatMajorUnit;
@@ -12,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils,
     core::errors,
-    types::{self, api::CurrencyUnit},
+    types,
 };
 #[cfg(feature = "payouts")]
 use crate::{
