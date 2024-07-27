@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
-use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt,
-};
+use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 
 use crate::{
