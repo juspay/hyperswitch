@@ -1,11 +1,9 @@
 use std::marker::PhantomData;
 
 use common_utils::{
-    crypto::OptionalEncryptableSecretString, errors::CustomResult, ext_traits::ValueExt,
+    errors::CustomResult, ext_traits::ValueExt,
 };
 use error_stack::ResultExt;
-use masking::PeekInterface;
-use serde_json::Value as JsonValue;
 
 use crate::{
     core::{
@@ -150,18 +148,4 @@ pub(crate) fn get_idempotent_event_id(
 #[inline]
 pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
-}
-
-// Helper to get value from webhook response
-// If key is not present, will return None
-pub(crate) fn extract_value_from_response(
-    response: &OptionalEncryptableSecretString,
-    key: &str,
-) -> Option<u16> {
-    response
-        .as_ref()
-        .map(|value| value.peek().as_str())
-        .and_then(|response_str| serde_json::from_str::<JsonValue>(&response_str).ok())
-        .and_then(|json_value| json_value.get(key).and_then(JsonValue::as_u64))
-        .map(|status_code| status_code as u16)
 }

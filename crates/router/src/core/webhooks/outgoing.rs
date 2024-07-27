@@ -5,7 +5,7 @@ use api_models::{
     webhooks,
 };
 use common_utils::{
-    ext_traits::Encode,
+    ext_traits::{Encode, StringExt},
     request::RequestContent,
     types::keymanager::{Identifier, KeyManagerState},
 };
@@ -474,7 +474,6 @@ async fn raise_webhooks_analytics_event(
         .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
 
     // Fetch updated_event from db
-    // and extract the status_code field from the webhook response
     let debug = format!("event not found for id: {}", &event_id);
     event = state
         .store
@@ -487,7 +486,13 @@ async fn raise_webhooks_analytics_event(
         .await
         .change_context(errors::StorageError::ValueNotFound(debug.clone()))
         .attach_printable(debug)?;
-    let status_code = utils::extract_value_from_response(&event.response, "status_code");
+
+    // Get status_code from webhook response
+    let webhook_response: Option<OutgoingWebhookResponseContent> = event
+        .response
+        .map(|res| res.peek().to_owned())
+        .and_then(|res| res.parse_struct("OutgoingWebhookResponseContent").ok());
+    let status_code = webhook_response.and_then(|res| res.status_code);
 
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
