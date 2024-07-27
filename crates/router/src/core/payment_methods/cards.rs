@@ -4137,7 +4137,7 @@ impl SavedPMLPaymentsInfo {
     ) -> errors::RouterResult<Self> {
         let requires_cvv = db
             .find_config_by_key_unwrap_or(
-                format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
+                format!("{}_requires_cvv", merchant_account.get_id()).as_str(),
                 Some("true".to_string()),
             )
             .await
@@ -4154,7 +4154,7 @@ impl SavedPMLPaymentsInfo {
         let profile_id = core_utils::get_profile_id_from_business_details(
             payment_intent.business_country,
             payment_intent.business_label.as_ref(),
-            &merchant_account,
+            merchant_account,
             payment_intent.profile_id.as_ref(),
             db,
             false,
@@ -4165,7 +4165,7 @@ impl SavedPMLPaymentsInfo {
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
             Some(profile_id).as_ref(),
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
         )
         .await?;
 
@@ -4258,7 +4258,7 @@ pub async fn list_customer_payment_method(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -4273,7 +4273,7 @@ pub async fn list_customer_payment_method(
     let saved_payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_status(
             customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             common_enums::PaymentMethodStatus::Active,
             limit,
             merchant_account.storage_scheme,
@@ -4326,7 +4326,7 @@ pub async fn list_customer_payment_method(
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: customer_pms,
-        is_guest_customer: Some(is_payment_associated), //to return this key only when the request is tied to a payment intent
+        is_guest_customer: is_payment_associated.then_some(false), //to return this key only when the request is tied to a payment intent
     };
 
     if is_payment_associated {
@@ -4400,7 +4400,7 @@ async fn generate_saved_pm_response(
     let mca_enabled = get_mca_status(
         state,
         key_store,
-        &merchant_account.merchant_id,
+        merchant_account.get_id(),
         is_connector_agnostic_mit_enabled,
         connector_mandate_details,
         pm.network_transaction_id.as_ref(),
@@ -4414,16 +4414,18 @@ async fn generate_saved_pm_response(
     } else {
         requires_cvv && !(off_session_payment_flag && pm.connector_mandate_details.is_some())
     };
-    #[cfg(not(feature = "payouts"))]
-    let pmd = pm_list_context
-        .card_details
-        .clone()
-        .map(api::PaymentMethodListData::Card);
-    #[cfg(feature = "payouts")]
-    let pmd = pm_list_context
-        .bank_transfer_details
-        .clone()
-        .map(api::PaymentMethodListData::Bank);
+
+    let pmd = if let Some(card) = pm_list_context.card_details.as_ref() {
+        Some(api::PaymentMethodListData::Card(card.clone()))
+    } else if cfg!(feature = "payouts") {
+        pm_list_context
+            .bank_transfer_details
+            .clone()
+            .map(api::PaymentMethodListData::Bank)
+    } else {
+        None
+    };
+
     let pma = api::CustomerPaymentMethod {
         payment_token: parent_payment_method_token.clone(),
         payment_method_id: pm.payment_method_id.clone(),

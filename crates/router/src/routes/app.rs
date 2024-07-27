@@ -24,7 +24,7 @@ use super::blocklist;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "customer_v2")))]
+#[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods::*;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
@@ -461,7 +461,7 @@ pub struct Payments;
 ))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("v2/payments").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route.service(
             web::resource("/{payment_id}/saved_payment_methods")
                 .route(web::get().to(list_customer_payment_method_for_payment)),
