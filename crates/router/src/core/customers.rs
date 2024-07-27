@@ -206,7 +206,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let _default_customer_billing_address = self.get_default_customer_billing_address();
         let _default_customer_shipping_address = self.get_default_customer_shipping_address();
-        let merchant_id = merchant_account.merchant_id.clone();
+        let merchant_id = merchant_account.get_id().clone();
         let key = key_store.key.get_inner().peek();
 
         let encrypted_data = types::batch_encrypt(
@@ -230,14 +230,13 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             customer_id: merchant_reference_id
                 .to_owned()
                 .ok_or(errors::CustomersErrorResponse::InternalServerError)?, // doing this to make it compile, will remove once we start moving to domain models
-            merchant_id: merchant_id.to_string(),
+            merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email,
             phone: encryptable_customer.phone,
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
-            id: None,
             connector_customer: None,
             address_id: None,
             created_at: common_utils::date_time::now(),

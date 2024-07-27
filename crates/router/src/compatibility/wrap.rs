@@ -43,14 +43,12 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
-    let req_state = state.get_req_state();
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
             state.clone().into(),
             request.headers(),
-            req_state,
             request,
             payload,
             func,

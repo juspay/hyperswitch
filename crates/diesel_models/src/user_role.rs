@@ -9,28 +9,36 @@ use crate::{enums, schema::user_roles};
 pub struct UserRole {
     pub id: i32,
     pub user_id: String,
-    pub merchant_id: id_type::MerchantId,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub role_id: String,
-    pub org_id: id_type::OrganizationId,
+    pub org_id: Option<id_type::OrganizationId>,
     pub status: enums::UserStatus,
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
+    pub profile_id: Option<String>,
+    pub entity_id: Option<String>,
+    pub entity_type: Option<String>,
+    pub version: enums::UserRoleVersion,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = user_roles)]
 pub struct UserRoleNew {
     pub user_id: String,
-    pub merchant_id: id_type::MerchantId,
+    pub merchant_id: Option<id_type::MerchantId>,
     pub role_id: String,
-    pub org_id: id_type::OrganizationId,
+    pub org_id: Option<id_type::OrganizationId>,
     pub status: enums::UserStatus,
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
+    pub profile_id: Option<String>,
+    pub entity_id: Option<String>,
+    pub entity_type: Option<String>,
+    pub version: enums::UserRoleVersion,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
