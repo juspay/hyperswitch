@@ -81,7 +81,7 @@ macro_rules! default_imp_for_authorize_session_token {
     };
 }
 
-default_imp_for_authorize_session_token!(connectors::Helcim);
+default_imp_for_authorize_session_token!(connectors::Fiserv, connectors::Helcim);
 
 use crate::connectors;
 macro_rules! default_imp_for_complete_authorize {
@@ -99,7 +99,7 @@ macro_rules! default_imp_for_complete_authorize {
     };
 }
 
-default_imp_for_complete_authorize!(connectors::Helcim);
+default_imp_for_complete_authorize!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_incremental_authorization {
     ($($path:ident::$connector:ident),*) => {
@@ -116,7 +116,7 @@ macro_rules! default_imp_for_incremental_authorization {
     };
 }
 
-default_imp_for_incremental_authorization!(connectors::Helcim);
+default_imp_for_incremental_authorization!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_create_customer {
     ($($path:ident::$connector:ident),*) => {
@@ -133,7 +133,7 @@ macro_rules! default_imp_for_create_customer {
     };
 }
 
-default_imp_for_create_customer!(connectors::Helcim);
+default_imp_for_create_customer!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_pre_processing_steps{
     ($($path:ident::$connector:ident),*)=> {
@@ -150,7 +150,7 @@ macro_rules! default_imp_for_pre_processing_steps{
     };
 }
 
-default_imp_for_pre_processing_steps!(connectors::Helcim);
+default_imp_for_pre_processing_steps!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_post_processing_steps{
     ($($path:ident::$connector:ident),*)=> {
@@ -167,7 +167,7 @@ macro_rules! default_imp_for_post_processing_steps{
     };
 }
 
-default_imp_for_post_processing_steps!(connectors::Helcim);
+default_imp_for_post_processing_steps!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_approve {
     ($($path:ident::$connector:ident),*) => {
@@ -184,7 +184,7 @@ macro_rules! default_imp_for_approve {
     };
 }
 
-default_imp_for_approve!(connectors::Helcim);
+default_imp_for_approve!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_reject {
     ($($path:ident::$connector:ident),*) => {
@@ -201,7 +201,7 @@ macro_rules! default_imp_for_reject {
     };
 }
 
-default_imp_for_reject!(connectors::Helcim);
+default_imp_for_reject!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_webhook_source_verification {
     ($($path:ident::$connector:ident),*) => {
@@ -218,7 +218,7 @@ macro_rules! default_imp_for_webhook_source_verification {
     };
 }
 
-default_imp_for_webhook_source_verification!(connectors::Helcim);
+default_imp_for_webhook_source_verification!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_accept_dispute {
     ($($path:ident::$connector:ident),*) => {
@@ -236,7 +236,7 @@ macro_rules! default_imp_for_accept_dispute {
     };
 }
 
-default_imp_for_accept_dispute!(connectors::Helcim);
+default_imp_for_accept_dispute!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_submit_evidence {
     ($($path:ident::$connector:ident),*) => {
@@ -253,7 +253,7 @@ macro_rules! default_imp_for_submit_evidence {
     };
 }
 
-default_imp_for_submit_evidence!(connectors::Helcim);
+default_imp_for_submit_evidence!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_defend_dispute {
     ($($path:ident::$connector:ident),*) => {
@@ -270,7 +270,7 @@ macro_rules! default_imp_for_defend_dispute {
     };
 }
 
-default_imp_for_defend_dispute!(connectors::Helcim);
+default_imp_for_defend_dispute!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_file_upload {
     ($($path:ident::$connector:ident),*) => {
@@ -296,7 +296,7 @@ macro_rules! default_imp_for_file_upload {
     };
 }
 
-default_imp_for_file_upload!(connectors::Helcim);
+default_imp_for_file_upload!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_create {
@@ -315,7 +315,7 @@ macro_rules! default_imp_for_payouts_create {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_create!(connectors::Helcim);
+default_imp_for_payouts_create!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_retrieve {
@@ -334,7 +334,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_retrieve!(connectors::Helcim);
+default_imp_for_payouts_retrieve!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_eligibility {
@@ -353,7 +353,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_eligibility!(connectors::Helcim);
+default_imp_for_payouts_eligibility!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_fulfill {
@@ -372,7 +372,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_fulfill!(connectors::Helcim);
+default_imp_for_payouts_fulfill!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_cancel {
@@ -391,7 +391,7 @@ macro_rules! default_imp_for_payouts_cancel {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_cancel!(connectors::Helcim);
+default_imp_for_payouts_cancel!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_quote {
@@ -410,7 +410,7 @@ macro_rules! default_imp_for_payouts_quote {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_quote!(connectors::Helcim);
+default_imp_for_payouts_quote!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_recipient {
@@ -429,7 +429,7 @@ macro_rules! default_imp_for_payouts_recipient {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient!(connectors::Helcim);
+default_imp_for_payouts_recipient!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_recipient_account {
@@ -448,7 +448,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient_account!(connectors::Helcim);
+default_imp_for_payouts_recipient_account!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_sale {
@@ -467,7 +467,7 @@ macro_rules! default_imp_for_frm_sale {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_sale!(connectors::Helcim);
+default_imp_for_frm_sale!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_checkout {
@@ -486,7 +486,7 @@ macro_rules! default_imp_for_frm_checkout {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_checkout!(connectors::Helcim);
+default_imp_for_frm_checkout!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_transaction {
@@ -505,7 +505,7 @@ macro_rules! default_imp_for_frm_transaction {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_transaction!(connectors::Helcim);
+default_imp_for_frm_transaction!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_fulfillment {
@@ -524,7 +524,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_fulfillment!(connectors::Helcim);
+default_imp_for_frm_fulfillment!(connectors::Fiserv, connectors::Helcim);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_record_return {
@@ -543,7 +543,7 @@ macro_rules! default_imp_for_frm_record_return {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_record_return!(connectors::Helcim);
+default_imp_for_frm_record_return!(connectors::Fiserv, connectors::Helcim);
 
 macro_rules! default_imp_for_revoking_mandates {
     ($($path:ident::$connector:ident),*) => {
@@ -559,4 +559,4 @@ macro_rules! default_imp_for_revoking_mandates {
     };
 }
 
-default_imp_for_revoking_mandates!(connectors::Helcim);
+default_imp_for_revoking_mandates!(connectors::Fiserv, connectors::Helcim);

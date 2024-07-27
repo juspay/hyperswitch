@@ -108,7 +108,7 @@ pub async fn payments_create(
 
     tracing::Span::current().record(
         "payment_id",
-        &payload
+        payload
             .payment_id
             .as_ref()
             .map(|payment_id_type| payment_id_type.get_payment_intent_id())
@@ -254,8 +254,8 @@ pub async fn payments_retrieve(
         ..Default::default()
     };
 
-    tracing::Span::current().record("payment_id", &path.to_string());
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("payment_id", path.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     let (auth_type, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
@@ -334,7 +334,7 @@ pub async fn payments_retrieve_with_gateway_creds(
     };
 
     tracing::Span::current().record("payment_id", &json_payload.payment_id);
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     let locking_action = payload.get_locking_input(flow.clone());
 
