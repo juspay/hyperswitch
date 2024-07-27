@@ -2,7 +2,7 @@ use api_models::enums::BankNames;
 use common_enums::AttemptStatus;
 use common_utils::{
     pii::{Email, IpAddress},
-    types::MinorUnit,
+    types::{MinorUnit,FloatMajorUnit},
 };
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -407,7 +407,7 @@ pub struct CheckoutOptions {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Item {
     pub name: String,
-    pub unit_price: f64,
+    pub unit_price: FloatMajorUnit,
     pub description: Option<String>,
     pub quantity: i64,
 }
