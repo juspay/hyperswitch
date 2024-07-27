@@ -8,17 +8,13 @@ use masking::ExposeInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connector::utils,
-    core::errors,
-    types,
-};
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::{AddressDetailsData, RouterData},
     connector::utils::{CustomerDetails, PayoutsData},
     types::{api, storage::enums as storage_enums},
 };
+use crate::{core::errors, types};
 
 pub struct EbanxRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
