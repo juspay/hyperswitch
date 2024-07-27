@@ -2,7 +2,7 @@ use api_models::enums::BankNames;
 use common_enums::AttemptStatus;
 use common_utils::{
     pii::{Email, IpAddress},
-    types::{MinorUnit,FloatMajorUnit},
+    types::{FloatMajorUnit, MinorUnit},
 };
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
