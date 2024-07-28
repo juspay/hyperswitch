@@ -11,7 +11,7 @@ use crate::{enums as storage_enums, schema::incremental_authorization};
 #[diesel(table_name = incremental_authorization, primary_key(authorization_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct Authorization {
     pub authorization_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub amount: MinorUnit,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -29,7 +29,7 @@ pub struct Authorization {
 #[diesel(table_name = incremental_authorization)]
 pub struct AuthorizationNew {
     pub authorization_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub amount: MinorUnit,
     pub status: storage_enums::AuthorizationStatus,

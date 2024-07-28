@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
-pub use api_models::admin::{
-    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
-    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
-    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
-    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+pub use api_models::{
+    admin::{
+        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
+        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
+        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
+        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
+        MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
+        ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    },
+    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -21,8 +24,21 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
     routes::SessionState,
-    types::{domain, storage, transformers::ForeignTryFrom},
+    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
 };
+
+impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
+    fn foreign_from(org: diesel_models::organization::Organization) -> Self {
+        Self {
+            organization_id: org.org_id,
+            organization_name: org.org_name,
+            organization_details: org.organization_details,
+            metadata: org.metadata,
+            modified_at: org.modified_at,
+            created_at: org.created_at,
+        }
+    }
+}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -31,6 +47,7 @@ use crate::{
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+        let merchant_id = item.get_id().to_owned();
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
@@ -41,7 +58,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .transpose()?;
 
         Ok(Self {
-            merchant_id: item.merchant_id,
+            merchant_id,
             merchant_name: item.merchant_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -74,13 +91,15 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         use common_utils::ext_traits::OptionExt;
 
+        let id = item.get_id().to_owned();
+
         let merchant_name = item
             .merchant_name
             .get_required_value("merchant_name")?
             .into_inner();
 
         Ok(Self {
-            id: item.merchant_id,
+            id,
             merchant_name,
             merchant_details: item.merchant_details,
             publishable_key: item.publishable_key,
@@ -171,6 +190,7 @@ pub async fn create_business_profile(
 > {
     // Generate a unique profile id
     let profile_id = common_utils::generate_id_with_default_len("pro");
+    let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
 
@@ -226,7 +246,7 @@ pub async fn create_business_profile(
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
-        merchant_id: merchant_account.merchant_id,
+        merchant_id,
         profile_name: request.profile_name.unwrap_or("default".to_string()),
         created_at: current_time,
         modified_at: current_time,

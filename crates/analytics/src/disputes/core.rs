@@ -27,7 +27,7 @@ use crate::{
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetDisputeMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<DisputeMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -123,7 +123,7 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetDisputeFilterRequest,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<DisputeFiltersResponse> {
     let mut res = DisputeFiltersResponse::default();
     for dim in req.group_by_names {

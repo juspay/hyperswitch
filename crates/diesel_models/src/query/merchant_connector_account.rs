@@ -50,7 +50,7 @@ impl MerchantConnectorAccount {
 
     pub async fn delete_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
@@ -64,7 +64,7 @@ impl MerchantConnectorAccount {
 
     pub async fn find_by_merchant_id_connector(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_label: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -92,7 +92,7 @@ impl MerchantConnectorAccount {
 
     pub async fn find_by_merchant_id_connector_name(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
@@ -114,7 +114,7 @@ impl MerchantConnectorAccount {
 
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -128,7 +128,7 @@ impl MerchantConnectorAccount {
 
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         get_disabled: bool,
     ) -> StorageResult<Vec<Self>> {
         if get_disabled {

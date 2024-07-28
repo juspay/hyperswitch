@@ -337,7 +337,9 @@ Cypress.Commands.add(
               .sort();
           }
           let config_payment_method_type = getPaymentMethodType(res_data);
-          let response_payment_method_type = getPaymentMethodType(response.body);
+          let response_payment_method_type = getPaymentMethodType(
+            response.body
+          );
           for (let i = 0; i < response_payment_method_type.length; i++) {
             expect(config_payment_method_type[i]).to.equal(
               response_payment_method_type[i]
@@ -671,20 +673,13 @@ Cypress.Commands.add(
                   "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
                   response.body.next_action.qr_code_url
                 );
-                globalState.set(
-                  "nextActionType",
-                  "qr_code_url"
-                );
-              }
-              else{
+                globalState.set("nextActionType", "qr_code_url");
+              } else {
                 globalState.set(
                   "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
                   response.body.next_action.image_data_url
                 );
-                globalState.set(
-                  "nextActionType", 
-                  "image_data_url"
-                );
+                globalState.set("nextActionType", "image_data_url");
               }
               break;
             default:
@@ -1175,32 +1170,45 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      globalState.set("paymentID", response.body.payment_id);
-      if (response.body.capture_method === "automatic") {
-        if (response.body.authentication_type === "three_ds") {
-          expect(response.body)
-            .to.have.property("next_action")
-            .to.have.property("redirect_to_url");
-          const nextActionUrl = response.body.next_action.redirect_to_url;
-          cy.log(nextActionUrl);
-        } else if (response.body.authentication_type === "no_three_ds") {
-          expect(response.body.status).to.equal("succeeded");
+      if (response.status === 200) {
+        globalState.set("paymentID", response.body.payment_id);
+        if (response.body.capture_method === "automatic") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+            cy.log(nextActionUrl);
+          } else if (response.body.authentication_type === "no_three_ds") {
+            expect(response.body.status).to.equal("succeeded");
+          } else {
+            throw new Error(
+              `Invalid authentication type ${response.body.authentication_type}`
+            );
+          }
+        } else if (response.body.capture_method === "manual") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+            cy.log(nextActionUrl);
+          } else if (response.body.authentication_type === "no_three_ds") {
+            expect(response.body.status).to.equal("requires_capture");
+          } else {
+            throw new Error(
+              `Invalid authentication type ${response.body.authentication_type}`
+            );
+          }
         } else {
-          defaultErrorHandler(response, res_data);
+          throw new Error(
+            `Invalid capture method ${response.body.capture_method}`
+          );
         }
-      } else if (response.body.capture_method === "manual") {
-        if (response.body.authentication_type === "three_ds") {
-          expect(response.body)
-            .to.have.property("next_action")
-            .to.have.property("redirect_to_url");
-          const nextActionUrl = response.body.next_action.redirect_to_url;
-          cy.log(response.body);
-          cy.log(nextActionUrl);
-        } else if (response.body.authentication_type === "no_three_ds") {
-          expect(response.body.status).to.equal("requires_capture");
-        } else {
-          defaultErrorHandler(response, res_data);
-        }
+      } else {
+        throw new Error(
+          `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
+        );
       }
     });
   }
@@ -1226,33 +1234,45 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
-      globalState.set("paymentID", response.body.payment_id);
-      if (response.body.capture_method === "automatic") {
-        if (response.body.authentication_type === "three_ds") {
-          expect(response.body)
-            .to.have.property("next_action")
-            .to.have.property("redirect_to_url");
-          const nextActionUrl = response.body.next_action.redirect_to_url;
-          cy.log(response.body);
-          cy.log(nextActionUrl);
-        } else if (response.body.authentication_type === "no_three_ds") {
-          expect(response.body.status).to.equal("succeeded");
+      if (response.status === 200) {
+        globalState.set("paymentID", response.body.payment_id);
+        if (response.body.capture_method === "automatic") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+            cy.log(nextActionUrl);
+          } else if (response.body.authentication_type === "no_three_ds") {
+            expect(response.body.status).to.equal("succeeded");
+          } else {
+            throw new Error(
+              `Invalid authentication type ${response.body.authentication_type}`
+            );
+          }
+        } else if (response.body.capture_method === "manual") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+            cy.log(nextActionUrl);
+          } else if (response.body.authentication_type === "no_three_ds") {
+            expect(response.body.status).to.equal("requires_capture");
+          } else {
+            throw new Error(
+              `Invalid authentication type ${response.body.authentication_type}`
+            );
+          }
         } else {
-          defaultErrorHandler(response, res_data);
+          throw new Error(
+            `Invalid capture method ${response.body.capture_method}`
+          );
         }
-      } else if (response.body.capture_method === "manual") {
-        if (response.body.authentication_type === "three_ds") {
-          expect(response.body)
-            .to.have.property("next_action")
-            .to.have.property("redirect_to_url");
-          const nextActionUrl = response.body.next_action.redirect_to_url;
-          cy.log(response.body);
-          cy.log(nextActionUrl);
-        } else if (response.body.authentication_type === "no_three_ds") {
-          expect(response.body.status).to.equal("requires_capture");
-        } else {
-          defaultErrorHandler(response, res_data);
-        }
+      } else {
+        throw new Error(
+          `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
+        );
       }
     });
   }
@@ -1343,7 +1363,7 @@ Cypress.Commands.add(
     let connectorId = globalState.get("connectorId");
     let expected_url = new URL(expected_redirection);
     let redirection_url = new URL(globalState.get("nextActionUrl"));
-    let next_action_type = globalState.get("nextActionType")
+    let next_action_type = globalState.get("nextActionType");
     cy.log(payment_method_type);
     handleRedirection(
       "bank_transfer",

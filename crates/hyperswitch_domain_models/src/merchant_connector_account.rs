@@ -19,8 +19,7 @@ use crate::type_encryption::{decrypt, decrypt_optional, AsyncLift};
 ))]
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
-    pub id: Option<i32>,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_name: String,
     pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
     pub test_mode: Option<bool>,
@@ -39,7 +38,7 @@ pub struct MerchantConnectorAccount {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     pub profile_id: Option<String>,
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub pm_auth_config: Option<serde_json::Value>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub additional_merchant_data: Option<Encryptable<Secret<serde_json::Value>>>,
@@ -73,7 +72,7 @@ pub struct MerchantConnectorAccount {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     pub profile_id: Option<String>,
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub pm_auth_config: Option<serde_json::Value>,
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub additional_merchant_data: Option<Encryptable<Secret<serde_json::Value>>>,
@@ -104,7 +103,7 @@ pub enum MerchantConnectorAccountUpdate {
         frm_configs: Option<Vec<Secret<serde_json::Value>>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
-        pm_auth_config: Option<serde_json::Value>,
+        pm_auth_config: Option<pii::SecretSerdeValue>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
         connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
@@ -150,9 +149,6 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(
             diesel_models::merchant_connector_account::MerchantConnectorAccount {
-                id: self.id.ok_or(ValidationError::MissingRequiredField {
-                    field_name: "id".to_string(),
-                })?,
                 merchant_id: self.merchant_id,
                 connector_name: self.connector_name,
                 connector_account_details: self.connector_account_details.into(),
@@ -185,11 +181,10 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         Ok(Self {
-            id: Some(other.id),
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
             connector_account_details: decrypt(

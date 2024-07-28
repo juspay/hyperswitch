@@ -297,6 +297,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
+            // api_enums::Connector::Wellsfargo => Self::Wellsfargo,
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
@@ -1054,6 +1055,8 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
             connector_transaction_id: payment_attempt.connector_transaction_id,
             capture_method: payment_attempt.capture_method,
             authentication_type: payment_attempt.authentication_type,
+            created_at: payment_attempt.created_at,
+            modified_at: payment_attempt.modified_at,
             cancellation_reason: payment_attempt.cancellation_reason,
             mandate_id: payment_attempt.mandate_id,
             error_code: payment_attempt.error_code,
@@ -1327,6 +1330,26 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
         Self {
             org_id: item.org_id,
             org_name: item.org_name,
+            organization_details: None,
+            metadata: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::organization::OrganizationRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::organization::OrganizationRequest) -> Self {
+        let org_new = api_models::organization::OrganizationNew::new(None);
+        Self {
+            org_id: org_new.org_id,
+            org_name: item.organization_name,
+            organization_details: item.organization_details,
+            metadata: item.metadata,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         }
     }
 }

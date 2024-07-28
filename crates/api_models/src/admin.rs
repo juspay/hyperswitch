@@ -72,8 +72,8 @@ pub struct MerchantAccountCreate {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
-    pub parent_merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
+    pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = false, example = true)]
@@ -108,7 +108,8 @@ pub struct MerchantAccountCreate {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The id of the organization to which the merchant belongs to, if not passed an organization is created
-    pub organization_id: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: Option<id_type::OrganizationId>,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
@@ -208,7 +209,8 @@ pub struct MerchantAccountCreate {
     pub metadata: Option<MerchantAccountMetadata>,
 
     /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -262,8 +264,8 @@ pub struct MerchantAccountMetadata {
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
@@ -294,8 +296,8 @@ pub struct MerchantAccountUpdate {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
-    pub parent_merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
+    pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = false, example = true)]
@@ -344,8 +346,8 @@ pub struct MerchantAccountUpdate {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]
@@ -390,8 +392,8 @@ pub struct MerchantAccountResponse {
     pub sub_merchants_enabled: Option<bool>,
 
     /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
-    pub parent_merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf", value_type = Option<String>)]
+    pub parent_merchant_id: Option<id_type::MerchantId>,
 
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
@@ -414,7 +416,8 @@ pub struct MerchantAccountResponse {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The organization id merchant is associated with
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -437,7 +440,7 @@ pub struct MerchantAccountResponse {
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub id: String,
+    pub id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(value_type = String,example = "NewAge Retailer")]
@@ -456,7 +459,8 @@ pub struct MerchantAccountResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The id of the organization which the merchant is associated with
-    pub organization_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+    pub organization_id: id_type::OrganizationId,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -551,8 +555,8 @@ pub struct WebhookDetails {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct MerchantAccountDeleteResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// If the connector is deleted or not
     #[schema(example = false)]
     pub deleted: bool,
@@ -560,12 +564,13 @@ pub struct MerchantAccountDeleteResponse {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct MerchantId {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     pub merchant_connector_id: String,
 }
 
@@ -647,13 +652,17 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    #[schema(value_type = Option<Object>)]
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
+    // By default the ConnectorStatus is Active
     pub status: Option<api_enums::ConnectorStatus>,
 
     /// The identifier for the Merchant Account
-    pub merchant_id: String,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: id_type::MerchantId,
 
     /// In case the merchant needs to store any additional sensitive data
     #[schema(value_type = Option<AdditionalMerchantData>)]
@@ -788,7 +797,8 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>)]
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = Option<ConnectorStatus>, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
@@ -914,6 +924,15 @@ pub struct MerchantConnectorInfo {
     pub merchant_connector_id: String,
 }
 
+impl MerchantConnectorInfo {
+    pub fn new(connector_label: String, merchant_connector_id: String) -> Self {
+        Self {
+            connector_label,
+            merchant_connector_id,
+        }
+    }
+}
+
 /// Response of creating a new Merchant Connector for the merchant account."
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -997,13 +1016,25 @@ pub struct MerchantConnectorResponse {
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    #[schema(value_type = Option<Object>)]
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+impl MerchantConnectorResponse {
+    pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
+        MerchantConnectorInfo {
+            connector_label: connector_label.to_string(),
+            merchant_connector_id: self.connector_id.clone(),
+        }
+    }
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -1108,13 +1139,27 @@ pub struct MerchantConnectorResponse {
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>)]
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
 
     #[schema(value_type = Option<AdditionalMerchantData>)]
     pub additional_merchant_data: Option<AdditionalMerchantData>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
+impl MerchantConnectorResponse {
+    pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
+        MerchantConnectorInfo {
+            connector_label: connector_label.to_string(),
+            merchant_connector_id: self.merchant_connector_id.clone(),
+        }
+    }
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1189,7 +1234,9 @@ pub struct MerchantConnectorUpdate {
     #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
-    pub pm_auth_config: Option<serde_json::Value>,
+    /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    #[schema(value_type = Option<Object>)]
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
@@ -1284,8 +1331,8 @@ pub enum AcceptedCountries {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorDeleteResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: String,
@@ -1297,8 +1344,8 @@ pub struct MerchantConnectorDeleteResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
@@ -1323,7 +1370,8 @@ pub struct TransferKeyResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToggleKVRequest {
     #[serde(skip_deserializing)]
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
@@ -1455,7 +1503,7 @@ pub struct BusinessProfileCreate {
     #[schema(value_type = Option<BusinessPayoutLinkConfig>)]
     pub payout_link_config: Option<BusinessPayoutLinkConfig>,
 
-    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.  
+    /// These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 }
@@ -1463,8 +1511,8 @@ pub struct BusinessProfileCreate {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct BusinessProfileResponse {
     /// The identifier for Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     /// The default business profile that must be used for creating merchant accounts and payments
     #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]
