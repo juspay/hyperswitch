@@ -181,22 +181,6 @@ mod id_type {
                 pub fn get_string_repr(&self) -> &str {
                     &self.0 .0 .0
                 }
-
-                /// Construct the ID type from string.
-                pub fn from(
-                    input_string: std::borrow::Cow<'static, str>,
-                ) -> error_stack::Result<Self, $crate::errors::ValidationError> {
-                    use error_stack::ResultExt;
-
-                    let merchant_ref_id = $crate::id_type::LengthId::from(input_string)
-                        .change_context(
-                            $crate::errors::ValidationError::IncorrectValueProvided {
-                                field_name: $field_name,
-                            },
-                        )?;
-
-                    Ok(Self(merchant_ref_id))
-                }
             }
         };
     }

@@ -1061,7 +1061,9 @@ mod merchant_connector_account_cache_tests {
             .await
             .unwrap();
 
-        let merchant_id = common_utils::id_type::MerchantId::from("test_merchant".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("test_merchant"))
+                .unwrap();
 
         let connector_label = "stripe_USA";
         let merchant_connector_id = "simple_merchant_connector_id";

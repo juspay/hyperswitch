@@ -344,7 +344,7 @@ impl MerchantId {
 impl TryFrom<MerchantId> for id_type::MerchantId {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: MerchantId) -> Result<Self, Self::Error> {
-        Self::from(value.0.into())
+        Self::try_from(std::borrow::Cow::from(value.0))
             .change_context(UserErrors::MerchantIdParsingError)
             .attach_printable("Could not convert user merchant_id to merchant_id type")
     }
