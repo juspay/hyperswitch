@@ -502,7 +502,7 @@ pub async fn save_payout_data_to_locker(
                     customer_id: Some(payout_attempt.customer_id.to_owned()),
                     card_network: None,
                     client_secret: None,
-                    payment_method_data: if let Some(bank) = bank_details {
+                    payment_method_data: if let Some(ref bank) = bank_details {
                         Some(api::PaymentMethodCreateData::BankTransfer(bank.clone()))
                     } else {
                         wallet_details

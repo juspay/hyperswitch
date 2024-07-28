@@ -133,7 +133,7 @@ pub async fn call_to_locker(
                 any(feature = "v1", feature = "v2"),
                 not(feature = "payment_methods_v2")
             ))]
-            card: Some(card_details),
+            card: Some(card_details.clone()),
             #[cfg(all(
                 feature = "payouts",
                 any(feature = "v1", feature = "v2"),

@@ -4199,7 +4199,7 @@ impl SavedPMLPaymentsInfo {
         merchant_account: &domain::MerchantAccount,
         db: &dyn db::StorageInterface,
     ) -> errors::RouterResult<Self> {
-        let is_requires_cvv = db
+        let requires_cvv = db
             .find_config_by_key_unwrap_or(
                 &merchant_account.get_id().get_requires_cvv_key(),
                 Some("true".to_string()),
@@ -4390,7 +4390,7 @@ pub async fn list_customer_payment_method(
 
     let mut response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: customer_pms,
-        is_guest_customer: Some(is_payment_associated), //to return this key only when the request is tied to a payment intent
+        is_guest_customer: is_payment_associated.then_some(false), //to return this key only when the request is tied to a payment intent
     };
 
     if is_payment_associated {
@@ -4478,16 +4478,18 @@ async fn generate_saved_pm_response(
     } else {
         requires_cvv && !(off_session_payment_flag && pm.connector_mandate_details.is_some())
     };
-    #[cfg(not(feature = "payouts"))]
-    let pmd = pm_list_context
-        .card_details
-        .clone()
-        .map(api::PaymentMethodListData::Card);
-    #[cfg(feature = "payouts")]
-    let pmd = pm_list_context
-        .bank_transfer_details
-        .clone()
-        .map(api::PaymentMethodListData::Bank);
+
+    let pmd = if let Some(card) = pm_list_context.card_details.as_ref() {
+        Some(api::PaymentMethodListData::Card(card.clone()))
+    } else if cfg!(feature = "payouts") {
+        pm_list_context
+            .bank_transfer_details
+            .clone()
+            .map(api::PaymentMethodListData::Bank)
+    } else {
+        None
+    };
+
     let pma = api::CustomerPaymentMethod {
         payment_token: parent_payment_method_token.clone(),
         payment_method_id: pm.payment_method_id.clone(),
