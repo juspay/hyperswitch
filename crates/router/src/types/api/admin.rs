@@ -92,13 +92,15 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         use common_utils::ext_traits::OptionExt;
 
+        let id = item.get_id().to_owned();
+
         let merchant_name = item
             .merchant_name
             .get_required_value("merchant_name")?
             .into_inner();
 
         Ok(Self {
-            id: item.merchant_id,
+            id,
             merchant_name,
             merchant_details: item.merchant_details,
             publishable_key: item.publishable_key,

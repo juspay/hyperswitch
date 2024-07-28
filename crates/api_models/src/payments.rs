@@ -761,9 +761,7 @@ impl HeaderPayload {
     }
 }
 
-#[derive(
-    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
-)]
+#[derive(Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
 pub struct PaymentAttemptResponse {
     /// Unique identifier for the attempt
     pub attempt_id: String,
@@ -791,6 +789,14 @@ pub struct PaymentAttemptResponse {
     /// The transaction authentication can be set to undergo payer authentication. By default, the authentication will be marked as NO_THREE_DS
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<enums::AuthenticationType>,
+    /// Time at which the payment attempt was created
+    #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    /// Time at which the payment attempt was last modified
+    #[schema(value_type = PrimitiveDateTime, example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
     /// If the payment was cancelled the reason will be provided here
     pub cancellation_reason: Option<String>,
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
@@ -4057,6 +4063,9 @@ pub struct PaymentListFilterConstraints {
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The list of merchant connector ids to filter payments list for selected label
     pub merchant_connector_id: Option<Vec<String>>,
+    /// The order in which payments list should be sorted
+    #[serde(default)]
+    pub order: Order,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -4094,6 +4103,34 @@ pub struct AmountFilter {
     pub start_amount: Option<i64>,
     /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct Order {
+    /// The field to sort, such as Amount or Created etc.
+    pub on: SortOn,
+    /// The order in which to sort the items, either Ascending or Descending
+    pub by: SortBy,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortOn {
+    /// Sort by the amount field
+    Amount,
+    /// Sort by the created_at field
+    #[default]
+    Created,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortBy {
+    /// Sort in ascending order
+    Asc,
+    /// Sort in descending order
+    #[default]
+    Desc,
 }
 
 #[derive(

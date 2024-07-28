@@ -414,7 +414,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 #[cfg(feature = "olap")]
 enum CreateOrValidateOrganization {
     /// Creates a new organization
-    #[cfg(any(feature = "v1", feature = "v2"))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     Create,
     /// Validates if this organization exists in the records
     Validate {
@@ -453,7 +456,10 @@ impl CreateOrValidateOrganization {
         db: &dyn StorageInterface,
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
-            #[cfg(any(feature = "v1", feature = "v2"))]
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_account_v2")
+            ))]
             Self::Create => {
                 let new_organization = api_models::organization::OrganizationNew::new(None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -639,17 +645,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .await?;
 
         let key = key_store.key.into_inner();
-        let merchant_id = self
-            .get_merchant_reference_id()
-            .get_string_repr()
-            .to_owned();
+        let id = self.get_merchant_reference_id().to_owned();
         let key_manager_state = state.into();
-        let identifier = km_types::Identifier::Merchant(merchant_id.clone());
+        let identifier = km_types::Identifier::Merchant(id.clone());
 
         async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
-                domain::MerchantAccount {
-                    merchant_id,
+                domain::MerchantAccount::from(domain::MerchantAccountSetter {
+                    id,
                     merchant_name: Some(
                         domain_types::encrypt(
                             &key_manager_state,
@@ -697,7 +700,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config: None,
-                },
+                }),
             )
         }
         .await

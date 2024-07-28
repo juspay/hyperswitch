@@ -459,11 +459,6 @@ pub struct BokuErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct BokuConnMetaData {
-    country: String,
-}
-
 fn get_hosted_data(item: &types::PaymentsAuthorizeRouterData) -> Option<BokuHostedData> {
     item.return_url
         .clone()

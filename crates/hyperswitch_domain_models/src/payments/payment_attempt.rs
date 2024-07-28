@@ -554,7 +554,7 @@ impl behaviour::Conversion for PaymentIntent {
     {
         async {
             let inner_decrypt =
-                |inner| decrypt_optional(state, inner, key_manager_identifier, key.peek());
+                |inner| decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek());
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

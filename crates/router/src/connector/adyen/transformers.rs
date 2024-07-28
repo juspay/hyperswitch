@@ -689,23 +689,11 @@ pub struct MbwayData {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct WalleyData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct SamsungPayPmData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "samsungPayToken")]
     samsung_pay_token: Secret<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PayBrightData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Serialize)]

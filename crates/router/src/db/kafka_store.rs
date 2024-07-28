@@ -26,7 +26,7 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
 use time::PrimitiveDateTime;
 
 use super::{
@@ -89,7 +89,13 @@ pub struct KafkaStore {
 }
 
 impl KafkaStore {
-    pub async fn new(store: Store, kafka_producer: KafkaProducer, tenant_id: TenantID) -> Self {
+    pub async fn new(
+        store: Store,
+        mut kafka_producer: KafkaProducer,
+        tenant_id: TenantID,
+        tenant_config: &dyn TenantConfig,
+    ) -> Self {
+        kafka_producer.set_tenancy(tenant_config);
         Self {
             kafka_producer,
             diesel_store: store,

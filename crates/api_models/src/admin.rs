@@ -440,7 +440,7 @@ pub struct MerchantAccountResponse {
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub id: String,
+    pub id: id_type::MerchantId,
 
     /// Name of the Merchant Account
     #[schema(value_type = String,example = "NewAge Retailer")]
