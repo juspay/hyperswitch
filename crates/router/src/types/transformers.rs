@@ -921,17 +921,19 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
     }
 }
 
-impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantConnectorResponse {
+impl ForeignTryFrom<domain::MerchantConnectorAccount>
+    for api_models::admin::MerchantConnectorResponse
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
-        let payment_methods_enabled = match item.payment_methods_enabled {
+    fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+        let payment_methods_enabled = match item.payment_methods_enabled.clone() {
             Some(val) => serde_json::Value::Array(val)
                 .parse_value("PaymentMethods")
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
         let frm_configs = match item.frm_configs {
-            Some(frm_value) => {
+            Some(ref frm_value) => {
                 let configs_for_frm : Vec<api_models::admin::FrmConfigs> = frm_value
                     .iter()
                     .map(|config| { config
@@ -950,10 +952,10 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
         };
         #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
         let response = Self {
+            connector_id: item.get_id(),
             connector_type: item.connector_type,
             connector_name: item.connector_name,
             connector_label: item.connector_label,
-            connector_id: item.merchant_connector_id,
             connector_account_details: item.connector_account_details.into_inner(),
             disabled: item.disabled,
             payment_methods_enabled,

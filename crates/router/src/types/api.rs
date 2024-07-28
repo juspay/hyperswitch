@@ -263,6 +263,20 @@ pub struct SessionConnectorData {
     pub business_sub_label: Option<String>,
 }
 
+impl SessionConnectorData {
+    pub fn new(
+        payment_method_type: api_enums::PaymentMethodType,
+        connector: ConnectorData,
+        business_sub_label: Option<String>,
+    ) -> Self {
+        Self {
+            payment_method_type,
+            connector,
+            business_sub_label,
+        }
+    }
+}
+
 /// Session Surcharge type
 pub enum SessionSurchargeDetails {
     /// Surcharge is calculated by hyperswitch

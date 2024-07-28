@@ -445,17 +445,30 @@ where
                 &state.conf.connectors,
                 &merchant_connector_account.connector_name.to_string(),
                 connector_type,
-                Some(merchant_connector_account.merchant_connector_id.clone()),
+                Some(merchant_connector_account.get_id()),
             )
             .map_err(|err| {
                 logger::error!(session_token_error=?err);
                 err
             }) {
-                session_connector_data.push(api::SessionConnectorData {
-                    payment_method_type,
-                    connector: connector_data,
-                    business_sub_label: merchant_connector_account.business_sub_label.clone(),
-                })
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "merchant_connector_account_v2")
+                ))]
+                {
+                    let new_session_connector_data = api::SessionConnectorData::new(
+                        payment_method_type,
+                        connector_data,
+                        merchant_connector_account.business_sub_label.clone(),
+                    );
+                    session_connector_data.push(new_session_connector_data)
+                }
+                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                {
+                    let new_session_connector_data =
+                        api::SessionConnectorData::new(payment_method_type, connector_data, None);
+                    session_connector_data.push(new_session_connector_data)
+                }
             };
         }
 

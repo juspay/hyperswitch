@@ -3270,6 +3270,10 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     pub fn is_test_mode_on(&self) -> Option<bool> {
         match self {
             Self::DbVal(val) => val.test_mode,
@@ -3277,9 +3281,14 @@ impl MerchantConnectorAccountType {
         }
     }
 
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    pub fn is_test_mode_on(&self) -> Option<bool> {
+        None
+    }
+
     pub fn get_mca_id(&self) -> Option<String> {
         match self {
-            Self::DbVal(db_val) => Some(db_val.merchant_connector_id.to_string()),
+            Self::DbVal(db_val) => Some(db_val.get_id()),
             Self::CacheVal(_) => None,
         }
     }
@@ -3388,18 +3397,30 @@ pub async fn get_merchant_connector_account(
         }
         None => {
             if let Some(merchant_connector_id) = merchant_connector_id {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
-                    merchant_id,
-                    merchant_connector_id,
-                    key_store,
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.to_string(),
-                    },
-                )
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "merchant_connector_account_v2")
+                ))]
+                {
+                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        key_manager_state,
+                        merchant_id,
+                        merchant_connector_id,
+                        key_store,
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id.to_string(),
+                        },
+                    )
+                }
+                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                // get mca using id
+                {
+                    let _id = merchant_connector_id;
+                    todo!()
+                }
             } else {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -4237,7 +4258,7 @@ where
 
         for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
-                merchant_connector_account.metadata,
+                merchant_connector_account.metadata.clone(),
                 merchant_connector_account
                     .connector_wallets_details
                     .as_deref()
@@ -4248,7 +4269,7 @@ where
                     &state.conf.connectors,
                     &merchant_connector_account.connector_name.to_string(),
                     api::GetToken::Connector,
-                    Some(merchant_connector_account.merchant_connector_id),
+                    Some(merchant_connector_account.get_id()),
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Invalid connector name received")?;
@@ -5105,7 +5126,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         .iter()
         .map(|merchant_connector_account| {
             (
-                merchant_connector_account.merchant_connector_id.clone(),
+                merchant_connector_account.get_id(),
                 merchant_connector_account.clone(),
             )
         })

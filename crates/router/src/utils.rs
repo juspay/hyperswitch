@@ -369,16 +369,31 @@ pub async fn find_mca_from_authentication_id_type(
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-        &state.into(),
-        &merchant_account.merchant_id,
-        &authentication.merchant_connector_id,
-        key_store,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-        id: authentication.merchant_connector_id.to_string(),
-    })
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
+    {
+        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &state.into(),
+            &merchant_account.merchant_id,
+            &authentication.merchant_connector_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: authentication.merchant_connector_id.to_string(),
+            },
+        )
+    }
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    //get mca using id
+    {
+        let _ = key_store;
+        let _ = authentication;
+        todo!()
+    }
 }
 
 pub async fn get_mca_from_payment_intent(
@@ -399,17 +414,32 @@ pub async fn get_mca_from_payment_intent(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     let key_manager_state = &state.into();
     match payment_attempt.merchant_connector_id {
-        Some(merchant_connector_id) => db
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                key_manager_state,
-                &merchant_account.merchant_id,
-                &merchant_connector_id,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id,
-            }),
+        Some(merchant_connector_id) => {
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
+            {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    key_manager_state,
+                    &merchant_account.merchant_id,
+                    &merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id,
+                    },
+                )
+            }
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            {
+                //get mca using id
+                let _id = merchant_connector_id;
+                todo!()
+            }
+        }
         None => {
             let profile_id = match payment_intent.profile_id {
                 Some(profile_id) => profile_id,
@@ -471,17 +501,32 @@ pub async fn get_mca_from_payout_attempt(
     };
     let key_manager_state = &state.into();
     match payout.merchant_connector_id {
-        Some(merchant_connector_id) => db
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                key_manager_state,
-                &merchant_account.merchant_id,
-                &merchant_connector_id,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id,
-            }),
+        Some(merchant_connector_id) => {
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
+            {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    key_manager_state,
+                    &merchant_account.merchant_id,
+                    &merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id,
+                    },
+                )
+            }
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            {
+                //get mca using id
+                let _id = merchant_connector_id;
+                todo!()
+            }
+        }
         None => db
             .find_merchant_connector_account_by_profile_id_connector_name(
                 key_manager_state,

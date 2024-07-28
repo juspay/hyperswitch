@@ -653,7 +653,7 @@ pub async fn backfill_metadata(
                     user.to_owned(),
                     DBEnum::StripeConnected,
                     types::MetaData::StripeConnected(api::ProcessorConnected {
-                        processor_id: mca.merchant_connector_id,
+                        processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
                     }),
                 )
@@ -693,7 +693,7 @@ pub async fn backfill_metadata(
                     user.to_owned(),
                     DBEnum::PaypalConnected,
                     types::MetaData::PaypalConnected(api::ProcessorConnected {
-                        processor_id: mca.merchant_connector_id,
+                        processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
                     }),
                 )
