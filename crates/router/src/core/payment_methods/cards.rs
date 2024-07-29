@@ -1058,7 +1058,7 @@ pub async fn add_payment_method(
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| create_encrypted_data(state, &key_store, billing))
+        .async_map(|billing| create_encrypted_data(state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1137,9 +1137,9 @@ pub async fn add_payment_method(
                     state,
                     req.clone(),
                     &mut resp,
-                    &merchant_account,
+                    merchant_account,
                     &customer_id,
-                    &key_store,
+                    key_store,
                 )
                 .await?;
 
@@ -1151,9 +1151,9 @@ pub async fn add_payment_method(
                         state,
                         req.clone(),
                         &mut resp,
-                        &merchant_account,
+                        merchant_account,
                         &customer_id,
-                        &key_store,
+                        key_store,
                     )
                     .await?;
 
@@ -1190,7 +1190,7 @@ pub async fn add_payment_method(
                 state,
                 &resp,
                 &req,
-                &key_store,
+                key_store,
                 merchant_id,
                 &customer_id,
                 pm_metadata.cloned(),
