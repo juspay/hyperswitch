@@ -951,7 +951,7 @@ pub struct MerchantConnectorResponse {
 
     /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub connector_id: String,
+    pub id: String,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
@@ -1032,7 +1032,7 @@ impl MerchantConnectorResponse {
     pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
-            merchant_connector_id: self.connector_id.clone(),
+            merchant_connector_id: self.id.clone(),
         }
     }
 }

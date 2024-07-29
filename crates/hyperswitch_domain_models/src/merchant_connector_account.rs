@@ -58,7 +58,7 @@ impl MerchantConnectorAccount {
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_name: String,
     pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
     pub disabled: Option<bool>,
@@ -117,7 +117,7 @@ pub enum MerchantConnectorAccountUpdate {
 #[derive(Debug)]
 pub enum MerchantConnectorAccountUpdate {
     Update {
-        merchant_id: Option<String>,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
         connector_type: Option<enums::ConnectorType>,
         connector_name: Option<String>,
         connector_account_details: Option<Encryptable<Secret<serde_json::Value>>>,
@@ -127,7 +127,7 @@ pub enum MerchantConnectorAccountUpdate {
         frm_configs: Option<Vec<Secret<serde_json::Value>>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
-        pm_auth_config: Option<serde_json::Value>,
+        pm_auth_config: Option<pii::SecretSerdeValue>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
         connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
@@ -305,7 +305,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_store_ref_id: String,
+        _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
         Ok(Self {

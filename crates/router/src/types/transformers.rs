@@ -953,7 +953,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
         };
         #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
         let response = Self {
-            connector_id: item.get_id(),
+            id: item.get_id(),
             connector_type: item.connector_type,
             connector_name: item.connector_name,
             connector_label: item.connector_label,

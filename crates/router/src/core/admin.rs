@@ -1987,7 +1987,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get MerchantRecipientData")?;
         Ok(domain::MerchantConnectorAccount {
-            merchant_id: business_profile.merchant_id.to_string(),
+            merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
             connector_name: self.connector_name.to_string(),
             connector_account_details: domain_types::encrypt(

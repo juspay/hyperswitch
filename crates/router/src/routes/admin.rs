@@ -269,8 +269,6 @@ pub async fn payment_connector_create(
     let flow = Flow::MerchantConnectorsCreate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    let merchant_id = payload.merchant_id.clone();
     Box::pin(api::server_wrap(
         flow,
         state,
