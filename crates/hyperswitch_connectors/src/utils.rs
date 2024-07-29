@@ -12,8 +12,9 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
-        AuthenticationData, BrowserInformation, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -1102,6 +1103,54 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
+    }
+}
+
+pub trait PaymentsCompleteAuthorizeRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_mandate_payment(&self) -> bool;
+}
+
+impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == FutureUsage::OffSession
+            }))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
     }
 }
 

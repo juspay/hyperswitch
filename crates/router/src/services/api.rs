@@ -18,6 +18,7 @@ use actix_web::{
     web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
@@ -37,7 +38,7 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
-        ConnectorIntegrationAny, ConnectorValidation,
+        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -672,13 +673,6 @@ async fn handle_response(
         .await
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentAction {
-    PSync,
-    CompleteAuthorize,
-    PaymentAuthenticateCompleteAuthorize,
-}
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
@@ -1217,17 +1211,6 @@ pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpRes
     HttpResponse::BadRequest()
         .content_type(mime::APPLICATION_JSON)
         .body(response)
-}
-
-pub trait ConnectorRedirectResponse {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Avoid)
-    }
 }
 
 pub trait Authenticate {
