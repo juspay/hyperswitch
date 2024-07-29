@@ -415,11 +415,16 @@ impl OpenSearchQueryBuilder {
             .map(|filter| {
                 if let Some(terms) = filter.get("terms").and_then(|v| v.as_object()) {
                     let mut new_filter = filter.clone();
-                    if let Some(new_terms) = new_filter.get_mut("terms").and_then(|v| v.as_object_mut()) {
+                    if let Some(new_terms) =
+                        new_filter.get_mut("terms").and_then(|v| v.as_object_mut())
+                    {
                         let key = "status.keyword";
                         if let Some(status_terms) = terms.get(key) {
                             new_terms.remove(key);
-                            new_terms.insert(self.get_status_field(index).to_string(), status_terms.clone());
+                            new_terms.insert(
+                                self.get_status_field(index).to_string(),
+                                status_terms.clone(),
+                            );
                         }
                     }
                     new_filter
