@@ -20,8 +20,12 @@ use tokio::sync::oneshot;
 use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "customer_v2")))]
+use super::payment_methods::*;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
@@ -46,8 +50,6 @@ use super::{
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
 #[cfg(feature = "olap")]
@@ -58,8 +60,6 @@ use crate::analytics::AnalyticsProvider;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(all(feature = "olap", not(feature = "v2")))]
-use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
     core::routing,
@@ -1116,7 +1116,7 @@ impl MerchantConnectorAccount {
             route = route
                 .service(
                     web::resource("/connectors/verify")
-                        .route(web::post().to(payment_connector_verify)),
+                        .route(web::post().to(super::verify_connector::payment_connector_verify)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors")
