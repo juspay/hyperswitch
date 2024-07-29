@@ -48,8 +48,10 @@ use super::{
     files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "payment_v2")))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "payment_v2"))]
+use super::{configs::*, customers::*, mandates::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
 #[cfg(feature = "olap")]
@@ -1023,7 +1025,7 @@ impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payment_methods").app_data(web::Data::new(state));
 
-        #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+        #[cfg(feature = "oltp")]
         {
             route = route
                 .service(web::resource("").route(web::post().to(create_payment_method_api)))

@@ -600,6 +600,10 @@ pub fn get_card_bin_and_last4_digits_for_masked_card(
     Ok((card_isin, last4_digits))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all)]
 pub async fn get_client_secret_or_add_payment_method(
     state: &routes::SessionState,
@@ -610,19 +614,84 @@ pub async fn get_client_secret_or_add_payment_method(
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    #[cfg(all(
-        not(feature = "payouts"),
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(not(feature = "payouts"))]
     let condition = req.card.is_some();
-    #[cfg(all(
-        feature = "payouts",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
+    #[cfg(feature = "payouts")]
     let condition = req.card.is_some() || req.bank_transfer.is_some() || req.wallet.is_some();
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+
+    let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
+        .billing
+        .clone()
+        .async_map(|billing| create_encrypted_data(state, key_store, billing))
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt Payment method billing address")?;
+
+    let connector_mandate_details = req
+        .connector_mandate_details
+        .clone()
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    if condition {
+        Box::pin(add_payment_method(state, req, merchant_account, key_store)).await
+    } else {
+        let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+
+        let res = create_payment_method(
+            state,
+            &req,
+            &customer_id,
+            payment_method_id.as_str(),
+            None,
+            merchant_id,
+            None,
+            None,
+            None,
+            key_store,
+            connector_mandate_details,
+            Some(enums::PaymentMethodStatus::AwaitingData),
+            None,
+            merchant_account.storage_scheme,
+            payment_method_billing_address.map(Into::into),
+            None,
+        )
+        .await?;
+
+        if res.status == enums::PaymentMethodStatus::AwaitingData {
+            add_payment_method_status_update_task(
+                &*state.store,
+                &res,
+                enums::PaymentMethodStatus::AwaitingData,
+                enums::PaymentMethodStatus::Inactive,
+                merchant_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add payment method status update task in process tracker",
+            )?;
+        }
+
+        Ok(services::api::ApplicationResponse::Json(
+            api::PaymentMethodResponse::foreign_from((None, res)),
+        ))
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn get_client_secret_or_add_payment_method(
+    state: &routes::SessionState,
+    req: api::PaymentMethodCreate,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    let merchant_id = merchant_account.get_id();
+    let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
+
     let condition = req.payment_method_data.is_some();
 
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
@@ -647,9 +716,7 @@ pub async fn get_client_secret_or_add_payment_method(
             req,
             merchant_account,
             key_store,
-            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
             None,
-            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
             Box::new(pm_core::PaymentMethodAddServer),
         ))
         .await

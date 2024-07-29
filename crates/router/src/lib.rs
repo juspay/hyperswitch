@@ -130,11 +130,7 @@ pub fn mk_app(
             .service(routes::Mandates::server(state.clone()))
     }
 
-    #[cfg(all(
-        feature = "oltp",
-        any(feature = "v1", feature = "v2"),
-        not(feature = "customer_v2")
-    ))]
+    #[cfg(all(feature = "oltp", any(feature = "v1", feature = "v2")))]
     {
         server_app = server_app
             .service(routes::EphemeralKey::server(state.clone()))

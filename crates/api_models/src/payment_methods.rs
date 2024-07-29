@@ -221,6 +221,10 @@ pub struct PaymentsMandateReferenceRecord {
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl PaymentMethodCreate {
     pub fn get_payment_method_create_from_payment_method_migrate(
         card_number: CardNumber,
@@ -253,24 +257,35 @@ impl PaymentMethodCreate {
             connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "payment_methods_v2")
-            ))]
             card: card_details,
             card_network: payment_method_migrate.card_network.clone(),
-            #[cfg(all(
-                feature = "payouts",
-                any(feature = "v1", feature = "v2"),
-                not(feature = "payment_methods_v2")
-            ))]
+            #[cfg(feature = "payouts")]
             bank_transfer: payment_method_migrate.bank_transfer.clone(),
-            #[cfg(all(
-                feature = "payouts",
-                any(feature = "v1", feature = "v2"),
-                not(feature = "payment_methods_v2")
-            ))]
+            #[cfg(feature = "payouts")]
             wallet: payment_method_migrate.wallet.clone(),
+            network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodCreate {
+    pub fn get_payment_method_create_from_payment_method_migrate(
+        _card_number: CardNumber,
+        payment_method_migrate: &PaymentMethodMigrate,
+    ) -> Self {
+        Self {
+            customer_id: payment_method_migrate.customer_id.clone(),
+            payment_method: payment_method_migrate.payment_method,
+            payment_method_type: payment_method_migrate.payment_method_type,
+            payment_method_issuer: payment_method_migrate.payment_method_issuer.clone(),
+            payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
+            metadata: payment_method_migrate.metadata.clone(),
+            payment_method_data: payment_method_migrate.payment_method_data.clone(),
+            connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
+            client_secret: None,
+            billing: payment_method_migrate.billing.clone(),
+            card_network: payment_method_migrate.card_network.clone(),
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
     }
