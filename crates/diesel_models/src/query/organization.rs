@@ -1,7 +1,10 @@
 use common_utils::id_type;
 use diesel::{associations::HasTable, ExpressionMethods};
 
-#[cfg(all(feature = "v1", not(feature = "merchant_account_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 use crate::schema::organization::dsl;
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use crate::schema_v2::organization::dsl;
@@ -20,7 +23,10 @@ impl Organization {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            #[cfg(all(feature = "v1", not(feature = "merchant_account_v2")))]
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_account_v2")
+            ))]
             dsl::org_id.eq(org_id),
             #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
             dsl::id.eq(org_id),
@@ -40,7 +46,10 @@ impl Organization {
             _,
         >(
             conn,
-            #[cfg(all(feature = "v1", not(feature = "merchant_account_v2")))]
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_account_v2")
+            ))]
             dsl::org_id.eq(org_id),
             #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
             dsl::id.eq(org_id),
