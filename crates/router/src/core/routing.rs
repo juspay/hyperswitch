@@ -9,21 +9,18 @@ use api_models::{
 };
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
-
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{consts, core::errors::RouterResult, db::StorageInterface};
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use crate::consts;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::{consts, core::errors::RouterResult, db::StorageInterface};
 use crate::{
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
