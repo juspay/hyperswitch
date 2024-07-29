@@ -584,6 +584,13 @@ impl Routing {
                 web::resource("/{algorithm_id}")
                     .route(web::get().to(routing::routing_retrieve_config)),
             )
+            .service(
+                web::resource("{algorithm_id}/activate_routing_algorithm").route(web::patch().to(
+                    |state, req, path| {
+                        routing::routing_link_config(state, req, path, &TransactionType::Payment)
+                    },
+                )),
+            )
     }
 }
 #[cfg(all(
@@ -1393,24 +1400,12 @@ impl BusinessProfile {
                             })),
                     )
                     .service(
-                        web::resource("/activate_routing_algorithm").route(web::post().to(
-                            |state, req, path| {
-                                routing::routing_link_config(
-                                    state,
-                                    req,
-                                    path,
-                                    &TransactionType::Payment,
-                                )
-                            },
-                        )),
-                    )
-                    .service(
                         web::resource("/deactivate_routing_algorithm").route(web::post().to(
-                            |state, req, payload| {
+                            |state, req, path| {
                                 routing::routing_unlink_config(
                                     state,
                                     req,
-                                    payload,
+                                    path,
                                     &TransactionType::Payment,
                                 )
                             },
