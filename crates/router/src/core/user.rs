@@ -951,7 +951,7 @@ pub async fn resend_invite(
                     .attach_printable(format!(
                         "User role with user_id = {} and merchant_id = {} is not found",
                         user.get_user_id(),
-                        user_from_token.merchant_id
+                        user_from_token.merchant_id.get_string_repr()
                     ))
             } else {
                 e.change_context(UserErrors::InternalServerError)

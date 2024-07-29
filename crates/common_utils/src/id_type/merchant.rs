@@ -27,13 +27,6 @@ crate::impl_serializable_secret_id_type!(MerchantId);
 crate::impl_queryable_id_type!(MerchantId);
 crate::impl_to_sql_from_sql_id_type!(MerchantId);
 
-/// This should be temporary, we should not have direct impl of Display for merchant id
-impl Display for MerchantId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.get_string_repr())
-    }
-}
-
 #[cfg(feature = "metrics")]
 /// This is implemented so that we can use merchant id directly as attribute in metrics
 impl From<MerchantId> for router_env::opentelemetry::Value {
