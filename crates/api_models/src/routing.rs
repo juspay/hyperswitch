@@ -467,6 +467,12 @@ pub enum RoutingKind {
 }
 
 #[repr(transparent)]
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct RoutingAlgorithmId(pub String);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingLinkWrapper {
+    pub profile_id: String,
+    pub algorithm_id: RoutingAlgorithmId,
+}
