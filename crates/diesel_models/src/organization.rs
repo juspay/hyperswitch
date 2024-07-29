@@ -122,7 +122,7 @@ pub struct OrganizationNew {
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, Insertable)]
-#[diesel(table_name = organization, primary_key(org_id))]
+#[diesel(table_name = organization, primary_key(id))]
 pub struct OrganizationNew {
     id: id_type::OrganizationId,
     organization_name: Option<String>,

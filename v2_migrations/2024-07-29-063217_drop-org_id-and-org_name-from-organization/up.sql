@@ -15,4 +15,4 @@ ALTER TABLE organization
 DROP COLUMN org_name;
 
 ALTER TABLE organization
-ADD CONSTRAINT pk_id PRIMARY KEY (id);
+ADD CONSTRAINT organization_pkey_id PRIMARY KEY (id);
