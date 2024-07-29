@@ -397,7 +397,6 @@ impl OpenSearchQueryBuilder {
     }
 
     pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<String>) -> QueryResult<()> {
-        println!("lhs: {}, rhs: {:?}", lhs.clone(), rhs.clone());
         self.filters.push((lhs, rhs));
         Ok(())
     }
@@ -409,29 +408,28 @@ impl OpenSearchQueryBuilder {
             _ => "status.keyword",
         }
     }
-    
-    pub fn replace_status_field(&self, filters: &Vec<Value>, index: &SearchIndex) -> Vec<Value> {
+
+    pub fn replace_status_field(&self, filters: &[Value], index: &SearchIndex) -> Vec<Value> {
         filters
-        .iter()
-        .map(|filter| {
-            if filter.get("terms").is_some() {
-                let mut new_filter = filter.clone();
-                if let Some(terms) = new_filter.get_mut("terms") {
-                    let key = "status.keyword";
-                    if terms.get(key).is_some() {
-                        let status_terms = terms[key].clone();
-                        terms.as_object_mut().unwrap().remove(key);
-                        terms.as_object_mut().unwrap().insert(self.get_status_field(index).to_string(), status_terms);
+            .iter()
+            .map(|filter| {
+                if let Some(terms) = filter.get("terms").and_then(|v| v.as_object()) {
+                    let mut new_filter = filter.clone();
+                    if let Some(new_terms) = new_filter.get_mut("terms").and_then(|v| v.as_object_mut()) {
+                        let key = "status.keyword";
+                        if let Some(status_terms) = terms.get(key) {
+                            new_terms.remove(key);
+                            new_terms.insert(self.get_status_field(index).to_string(), status_terms.clone());
+                        }
                     }
+                    new_filter
+                } else {
+                    filter.clone()
                 }
-                new_filter
-            } else {
-                filter.clone()
-            }
-        })
-        .collect()
+            })
+            .collect()
     }
-    
+
     pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
         let mut query =
             vec![json!({"multi_match": {"type": "phrase", "query": self.query, "lenient": true}})];
@@ -449,13 +447,7 @@ impl OpenSearchQueryBuilder {
             .iter()
             .map(|index| {
                 let updated_query = self.replace_status_field(&query, index);
-
                 let payload = json!({"query": {"bool": {"filter": updated_query}}});
-                println!("Index: {:?}", index);
-                println!(
-                    "Payload: {}",
-                    serde_json::to_string_pretty(&payload).unwrap()
-                );
                 payload
             })
             .collect::<Vec<Value>>())
