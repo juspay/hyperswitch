@@ -11,10 +11,9 @@ use api_models::{
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
+use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 use masking::Secret;
-
-use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 
 use super::payments;
