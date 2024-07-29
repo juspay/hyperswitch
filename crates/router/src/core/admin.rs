@@ -2517,7 +2517,7 @@ pub async fn retrieve_payment_connector(
 pub async fn list_payment_connectors(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
+) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store = store
