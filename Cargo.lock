@@ -2006,6 +2006,7 @@ name = "common_utils"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.0",
  "blake3",
  "bytes 1.6.0",
  "common_enums",
@@ -2704,6 +2705,7 @@ dependencies = [
  "masking",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "strum 0.26.2",
@@ -3829,6 +3831,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperswitch_connectors"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "base64 0.22.0",
+ "cards",
+ "common_enums",
+ "common_utils",
+ "error-stack",
+ "hyperswitch_domain_models",
+ "hyperswitch_interfaces",
+ "masking",
+ "ring 0.17.8",
+ "router_env",
+ "serde",
+ "serde_json",
+ "strum 0.26.2",
+ "time",
+ "uuid",
+]
+
+[[package]]
 name = "hyperswitch_constraint_graph"
 version = "0.1.0"
 dependencies = [
@@ -3858,6 +3883,7 @@ dependencies = [
  "mime",
  "router_derive",
  "router_env",
+ "rustc-hash",
  "serde",
  "serde_json",
  "serde_with",
@@ -3889,6 +3915,7 @@ dependencies = [
  "router_env",
  "serde",
  "serde_json",
+ "strum 0.26.2",
  "thiserror",
  "time",
 ]
@@ -6064,6 +6091,7 @@ dependencies = [
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
+ "hyperswitch_connectors",
  "hyperswitch_constraint_graph",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
@@ -8368,9 +8396,9 @@ checksum = "110352d4e9076c67839003c7788d8604e24dcded13e0b375af3efaa8cf468517"
 
 [[package]]
 name = "utf8parse"
-version = "0.2.2"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 
 [[package]]
 name = "utoipa"

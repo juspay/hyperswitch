@@ -17,7 +17,7 @@ pub struct ConnectorEvent {
     url: String,
     method: String,
     payment_id: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     created_at: i128,
     /// Connector Event Request ID
     pub request_id: String,
@@ -37,7 +37,7 @@ impl ConnectorEvent {
         url: String,
         method: Method,
         payment_id: String,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         request_id: Option<&RequestId>,
         latency: u128,
         refund_id: Option<String>,

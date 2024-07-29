@@ -13,7 +13,7 @@ pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<verifications::ApplepayMerchantVerificationRequest>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> impl Responder {
     let flow = Flow::Verification;
     let merchant_id = path.into_inner();
@@ -57,7 +57,7 @@ pub async fn retrieve_apple_pay_verified_domains(
         |state, _, _, _| {
             verification::get_verified_apple_domains_with_mid_mca_id(
                 state,
-                merchant_id.to_string(),
+                merchant_id.to_owned(),
                 mca_id.to_string(),
             )
         },

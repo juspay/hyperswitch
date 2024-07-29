@@ -54,7 +54,7 @@ pub async fn payment_link_retrieve(
 pub async fn initiate_payment_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
@@ -128,7 +128,7 @@ pub async fn payments_link_list(
 pub async fn payment_link_status(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkStatus;
     let (merchant_id, payment_id) = path.into_inner();

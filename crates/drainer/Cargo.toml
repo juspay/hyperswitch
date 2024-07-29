@@ -10,6 +10,7 @@ license.workspace = true
 [features]
 release = ["vergen", "external_services/aws_kms"]
 vergen = ["router_env/vergen"]
+v1 = ["diesel_models/v1"]
 
 [dependencies]
 actix-web = "4.5.1"

@@ -252,7 +252,7 @@ where
 
 pub async fn perform_static_routing_v1<F: Clone>(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
     transaction_data: &routing::TransactionData<'_, F>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -312,7 +312,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
 
 async fn ensure_algorithm_cached_v1(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: &str,
     profile_id: Option<String>,
     transaction_type: &api_enums::TransactionType,
@@ -324,12 +324,18 @@ async fn ensure_algorithm_cached_v1(
             .change_context(errors::RoutingError::ProfileIdMissing)?;
 
         match transaction_type {
-            api_enums::TransactionType::Payment => {
-                format!("routing_config_{merchant_id}_{profile_id}")
+            common_enums::TransactionType::Payment => {
+                format!(
+                    "routing_config_{}_{profile_id}",
+                    merchant_id.get_string_repr()
+                )
             }
             #[cfg(feature = "payouts")]
-            api_enums::TransactionType::Payout => {
-                format!("routing_config_po_{merchant_id}_{profile_id}")
+            common_enums::TransactionType::Payout => {
+                format!(
+                    "routing_config_po_{}_{profile_id}",
+                    merchant_id.get_string_repr()
+                )
             }
         }
     };
@@ -492,10 +498,12 @@ pub async fn get_merchant_cgraph<'a>(
             .get_required_value("profile_id")
             .change_context(errors::RoutingError::ProfileIdMissing)?;
         match transaction_type {
-            api_enums::TransactionType::Payment => format!("cgraph_{}_{}", merchant_id, profile_id),
+            api_enums::TransactionType::Payment => {
+                format!("cgraph_{}_{}", merchant_id.get_string_repr(), profile_id)
+            }
             #[cfg(feature = "payouts")]
             api_enums::TransactionType::Payout => {
-                format!("cgraph_po_{}_{}", merchant_id, profile_id)
+                format!("cgraph_po_{}_{}", merchant_id.get_string_repr(), profile_id)
             }
         }
     };
@@ -528,6 +536,7 @@ pub async fn refresh_cgraph_cache<'a>(
     let mut merchant_connector_accounts = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &state.into(),
             &key_store.merchant_id,
             false,
             key_store,

@@ -1,7 +1,7 @@
 use std::string::ToString;
 
 use actix_web::http::header::HeaderMap;
-use common_utils::crypto::VerifySignature;
+use common_utils::{crypto::VerifySignature, id_type::MerchantId};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 
@@ -15,7 +15,7 @@ const HEADER_CHECKSUM: &str = "x-checksum";
 #[derive(Debug)]
 pub struct ExtractedPayload {
     pub payload_type: PayloadType,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<MerchantId>,
     pub key_id: Option<String>,
 }
 
@@ -37,7 +37,19 @@ impl ExtractedPayload {
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| ApiErrorResponse::InvalidRequestData {
                 message: format!("`{}` header is invalid or not present", HEADER_MERCHANT_ID),
+            })
+            .map_err(error_stack::Report::from)
+            .and_then(|merchant_id| {
+                MerchantId::from(merchant_id.to_string().into()).change_context(
+                    ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "`{}` header is invalid or not present",
+                            HEADER_MERCHANT_ID
+                        ),
+                    },
+                )
             })?;
+
         let auth_type: PayloadType = headers
             .get(HEADER_AUTH_TYPE)
             .and_then(|inner| inner.to_str().ok())
@@ -51,7 +63,7 @@ impl ExtractedPayload {
 
         Ok(Self {
             payload_type: auth_type,
-            merchant_id: Some(merchant_id.to_string()),
+            merchant_id: Some(merchant_id),
             key_id: headers
                 .get(HEADER_KEY_ID)
                 .and_then(|v| v.to_str().ok())
@@ -83,11 +95,12 @@ impl ExtractedPayload {
             &self
                 .merchant_id
                 .as_ref()
-                .map(|inner| append_option(inner, &self.key_id)),
+                .map(|inner| append_option(inner.get_string_repr(), &self.key_id)),
         )
     }
 }
 
+#[inline]
 fn append_option(prefix: &str, data: &Option<String>) -> String {
     match data {
         Some(inner) => format!("{}:{}", prefix, inner),

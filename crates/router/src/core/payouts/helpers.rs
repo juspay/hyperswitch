@@ -1,13 +1,17 @@
-use api_models::{enums, payment_methods::Card, payouts};
+use api_models::{customers::CustomerRequestWithEmail, enums, payment_methods::Card, payouts};
 use common_utils::{
+    encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
     fp_utils, generate_customer_id_of_default_length, id_type,
-    types::MinorUnit,
+    types::{
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        MinorUnit,
+    },
 };
-use diesel_models::encryption::Encryption;
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_domain_models::type_encryption::batch_encrypt;
+use masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::PayoutData;
@@ -46,7 +50,7 @@ pub async fn make_payout_method_data<'a>(
     payout_method_data: Option<&api::PayoutMethodData>,
     payout_token: Option<&str>,
     customer_id: &id_type::CustomerId,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
     payout_type: Option<api_enums::PayoutType>,
     merchant_key_store: &domain::MerchantKeyStore,
     payout_data: Option<&mut PayoutData>,
@@ -209,7 +213,7 @@ pub async fn save_payout_data_to_locker(
                     card_type: None,
                 };
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
-                    merchant_id: merchant_account.merchant_id.as_ref(),
+                    merchant_id: merchant_account.get_id().clone(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     card: Card {
                         card_number: card.card_number.to_owned(),
@@ -233,6 +237,7 @@ pub async fn save_payout_data_to_locker(
             }
             _ => {
                 let key = key_store.key.get_inner().peek();
+                let key_manager_state: KeyManagerState = state.into();
                 let enc_data = async {
                     serde_json::to_value(payout_method_data.to_owned())
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -242,7 +247,14 @@ pub async fn save_payout_data_to_locker(
                             let secret: Secret<String> = Secret::new(v.to_string());
                             secret
                         })
-                        .async_lift(|inner| domain_types::encrypt_optional(inner, key))
+                        .async_lift(|inner| {
+                            domain_types::encrypt_optional(
+                                &key_manager_state,
+                                inner,
+                                Identifier::Merchant(key_store.merchant_id.clone()),
+                                key,
+                            )
+                        })
                         .await
                 }
                 .await
@@ -254,7 +266,7 @@ pub async fn save_payout_data_to_locker(
                     Ok(hex::encode(e.peek()))
                 })?;
                 let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
-                    merchant_id: merchant_account.merchant_id.as_ref(),
+                    merchant_id: merchant_account.get_id().to_owned(),
                     merchant_customer_id: payout_attempt.customer_id.to_owned(),
                     enc_data,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
@@ -453,7 +465,7 @@ pub async fn save_payout_data_to_locker(
                 });
             (
                 Some(
-                    cards::create_encrypted_data(key_store, pm_data)
+                    cards::create_encrypted_data(state, key_store, pm_data)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encrypt customer details")?,
@@ -489,12 +501,12 @@ pub async fn save_payout_data_to_locker(
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
         cards::create_payment_method(
-            db,
+            state,
             &new_payment_method,
             &payout_attempt.customer_id,
             &payment_method_id,
             Some(stored_resp.card_reference.clone()),
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             None,
             None,
             card_details_encrypted.clone().map(Into::into),
@@ -523,7 +535,7 @@ pub async fn save_payout_data_to_locker(
         cards::delete_card_from_hs_locker(
             state,
             &payout_attempt.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             card_reference,
         )
         .await
@@ -547,7 +559,7 @@ pub async fn save_payout_data_to_locker(
         if let Err(err) = stored_resp {
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
-                &merchant_account.merchant_id,
+                merchant_account.get_id(),
                 &existing_pm.payment_method_id,
             )
             .await
@@ -599,11 +611,13 @@ pub async fn get_or_create_customer_details(
         .clone()
         .unwrap_or_else(generate_customer_id_of_default_length);
 
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = merchant_account.get_id();
     let key = key_store.key.get_inner().peek();
+    let key_manager_state = &state.into();
 
     match db
         .find_customer_optional_by_customer_id_merchant_id(
+            key_manager_state,
             &customer_id,
             merchant_id,
             key_store,
@@ -614,26 +628,32 @@ pub async fn get_or_create_customer_details(
     {
         Some(customer) => Ok(Some(customer)),
         None => {
+            let encrypted_data = batch_encrypt(
+                &state.into(),
+                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
+                    name: customer_details.name.clone(),
+                    email: customer_details.email.clone(),
+                    phone: customer_details.phone.clone(),
+                }),
+                Identifier::Merchant(key_store.merchant_id.clone()),
+                key,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let encryptable_customer =
+                CustomerRequestWithEmail::from_encryptable(encrypted_data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
             let customer = domain::Customer {
                 customer_id,
-                merchant_id: merchant_id.to_string(),
-                name: domain_types::encrypt_optional(customer_details.name.to_owned(), key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                email: domain_types::encrypt_optional(
-                    customer_details.email.to_owned().map(|e| e.expose()),
-                    key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone: domain_types::encrypt_optional(customer_details.phone.to_owned(), key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                merchant_id: merchant_id.to_owned().clone(),
+                name: encryptable_customer.name,
+                email: encryptable_customer.email,
+                phone: encryptable_customer.phone,
                 description: None,
                 phone_country_code: customer_details.phone_country_code.to_owned(),
                 metadata: None,
                 connector_customer: None,
-                id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
                 address_id: None,
@@ -642,9 +662,14 @@ pub async fn get_or_create_customer_details(
             };
 
             Ok(Some(
-                db.insert_customer(customer, key_store, merchant_account.storage_scheme)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                db.insert_customer(
+                    customer,
+                    key_manager_state,
+                    key_store,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
             ))
         }
     }
@@ -938,7 +963,7 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
 pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PayoutListConstraints,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
     let result = db

@@ -17,7 +17,6 @@ use actix_web::{
     http::header::{HeaderName, HeaderValue},
     web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
@@ -37,7 +36,8 @@ pub use hyperswitch_domain_models::{
 };
 pub use hyperswitch_interfaces::{
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
+        ConnectorIntegrationAny, ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -75,11 +75,7 @@ use crate::{
         connector_integration_interface::RouterDataConversion,
         generic_link_response::build_generic_link_html,
     },
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-        ErrorResponse,
-    },
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
@@ -104,61 +100,6 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
-
-pub trait ConnectorValidation: ConnectorCommon {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic => Ok(()),
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into())
-            }
-        }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: types::domain::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        data.request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-            .map(|_| ())
-    }
-
-    fn is_webhook_source_verification_mandatory(&self) -> bool {
-        false
-    }
-}
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -185,7 +126,7 @@ where
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
     tracing::Span::current().record("connector_name", &req.connector);
-    tracing::Span::current().record("payment_method", &req.payment_method.to_string());
+    tracing::Span::current().record("payment_method", req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
@@ -474,12 +415,19 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
-            .contains(&url.to_string());
+        || proxy_bypass_urls(
+            state.conf.key_manager.get_inner(),
+            &state.conf.locker,
+            &state.conf.proxy.bypass_proxy_urls,
+        )
+        .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy =
-        proxy_bypass_urls(&state.conf.locker, &state.conf.proxy.bypass_proxy_urls)
-            .contains(&url.to_string());
+    let should_bypass_proxy = proxy_bypass_urls(
+        &state.conf.key_manager.get_inner(),
+        &state.conf.locker,
+        &state.conf.proxy.bypass_proxy_urls,
+    )
+    .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -744,22 +692,13 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(
-        request,
-        payload,
-        state,
-        func,
-        api_auth,
-        request_state,
-        incoming_request_header
-    ),
+    skip(request, payload, state, func, api_auth, incoming_request_header),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
     incoming_request_header: &HeaderMap,
-    mut request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
@@ -780,12 +719,6 @@ where
         .await
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
-
-    request_state.event_context.record_info(request_id);
-    request_state
-        .event_context
-        .record_info(("flow".to_string(), flow.to_string()));
-    // request_state.event_context.record_info(request.clone());
 
     let mut app_state = state.get_ref().clone();
 
@@ -819,9 +752,6 @@ where
                 }
             })??
     };
-    request_state
-        .event_context
-        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
     // let tenant_id = "public".to_string();
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
@@ -831,6 +761,16 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id);
+    let mut request_state = session_state.get_req_state();
+
+    request_state.event_context.record_info(request_id);
+    request_state
+        .event_context
+        .record_info(("flow".to_string(), flow.to_string()));
+
+    request_state
+        .event_context
+        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
@@ -842,14 +782,12 @@ where
 
     let merchant_id = auth_type
         .get_merchant_id()
-        .unwrap_or("MERCHANT_ID_NOT_FOUND")
-        .to_string();
-
-    app_state.add_merchant_id(Some(merchant_id.clone()));
+        .cloned()
+        .unwrap_or(common_utils::id_type::MerchantId::get_merchant_id_not_found());
 
     app_state.add_flow_name(flow.to_string());
 
-    tracing::Span::current().record("merchant_id", &merchant_id);
+    tracing::Span::current().record("merchant_id", merchant_id.get_string_repr().to_owned());
 
     let output = {
         lock_action
@@ -931,7 +869,7 @@ where
     metrics::request::status_code_metrics(
         status_code.to_string(),
         flow.to_string(),
-        merchant_id.to_string(),
+        merchant_id.to_owned(),
     );
 
     output
@@ -958,7 +896,6 @@ where
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
-    let req_state = state.get_req_state();
     let request_method = request.method().as_str();
     let url_path = request.path();
 
@@ -993,7 +930,6 @@ where
             &flow,
             state.clone(),
             incoming_request_header,
-            req_state,
             request,
             payload,
             func,

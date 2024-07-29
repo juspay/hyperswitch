@@ -195,6 +195,10 @@ api_key= "Login"
 key1= "Trankey"
 
 
+[plaid]
+api_key="Client Id"
+key1= "Secret"
+
 [threedsecureio]
 api_key="API Key"
 
@@ -245,3 +249,8 @@ key2 = "Razorpay Secret"
 
 [itaubank]
 api_key="API Key"
+
+[wellsfargo]
+api_key = "MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"
