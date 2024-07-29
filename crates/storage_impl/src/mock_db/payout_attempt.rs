@@ -37,7 +37,7 @@ impl PayoutAttemptInterface for MockDb {
 
     async fn find_payout_attempt_by_merchant_id_payout_attempt_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _payout_attempt_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PayoutAttempt, StorageError> {
@@ -47,7 +47,7 @@ impl PayoutAttemptInterface for MockDb {
 
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_payout_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PayoutAttempt, StorageError> {
@@ -58,7 +58,7 @@ impl PayoutAttemptInterface for MockDb {
     async fn get_filters_for_payouts(
         &self,
         _payouts: &[Payouts],
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<
         hyperswitch_domain_models::payouts::payout_attempt::PayoutListFilters,

@@ -1109,6 +1109,111 @@
         ]
       }
     },
+    "/organization": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Create",
+        "description": "Organization - Create\n\nCreate a new organization",
+        "operationId": "Create an Organization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Create an organization with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/organization/{organization_id}": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Update",
+        "description": "Organization - Update\n\nCreate a new organization for .",
+        "operationId": "Create an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Update organization_name of the organization": {
+                  "value": {
+                    "organization_name": "organization_abcd"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/accounts": {
       "post": {
         "tags": [
@@ -6518,7 +6623,29 @@
             ],
             "properties": {
               "pix": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "pix_key": {
+                    "type": "string",
+                    "description": "Unique key for pix transfer",
+                    "example": "a1f4102e-a446-4a57-bcce-6fa48899c1d1",
+                    "nullable": true
+                  },
+                  "cpf": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CPF is a Brazilian tax identification number",
+                    "example": "10599054689",
+                    "nullable": true
+                  },
+                  "cnpj": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CNPJ is a Brazilian company tax identification number",
+                    "example": "74469027417312",
+                    "nullable": true
+                  }
+                }
               }
             }
           },
@@ -7783,6 +7910,7 @@
           "gpayments",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",
@@ -9244,7 +9372,8 @@
           "payments",
           "refunds",
           "disputes",
-          "mandates"
+          "mandates",
+          "payouts"
         ]
       },
       "EventListItemResponse": {
@@ -9824,6 +9953,24 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_key"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cpf"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cnpj"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -11271,7 +11418,10 @@
           "organization_id": {
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
-            "nullable": true
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
           },
           "pm_collect_link_config": {
             "allOf": [
@@ -11488,7 +11638,10 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with"
+            "description": "The organization id merchant is associated with",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
           },
           "is_recon_enabled": {
             "type": "boolean",
@@ -11523,7 +11676,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64
           },
           "merchant_name": {
             "type": "string",
@@ -11781,6 +11934,7 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
@@ -12029,6 +12183,7 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
@@ -12151,6 +12306,8 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
+            "description": "pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt",
             "nullable": true
           },
           "status": {
@@ -12876,6 +13033,59 @@
           }
         }
       },
+      "OrganizationRequest": {
+        "type": "object",
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "OrganizationResponse": {
+        "type": "object",
+        "required": [
+          "organization_id",
+          "modified_at",
+          "created_at"
+        ],
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "OutgoingWebhook": {
         "type": "object",
         "required": [
@@ -13267,7 +13477,9 @@
         "required": [
           "attempt_id",
           "status",
-          "amount"
+          "amount",
+          "created_at",
+          "modified_at"
         ],
         "properties": {
           "attempt_id": {
@@ -13330,6 +13542,18 @@
             ],
             "default": "three_ds",
             "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the payment attempt was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the payment attempt was last modified",
+            "example": "2022-09-10T10:11:12Z"
           },
           "cancellation_reason": {
             "type": "string",
@@ -17921,7 +18145,6 @@
       "PayoutCreateRequest": {
         "type": "object",
         "required": [
-          "merchant_id",
           "currency",
           "confirm",
           "payout_type",
@@ -17946,6 +18169,7 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
+            "nullable": true,
             "maxLength": 255
           },
           "amount": {
@@ -19702,6 +19926,7 @@
           "gocardless",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",
@@ -20676,7 +20901,8 @@
       "TransactionType": {
         "type": "string",
         "enum": [
-          "payment"
+          "payment",
+          "payout"
         ]
       },
       "UpdateApiKeyRequest": {

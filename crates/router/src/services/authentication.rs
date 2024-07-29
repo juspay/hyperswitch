@@ -7,7 +7,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::date_time;
+use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -56,12 +56,12 @@ pub struct AuthenticationData {
 )]
 pub enum AuthenticationType {
     ApiKey {
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
         key_id: String,
     },
     AdminApiKey,
     MerchantJwt {
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
         user_id: Option<String>,
     },
     UserJwt {
@@ -77,13 +77,13 @@ pub enum AuthenticationType {
         role_id: Option<String>,
     },
     MerchantId {
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
     },
     PublishableKey {
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
     },
     WebhookAuth {
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
     },
     NoAuth,
 }
@@ -100,7 +100,7 @@ impl events::EventInfo for AuthenticationType {
 }
 
 impl AuthenticationType {
-    pub fn get_merchant_id(&self) -> Option<&str> {
+    pub fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         match self {
             Self::ApiKey {
                 merchant_id,
@@ -112,7 +112,7 @@ impl AuthenticationType {
                 merchant_id,
                 user_id: _,
             }
-            | Self::WebhookAuth { merchant_id } => Some(merchant_id.as_ref()),
+            | Self::WebhookAuth { merchant_id } => Some(merchant_id),
             Self::AdminApiKey
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
@@ -166,20 +166,20 @@ impl SinglePurposeToken {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AuthToken {
     pub user_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub exp: u64,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
 }
 
 #[cfg(feature = "olap")]
 impl AuthToken {
     pub async fn new_token(
         user_id: String,
-        merchant_id: String,
+        merchant_id: id_type::MerchantId,
         role_id: String,
         settings: &Settings,
-        org_id: String,
+        org_id: id_type::OrganizationId,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -197,9 +197,9 @@ impl AuthToken {
 #[derive(Clone)]
 pub struct UserFromToken {
     pub user_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub role_id: String,
-    pub org_id: String,
+    pub org_id: id_type::OrganizationId,
 }
 
 pub struct UserIdFromAuth {
@@ -216,18 +216,18 @@ pub struct SinglePurposeOrLoginToken {
 }
 
 pub trait AuthInfo {
-    fn get_merchant_id(&self) -> Option<&str>;
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId>;
 }
 
 impl AuthInfo for () {
-    fn get_merchant_id(&self) -> Option<&str> {
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         None
     }
 }
 
 impl AuthInfo for AuthenticationData {
-    fn get_merchant_id(&self) -> Option<&str> {
-        Some(&self.merchant_account.merchant_id)
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        Some(self.merchant_account.get_id())
     }
 }
 
@@ -349,7 +349,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 key_id: stored_api_key.key_id,
             },
         ))
@@ -529,7 +529,7 @@ where
     }
 }
 #[derive(Debug)]
-pub struct MerchantIdAuth(pub String);
+pub struct MerchantIdAuth(pub id_type::MerchantId);
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
@@ -546,7 +546,7 @@ where
             .store()
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                self.0.as_ref(),
+                &self.0,
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
@@ -561,7 +561,7 @@ where
 
         let merchant = state
             .store()
-            .find_merchant_account_by_merchant_id(key_manager_state, self.0.as_ref(), &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.0, &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -578,7 +578,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantId {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
             },
         ))
     }
@@ -615,7 +615,7 @@ where
                 (
                     auth.clone(),
                     AuthenticationType::PublishableKey {
-                        merchant_id: auth.merchant_account.merchant_id.clone(),
+                        merchant_id: auth.merchant_account.get_id().clone(),
                     },
                 )
             })
@@ -694,7 +694,7 @@ where
 }
 
 pub struct JWTAuthMerchantFromRoute {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub required_permission: Permission,
 }
 
@@ -754,7 +754,7 @@ where
         authorization::check_authorization(&self.required_permission, &permissions)?;
 
         // Check if token has access to MerchantId that has been requested through path or query param
-        if payload.merchant_id == self.merchant_id_or_profile_id {
+        if payload.merchant_id.get_string_repr() == self.merchant_id_or_profile_id {
             return Ok((
                 (),
                 AuthenticationType::MerchantJwt {
@@ -856,7 +856,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 user_id: None,
             },
         ))
@@ -911,7 +911,7 @@ where
         Ok((
             (auth.clone(), payload.user_id.clone()),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 user_id: None,
             },
         ))
@@ -1011,7 +1011,7 @@ where
         Ok((
             auth.clone(),
             AuthenticationType::MerchantJwt {
-                merchant_id: auth.merchant_account.merchant_id.clone(),
+                merchant_id: auth.merchant_account.get_id().clone(),
                 user_id: Some(payload.user_id),
             },
         ))
@@ -1281,7 +1281,7 @@ pub struct ReconUser {
 }
 #[cfg(feature = "recon")]
 impl AuthInfo for ReconUser {
-    fn get_merchant_id(&self) -> Option<&str> {
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         None
     }
 }

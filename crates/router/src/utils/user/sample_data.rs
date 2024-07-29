@@ -19,9 +19,8 @@ use crate::{
 pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
 ) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
-    let merchant_id = merchant_id.to_string();
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
@@ -32,7 +31,7 @@ pub async fn generate_sample_data(
         .store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            merchant_id.as_str(),
+            merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -40,7 +39,7 @@ pub async fn generate_sample_data(
 
     let merchant_from_db = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id.as_str(), &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
@@ -71,7 +70,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_business_profile_by_merchant_id(&merchant_id)
+                .list_business_profile_by_merchant_id(merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?

@@ -134,12 +134,6 @@ pub struct BluesnapGooglePayObject {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapApplePayObject {
-    token: payments::ApplePayWalletData,
-}
-
-#[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapWalletTypes {
     GooglePay,
@@ -198,7 +192,7 @@ pub struct ApplepayHeader {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BluesnapConnectorMetaData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Debug, Serialize)]
