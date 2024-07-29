@@ -46,6 +46,7 @@ pub struct PaymentMethod {
     pub payment_method_billing_address: Option<Encryption>,
     pub updated_by: Option<String>,
     pub network_token_reference_id: Option<String>,
+    pub token_locker_id: Option<String>,
 }
 
 #[derive(
@@ -84,6 +85,7 @@ pub struct PaymentMethodNew {
     pub payment_method_billing_address: Option<Encryption>,
     pub updated_by: Option<String>,
     pub network_token_reference_id: Option<String>,
+    pub token_locker_id: Option<String>,
 }
 
 impl PaymentMethodNew {
@@ -129,6 +131,7 @@ pub enum PaymentMethodUpdate {
         payment_method: Option<storage_enums::PaymentMethod>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         payment_method_issuer: Option<String>,
+        token_locker_id: Option<String>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
@@ -163,6 +166,7 @@ pub struct PaymentMethodUpdateInternal {
     updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     payment_method_issuer: Option<String>,
+    token_locker_id: Option<String>,
 }
 
 impl PaymentMethodUpdateInternal {
@@ -218,6 +222,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                token_locker_id: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -234,6 +239,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                token_locker_id: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -248,6 +254,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                token_locker_id: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -265,6 +272,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                token_locker_id: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -282,6 +290,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                token_locker_id: None,
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
@@ -296,6 +305,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                token_locker_id: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -305,6 +315,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method,
                 payment_method_type,
                 payment_method_issuer,
+                token_locker_id,
             } => Self {
                 metadata: None,
                 payment_method_data,
@@ -318,6 +329,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer,
                 payment_method_type,
+                token_locker_id,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -334,6 +346,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                token_locker_id: None,
             },
         }
     }
@@ -376,6 +389,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_billing_address: payment_method_new
                 .payment_method_billing_address
                 .clone(),
+            token_locker_id: payment_method_new.token_locker_id.clone(),
         }
     }
 }

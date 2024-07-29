@@ -64,6 +64,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             default_profile: item.default_profile,
             recon_status: item.recon_status,
             pm_collect_link_config,
+            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         })
     }
 }

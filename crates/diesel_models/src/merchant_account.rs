@@ -159,5 +159,5 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
-    pub is_network_tokenization_enabled: bool,
+    pub is_network_tokenization_enabled: Option<bool>,
 }

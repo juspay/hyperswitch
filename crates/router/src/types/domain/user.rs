@@ -436,6 +436,7 @@ impl NewUserMerchant {
             enable_payment_response_hash: None,
             redirect_to_merchant_with_http_post: None,
             pm_collect_link_config: None,
+            is_network_tokenization_enabled: false,
         })
     }
 

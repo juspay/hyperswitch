@@ -113,6 +113,9 @@ pub struct MerchantAccountCreate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    #[serde(default)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(
@@ -430,6 +433,8 @@ pub struct MerchantAccountResponse {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]

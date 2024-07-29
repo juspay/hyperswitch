@@ -708,4 +708,12 @@ encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC69
 connector_list = ""
 
 [network_tokenization_supported_card_networks]
-card_networks = "visa"
+card_networks = "Visa"
+
+[network_tokenization_service]
+generate_token_url= ""
+fetch_token_url= ""
+token_service_api_key= ""
+public_key= ""
+private_key= ""
+key_id= ""

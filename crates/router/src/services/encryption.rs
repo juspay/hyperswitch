@@ -29,12 +29,16 @@ pub struct JweBody {
 pub async fn encrypt_jwe(
     payload: &[u8],
     public_key: impl AsRef<[u8]>,
+    enc: &str,
+    key_id: Option<&str>,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
-    let enc = "A256GCM";
     let mut src_header = jwe::JweHeader::new();
     src_header.set_content_encryption(enc);
     src_header.set_token_type("JWT");
+    if let Some(kid) = key_id {
+        src_header.set_key_id(kid);
+    }
     let encrypter = alg
         .encrypter_from_pem(public_key)
         .change_context(errors::EncryptionError)
@@ -208,7 +212,7 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
 
     #[actix_rt::test]
     async fn test_jwe() {
-        let jwt = encrypt_jwe("request_payload".as_bytes(), ENCRYPTION_KEY)
+        let jwt = encrypt_jwe("request_payload".as_bytes(), ENCRYPTION_KEY, "A256GCM", None)
             .await
             .unwrap();
         let alg = jwe::RSA_OAEP_256;

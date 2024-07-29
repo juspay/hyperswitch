@@ -96,7 +96,6 @@ pub struct Settings<S: SecretState> {
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
-    pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -131,6 +130,8 @@ pub struct Settings<S: SecretState> {
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
+    pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
+    pub network_tokenization_service: SecretStateContainer<NetworkTokenizationService, S>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -405,7 +406,17 @@ pub struct NetworkTransactionIdSupportedConnectors {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct NetworkTokenizationSupportedCardNetworks {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::CardNetwork>,
+    pub card_networks: HashSet<enums::CardNetwork>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTokenizationService {
+    pub generate_token_url: String,
+    pub fetch_token_url: String,
+    pub token_service_api_key: Secret<String>,
+    pub public_key: Secret<String>,
+    pub private_key: Secret<String>,
+    pub key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

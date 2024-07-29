@@ -986,6 +986,8 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         #[max_length = 64]
         network_token_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        token_locker_id -> Nullable<Varchar>,
     }
 }
 

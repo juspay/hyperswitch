@@ -1731,6 +1731,7 @@ pub enum MandateStatus {
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 pub enum CardNetwork {
+    #[serde(alias = "VISA")]
     Visa,
     Mastercard,
     AmericanExpress,

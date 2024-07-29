@@ -24,6 +24,7 @@ pub struct CardTokenData {
     pub payment_method_id: Option<String>,
     pub locker_id: Option<String>,
     pub token: String,
+    pub token_locker_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
@@ -61,11 +62,13 @@ impl PaymentTokenData {
         payment_method_id: Option<String>,
         locker_id: Option<String>,
         token: String,
+        token_locker_id: Option<String>,
     ) -> Self {
         Self::PermanentCard(CardTokenData {
             payment_method_id,
             locker_id,
             token,
+            token_locker_id,
         })
     }
 

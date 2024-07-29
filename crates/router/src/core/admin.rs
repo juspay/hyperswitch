@@ -322,7 +322,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config,
-                    is_network_tokenization_enabled: false,
+                    is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 },
             )
         }

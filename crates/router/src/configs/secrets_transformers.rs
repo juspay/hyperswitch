@@ -265,6 +265,32 @@ impl SecretsHandler for settings::UserAuthMethodSettings {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for settings::NetworkTokenizationService {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let network_tokenization = value.get_inner();
+        let token_service_api_key = secret_management_client
+            .get_secret(network_tokenization.token_service_api_key.clone())
+            .await?;
+        let public_key = secret_management_client
+            .get_secret(network_tokenization.public_key.clone())
+            .await?;
+        let private_key = secret_management_client
+            .get_secret(network_tokenization.private_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|network_tokenization| Self {
+            public_key,
+            private_key,
+            token_service_api_key,
+            ..network_tokenization
+        }))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -363,6 +389,11 @@ pub(crate) async fn fetch_raw_secrets(
     .await
     .expect("Failed to decrypt user_auth_methods configs");
 
+    let network_tokenization_service = settings::NetworkTokenizationService::convert_to_raw_secret(
+        conf.network_tokenization_service,
+        secret_management_client,
+    ).await.expect("Failed to decrypt network tokenization service configs");
+
     Settings {
         server: conf.server,
         master_database,
@@ -401,8 +432,6 @@ pub(crate) async fn fetch_raw_secrets(
         mandates: conf.mandates,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
-        network_tokenization_supported_card_networks: conf
-            .network_tokenization_supported_card_networks,
         required_fields: conf.required_fields,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
@@ -437,5 +466,8 @@ pub(crate) async fn fetch_raw_secrets(
         user_auth_methods,
         decision: conf.decision,
         locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
+        network_tokenization_supported_card_networks: conf
+            .network_tokenization_supported_card_networks,
+        network_tokenization_service,
     }
 }

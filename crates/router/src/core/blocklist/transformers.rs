@@ -87,7 +87,7 @@ async fn generate_jwe_payload_for_request(
         }
     };
 
-    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
+    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key, "A256GCM", None)
         .await
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Error on jwe encrypt")?;

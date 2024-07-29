@@ -42,13 +42,13 @@ pub struct Request {
 
 impl std::fmt::Debug for RequestContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Json(_) => "JsonRequestBody",
-            Self::FormUrlEncoded(_) => "FormUrlEncodedRequestBody",
-            Self::FormData(_) => "FormDataRequestBody",
-            Self::Xml(_) => "XmlRequestBody",
-            Self::RawBytes(_) => "RawBytesRequestBody",
-        })
+        match self {
+            Self::Json(a) => a.masked_serialize().fmt(f),
+            Self::FormUrlEncoded(_) => f.write_str("FormUrlEncodedRequestBody"),
+            Self::FormData(_) => f.write_str("FormDataRequestBody"),
+            Self::Xml(_) => f.write_str("XmlRequestBody"),
+            Self::RawBytes(_) => f.write_str("RawBytesRequestBody"),
+        }
     }
 }
 
