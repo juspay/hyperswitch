@@ -45,16 +45,6 @@ pub struct CmdLineConf {
     /// Application will look for "config/config.toml" if this option isn't specified.
     #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
-
-    #[command(subcommand)]
-    pub subcommand: Option<Subcommand>,
-}
-
-#[derive(clap::Parser)]
-pub enum Subcommand {
-    #[cfg(feature = "openapi")]
-    /// Generate the OpenAPI specification file from code.
-    GenerateOpenapiSpec,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -220,6 +210,7 @@ pub struct KvConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct KeyManagerConfig {
+    pub enabled: Option<bool>,
     pub url: String,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,

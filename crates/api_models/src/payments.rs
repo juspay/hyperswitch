@@ -4063,6 +4063,9 @@ pub struct PaymentListFilterConstraints {
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The list of merchant connector ids to filter payments list for selected label
     pub merchant_connector_id: Option<Vec<String>>,
+    /// The order in which payments list should be sorted
+    #[serde(default)]
+    pub order: Order,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -4100,6 +4103,34 @@ pub struct AmountFilter {
     pub start_amount: Option<i64>,
     /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct Order {
+    /// The field to sort, such as Amount or Created etc.
+    pub on: SortOn,
+    /// The order in which to sort the items, either Ascending or Descending
+    pub by: SortBy,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortOn {
+    /// Sort by the amount field
+    Amount,
+    /// Sort by the created_at field
+    #[default]
+    Created,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortBy {
+    /// Sort in ascending order
+    Asc,
+    /// Sort in descending order
+    #[default]
+    Desc,
 }
 
 #[derive(
