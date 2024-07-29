@@ -11,6 +11,9 @@ use api_models::{
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use masking::Secret;
+
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 
@@ -337,7 +340,7 @@ pub async fn link_routing_config(
     .get_required_value("BusinessProfile")?;
 
     let mut routing_ref = routing_types::RoutingAlgorithmRef::parse_routing_algorithm(
-        business_profile.routing_algorithm.clone(),
+        business_profile.routing_algorithm.clone().map(Secret::new),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("unable to deserialize routing algorithm ref from merchant account")?

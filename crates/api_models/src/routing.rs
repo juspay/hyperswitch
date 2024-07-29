@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_utils::{errors::ParsingError, ext_traits::ValueExt};
+use common_utils::{errors::ParsingError, ext_traits::ValueExt, pii};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -429,7 +429,7 @@ impl RoutingAlgorithmRef {
     }
 
     pub fn parse_routing_algorithm(
-        value: Option<serde_json::Value>,
+        value: Option<pii::SecretSerdeValue>,
     ) -> Result<Option<Self>, error_stack::Report<ParsingError>> {
         value
             .map(|val| val.parse_value::<Self>("RoutingAlgorithmRef"))
