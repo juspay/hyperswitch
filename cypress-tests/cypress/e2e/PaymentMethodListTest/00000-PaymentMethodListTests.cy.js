@@ -15,11 +15,6 @@ import getConnectorDetails from "../PaymentMethodListUtils/Utils";
 
 let globalState;
 describe("Payment Method list using Constraint Graph flow tests", () => {
-  // Testing for scenario:
-  // MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }
-  // MCA2 -> Cybersource configured with credit = { currency = "USD" }
-  // Payment is done with currency as EUR and no billing address
-  // The resultant Payment Method list should only have ideal with stripe
   context(
     `
     MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }\n
@@ -96,11 +91,6 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
     }
   );
 
-  // Testing for scenario:
-  // MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }
-  // MCA2 -> Cybersource configured with credit = { currency = "USD" }
-  // Payment is done with currency as INR and no billing address
-  // The resultant Payment Method list shouldn't have any payment method
   context(
     `
     MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }\n
@@ -177,11 +167,6 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
     }
   );
 
-  // Testing for scenario:
-  // MCA1 -> Stripe configured with credit = { country = "US" }
-  // MCA2 -> Cybersource configured with credit = { country = "US" }
-  // Payment is done with country as US and currency as USD
-  // The resultant Payment Method list should have both Stripe and cybersource
   context(
     `
    MCA1 -> Stripe configured with credit = { country = "US" }\n
@@ -258,11 +243,6 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
     }
   );
 
-  // Testing for scenario:
-  // MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }
-  // MCA2 -> Cybersource configured with ideal = { country = "NL", currency = "EUR" }
-  // Payment is done with country as US and currency as EUR
-  // The resultant Payment Method list shouldn't have anything
   context(
     `
     MCA1 -> Stripe configured with ideal = { country = "NL", currency = "EUR" }\n
@@ -339,13 +319,6 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
     }
   );
 
-  // Testing for scenario:
-  // MCA1 -> Stripe configured with card credit no configs present
-  // MCA1 -> Cybersource configured with card credit = { currency = "USD" }
-  // and ideal (default config present as = { country = "NL", currency = "EUR" } )
-  // Payment is done with country as IN and currency as USD
-  // The resultant Payment Method list should have
-  // Stripe and cybersource both for credit and none for ideal
   context(
     `
     MCA1 -> Stripe configured with card credit no configs present\n
@@ -424,12 +397,6 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
     }
   );
 
-  // Testing for scenario:
-  // MCA1 -> Stripe configured with card credit
-  // MCA1 -> Cybersource configured with card credit = { currency = "USD" }
-  // Payment is done with currency as USD and no billing address
-  // The resultant Payment Method list should have
-  // Stripe and cybersource both for credit
   context(
     `
    MCA1 -> Stripe configured with card credit\n

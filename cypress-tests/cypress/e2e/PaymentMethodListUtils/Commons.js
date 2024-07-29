@@ -160,7 +160,7 @@ export const create_payment_body_with_currency_country = (
       last_name: "Joseph",
     },
     phone: {
-      number: "9888888888",
+      number: "9123456789",
       country_code: "+91",
     },
     email: "example@example.com",
