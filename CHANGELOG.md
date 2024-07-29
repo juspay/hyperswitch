@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.26.0-hotfix1
+
+### Features
+
+- Add env variable for enable key manager service ([#5465](https://github.com/juspay/hyperswitch/pull/5465)) ([`70258e3`](https://github.com/juspay/hyperswitch/commit/70258e3021f13135fbab50ca2ea17d7df0a1af76))
+
+- - -
+
 ## 2024.07.26.0
 
 ### Features
