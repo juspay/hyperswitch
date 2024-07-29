@@ -1,5 +1,6 @@
+pub mod bitpay;
 pub mod fiserv;
 pub mod helcim;
 pub mod stax;
 
-pub use self::{fiserv::Fiserv, helcim::Helcim, stax::Stax};
+pub use self::{bitpay::Bitpay, fiserv::Fiserv, helcim::Helcim, stax::Stax};

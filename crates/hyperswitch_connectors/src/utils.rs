@@ -5,6 +5,7 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     id_type,
     pii::{self, Email, IpAddress},
+    types::{AmountConvertor, MinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -129,6 +130,16 @@ where
 {
     let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+pub(crate) fn convert_amount<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<T, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
