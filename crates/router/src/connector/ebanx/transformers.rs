@@ -1,4 +1,6 @@
 #[cfg(feature = "payouts")]
+use api_models::enums::Currency;
+#[cfg(feature = "payouts")]
 use api_models::payouts::{Bank, PayoutMethodData};
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
