@@ -30,6 +30,10 @@ pub struct Organization {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    #[allow(dead_code)]
+    id: Option<id_type::OrganizationId>,
+    #[allow(dead_code)]
+    organization_name: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -40,12 +44,12 @@ pub struct Organization {
     check_for_backend(diesel::pg::Pg)
 )]
 pub struct Organization {
-    id: id_type::OrganizationId,
-    organization_name: Option<String>,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    id: id_type::OrganizationId,
+    organization_name: Option<String>,
 }
 
 #[cfg(all(
@@ -61,8 +65,12 @@ impl Organization {
             metadata,
             created_at,
             modified_at,
+            id: _,
+            organization_name: _,
         } = org_new;
         Self {
+            id: Some(org_id.clone()),
+            organization_name: org_name.clone(),
             org_id,
             org_name,
             organization_details,
@@ -104,6 +112,8 @@ impl Organization {
 pub struct OrganizationNew {
     org_id: id_type::OrganizationId,
     org_name: Option<String>,
+    id: Option<id_type::OrganizationId>,
+    organization_name: Option<String>,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
@@ -129,8 +139,10 @@ pub struct OrganizationNew {
 impl OrganizationNew {
     pub fn new(id: id_type::OrganizationId, organization_name: Option<String>) -> Self {
         Self {
-            org_id: id,
-            org_name: organization_name,
+            org_id: id.clone(),
+            org_name: organization_name.clone(),
+            id: Some(id),
+            organization_name,
             organization_details: None,
             metadata: None,
             created_at: common_utils::date_time::now(),
@@ -161,6 +173,7 @@ impl OrganizationNew {
 #[diesel(table_name = organization)]
 pub struct OrganizationUpdateInternal {
     org_name: Option<String>,
+    organization_name: Option<String>,
     organization_details: Option<pii::SecretSerdeValue>,
     metadata: Option<pii::SecretSerdeValue>,
     modified_at: time::PrimitiveDateTime,
@@ -196,7 +209,8 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
                 organization_details,
                 metadata,
             } => Self {
-                org_name: organization_name,
+                org_name: organization_name.clone(),
+                organization_name,
                 organization_details,
                 metadata,
                 modified_at: common_utils::date_time::now(),

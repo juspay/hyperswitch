@@ -1,5 +1,6 @@
 -- Your SQL goes here
 ALTER TABLE organization
-RENAME COLUMN org_id TO id;
+ADD COLUMN id VARCHAR(32);
 ALTER TABLE organization
-RENAME COLUMN org_name TO organization_name;
+ADD COLUMN organization_name TEXT;
+      

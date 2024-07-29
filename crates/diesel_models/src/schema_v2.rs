@@ -729,13 +729,13 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     organization (id) {
-        #[max_length = 32]
-        id -> Varchar,
-        organization_name -> Nullable<Text>,
         organization_details -> Nullable<Jsonb>,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        #[max_length = 32]
+        id -> Varchar,
+        organization_name -> Nullable<Text>,
     }
 }
 
