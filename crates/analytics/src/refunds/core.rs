@@ -28,7 +28,7 @@ use crate::{
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetRefundMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<RefundMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<RefundMetricsBucketIdentifier, RefundMetricsAccumulator> =
@@ -125,7 +125,7 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetRefundFilterRequest,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<RefundFiltersResponse> {
     let mut res = RefundFiltersResponse::default();
     for dim in req.group_by_names {

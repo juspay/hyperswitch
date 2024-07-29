@@ -53,7 +53,7 @@ pub async fn refund_create_core(
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, amount);
 
-    merchant_id = &merchant_account.merchant_id;
+    merchant_id = merchant_account.get_id();
 
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
@@ -112,12 +112,7 @@ pub async fn refund_create_core(
     req.merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(
-                db,
-                merchant_id.as_str(),
-                mcd,
-            )
-            .await
+            payments::helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
         })
         .await
         .transpose()?;
@@ -301,7 +296,10 @@ pub async fn trigger_refund_to_gateway(
                         1,
                         &add_attributes([
                             ("connector", connector.connector_name.to_string()),
-                            ("merchant_id", merchant_account.merchant_id.clone()),
+                            (
+                                "merchant_id",
+                                merchant_account.get_id().get_string_repr().to_owned(),
+                            ),
                         ]),
                     );
                     storage::RefundUpdate::ErrorUpdate {
@@ -402,7 +400,7 @@ pub async fn refund_retrieve_core(
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
 
-    merchant_id = &merchant_account.merchant_id;
+    merchant_id = merchant_account.get_id();
 
     refund = db
         .find_refund_by_merchant_id_refund_id(
@@ -443,12 +441,7 @@ pub async fn refund_retrieve_core(
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(
-                db,
-                merchant_id.as_str(),
-                mcd,
-            )
-            .await
+            payments::helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
         })
         .await
         .transpose()?;
@@ -596,7 +589,10 @@ pub async fn sync_refund_with_gateway(
                     1,
                     &add_attributes([
                         ("connector", connector.connector_name.to_string()),
-                        ("merchant_id", merchant_account.merchant_id.clone()),
+                        (
+                            "merchant_id",
+                            merchant_account.get_id().get_string_repr().to_owned(),
+                        ),
                     ]),
                 );
                 let refund_connector_transaction_id = err.connector_transaction_id;
@@ -650,7 +646,7 @@ pub async fn refund_update_core(
     let db = state.store.as_ref();
     let refund = db
         .find_refund_by_merchant_id_refund_id(
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &req.refund_id,
             merchant_account.storage_scheme,
         )
@@ -735,7 +731,7 @@ pub async fn validate_and_create_refund(
     let predicate = req
         .merchant_id
         .as_ref()
-        .map(|merchant_id| merchant_id != &merchant_account.merchant_id);
+        .map(|merchant_id| merchant_id != merchant_account.get_id());
 
     utils::when(predicate.unwrap_or(false), || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
@@ -752,7 +748,7 @@ pub async fn validate_and_create_refund(
 
     let all_refunds = db
         .find_refund_by_merchant_id_connector_transaction_id(
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &connecter_transaction_id,
             merchant_account.storage_scheme,
         )
@@ -799,7 +795,7 @@ pub async fn validate_and_create_refund(
         .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
         .set_external_reference_id(Some(refund_id.clone()))
         .set_payment_id(req.payment_id)
-        .set_merchant_id(merchant_account.merchant_id.clone())
+        .set_merchant_id(merchant_account.get_id().clone())
         .set_connector_transaction_id(connecter_transaction_id.to_string())
         .set_connector(connector)
         .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
@@ -868,7 +864,7 @@ pub async fn refund_list(
 
     let refund_list = db
         .filter_refund_by_constraints(
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &req,
             merchant_account.storage_scheme,
             limit,
@@ -884,7 +880,7 @@ pub async fn refund_list(
 
     let total_count = db
         .get_total_count_of_refunds(
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &req,
             merchant_account.storage_scheme,
         )
@@ -910,7 +906,7 @@ pub async fn refund_filter_list(
     let db = state.store;
     let filter_list = db
         .filter_refund_by_meta_constraints(
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &req,
             merchant_account.storage_scheme,
         )
@@ -946,7 +942,7 @@ pub async fn refund_manual_update(
     let refund = state
         .store
         .find_refund_by_merchant_id_refund_id(
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &req.refund_id,
             merchant_account.storage_scheme,
         )
@@ -983,7 +979,7 @@ pub async fn get_filters_for_refunds(
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant_account.merchant_id).await?
+        super::admin::list_payment_connectors(state, merchant_account.get_id().to_owned()).await?
     {
         data
     } else {
@@ -993,13 +989,15 @@ pub async fn get_filters_for_refunds(
     let connector_map = merchant_connector_accounts
         .into_iter()
         .filter_map(|merchant_connector_account| {
-            merchant_connector_account.connector_label.map(|label| {
-                let info = MerchantConnectorInfo {
-                    connector_label: label,
-                    merchant_connector_id: merchant_connector_account.merchant_connector_id,
-                };
-                (merchant_connector_account.connector_name, info)
-            })
+            merchant_connector_account
+                .connector_label
+                .clone()
+                .map(|label| {
+                    let info = merchant_connector_account
+                        .clone()
+                        .to_merchant_connector_info(&label.clone());
+                    (merchant_connector_account.connector_name, info)
+                })
         })
         .fold(
             HashMap::new(),
@@ -1452,7 +1450,7 @@ pub async fn add_refund_execute_task(
 pub async fn get_refund_sync_process_schedule_time(
     db: &dyn db::StorageInterface,
     connector: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
