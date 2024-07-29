@@ -19827,7 +19827,7 @@
           },
           "secure_link": {
             "type": "string",
-            "description": "Secure payment link (with security checks and listing SPMs)",
+            "description": "Secure payment link (with security checks and listing saved payment methods)",
             "nullable": true
           }
         }
