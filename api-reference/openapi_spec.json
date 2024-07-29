@@ -13780,7 +13780,8 @@
           "seller_name",
           "sdk_layout",
           "display_sdk_only",
-          "enabled_saved_payment_method"
+          "enabled_saved_payment_method",
+          "merchant_details"
         ],
         "properties": {
           "theme": {
@@ -13806,6 +13807,13 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link"
+          },
+          "merchant_details": {
+            "type": "object",
+            "description": "Dynamic details related to merchant to be rendered in payment link",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -13852,6 +13860,11 @@
             "description": "Enable saved payment method option for payment link",
             "default": false,
             "example": true,
+            "nullable": true
+          },
+          "merchant_details": {
+            "type": "object",
+            "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
         }

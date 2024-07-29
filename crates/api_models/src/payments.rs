@@ -5377,8 +5377,8 @@ pub struct PaymentLinkInitiateRequest {
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum PaymentLinkData<'a> {
-    PaymentLinkDetails(&'a PaymentLinkDetails),
-    PaymentLinkStatusDetails(PaymentLinkStatusDetails),
+    PaymentLinkDetails(Box<&'a PaymentLinkDetails>),
+    PaymentLinkStatusDetails(Box<PaymentLinkStatusDetails>),
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5417,6 +5417,7 @@ pub struct PaymentLinkStatusDetails {
     pub redirect: bool,
     pub theme: String,
     pub return_url: String,
+    pub merchant_details: HashMap<String, String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

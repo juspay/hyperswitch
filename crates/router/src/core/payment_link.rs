@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::{admin as admin_types, payments::PaymentLinkStatusWrap};
 use common_utils::{
     consts::{
@@ -94,6 +96,7 @@ pub async fn initiate_payment_link_flow(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+            merchant_details: HashMap::new(),
         }
     };
 
@@ -203,6 +206,7 @@ pub async fn initiate_payment_link_flow(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
+            merchant_details: payment_link_config.merchant_details,
         };
 
         logger::info!(
@@ -210,7 +214,7 @@ pub async fn initiate_payment_link_flow(
             payment_details
         );
         let js_script = get_js_script(
-            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(Box::new(payment_details)),
         )?;
         let payment_link_error_data = services::PaymentLinkStatusData {
             js_script,
@@ -241,7 +245,7 @@ pub async fn initiate_payment_link_flow(
     };
 
     let js_script = get_js_script(&api_models::payments::PaymentLinkData::PaymentLinkDetails(
-        &payment_details,
+        Box::new(&payment_details)
     ))?;
 
     let html_meta_tags = get_meta_tags_html(payment_details);
@@ -442,7 +446,15 @@ pub fn get_payment_link_config_based_on_priority(
         (default_domain_name, None)
     };
 
-    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
+    let (
+        theme,
+        logo,
+        seller_name,
+        sdk_layout,
+        display_sdk_only,
+        enabled_saved_payment_method,
+        merchant_details,
+    ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
         (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
@@ -453,7 +465,8 @@ pub fn get_payment_link_config_based_on_priority(
         (
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
-        )
+        ),
+        (merchant_details, HashMap::new())
     );
 
     let payment_link_config = admin_types::PaymentLinkConfig {
@@ -463,6 +476,7 @@ pub fn get_payment_link_config_based_on_priority(
         sdk_layout,
         display_sdk_only,
         enabled_saved_payment_method,
+        merchant_details,
     };
 
     Ok((payment_link_config, domain_name))
@@ -544,6 +558,7 @@ pub async fn get_payment_link_status(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+            merchant_details: HashMap::new(),
         }
     };
 
@@ -602,9 +617,10 @@ pub async fn get_payment_link_status(
         redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
+        merchant_details: payment_link_config.merchant_details,
     };
     let js_script = get_js_script(
-        &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+        &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(Box::new(payment_details)),
     )?;
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,
