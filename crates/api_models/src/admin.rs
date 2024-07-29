@@ -1488,12 +1488,12 @@ pub struct BusinessProfileCreate {
     /// A boolean value to indicate if customer shipping details needs to be collected from wallet
     /// connector only if it is required field for connector (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
-    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_shipping_details_from_wallet_connector_if_required: Option<bool>,
 
     /// A boolean value to indicate if customer billing details needs to be collected from wallet
     /// connector only if it is required field for connector (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
-    pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector_if_required: Option<bool>,
 
     /// A boolean value to indicate if customer shipping details needs to be collected from wallet
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
@@ -1596,12 +1596,12 @@ pub struct BusinessProfileResponse {
     /// A boolean value to indicate if customer shipping details needs to be collected from wallet
     /// connector only if it is required field for connector (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
-    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_shipping_details_from_wallet_connector_if_required: Option<bool>,
 
     /// A boolean value to indicate if customer billing details needs to be collected from wallet
     /// connector only if it is required field for connector (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
-    pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector_if_required: Option<bool>,
 
     /// A boolean value to indicate if customer shipping details needs to be collected from wallet
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
@@ -1696,12 +1696,12 @@ pub struct BusinessProfileUpdate {
     /// A boolean value to indicate if customer shipping details needs to be collected from wallet
     /// connector only if it is required field for connector (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
-    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_shipping_details_from_wallet_connector_if_required: Option<bool>,
 
     /// A boolean value to indicate if customer billing details needs to be collected from wallet
     /// connector only if it is required field for connector (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
-    pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector_if_required: Option<bool>,
 
     /// A boolean value to indicate if customer shipping details needs to be collected from wallet
     /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)

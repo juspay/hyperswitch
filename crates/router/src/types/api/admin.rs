@@ -169,9 +169,9 @@ pub async fn business_profile_response(
             .extended_card_info_config
             .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
             .transpose()?,
-        collect_shipping_details_from_wallet_connector: item
+        collect_shipping_details_from_wallet_connector_if_required: item
             .collect_shipping_details_from_wallet_connector,
-        collect_billing_details_from_wallet_connector: item
+        collect_billing_details_from_wallet_connector_if_required: item
             .collect_billing_details_from_wallet_connector,
         always_collect_billing_details_from_wallet_connector: item
             .always_collect_billing_details_from_wallet_connector,
@@ -308,10 +308,10 @@ pub async fn create_business_profile(
             .use_billing_as_payment_method_billing
             .or(Some(true)),
         collect_shipping_details_from_wallet_connector: request
-            .collect_shipping_details_from_wallet_connector
+            .collect_shipping_details_from_wallet_connector_if_required
             .or(Some(false)),
         collect_billing_details_from_wallet_connector: request
-            .collect_billing_details_from_wallet_connector
+            .collect_billing_details_from_wallet_connector_if_required
             .or(Some(false)),
         always_collect_billing_details_from_wallet_connector: request
             .always_collect_billing_details_from_wallet_connector

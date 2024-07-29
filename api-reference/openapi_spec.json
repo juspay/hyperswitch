@@ -7118,14 +7118,14 @@
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
             "nullable": true
           },
-          "collect_shipping_details_from_wallet_connector": {
+          "collect_shipping_details_from_wallet_connector_if_required": {
             "type": "boolean",
             "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
-          "collect_billing_details_from_wallet_connector": {
+          "collect_billing_details_from_wallet_connector_if_required": {
             "type": "boolean",
             "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
             "default": false,
@@ -7295,14 +7295,14 @@
             ],
             "nullable": true
           },
-          "collect_shipping_details_from_wallet_connector": {
+          "collect_shipping_details_from_wallet_connector_if_required": {
             "type": "boolean",
             "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
-          "collect_billing_details_from_wallet_connector": {
+          "collect_billing_details_from_wallet_connector_if_required": {
             "type": "boolean",
             "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
             "default": false,
