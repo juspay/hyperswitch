@@ -25,6 +25,7 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
 };
+pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
@@ -2659,18 +2660,6 @@ where
             payment_data
         };
     Ok(payment_data.to_owned())
-}
-
-#[derive(Clone, PartialEq)]
-pub enum CallConnectorAction {
-    Trigger,
-    Avoid,
-    StatusUpdate {
-        status: storage_enums::AttemptStatus,
-        error_code: Option<String>,
-        error_message: Option<String>,
-    },
-    HandleResponse(Vec<u8>),
 }
 
 #[derive(Clone)]
