@@ -31,8 +31,8 @@ pub struct PayoutCreateRequest {
     pub payout_id: Option<String>, // TODO: #1321 https://github.com/juspay/hyperswitch/issues/1321
 
     /// This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**
-    #[schema(max_length = 255, value_type = String, example = "merchant_1668273825")]
-    pub merchant_id: Option<String>,
+    #[schema(max_length = 255, value_type = Option<String>, example = "merchant_1668273825")]
+    pub merchant_id: Option<id_type::MerchantId>,
 
     /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 1000)]
