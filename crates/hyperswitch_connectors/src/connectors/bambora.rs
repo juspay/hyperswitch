@@ -319,6 +319,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             .url(&PaymentsCompleteAuthorizeType::get_url(
                 self, req, connectors,
             )?)
+            .attach_default_headers()
             .headers(PaymentsCompleteAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
