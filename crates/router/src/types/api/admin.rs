@@ -181,9 +181,9 @@ pub async fn business_profile_response(
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 
 pub async fn create_business_profile(
-    state: &SessionState,
-    request: BusinessProfileCreate,
-    key_store: &MerchantKeyStore,
+    _state: &SessionState,
+    _request: BusinessProfileCreate,
+    _key_store: &MerchantKeyStore,
 ) -> Result<
     storage::business_profile::BusinessProfileNew,
     error_stack::Report<errors::ApiErrorResponse>,

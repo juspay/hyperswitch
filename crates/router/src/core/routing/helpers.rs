@@ -198,6 +198,10 @@ pub async fn update_merchant_active_algorithm_ref(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed converting routing algorithm ref to json value")?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let merchant_account_update = storage::MerchantAccountUpdate::Update {
         merchant_name: None,
         merchant_details: None,
@@ -220,6 +224,30 @@ pub async fn update_merchant_active_algorithm_ref(
         payment_link_config: None,
         pm_collect_link_config: None,
     };
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let merchant_account_update = storage::MerchantAccountUpdate::Update {
+        merchant_name: None,
+        merchant_details: None,
+        webhook_details: None,
+        sub_merchants_enabled: None,
+        parent_merchant_id: None,
+        enable_payment_response_hash: None,
+        payment_response_hash_key: None,
+        redirect_to_merchant_with_http_post: None,
+        publishable_key: None,
+        locker_id: None,
+        metadata: None,
+        routing_algorithm: Some(ref_value),
+        primary_business_details: None,
+        intent_fulfillment_time: None,
+        frm_routing_algorithm: None,
+        payout_routing_algorithm: None,
+        default_profile: None,
+        payment_link_config: None,
+        pm_collect_link_config: None,
+    };
+
     let db = &*state.store;
     db.update_specific_fields_in_merchant(
         &state.into(),
