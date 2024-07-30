@@ -285,7 +285,21 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+            req.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+        )?;
+        let connector_router_data = airwallex::AirwallexRouterData::from((amount, req));
+        let req_obj = airwallex::AirwallexIntentRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
