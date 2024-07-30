@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.30.0
+
+### Features
+
+- Add env variable for enable key manager service ([#5442](https://github.com/juspay/hyperswitch/pull/5442)) ([`db26d32`](https://github.com/juspay/hyperswitch/commit/db26d32d8465e20cf3835fbfe6d0a19688078b8c))
+
+### Refactors
+
+- **router:** Remove `connector_account_details` and `connector_webhook_details` in merchant_connector_account list response ([#5457](https://github.com/juspay/hyperswitch/pull/5457)) ([`45a1494`](https://github.com/juspay/hyperswitch/commit/45a149418f1dad0cd27f975dc3dd56c68172b9dd))
+
+**Full Changelog:** [`2024.07.29.0...2024.07.30.0`](https://github.com/juspay/hyperswitch/compare/2024.07.29.0...2024.07.30.0)
+
+- - -
+
 ## 2024.07.29.0
 
 ### Features
