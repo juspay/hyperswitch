@@ -949,9 +949,9 @@ pub async fn resend_invite(
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
                     .attach_printable(format!(
-                        "User role with user_id = {} and merchant_id = {} is not found",
+                        "User role with user_id = {} and merchant_id = {:?} is not found",
                         user.get_user_id(),
-                        user_from_token.merchant_id.get_string_repr()
+                        user_from_token.merchant_id
                     ))
             } else {
                 e.change_context(UserErrors::InternalServerError)

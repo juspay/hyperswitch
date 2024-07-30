@@ -2016,7 +2016,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id.get_string_repr()))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }
@@ -2184,7 +2184,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id.get_string_repr()))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }

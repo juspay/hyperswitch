@@ -143,10 +143,7 @@ pub async fn send_recon_request(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
-                format!(
-                    "Failed while updating merchant's recon status: {}",
-                    merchant_id.get_string_repr()
-                )
+                format!("Failed while updating merchant's recon status: {merchant_id:?}")
             })?;
 
         Ok(service_api::ApplicationResponse::Json(
@@ -200,10 +197,7 @@ pub async fn recon_merchant_account_update(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!(
-                "Failed while updating merchant's recon status: {}",
-                merchant_id.get_string_repr()
-            )
+            format!("Failed while updating merchant's recon status: {merchant_id:?}")
         })?;
 
     let email_contents = email_types::ReconActivation {
