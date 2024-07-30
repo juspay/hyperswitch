@@ -1093,8 +1093,9 @@ impl MerchantConnectorAccount {
         {
             use super::admin::*;
 
-            route =
-                route.service(web::resource("").route(web::post().to(payment_connector_create)));
+            route = route
+                .service(web::resource("").route(web::post().to(payment_connector_create)))
+                .service(web::resource("/{id}").route(web::post().to(payment_connector_update)));
         }
         route
     }
