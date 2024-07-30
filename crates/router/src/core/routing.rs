@@ -82,18 +82,12 @@ impl RoutingAlgorithmUpdate {
     pub async fn fetch_routing_algo(
         merchant_id: &common_utils::id_type::MerchantId,
         algorithm_id: &str,
-        profile_id: &str,
         db: &dyn StorageInterface,
     ) -> RouterResult<Self> {
         let routing_algo = db
             .find_routing_algorithm_by_algorithm_id_merchant_id(algorithm_id, merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
-        utils::when(routing_algo.profile_id == profile_id.to_owned(), || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Profile Id is invalid for the routing config".to_string(),
-            })
-        })?;
         Ok(Self { routing_algo })
     }
 
@@ -334,14 +328,17 @@ pub async fn link_routing_config(
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
-    let routing_algorithm = RoutingAlgorithmUpdate::fetch_routing_algo(
-        merchant_account.get_id(),
-        &algorithm_id,
-        &profile_id,
-        db,
-    )
-    .await?;
-
+    let routing_algorithm =
+        RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
+            .await?;
+    utils::when(
+        routing_algorithm.routing_algo.profile_id != profile_id,
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Profile Id is invalid for the routing config".to_string(),
+            })
+        },
+    )?;
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         Some(&profile_id),
