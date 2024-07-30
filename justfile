@@ -186,5 +186,6 @@ resurrect:
 
 ci_hack:
     scripts/ci-checks.sh
+    scripts/ci-checks-v2.sh
 
 

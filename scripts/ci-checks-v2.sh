@@ -1,7 +1,6 @@
 #! /usr/bin/env bash
 set -euo pipefail
 
-# hardcode the 4 required crates instead of all crates being fetched
 workspace_members=\
 'api_models
 diesel_models
@@ -14,7 +13,6 @@ PACKAGES_SKIPPED=()
 # List of cargo commands that will be executed
 all_commands=()
 
-# echo "$workspace_members"
 # If we are running this on a pull request, then only check for packages that are modified
 if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
   # Obtain the pull request number and files modified in the pull request
@@ -29,17 +27,17 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
   )"
 
   while IFS= read -r package_name; do
-    # A package must be checked if any of its transitive dependencies (or itself) has been modified
+    # A package must be checked if it has been modified
     if grep --quiet --extended-regexp "^crates/${package_name}" <<< "${files_modified}"; then
-      if [[ "${package_name}" = "storage_impl" ]]; then
-        all_commands+="cargo hack clippy --features "v2,payment_v2" -p storage_impl"
+      if [[ "${package_name}" == "storage_impl" ]]; then
+        all_commands+="cargo hack clippy --features 'v2,payment_v2' -p storage_impl"
       else
-        all_commands+="cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package "${package_name}""
+        all_commands+="cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package '${package_name}'"
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
       PACKAGES_CHECKED+=("${package_name}")
     else
-      printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]//|/ }"
+      printf '::debug::Skipping `%s` since it was not modified: %s\n' "${package_name}"
       PACKAGES_SKIPPED+=("${package_name}")
     fi
   done <<< "${workspace_members}"
@@ -70,8 +68,7 @@ for command in "${all_commands[@]}"; do
     printf '::group::Running `%s`\n' "${command}"
   fi
 
-  echo $command
-  bash -c -x "$command"
+  bash -c -x "${command}"
 
   if [[ "${CI:-false}" == "true" && "${GITHUB_ACTIONS:-false}" == "true" ]]; then
     echo '::endgroup::'
