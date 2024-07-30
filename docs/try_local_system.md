@@ -491,7 +491,7 @@ Once you're done with setting up the dependencies, proceed with
    Export the `DATABASE_URL` env variable
 
    ```shell
-   export DATABASE_URL=$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   export DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
    ```
 
    Run the migrations
