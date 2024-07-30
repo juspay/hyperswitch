@@ -18125,7 +18125,6 @@
       "PayoutCreateRequest": {
         "type": "object",
         "required": [
-          "merchant_id",
           "currency",
           "confirm",
           "payout_type",
@@ -18150,6 +18149,7 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**",
             "example": "merchant_1668273825",
+            "nullable": true,
             "maxLength": 255
           },
           "amount": {
