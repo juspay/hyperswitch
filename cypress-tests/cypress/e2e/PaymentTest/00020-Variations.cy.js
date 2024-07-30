@@ -1,6 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import getConnectorDetails from "../PaymentUtils/Utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 let paymentIntentBody;
@@ -141,6 +141,8 @@ describe("Corner cases", () => {
   });
 
   context("[Payment] Capture greater amount", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -149,6 +151,12 @@ describe("Corner cases", () => {
 
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
     });
 
     it("Create payment intent", () => {
@@ -167,6 +175,9 @@ describe("Corner cases", () => {
         "manual",
         globalState
       );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
     });
 
     it("Capture call", () => {
@@ -184,10 +195,15 @@ describe("Corner cases", () => {
         65000,
         globalState
       );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
     });
   });
 
   context("[Payment] Capture successful payment", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -196,6 +212,12 @@ describe("Corner cases", () => {
 
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
     });
 
     it("Create payment intent", () => {
@@ -214,6 +236,9 @@ describe("Corner cases", () => {
         "automatic",
         globalState
       );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
     });
 
     it("Retrieve payment", () => {
@@ -235,10 +260,15 @@ describe("Corner cases", () => {
         65000,
         globalState
       );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
     });
   });
 
   context("[Payment] Void successful payment", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -247,6 +277,12 @@ describe("Corner cases", () => {
 
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
     });
 
     it("Create payment intent", () => {
@@ -265,6 +301,9 @@ describe("Corner cases", () => {
         "automatic",
         globalState
       );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
     });
 
     it("Retrieve payment", () => {
@@ -278,6 +317,9 @@ describe("Corner cases", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.voidCallTest(fixtures.voidBody, req_data, res_data, globalState);
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
     });
   });
 });
