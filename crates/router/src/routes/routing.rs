@@ -199,7 +199,41 @@ pub async fn list_routing_configs(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[instrument(skip_all)]
+pub async fn routing_unlink_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    transaction_type: &enums::TransactionType,
+) -> impl Responder {
+    let flow = Flow::RoutingUnlinkConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        path.into_inner(),
+        |state, auth: auth::AuthenticationData, path, _| {
+            routing::unlink_routing_config(state, auth.merchant_account, path, transaction_type)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "routing_v2")
+))]
 #[instrument(skip_all)]
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
