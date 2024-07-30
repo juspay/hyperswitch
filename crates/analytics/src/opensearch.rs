@@ -507,12 +507,13 @@ impl OpenSearchQueryBuilder {
         Ok(indexes
             .iter()
             .map(|index| {
-                let updated_query = query.get("query")
-                .and_then(|q| q.get("bool"))
-                .and_then(|b| b.get("filter"))
-                .and_then(|f| f.as_array())
-                .map(|filters| self.replace_status_field(filters, index))
-                .unwrap_or_default();
+                let updated_query = query
+                    .get("query")
+                    .and_then(|q| q.get("bool"))
+                    .and_then(|b| b.get("filter"))
+                    .and_then(|f| f.as_array())
+                    .map(|filters| self.replace_status_field(filters, index))
+                    .unwrap_or_default();
 
                 let mut final_query = Map::new();
                 final_query.insert("bool".to_string(), json!({ "filter": updated_query }));
