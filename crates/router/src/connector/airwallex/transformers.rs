@@ -1,3 +1,4 @@
+use common_utils::types::StringMajorUnit;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
@@ -36,7 +37,7 @@ impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: String,
+    amount: StringMajorUnit,
     currency: enums::Currency,
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
@@ -65,29 +66,18 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for AirwallexIntentRequest
         })
     }
 }
-
 #[derive(Debug, Serialize)]
 pub struct AirwallexRouterData<T> {
-    pub amount: String,
-    pub router_data: T,
+    amount: StringMajorUnit,
+    router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for AirwallexRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for AirwallexRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data,
-        })
+            router_data: item,
+        }
     }
 }
 
@@ -342,7 +332,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
 pub struct AirwallexPaymentsCaptureRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: Option<String>,
+    amount: Option<StringMajorUnit>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequest {
@@ -445,7 +435,7 @@ pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
-    amount: Option<f32>,
+    amount: Option<f32>,   ////floatmajor
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
@@ -627,7 +617,7 @@ impl
 pub struct AirwallexRefundRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: Option<String>,
+    amount: Option<StringMajorUnit>,
     reason: Option<String>,
     //Identifier for the PaymentIntent for which Refund is requested
     payment_intent_id: String,
