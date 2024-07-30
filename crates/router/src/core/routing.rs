@@ -46,9 +46,7 @@ where
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-struct RoutingAlgorithmUpdate {
-    routing_algo: RoutingAlgorithm,
-}
+struct RoutingAlgorithmUpdate(RoutingAlgorithm);
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 impl RoutingAlgorithmUpdate {
@@ -77,7 +75,7 @@ impl RoutingAlgorithmUpdate {
             modified_at: timestamp,
             algorithm_for: transaction_type.to_owned(),
         };
-        Self { routing_algo: algo }
+        Self(algo)
     }
     pub async fn fetch_routing_algo(
         merchant_id: &common_utils::id_type::MerchantId,
@@ -88,7 +86,7 @@ impl RoutingAlgorithmUpdate {
             .find_routing_algorithm_by_algorithm_id_merchant_id(algorithm_id, merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
-        Ok(Self { routing_algo })
+        Ok(Self(routing_algo))
     }
 
     pub fn update_routing_ref_with_algorithm_id(
@@ -96,24 +94,24 @@ impl RoutingAlgorithmUpdate {
         transaction_type: &enums::TransactionType,
         routing_ref: &mut routing_types::RoutingAlgorithmRef,
     ) -> RouterResult<()> {
-        utils::when(self.routing_algo.algorithm_for != *transaction_type, || {
+        utils::when(self.0.algorithm_for != *transaction_type, || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "Cannot use {}'s routing algorithm for {} operation",
-                    self.routing_algo.algorithm_for, transaction_type
+                    self.0.algorithm_for, transaction_type
                 ),
             })
         })?;
 
         utils::when(
-            routing_ref.algorithm_id == Some(self.routing_algo.algorithm_id.clone()),
+            routing_ref.algorithm_id == Some(self.0.algorithm_id.clone()),
             || {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Algorithm is already active".to_string(),
                 })
             },
         )?;
-        routing_ref.update_algorithm_id(self.routing_algo.algorithm_id.clone());
+        routing_ref.update_algorithm_id(self.0.algorithm_id.clone());
         Ok(())
     }
 }
@@ -226,7 +224,7 @@ pub async fn create_routing_config(
     let record = state
         .store
         .as_ref()
-        .insert_routing_algorithm(algo.routing_algo)
+        .insert_routing_algorithm(algo.0)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
@@ -331,14 +329,11 @@ pub async fn link_routing_config(
     let routing_algorithm =
         RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
             .await?;
-    utils::when(
-        routing_algorithm.routing_algo.profile_id != profile_id,
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Profile Id is invalid for the routing config".to_string(),
-            })
-        },
-    )?;
+    utils::when(routing_algorithm.0.profile_id != profile_id, || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Profile Id is invalid for the routing config".to_string(),
+        })
+    })?;
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         Some(&profile_id),
@@ -365,7 +360,7 @@ pub async fn link_routing_config(
     .await?;
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
-        routing_algorithm.routing_algo.foreign_into(),
+        routing_algorithm.0.foreign_into(),
     ))
 }
 
