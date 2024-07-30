@@ -1,4 +1,5 @@
 pub mod api;
+pub mod business_profile;
 pub mod customer;
 pub mod errors;
 pub mod mandates;
