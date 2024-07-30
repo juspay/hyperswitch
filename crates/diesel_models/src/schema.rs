@@ -730,6 +730,9 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        #[max_length = 32]
+        id -> Nullable<Varchar>,
+        organization_name -> Nullable<Text>,
     }
 }
 
