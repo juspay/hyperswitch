@@ -408,7 +408,7 @@ where
 impl<A, I> AuthenticateAndFetch<AuthenticationData, A> for HeaderAuth<I>
 where
     A: SessionStateInfo + Sync,
-    I: AuthenticateAndFetch<AuthenticationData, A> + GetAuthType + Sync,
+    I: AuthenticateAndFetch<AuthenticationData, A> + GetAuthType + Sync + Send,
 {
     async fn authenticate_and_fetch(
         &self,
