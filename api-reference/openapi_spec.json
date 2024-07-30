@@ -6632,15 +6632,13 @@
                     "nullable": true
                   },
                   "cpf": {
-                    "type": "integer",
-                    "format": "int64",
+                    "type": "string",
                     "description": "CPF is a Brazilian tax identification number",
                     "example": "10599054689",
                     "nullable": true
                   },
                   "cnpj": {
-                    "type": "integer",
-                    "format": "int64",
+                    "type": "string",
                     "description": "CNPJ is a Brazilian company tax identification number",
                     "example": "74469027417312",
                     "nullable": true
