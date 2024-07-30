@@ -1,6 +1,7 @@
 pub mod transformers;
 use std::fmt::Write;
 
+// use crate::types::SetupMandateRouterData;
 use base64::Engine;
 use common_utils::{
     ext_traits::ByteSliceExt,
@@ -20,7 +21,9 @@ use crate::{
     configs::settings,
     connector::{
         utils as connector_utils,
-        utils::{to_connector_meta, ConnectorErrorTypeMapping, RefundsRequestData},
+        utils::{
+            to_connector_meta, ConnectorErrorTypeMapping, PaymentMethodDataType, RefundsRequestData,
+        },
     },
     consts,
     core::{
@@ -326,6 +329,19 @@ impl ConnectorValidation for Paypal {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            // PaymentMethodDataType::GooglePay,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
@@ -633,20 +649,118 @@ impl
         types::PaymentsResponseData,
     > for Paypal
 {
+    fn get_headers(
+        &self,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        println!("audit vaulting");
+        Ok(format!(
+            "{}v3/vault/setup-tokens/",
+            self.base_url(connectors)
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = paypal::PaypalZeroMandateRequest::try_from(req)?;
+        println!("audit {:?}", connector_req);
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Paypal".to_string())
-                .into(),
-        )
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
     }
+
+    fn handle_response(
+        &self,
+        data: &types::SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+        println!("audit vaulting 2");
+
+        let k = res.clone().response;
+        let s = String::from_utf8(k.to_vec()).unwrap();
+        println!("result: {}", s);
+        let response: paypal::PaypalSetupMandatesResponse = res
+            .response
+            .parse_struct("PaypalSetupMandatesResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    // fn get_5xx_error_response(
+    //     &self,
+    //     res: types::Response,
+    //     event_builder: Option<&mut ConnectorEvent>,
+    // ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    //     let response: paypal::PaypalServerErrorResponse = res
+    //         .response
+    //         .parse_struct("PaypalServerErrorResponse")
+    //         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    //     event_builder.map(|event| event.set_response_body(&response));
+    //     router_env::logger::info!(error_response=?response);
+
+    //     let attempt_status = match response.reason {
+    //         Some(reason) => match reason {
+    //             transformers::Reason::SystemError => Some(enums::AttemptStatus::Failure),
+    //             transformers::Reason::ServerTimeout | transformers::Reason::ServiceTimeout => None,
+    //         },
+    //         None => None,
+    //     };
+    //     Ok(types::ErrorResponse {
+    //         status_code: res.status_code,
+    //         reason: response.status.clone(),
+    //         code: response.status.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+    //         message: response
+    //             .message
+    //             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+    //         attempt_status,
+    //         connector_transaction_id: None,
+    //     })
+    // }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
