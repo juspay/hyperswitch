@@ -7,6 +7,7 @@ use api_models::{
         self as routing_types, RoutingAlgorithmId, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
     },
 };
+use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 use masking::Secret;
@@ -32,8 +33,6 @@ use crate::{
     },
     utils::{self, OptionExt, ValueExt},
 };
-
-use diesel_models::routing_algorithm::RoutingAlgorithm;
 pub enum TransactionData<'a, F>
 where
     F: Clone,
