@@ -216,6 +216,10 @@ describe("Corner cases", () => {
       );
     });
 
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
     it("Capture call", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "CaptureCapturedAmount"
@@ -261,6 +265,10 @@ describe("Corner cases", () => {
         "automatic",
         globalState
       );
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
     });
 
     it("Void call", () => {
