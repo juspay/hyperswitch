@@ -486,6 +486,25 @@ pub enum ConnectorType {
     AuthenticationProcessor,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentAction {
+    PSync,
+    CompleteAuthorize,
+    PaymentAuthenticateCompleteAuthorize,
+}
+
+#[derive(Clone, PartialEq)]
+pub enum CallConnectorAction {
+    Trigger,
+    Avoid,
+    StatusUpdate {
+        status: AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+    },
+    HandleResponse(Vec<u8>),
+}
+
 /// The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.
 #[allow(clippy::upper_case_acronyms)]
 #[derive(
