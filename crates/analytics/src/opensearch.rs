@@ -461,6 +461,13 @@ impl OpenSearchQueryBuilder {
             .collect()
     }
 
+    /// # Panics
+    ///
+    /// This function will panic if:
+    ///
+    /// * The structure of the JSON query is not as expected (e.g., missing keys or incorrect types).
+    ///
+    /// Ensure that the input data and the structure of the query are valid and correctly handled.
     pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
         let mut query_obj = Map::new();
         let mut bool_obj = Map::new();
@@ -500,10 +507,13 @@ impl OpenSearchQueryBuilder {
         Ok(indexes
             .iter()
             .map(|index| {
-                let updated_query = self.replace_status_field(
-                    query["query"]["bool"]["filter"].as_array().unwrap(),
-                    index,
-                );
+                let updated_query = query.get("query")
+                .and_then(|q| q.get("bool"))
+                .and_then(|b| b.get("filter"))
+                .and_then(|f| f.as_array())
+                .map(|filters| self.replace_status_field(filters, index))
+                .unwrap_or_default();
+
                 let mut final_query = Map::new();
                 final_query.insert("bool".to_string(), json!({ "filter": updated_query }));
 
