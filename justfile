@@ -122,8 +122,7 @@ precommit: fmt clippy
 # Check compilation of v2 feature on base dependencies
 v2_intermediate_features := "merchant_account_v2,payment_v2,customer_v2"
 hack_v2:
-    cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of "v2 " --include-features "v2" --include-features {{ v2_intermediate_features }} --package "hyperswitch_domain_models" --package "diesel_models" --package "api_models"
-    cargo hack clippy --features "v2,payment_v2" -p storage_impl
+    scripts/ci-checks-v2.sh
 
 # Use the env variables if present, or fallback to default values
 
@@ -186,6 +185,5 @@ resurrect:
 
 ci_hack:
     scripts/ci-checks.sh
-    scripts/ci-checks-v2.sh
 
 
