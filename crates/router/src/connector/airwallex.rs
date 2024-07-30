@@ -3,7 +3,7 @@ pub mod transformers;
 use common_utils::{
     ext_traits::{ByteSliceExt, ValueExt},
     request::RequestContent,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector}
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
@@ -655,7 +655,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req.request.currency,
         )?;
         let connector_router_data = airwallex::AirwallexRouterData::from((capture_amount, req));
-        let connector_req = airwallex::AirwallexPaymentsCaptureRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            airwallex::AirwallexPaymentsCaptureRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

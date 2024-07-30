@@ -435,7 +435,7 @@ pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
-    amount: Option<f32>,   ////floatmajor
+    amount: Option<f32>, ////floatmajor
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<Secret<String>>,
     next_action: Option<AirwallexPaymentsNextAction>,
