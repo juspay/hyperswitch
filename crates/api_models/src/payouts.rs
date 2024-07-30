@@ -150,7 +150,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = PayoutSendPriority, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
 
-    /// Whether to get the payout link (if applicable). Merchant need to specify this during the *Create Request*, this field can not be updated using the *Update Request*.
+    /// Whether to get the payout link (if applicable). Merchant need to specify this during the Payout _Create_, this field can not be updated during Payout _Update_.
     #[schema(default = false, example = true)]
     pub payout_link: Option<bool>,
 
