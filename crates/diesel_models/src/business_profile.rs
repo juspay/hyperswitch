@@ -80,11 +80,11 @@ pub struct BusinessProfileNew {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile)]
 pub struct BusinessProfileUpdateInternal {
     pub profile_name: Option<String>,
-    pub modified_at: Option<time::PrimitiveDateTime>,
+    pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
@@ -115,7 +115,6 @@ pub struct BusinessProfileUpdateInternal {
 pub enum BusinessProfileUpdate {
     Update {
         profile_name: Option<String>,
-        modified_at: Option<time::PrimitiveDateTime>,
         return_url: Option<String>,
         enable_payment_response_hash: Option<bool>,
         payment_response_hash_key: Option<String>,
@@ -149,10 +148,11 @@ pub enum BusinessProfileUpdate {
 
 impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
     fn from(business_profile_update: BusinessProfileUpdate) -> Self {
+        let now = common_utils::date_time::now();
+
         match business_profile_update {
             BusinessProfileUpdate::Update {
                 profile_name,
-                modified_at,
                 return_url,
                 enable_payment_response_hash,
                 payment_response_hash_key,
@@ -177,7 +177,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 outgoing_webhook_custom_http_headers,
             } => Self {
                 profile_name,
-                modified_at,
+                modified_at: now,
                 return_url,
                 enable_payment_response_hash,
                 payment_response_hash_key,
@@ -194,25 +194,71 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 session_expiry,
                 authentication_connector_details,
                 payout_link_config,
+                is_extended_card_info_enabled: None,
                 extended_card_info_config,
                 use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector,
                 collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers,
-                ..Default::default()
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
             } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
                 is_extended_card_info_enabled,
-                ..Default::default()
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
             },
             BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
             } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
                 is_connector_agnostic_mit_enabled,
-                ..Default::default()
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
             },
         }
     }

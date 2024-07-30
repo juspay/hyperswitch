@@ -281,7 +281,6 @@ pub async fn update_business_profile_active_algorithm_ref(
         frm_routing_algorithm: None,
         payout_routing_algorithm,
         applepay_verified_domains: None,
-        modified_at: None,
         is_recon_enabled: None,
         payment_link_config: None,
         session_expiry: None,
