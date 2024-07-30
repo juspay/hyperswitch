@@ -485,7 +485,7 @@ pub struct PayoutCreateResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attempts: Option<Vec<PayoutAttemptResponse>>,
 
-    // If payout link is request, this represents payout link
+    /// If payout link was requested, this contains the link's ID and the URL to render the payout widget
     #[schema(value_type = Option<PayoutLinkResponse>)]
     pub payout_link: Option<PayoutLinkResponse>,
 }
