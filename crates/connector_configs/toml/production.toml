@@ -2436,6 +2436,13 @@ key1="Payme Public Key"
 merchant_secret="Payme Client Secret"
 additional_secret="Payme Client Key"
 
+[plaid]
+[[plaid.open_banking]]
+  payment_method_type = "open_banking_pis"
+[plaid.connector_auth.BodyKey]
+api_key="client_id"
+key1="secret"
+
 [powertranz]
 [[powertranz.credit]]
   payment_method_type = "Mastercard"
