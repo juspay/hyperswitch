@@ -98,9 +98,7 @@ pub async fn msearch_results(
     };
 
     if let Some(time_range) = req.time_range {
-        query_builder
-            .set_time_range(time_range.into())
-            .switch()?;
+        query_builder.set_time_range(time_range.into()).switch()?;
     };
 
     let response_text: OpenMsearchOutput = client
@@ -229,9 +227,7 @@ pub async fn search_results(
     };
 
     if let Some(time_range) = search_req.time_range {
-        query_builder
-            .set_time_range(time_range.into())
-            .switch()?;
+        query_builder.set_time_range(time_range.into()).switch()?;
     };
 
     query_builder
