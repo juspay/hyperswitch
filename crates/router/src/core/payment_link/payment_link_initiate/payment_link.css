@@ -111,6 +111,11 @@ body {
   font-size: 19px;
 }
 
+.hyper-checkout-payment-merchant-dynamic-data {
+  font-size: 12px;
+  margin-top: 5px;
+}
+
 .hyper-checkout-payment-ref {
   font-size: 12px;
   margin-top: 5px;

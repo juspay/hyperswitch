@@ -206,7 +206,7 @@ pub async fn initiate_payment_link_flow(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
-            merchant_details: payment_link_config.merchant_details,
+            merchant_details: payment_link_config.merchant_details.clone(),
         };
 
         logger::info!(
@@ -214,7 +214,9 @@ pub async fn initiate_payment_link_flow(
             payment_details
         );
         let js_script = get_js_script(
-            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(Box::new(payment_details)),
+            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(Box::new(
+                payment_details,
+            )),
         )?;
         let payment_link_error_data = services::PaymentLinkStatusData {
             js_script,
@@ -242,10 +244,11 @@ pub async fn initiate_payment_link_flow(
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
         enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
+        merchant_details: payment_link_config.merchant_details,
     };
 
     let js_script = get_js_script(&api_models::payments::PaymentLinkData::PaymentLinkDetails(
-        Box::new(&payment_details)
+        Box::new(&payment_details),
     ))?;
 
     let html_meta_tags = get_meta_tags_html(payment_details);

@@ -5400,6 +5400,7 @@ pub struct PaymentLinkDetails {
     pub sdk_layout: String,
     pub display_sdk_only: bool,
     pub enabled_saved_payment_method: bool,
+    pub merchant_details: HashMap<String, String>,
 }
 
 #[derive(Debug, serde::Serialize)]

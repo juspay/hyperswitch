@@ -663,6 +663,9 @@ function renderPaymentDetails(paymentDetails) {
   if (paymentMerchantDetails instanceof HTMLDivElement) {
     paymentMerchantDetails.append(merchantNameNode);
     paymentMerchantDetails.append(paymentIdNode);
+    // Append merchant details if available
+    appendMerchantDetails(paymentDetails, paymentMerchantDetails);
+    
   }
   var merchantImageNode = document.getElementById(
     "hyper-checkout-merchant-image"
@@ -673,6 +676,15 @@ function renderPaymentDetails(paymentDetails) {
   var footerNode = document.getElementById("hyper-checkout-payment-footer");
   if (footerNode instanceof HTMLDivElement) {
     footerNode.append(paymentExpiryNode);
+  }
+}
+
+function appendMerchantDetails(paymentDetails, paymentMerchantDetails) {
+  for(const key in paymentDetails.merchant_details) {
+    var merchantData = document.createElement("div");
+    merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
+    merchantData.innerText = key + ": " + paymentDetails.merchant_details[key];
+    paymentMerchantDetails.append(merchantData);
   }
 }
 
