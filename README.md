@@ -57,7 +57,7 @@ Using Hyperswitch, you can:
   <h2 id="Try a Payment">⚡️ Try a Payment</h2>
 </a>
 
-To quickly experience the ease that Hyperswitch provides while handling the payment, You can signup on our [Dashboard][Dashboard-link], and try a payment.
+To quickly experience the ease that Hyperswitch provides while handling the payment, You can signup on [hyperswitch-control-center][Dashboard-link], and try a payment.
 
 Congratulations🎉 on making your first payment with Hyperswitch. 
 
@@ -65,19 +65,19 @@ Congratulations🎉 on making your first payment with Hyperswitch.
   <h2 id="For Enterprise">⚡️ For Enterprises</h2>
 </a>
 
-Hyperswitch helps Enterprises in -  
+Hyperswitch helps enterprises in -  
 - Improving profitability
 - Increasing conversion rates
 - Lowering payment costs
 - Streamlining payment operations 
 
-Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our Enterprise offering**][Website-link]. 
+Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our enterprise offering**][Website-link]. 
 
 <a href="#For Contributors">
   <h2 id="For Contributors">⚡️ For Contributors</h2>
 </a>
 
-Hyperswitch is an open source project, and aims to make digital payments accessible to people across the globe like a basic utility. With the vision for developing Hyperswitch as the **Linux of Payments**, We seek support from the developers across the globe.
+Hyperswitch is an open-source project that aims to make digital payments accessible to people across the globe like a basic utility. With the vision of developing Hyperswitch as the **Linux of Payments**, we seek support from developers worldwide.
 
 Utilise the following resources to quickstart your journey with Hyperswitch -
 - [Guide for contributors][Contributing-guidelines]
@@ -148,9 +148,9 @@ Try the steps below to get a feel for how quick the setup is:
 
 ### 🌟 Supported Payment Processors and Methods
 
-As of Sept 2023, we support 50+ payment processors and multiple global payment methods.
+As of today, Hyperswitch supports 50+ payment processors and multiple global payment methods.
 In addition, we are continuously integrating new processors based on their reach and community requests.
-Our target is to support 100+ processors by H2 2023.
+Our target is to support 100+ processors by H2 2024.
 You can find the latest list of payment processors, supported methods, and features [here][supported-connectors-and-features].
 
 [supported-connectors-and-features]: https://hyperswitch.io/pm-list
@@ -206,19 +206,6 @@ Please refer to the following documentation pages:
 - Installation Support [Link]
 - Router Architecture [Link]
  -->
-
-<a href="#what's-Included❓">
-  <h2 id="what's-Included❓">What's Included❓</h2>
-</a>
-
-Within the repositories, you'll find the following directories and files,
-logically grouping common assets and providing both compiled and minified
-variations.
-
-### Repositories
-
-The current setup contains a single repo, which contains the core payment router
-and the various connector integrations under the `src/connector` sub-directory.
 
 <!-- ### Sub-Crates -->
 
