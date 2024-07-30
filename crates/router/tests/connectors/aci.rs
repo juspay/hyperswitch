@@ -301,7 +301,6 @@ async fn payments_create_failure() {
 
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
-    // static CV: aci::Aci = aci::Aci::new().clone();
     use router::connector::Aci;
     let connector = utils::construct_connector_data_old(
         Box::new(Aci::new()),
