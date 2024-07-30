@@ -18298,7 +18298,7 @@
           },
           "payout_link": {
             "type": "boolean",
-            "description": "Whether to get the payout link (if applicable). Merchant need to specify this during the *Create Request*, this field can not be updated using the *Update Request*.",
+            "description": "Whether to get the payout link (if applicable). Merchant need to specify this during the Payout _Create_, this field can not be updated during Payout _Update_.",
             "default": false,
             "example": true,
             "nullable": true
