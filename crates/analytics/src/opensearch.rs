@@ -1,6 +1,7 @@
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
+    payments::TimeRange,
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
 use common_utils::errors::{CustomResult, ErrorSwitch};
@@ -18,8 +19,9 @@ use opensearch::{
     },
     MsearchParts, OpenSearch, SearchParts,
 };
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use storage_impl::errors::ApplicationError;
+use time::PrimitiveDateTime;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
 use crate::query::QueryBuildingError;
@@ -38,6 +40,23 @@ pub struct OpenSearchIndexes {
     pub payment_intents: String,
     pub refunds: String,
     pub disputes: String,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
+pub struct OpensearchTimeRange {
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub gte: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub lte: Option<PrimitiveDateTime>,
+}
+
+impl From<TimeRange> for OpensearchTimeRange {
+    fn from(time_range: TimeRange) -> Self {
+        Self {
+            gte: time_range.start_time,
+            lte: time_range.end_time,
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -377,6 +396,7 @@ pub struct OpenSearchQueryBuilder {
     pub offset: Option<i64>,
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<String>)>,
+    pub time_range: Option<OpensearchTimeRange>,
 }
 
 impl OpenSearchQueryBuilder {
@@ -387,12 +407,18 @@ impl OpenSearchQueryBuilder {
             offset: Default::default(),
             count: Default::default(),
             filters: Default::default(),
+            time_range: Default::default(),
         }
     }
 
     pub fn set_offset_n_count(&mut self, offset: i64, count: i64) -> QueryResult<()> {
         self.offset = Some(offset);
         self.count = Some(count);
+        Ok(())
+    }
+
+    pub fn set_time_range(&mut self, time_range: OpensearchTimeRange) -> QueryResult<()> {
+        self.time_range = Some(time_range);
         Ok(())
     }
 
@@ -436,23 +462,52 @@ impl OpenSearchQueryBuilder {
     }
 
     pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
-        let mut query =
-            vec![json!({"multi_match": {"type": "phrase", "query": self.query, "lenient": true}})];
+        let mut query_obj = Map::new();
+        let mut bool_obj = Map::new();
+        let mut filter_array = Vec::new();
+
+        filter_array.push(json!({
+            "multi_match": {
+                "type": "phrase",
+                "query": self.query,
+                "lenient": true
+            }
+        }));
 
         let mut filters = self
             .filters
             .iter()
-            .map(|(k, v)| json!({"terms" : {k : v}}))
+            .map(|(k, v)| json!({"terms": {k: v}}))
             .collect::<Vec<Value>>();
 
-        query.append(&mut filters);
+        filter_array.append(&mut filters);
 
-        // TODO add index specific filters
+        if let Some(ref time_range) = self.time_range {
+            let range = json!(time_range);
+            filter_array.push(json!({
+                "range": {
+                    "timestamp": range
+                }
+            }));
+        }
+
+        bool_obj.insert("filter".to_string(), Value::Array(filter_array));
+        query_obj.insert("bool".to_string(), Value::Object(bool_obj));
+
+        let mut query = Map::new();
+        query.insert("query".to_string(), Value::Object(query_obj));
+
         Ok(indexes
             .iter()
             .map(|index| {
-                let updated_query = self.replace_status_field(&query, index);
-                let payload = json!({"query": {"bool": {"filter": updated_query}}});
+                let updated_query = self.replace_status_field(
+                    query["query"]["bool"]["filter"].as_array().unwrap(),
+                    index,
+                );
+                let mut final_query = Map::new();
+                final_query.insert("bool".to_string(), json!({ "filter": updated_query }));
+
+                let payload = json!({ "query": Value::Object(final_query) });
                 payload
             })
             .collect::<Vec<Value>>())

@@ -1,6 +1,7 @@
 use common_utils::hashing::HashedString;
 use masking::WithType;
 use serde_json::Value;
+use crate::payments::TimeRange;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
@@ -26,6 +27,8 @@ pub struct GetGlobalSearchRequest {
     pub query: String,
     #[serde(default)]
     pub filters: Option<SearchFilters>,
+    #[serde(default)]
+    pub time_range : Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -36,6 +39,8 @@ pub struct GetSearchRequest {
     pub query: String,
     #[serde(default)]
     pub filters: Option<SearchFilters>,
+    #[serde(default)]
+    pub time_range : Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
