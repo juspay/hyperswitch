@@ -1,9 +1,10 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
@@ -36,10 +37,17 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Cybersource;
+#[derive(Clone)]
+pub struct Cybersource {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
 
 impl Cybersource {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
     pub fn generate_digest(&self, payload: &[u8]) -> String {
         let payload_digest = digest::digest(&digest::SHA256, payload);
         consts::BASE64_ENGINE.encode(payload_digest)
@@ -384,7 +392,15 @@ impl
         req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = cybersource::CybersourceZeroMandateRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            MinorUnit::zero(),
+            req.request.currency,
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
+        let connector_req =
+            cybersource::CybersourceZeroMandateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -617,20 +633,20 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Amount",
+                })?,
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "Currency",
                 })?,
-            req.request
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount",
-                })?,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourcePreProcessingRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -718,12 +734,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourcePaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -921,12 +938,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         if req.is_three_ds()
             && req.request.is_card()
             && req.request.connector_mandate_id().is_none()
@@ -1065,12 +1083,13 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.destination_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourcePayoutFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1190,12 +1209,13 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1314,20 +1334,20 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request
+                .minor_amount
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "Amount",
+                })?,
             req.request
                 .currency
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "Currency",
                 })?,
-            req.request
-                .amount
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Amount",
-                })?,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req = cybersource::CybersourceVoidRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1440,12 +1460,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_req =
             cybersource::CybersourceRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -1606,12 +1627,13 @@ impl
         req: &types::PaymentsIncrementalAuthorizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = cybersource::CybersourceRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_total_amount,
             req.request.currency,
-            req.request.additional_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = cybersource::CybersourceRouterData::from((amount, req));
         let connector_request =
             cybersource::CybersourcePaymentsIncrementalAuthorizationRequest::try_from(
                 &connector_router_data,

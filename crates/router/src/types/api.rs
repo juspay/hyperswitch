@@ -302,10 +302,12 @@ impl ConnectorData {
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
                 }
-                enums::Connector::Authorizedotnet => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
+                enums::Connector::Authorizedotnet => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Authorizedotnet::new(),
+                ))),
+                enums::Connector::Bambora => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Bambora::new())))
                 }
-                enums::Connector::Bambora => Ok(ConnectorEnum::Old(Box::new(&connector::Bambora))),
                 enums::Connector::Bamboraapac => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bamboraapac::new())))
                 }
@@ -338,7 +340,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
                 }
                 enums::Connector::Cybersource => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Cybersource)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))
                 }
                 enums::Connector::Datatrans => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
