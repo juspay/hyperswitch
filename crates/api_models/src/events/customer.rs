@@ -12,7 +12,7 @@ impl ApiEventMetric for CustomerDeleteResponse {
 
 impl ApiEventMetric for CustomerRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        self.customer_id
+        self.get_merchant_reference_id()
             .clone()
             .map(|customer_id| ApiEventsType::Customer { customer_id })
     }
@@ -20,16 +20,16 @@ impl ApiEventMetric for CustomerRequest {
 
 impl ApiEventMetric for CustomerResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Customer {
-            customer_id: self.customer_id.clone(),
-        })
+        self.get_merchant_reference_id()
+            .clone()
+            .map(|cid| ApiEventsType::Customer { customer_id: cid })
     }
 }
 
 impl ApiEventMetric for CustomerId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Customer {
-            customer_id: self.customer_id.clone(),
+            customer_id: self.get_merchant_reference_id().clone(),
         })
     }
 }

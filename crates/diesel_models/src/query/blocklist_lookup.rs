@@ -16,7 +16,7 @@ impl BlocklistLookupNew {
 impl BlocklistLookup {
     pub async fn find_by_merchant_id_fingerprint(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -30,7 +30,7 @@ impl BlocklistLookup {
 
     pub async fn delete_by_merchant_id_fingerprint(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(

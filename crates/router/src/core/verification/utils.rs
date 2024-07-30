@@ -11,13 +11,15 @@ use crate::{
 
 pub async fn check_existence_and_add_domain_to_db(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     merchant_connector_id: String,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
+    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
             &merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -27,6 +29,7 @@ pub async fn check_existence_and_add_domain_to_db(
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
             &merchant_id,
             &merchant_connector_id,
             &key_store,
@@ -46,7 +49,6 @@ pub async fn check_existence_and_add_domain_to_db(
 
     already_verified_domains.append(&mut new_verified_domains);
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
-        merchant_id: None,
         connector_type: None,
         connector_name: None,
         connector_account_details: None,
@@ -66,6 +68,7 @@ pub async fn check_existence_and_add_domain_to_db(
     state
         .store
         .update_merchant_connector_account(
+            key_manager_state,
             merchant_connector_account,
             updated_mca.into(),
             &key_store,

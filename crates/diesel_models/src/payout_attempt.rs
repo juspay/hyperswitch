@@ -1,18 +1,18 @@
-use common_utils::id_type;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payout_attempt};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payout_attempt)]
-#[diesel(primary_key(payout_attempt_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payout_attempt, primary_key(payout_attempt_id), check_for_backend(diesel::pg::Pg))]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
@@ -47,8 +47,8 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,

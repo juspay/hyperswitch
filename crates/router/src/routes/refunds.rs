@@ -81,7 +81,7 @@ pub async fn refunds_retrieve(
         _ => Flow::RefundsRetrieve,
     };
 
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     Box::pin(api::server_wrap(
         flow,
@@ -132,7 +132,7 @@ pub async fn refunds_retrieve_with_body(
         _ => Flow::RefundsRetrieve,
     };
 
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     Box::pin(api::server_wrap(
         flow,

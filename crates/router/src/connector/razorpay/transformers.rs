@@ -398,6 +398,7 @@ impl
             | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }

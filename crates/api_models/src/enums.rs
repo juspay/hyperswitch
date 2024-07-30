@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+#[cfg(feature = "dummy_connector")]
+use common_utils::errors;
 use utoipa::ToSchema;
 
 #[derive(
@@ -101,6 +103,7 @@ pub enum Connector {
     Gpayments,
     Helcim,
     Iatapay,
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -131,6 +134,7 @@ pub enum Connector {
     // Tsys,
     Tsys,
     Volt,
+    // Wellsfargo,
     Wise,
     Worldline,
     Worldpay,
@@ -181,6 +185,7 @@ impl Connector {
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
+                | (Self::Itaubank, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -226,6 +231,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+            | Self::Itaubank
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
@@ -247,6 +253,7 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
+            // | Self::Wellsfargo
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
@@ -266,6 +273,31 @@ impl Connector {
     }
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {
         matches!(self, Self::Airwallex)
+    }
+    #[cfg(feature = "dummy_connector")]
+    pub fn validate_dummy_connector_enabled(
+        &self,
+        is_dummy_connector_enabled: bool,
+    ) -> errors::CustomResult<(), errors::ValidationError> {
+        if !is_dummy_connector_enabled
+            && matches!(
+                self,
+                Self::DummyConnector1
+                    | Self::DummyConnector2
+                    | Self::DummyConnector3
+                    | Self::DummyConnector4
+                    | Self::DummyConnector5
+                    | Self::DummyConnector6
+                    | Self::DummyConnector7
+            )
+        {
+            Err(errors::ValidationError::InvalidValue {
+                message: "Invalid connector name".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -470,6 +502,10 @@ pub enum FieldType {
     DropDown { options: Vec<String> },
     UserDateOfBirth,
     UserVpaId,
+    LanguagePreference { options: Vec<String> },
+    UserPixKey,
+    UserCpf,
+    UserCnpj,
 }
 
 impl FieldType {
@@ -556,6 +592,10 @@ impl PartialEq for FieldType {
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
             (Self::UserVpaId, Self::UserVpaId) => true,
+            (Self::UserPixKey, Self::UserPixKey) => true,
+            (Self::UserCpf, Self::UserCpf) => true,
+            (Self::UserCnpj, Self::UserCnpj) => true,
+            (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
             _unused => false,
         }
     }
@@ -615,7 +655,6 @@ pub enum LockerChoice {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     ToSchema,
 )]
 #[serde(rename_all = "snake_case")]

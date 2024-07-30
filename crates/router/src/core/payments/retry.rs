@@ -41,7 +41,7 @@ pub async fn do_gsm_actions<F, ApiRequest, FData>(
     key_store: &domain::MerchantKeyStore,
     operation: &operations::BoxedOperation<'_, F, ApiRequest>,
     customer: &Option<domain::Customer>,
-    validate_result: &operations::ValidateResult<'_>,
+    validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &storage::business_profile::BusinessProfile,
@@ -73,7 +73,7 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             original_connector_data.connector_name,
         )
         .await
@@ -111,7 +111,7 @@ where
 
             match get_gsm_decision(gsm) {
                 api_models::gsm::GsmDecision::Retry => {
-                    retries = get_retries(state, retries, &merchant_account.merchant_id).await;
+                    retries = get_retries(state, retries, merchant_account.get_id()).await;
 
                     if retries.is_none() || retries == Some(0) {
                         metrics::AUTO_RETRY_EXHAUSTED_COUNT.add(&metrics::CONTEXT, 1, &[]);
@@ -166,10 +166,10 @@ where
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: types::Connector,
 ) -> bool {
-    let key = format!("step_up_enabled_{merchant_id}");
+    let key = merchant_id.get_step_up_enabled_key();
     let db = &*state.store;
     db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
         .await
@@ -191,12 +191,13 @@ pub async fn is_step_up_enabled_for_merchant_connector(
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
         None => {
-            let key = format!("max_auto_retries_enabled_{merchant_id}");
+            let key = merchant_id.get_max_auto_retries_enabled();
+
             let db = &*state.store;
             db.find_config_by_key(key.as_str())
                 .await
@@ -278,7 +279,7 @@ pub async fn do_retry<F, ApiRequest, FData>(
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut payments::PaymentData<F>,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
-    validate_result: &operations::ValidateResult<'_>,
+    validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     is_step_up: bool,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
@@ -306,7 +307,7 @@ where
     )
     .await?;
 
-    payments::call_connector_service(
+    let (router_data, _mca) = payments::call_connector_service(
         state,
         req_state,
         merchant_account,
@@ -323,7 +324,9 @@ where
         business_profile,
         true,
     )
-    .await
+    .await?;
+
+    Ok(router_data)
 }
 
 #[instrument(skip_all)]
@@ -467,6 +470,7 @@ where
 
     payment_data.payment_intent = db
         .update_payment_intent(
+            &state.into(),
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.payment_attempt.attempt_id.clone(),
@@ -531,10 +535,13 @@ pub fn make_new_payment_attempt(
     }
 }
 
-pub async fn config_should_call_gsm(db: &dyn StorageInterface, merchant_id: &String) -> bool {
+pub async fn config_should_call_gsm(
+    db: &dyn StorageInterface,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
     let config = db
         .find_config_by_key_unwrap_or(
-            format!("should_call_gsm_{}", merchant_id).as_str(),
+            &merchant_id.get_should_call_gsm_key(),
             Some("false".to_string()),
         )
         .await;

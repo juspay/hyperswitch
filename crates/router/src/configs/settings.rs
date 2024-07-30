@@ -45,16 +45,6 @@ pub struct CmdLineConf {
     /// Application will look for "config/config.toml" if this option isn't specified.
     #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
-
-    #[command(subcommand)]
-    pub subcommand: Option<Subcommand>,
-}
-
-#[derive(clap::Parser)]
-pub enum Subcommand {
-    #[cfg(feature = "openapi")]
-    /// Generate the OpenAPI specification file from code.
-    GenerateOpenapiSpec,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -129,6 +119,7 @@ pub struct Settings<S: SecretState> {
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
+    pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -175,9 +166,6 @@ impl storage_impl::config::TenantConfig for Tenant {
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
     }
-}
-
-impl storage_impl::config::ClickHouseConfig for Tenant {
     fn get_clickhouse_database(&self) -> &str {
         self.clickhouse_database.as_str()
     }
@@ -187,6 +175,7 @@ impl storage_impl::config::ClickHouseConfig for Tenant {
 pub struct GlobalTenant {
     pub schema: String,
     pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 impl storage_impl::config::TenantConfig for GlobalTenant {
@@ -195,6 +184,9 @@ impl storage_impl::config::TenantConfig for GlobalTenant {
     }
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
+    }
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database.as_str()
     }
 }
 
@@ -218,6 +210,7 @@ pub struct KvConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct KeyManagerConfig {
+    pub enabled: Option<bool>,
     pub url: String,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
@@ -582,6 +575,7 @@ pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub idle_pool_connection_timeout: Option<u64>,
+    pub bypass_proxy_urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -692,8 +686,16 @@ pub struct ApplePayDecryptConifg {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct LockerBasedRecipientConnectorList {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
-    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
+    pub merchant_ids_send_payment_id_as_connector_request_id:
+        HashSet<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -734,6 +736,7 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
+                    .with_list_parse_key("proxy.bypass_proxy_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 

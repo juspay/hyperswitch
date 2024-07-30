@@ -9,7 +9,6 @@ use strum::IntoEnumIterator;
 use crate::{enums as euclid_enums, frontend::ast, types};
 
 #[macro_export]
-#[cfg(feature = "connector_choice_mca_id")]
 macro_rules! dirval {
     (Connector = $name:ident) => {
         $crate::frontend::dir::DirValue::Connector(Box::new(
@@ -38,53 +37,6 @@ macro_rules! dirval {
         })
     }};
 
-    ($key:literal = $str:literal) => {{
-        $crate::frontend::dir::DirValue::MetaData($crate::types::MetadataValue {
-            key: $key.to_string(),
-            value: $str.to_string(),
-        })
-    }};
-}
-
-#[macro_export]
-#[cfg(not(feature = "connector_choice_mca_id"))]
-macro_rules! dirval {
-    (Connector = $name:ident) => {
-        $crate::frontend::dir::DirValue::Connector(Box::new(
-            $crate::frontend::ast::ConnectorChoice {
-                connector: $crate::enums::RoutableConnectors::$name,
-                sub_label: None,
-            },
-        ))
-    };
-
-    (Connector = ($name:ident, $sub_label:literal)) => {
-        $crate::frontend::dir::DirValue::Connector(Box::new(
-            $crate::frontend::ast::ConnectorChoice {
-                connector: $crate::enums::RoutableConnectors::$name,
-                sub_label: Some($sub_label.to_string()),
-            },
-        ))
-    };
-
-    ($key:ident = $val:ident) => {{
-        pub use $crate::frontend::dir::enums::*;
-
-        $crate::frontend::dir::DirValue::$key($key::$val)
-    }};
-
-    ($key:ident = $num:literal) => {{
-        $crate::frontend::dir::DirValue::$key($crate::types::NumValue {
-            number: common_utils::types::MinorUnit::new($num),
-            refinement: None,
-        })
-    }};
-
-    ($key:ident s= $str:literal) => {{
-        $crate::frontend::dir::DirValue::$key($crate::types::StrValue {
-            value: $str.to_string(),
-        })
-    }};
     ($key:literal = $str:literal) => {{
         $crate::frontend::dir::DirValue::MetaData($crate::types::MetadataValue {
             key: $key.to_string(),
@@ -319,6 +271,13 @@ pub enum DirKeyKind {
         props(Category = "Payment Method Types")
     )]
     RealTimePaymentType,
+    #[serde(rename = "open_banking")]
+    #[strum(
+        serialize = "open_banking",
+        detailed_message = "Supported types of open banking payment method",
+        props(Category = "Payment Method Types")
+    )]
+    OpenBankingType,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -367,6 +326,7 @@ impl DirKeyKind {
             Self::SetupFutureUsage => types::DataType::EnumVariant,
             Self::CardRedirectType => types::DataType::EnumVariant,
             Self::RealTimePaymentType => types::DataType::EnumVariant,
+            Self::OpenBankingType => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -474,11 +434,7 @@ impl DirKeyKind {
             Self::Connector => Some(
                 common_enums::RoutableConnectors::iter()
                     .map(|connector| {
-                        DirValue::Connector(Box::new(ast::ConnectorChoice {
-                            connector,
-                            #[cfg(not(feature = "connector_choice_mca_id"))]
-                            sub_label: None,
-                        }))
+                        DirValue::Connector(Box::new(ast::ConnectorChoice { connector }))
                     })
                     .collect(),
             ),
@@ -496,6 +452,11 @@ impl DirKeyKind {
             Self::RealTimePaymentType => Some(
                 enums::RealTimePaymentType::iter()
                     .map(DirValue::RealTimePaymentType)
+                    .collect(),
+            ),
+            Self::OpenBankingType => Some(
+                enums::OpenBankingType::iter()
+                    .map(DirValue::OpenBankingType)
                     .collect(),
             ),
         }
@@ -565,6 +526,8 @@ pub enum DirValue {
     CardRedirectType(enums::CardRedirectType),
     #[serde(rename = "real_time_payment")]
     RealTimePaymentType(enums::RealTimePaymentType),
+    #[serde(rename = "open_banking")]
+    OpenBankingType(enums::OpenBankingType),
 }
 
 impl DirValue {
@@ -599,6 +562,7 @@ impl DirValue {
             Self::VoucherType(_) => (DirKeyKind::VoucherType, None),
             Self::GiftCardType(_) => (DirKeyKind::GiftCardType, None),
             Self::RealTimePaymentType(_) => (DirKeyKind::RealTimePaymentType, None),
+            Self::OpenBankingType(_) => (DirKeyKind::OpenBankingType, None),
         };
 
         DirKey::new(kind, data)
@@ -634,6 +598,7 @@ impl DirValue {
             Self::SetupFutureUsage(_) => None,
             Self::CardRedirectType(_) => None,
             Self::RealTimePaymentType(_) => None,
+            Self::OpenBankingType(_) => None,
         }
     }
 

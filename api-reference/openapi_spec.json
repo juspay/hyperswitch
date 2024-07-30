@@ -1109,6 +1109,111 @@
         ]
       }
     },
+    "/organization": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Create",
+        "description": "Organization - Create\n\nCreate a new organization",
+        "operationId": "Create an Organization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Create an organization with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/organization/{organization_id}": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Update",
+        "description": "Organization - Update\n\nCreate a new organization for .",
+        "operationId": "Create an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Update organization_name of the organization": {
+                  "value": {
+                    "organization_name": "organization_abcd"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/accounts": {
       "post": {
         "tags": [
@@ -1489,7 +1594,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/MerchantConnectorResponse"
+                    "$ref": "#/components/schemas/MerchantConnectorListResponse"
                   }
                 }
               }
@@ -4887,6 +4992,21 @@
           }
         }
       },
+      "AdditionalMerchantData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_recipient_data"
+            ],
+            "properties": {
+              "open_banking_recipient_data": {
+                "$ref": "#/components/schemas/MerchantRecipientData"
+              }
+            }
+          }
+        ]
+      },
       "Address": {
         "type": "object",
         "properties": {
@@ -6503,7 +6623,29 @@
             ],
             "properties": {
               "pix": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "pix_key": {
+                    "type": "string",
+                    "description": "Unique key for pix transfer",
+                    "example": "a1f4102e-a446-4a57-bcce-6fa48899c1d1",
+                    "nullable": true
+                  },
+                  "cpf": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CPF is a Brazilian tax identification number",
+                    "example": "10599054689",
+                    "nullable": true
+                  },
+                  "cnpj": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "CNPJ is a Brazilian company tax identification number",
+                    "example": "74469027417312",
+                    "nullable": true
+                  }
+                }
               }
             }
           },
@@ -6809,11 +6951,22 @@
           },
           {
             "type": "object",
+            "required": [
+              "allowed_domains"
+            ],
             "properties": {
               "domain_name": {
                 "type": "string",
                 "description": "Custom domain name to be used for hosting the link",
                 "nullable": true
+              },
+              "allowed_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+                "uniqueItems": true
               }
             }
           }
@@ -6838,6 +6991,15 @@
                 "additionalProperties": {
                   "$ref": "#/components/schemas/PaymentLinkConfigRequest"
                 },
+                "nullable": true
+              },
+              "allowed_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+                "uniqueItems": true,
                 "nullable": true
               }
             }
@@ -6990,6 +7152,11 @@
                 "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
             "nullable": true
           }
         },
@@ -7148,6 +7315,11 @@
                 "$ref": "#/components/schemas/BusinessPayoutLinkConfig"
               }
             ],
+            "nullable": true
+          },
+          "outgoing_webhook_custom_http_headers": {
+            "type": "object",
+            "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
             "nullable": true
           }
         }
@@ -7747,6 +7919,7 @@
           "gpayments",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",
@@ -9208,7 +9381,8 @@
           "payments",
           "refunds",
           "disputes",
-          "mandates"
+          "mandates",
+          "payouts"
         ]
       },
       "EventListItemResponse": {
@@ -9490,11 +9664,11 @@
             "nullable": true
           },
           "search_tags": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RedirectResponse"
-              }
-            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Additional tags to be used for global search",
             "nullable": true
           }
         }
@@ -9765,6 +9939,46 @@
             "type": "string",
             "enum": [
               "user_vpa_id"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "language_preference"
+            ],
+            "properties": {
+              "language_preference": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_key"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cpf"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_cnpj"
             ]
           }
         ],
@@ -11213,7 +11427,10 @@
           "organization_id": {
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to, if not passed an organization is created",
-            "nullable": true
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
           },
           "pm_collect_link_config": {
             "allOf": [
@@ -11225,6 +11442,68 @@
           }
         },
         "additionalProperties": false
+      },
+      "MerchantAccountData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "iban"
+            ],
+            "properties": {
+              "iban": {
+                "type": "object",
+                "required": [
+                  "iban",
+                  "name"
+                ],
+                "properties": {
+                  "iban": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "sort_code",
+                  "name"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "sort_code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "connector_recipient_id": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       "MerchantAccountDeleteResponse": {
         "type": "object",
@@ -11368,7 +11647,10 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with"
+            "description": "The organization id merchant is associated with",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
           },
           "is_recon_enabled": {
             "type": "boolean",
@@ -11403,7 +11685,7 @@
             "type": "string",
             "description": "The identifier for the Merchant Account",
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
+            "maxLength": 64
           },
           "merchant_name": {
             "type": "string",
@@ -11661,12 +11943,21 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/ConnectorStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
               }
             ],
             "nullable": true
@@ -11750,6 +12041,156 @@
             "type": "string"
           }
         }
+      },
+      "MerchantConnectorListResponse": {
+        "type": "object",
+        "required": [
+          "connector_type",
+          "connector_name",
+          "merchant_connector_id",
+          "status"
+        ],
+        "properties": {
+          "connector_type": {
+            "$ref": "#/components/schemas/ConnectorType"
+          },
+          "connector_name": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "connector_label": {
+            "type": "string",
+            "description": "A unique label to identify the connector account created under a business profile",
+            "example": "stripe_US_travel",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Unique ID of the merchant connector account",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "payment_methods_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodsEnabled"
+            },
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
+            "example": [
+              {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
+                "payment_method": "wallet",
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
+                ],
+                "payment_schemes": [
+                  "Discover",
+                  "Discover"
+                ],
+                "recurring_enabled": true
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "test_mode": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "frm_configs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FrmConfigs"
+            },
+            "description": "Contains the frm configs for the merchant connector",
+            "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
+            "nullable": true
+          },
+          "business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "business_label": {
+            "type": "string",
+            "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "example": "travel",
+            "nullable": true
+          },
+          "business_sub_label": {
+            "type": "string",
+            "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "example": "chase",
+            "nullable": true
+          },
+          "applepay_verified_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "identifier for the verified domains of a particular connector account",
+            "nullable": true
+          },
+          "pm_auth_config": {
+            "type": "object",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "MerchantConnectorResponse": {
         "type": "object",
@@ -11901,10 +12342,19 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
             "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12015,6 +12465,8 @@
             "nullable": true
           },
           "pm_auth_config": {
+            "type": "object",
+            "description": "pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt",
             "nullable": true
           },
           "status": {
@@ -12111,6 +12563,45 @@
         },
         "additionalProperties": false
       },
+      "MerchantRecipientData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "connector_recipient_id"
+            ],
+            "properties": {
+              "connector_recipient_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet_id"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "account_data"
+            ],
+            "properties": {
+              "account_data": {
+                "$ref": "#/components/schemas/MerchantAccountData"
+              }
+            }
+          }
+        ]
+      },
       "MerchantRoutingAlgorithm": {
         "type": "object",
         "description": "Routing Algorithm specific to merchants",
@@ -12177,6 +12668,10 @@
           "date_of_birth": {
             "type": "string",
             "format": "date"
+          },
+          "language_preference": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -12546,6 +13041,33 @@
         },
         "additionalProperties": false
       },
+      "OpenBankingData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "open_banking_pis"
+            ],
+            "properties": {
+              "open_banking_pis": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "OpenBankingSessionToken": {
+        "type": "object",
+        "required": [
+          "open_banking_session_token"
+        ],
+        "properties": {
+          "open_banking_session_token": {
+            "type": "string",
+            "description": "The session token for OpenBanking Connectors"
+          }
+        }
+      },
       "OrderDetails": {
         "type": "object",
         "required": [
@@ -12667,6 +13189,59 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "OrganizationRequest": {
+        "type": "object",
+        "properties": {
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "OrganizationResponse": {
+        "type": "object",
+        "required": [
+          "organization_id",
+          "modified_at",
+          "created_at"
+        ],
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "example": "org_q98uSGAYbjEwqs0mJwnz",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "organization_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization_details": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -13061,7 +13636,9 @@
         "required": [
           "attempt_id",
           "status",
-          "amount"
+          "amount",
+          "created_at",
+          "modified_at"
         ],
         "properties": {
           "attempt_id": {
@@ -13124,6 +13701,18 @@
             ],
             "default": "three_ds",
             "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the payment attempt was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "modified_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time at which the payment attempt was last modified",
+            "example": "2022-09-10T10:11:12Z"
           },
           "cancellation_reason": {
             "type": "string",
@@ -13376,6 +13965,15 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link"
+          },
+          "allowed_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
+            "uniqueItems": true,
+            "nullable": true
           }
         }
       },
@@ -13449,10 +14047,17 @@
         ],
         "properties": {
           "link": {
-            "type": "string"
+            "type": "string",
+            "description": "URL for rendering the open payment link"
+          },
+          "secure_link": {
+            "type": "string",
+            "description": "URL for rendering the secure payment link",
+            "nullable": true
           },
           "payment_link_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier for the payment link"
           }
         }
       },
@@ -13569,7 +14174,8 @@
           "real_time_payment",
           "upi",
           "voucher",
-          "gift_card"
+          "gift_card",
+          "open_banking"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -13964,6 +14570,18 @@
                 "$ref": "#/components/schemas/CardToken"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "OpenBanking",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "$ref": "#/components/schemas/OpenBankingData"
+              }
+            }
           }
         ]
       },
@@ -14167,6 +14785,17 @@
             ],
             "properties": {
               "card_token": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
                 "type": "object"
               }
             }
@@ -14532,7 +15161,8 @@
           "seicomart",
           "pay_easy",
           "local_bank_transfer",
-          "mifinity"
+          "mifinity",
+          "open_banking_pis"
         ]
       },
       "PaymentMethodUpdate": {
@@ -17690,7 +18320,6 @@
       "PayoutCreateRequest": {
         "type": "object",
         "required": [
-          "merchant_id",
           "currency",
           "confirm",
           "payout_type",
@@ -17715,6 +18344,7 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
+            "nullable": true,
             "maxLength": 255
           },
           "amount": {
@@ -19324,7 +19954,7 @@
           },
           "link_to_pay": {
             "type": "string",
-            "description": "Payment Link"
+            "description": "Open payment link (without any security checks and listing SPMs)"
           },
           "amount": {
             "type": "integer",
@@ -19357,6 +19987,11 @@
                 "$ref": "#/components/schemas/Currency"
               }
             ],
+            "nullable": true
+          },
+          "secure_link": {
+            "type": "string",
+            "description": "Secure payment link (with security checks and listing saved payment methods)",
             "nullable": true
           }
         }
@@ -19471,6 +20106,7 @@
           "gocardless",
           "helcim",
           "iatapay",
+          "itaubank",
           "klarna",
           "mifinity",
           "mollie",
@@ -19502,6 +20138,7 @@
           "worldline",
           "worldpay",
           "zen",
+          "plaid",
           "zsl"
         ]
       },
@@ -20003,6 +20640,27 @@
             ]
           },
           {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBankingSessionToken"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "wallet_name"
+                ],
+                "properties": {
+                  "wallet_name": {
+                    "type": "string",
+                    "enum": [
+                      "open_banking"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
             "type": "object",
             "required": [
               "wallet_name"
@@ -20423,7 +21081,8 @@
       "TransactionType": {
         "type": "string",
         "enum": [
-          "payment"
+          "payment",
+          "payout"
         ]
       },
       "UpdateApiKeyRequest": {

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 pub mod cards;
 pub mod migration;
 pub mod surcharge_decision_configs;
@@ -10,12 +11,18 @@ pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, payments::CardToken};
-use common_utils::{ext_traits::Encode, id_type::CustomerId};
+use common_utils::{
+    ext_traits::Encode,
+    id_type::{CustomerId, MerchantId},
+};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::{
+    api::{GenericLinks, GenericLinksData},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 use masking::PeekInterface;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use time::Duration;
@@ -29,7 +36,7 @@ use crate::{
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, metrics, SessionState},
-    services::{self, GenericLinks},
+    services,
     types::{
         api::{self, payments},
         domain, storage,
@@ -76,6 +83,7 @@ pub async fn retrieve_payment_method(
         pm @ Some(api::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(api::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
@@ -189,7 +197,7 @@ pub async fn create_pm_collect_db_entry(
             .customer_id
             .get_string_repr()
             .to_string(),
-        merchant_id: merchant_account.merchant_id.to_string(),
+        merchant_id: merchant_account.get_id().to_owned(),
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
         url: pm_collect_link_data.link.clone(),
@@ -250,7 +258,10 @@ pub async fn render_pm_collect_link(
                     theme: link_data.ui_config.theme.unwrap_or(default_ui_config.theme),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::ExpiredLink(expired_link_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+                        data: GenericLinksData::ExpiredLink(expired_link_data),
+                    },
                 )))
 
             // else, send back form link
@@ -263,6 +274,7 @@ pub async fn render_pm_collect_link(
                 // Fetch customer
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
+                        &(&state).into(),
                         &customer_id,
                         &req.merchant_id,
                         &key_store,
@@ -308,7 +320,11 @@ pub async fn render_pm_collect_link(
                     html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::PaymentMethodCollect(generic_form_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+
+                        data: GenericLinksData::PaymentMethodCollect(generic_form_data),
+                    },
                 )))
             }
         }
@@ -349,7 +365,11 @@ pub async fn render_pm_collect_link(
                 css_data: serialized_css_content,
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PaymentMethodCollectStatus(generic_status_data),
+                GenericLinks {
+                    allowed_domains: HashSet::from([]),
+
+                    data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
+                },
             )))
         }
     }
@@ -368,7 +388,7 @@ pub async fn add_payment_method_status_update_task(
     payment_method: &diesel_models::PaymentMethod,
     prev_status: enums::PaymentMethodStatus,
     curr_status: enums::PaymentMethodStatus,
-    merchant_id: &str,
+    merchant_id: &MerchantId,
 ) -> Result<(), errors::ProcessTrackerError> {
     let created_at = payment_method.created_at;
     let schedule_time =
@@ -378,7 +398,7 @@ pub async fn add_payment_method_status_update_task(
         payment_method_id: payment_method.payment_method_id.clone(),
         prev_status,
         curr_status,
-        merchant_id: merchant_id.to_string(),
+        merchant_id: merchant_id.to_owned(),
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow;
@@ -557,7 +577,7 @@ pub async fn delete_payment_method_task(
     db: &dyn StorageInterface,
     payment_method_id: &str,
     filter_mca: HashMap<String, storage::UpdateMandate>,
-    merchant_id: String,
+    merchant_id: &MerchantId,
     deleted_at: time::PrimitiveDateTime,
     customer_id: CustomerId,
 ) -> CustomResult<(), errors::ProcessTrackerError> {

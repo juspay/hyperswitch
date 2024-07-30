@@ -32,6 +32,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
+        let key_state_manager = &(state).into();
         let tracking_data = process
             .tracking_data
             .clone()
@@ -41,6 +42,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
+                key_state_manager,
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
@@ -48,7 +50,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodMandateDetailsRevokeW
 
         let retry_count = process.retry_count;
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_state_manager,
+                &tracking_data.merchant_id,
+                &key_store,
+            )
             .await?;
 
         let connector_name = tracking_data.connector.to_string();

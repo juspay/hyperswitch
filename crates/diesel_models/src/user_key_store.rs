@@ -1,11 +1,13 @@
-use diesel::{Identifiable, Insertable, Queryable};
+use common_utils::encryption::Encryption;
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
-use crate::{encryption::Encryption, schema::user_key_store};
+use crate::schema::user_key_store;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Identifiable, Queryable)]
-#[diesel(table_name = user_key_store)]
-#[diesel(primary_key(user_id))]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, Identifiable, Queryable, Selectable,
+)]
+#[diesel(table_name = user_key_store, primary_key(user_id), check_for_backend(diesel::pg::Pg))]
 pub struct UserKeyStore {
     pub user_id: String,
     pub key: Encryption,

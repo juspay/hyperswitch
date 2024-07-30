@@ -117,7 +117,7 @@ pub struct PaymentMethodStatusTrackingData {
     pub payment_method_id: String,
     pub prev_status: enums::PaymentMethodStatus,
     pub curr_status: enums::PaymentMethodStatus,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct UpdateMandate {
@@ -128,7 +128,7 @@ pub struct UpdateMandate {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodMandateRevokeTrackingData {
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub customer_id: id_type::CustomerId,
     pub merchant_connector_id: String,
     pub connector: api_enums::Connector,

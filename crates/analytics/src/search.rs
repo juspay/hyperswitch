@@ -13,16 +13,27 @@ use crate::opensearch::{
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
+    if req.query.trim().is_empty()
+        && req
+            .filters
+            .as_ref()
+            .map_or(true, |filters| filters.is_all_none())
+    {
+        return Err(OpenSearchError::BadRequestError(
+            "Both query and filters are empty".to_string(),
+        )
+        .into());
+    }
     let mut query_builder =
         OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
 
     query_builder
         .add_filter_clause(
             "merchant_id.keyword".to_string(),
-            vec![merchant_id.to_string()],
+            vec![merchant_id.get_string_repr().to_owned()],
         )
         .switch()?;
 
@@ -58,6 +69,24 @@ pub async fn msearch_results(
                             .filter_map(|email| {
                                 // TODO: Add trait based inputs instead of converting this to strings
                                 serde_json::to_value(email)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        search_tags
+                            .iter()
+                            .filter_map(|search_tag| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(search_tag)
                                     .ok()
                                     .and_then(|a| a.as_str().map(|a| a.to_string()))
                             })
@@ -119,7 +148,7 @@ pub async fn msearch_results(
 pub async fn search_results(
     client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
 
@@ -129,7 +158,7 @@ pub async fn search_results(
     query_builder
         .add_filter_clause(
             "merchant_id.keyword".to_string(),
-            vec![merchant_id.to_string()],
+            vec![merchant_id.get_string_repr().to_owned()],
         )
         .switch()?;
 
@@ -165,6 +194,24 @@ pub async fn search_results(
                             .filter_map(|email| {
                                 // TODO: Add trait based inputs instead of converting this to strings
                                 serde_json::to_value(email)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        search_tags
+                            .iter()
+                            .filter_map(|search_tag| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(search_tag)
                                     .ok()
                                     .and_then(|a| a.as_str().map(|a| a.to_string()))
                             })

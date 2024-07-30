@@ -14,40 +14,6 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
-const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -78,7 +44,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },
@@ -94,7 +60,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },

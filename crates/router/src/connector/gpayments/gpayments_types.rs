@@ -12,7 +12,7 @@ pub struct GpaymentsConnectorMetaData {
 #[serde(rename_all = "camelCase")]
 pub struct GpaymentsPreAuthVersionCallRequest {
     pub acct_number: CardNumber,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -68,7 +68,7 @@ pub struct GpaymentsPreAuthenticationRequest {
     ///
     /// Example: "1234567890123456789012345678901234"
     /// Length: Maximum 35 characters
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// Optional boolean. If set to true, ActiveServer will not collect the browser information automatically.
     /// The requestor must have a backend implementation to collect browser information.
@@ -135,7 +135,7 @@ pub struct GpaymentsAuthenticationRequest {
     pub card_expiry_date: String,
     #[serde(rename = "notificationURL")]
     pub notification_url: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(rename = "threeDSCompInd")]
     pub three_ds_comp_ind: ThreeDsCompletionIndicator,
     pub message_category: String,

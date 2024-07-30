@@ -1,18 +1,19 @@
-use common_utils::{id_type, pii, types::MinorUnit};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{pii, types::MinorUnit};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payouts};
 
 // Payouts
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payouts)]
-#[diesel(primary_key(payout_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payouts, primary_key(payout_id), check_for_backend(diesel::pg::Pg))]
 pub struct Payouts {
     pub payout_id: String,
-    pub merchant_id: String,
-    pub customer_id: id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::CustomerId,
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
@@ -52,8 +53,8 @@ pub struct Payouts {
 #[diesel(table_name = payouts)]
 pub struct PayoutsNew {
     pub payout_id: String,
-    pub merchant_id: String,
-    pub customer_id: id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::CustomerId,
     pub address_id: String,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
@@ -66,10 +67,10 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_modified_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
