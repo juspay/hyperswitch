@@ -400,7 +400,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
   context(
     `
    MCA1 -> Stripe configured with card credit\n
-   MCA1 -> Cybersource configured with card credit = { currency = "USD" }\n
+   MCA2 -> Cybersource configured with card credit = { currency = "USD" }\n
    Payment is done with currency as USD and no billing address\n
    The resultant Payment Method list should have both\n
    Stripe and cybersource for credit\n
