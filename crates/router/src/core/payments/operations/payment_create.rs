@@ -1229,7 +1229,7 @@ async fn create_payment_link(
         format!(
             "{}/payment_link/s/{}/{}",
             domain_name,
-            merchant_id.clone(),
+            merchant_id.get_string_repr(),
             payment_id.clone()
         )
     });
