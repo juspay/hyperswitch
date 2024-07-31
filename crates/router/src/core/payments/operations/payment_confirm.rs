@@ -648,7 +648,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             ),
             token_data,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -725,7 +725,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         let (op, payment_method_data, pm_id) = helpers::make_pm_data(
@@ -909,7 +909,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         state: &SessionState,
         payment_id: &str,
         business_profile: &storage::BusinessProfile,
-        payment_method_data: &Option<api::PaymentMethodData>,
+        payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         if let (Some(true), Some(api::PaymentMethodData::Card(card)), Some(merchant_config)) = (
             business_profile.is_extended_card_info_enabled,

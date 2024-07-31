@@ -7,5 +7,7 @@ pub use hyperswitch_domain_models::payment_method_data::{
     KakaoPayRedirection, MbWayRedirection, MifinityData, OpenBankingData, PayLaterData,
     PaymentMethodData, RealTimePaymentData, SamsungPayWalletData, SepaAndBacsBillingDetails,
     SwishQrData, TouchNGoRedirection, UpiCollectData, UpiData, UpiIntentData, VoucherData,
-    WalletData, WeChatPayQr,
+    WalletData, WeChatPayQr,TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, 
+    TokenizedWalletValue2, TokenizedBankTransferValue1, TokenizedBankTransferValue2, TokenizedBankRedirectValue1,
+    TokenizedBankRedirectValue2
 };

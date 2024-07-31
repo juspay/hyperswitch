@@ -1,4 +1,4 @@
-use common_utils::pii::{self, Email};
+use common_utils::{pii::{self, Email}, id_type};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::Date;
@@ -23,6 +23,7 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
     CardToken(CardToken),
     OpenBanking(OpenBankingData),
+    NetworkToken(NetworkTokenData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,7 +35,7 @@ pub enum ApplePayFlow {
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
-            Self::Card(_) => Some(common_enums::PaymentMethod::Card),
+            Self::Card(_) | Self::NetworkToken(_) => Some(common_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(common_enums::PaymentMethod::PayLater),
@@ -468,6 +469,20 @@ pub struct SepaAndBacsBillingDetails {
     pub name: Secret<String>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct NetworkTokenData {
+    pub token_number: cards::CardNumber,
+    pub token_exp_month: Secret<String>,
+    pub token_exp_year: Secret<String>,
+    pub token_cryptogram: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
@@ -549,6 +564,37 @@ impl From<api_models::payments::Card> for Card {
         }
     }
 }
+
+// impl From<api_models::payments::Card> for NetworkTokenData {
+//     fn from(value: api_models::payments::Card) -> Self {
+//         let api_models::payments::Card {
+//             card_number,
+//             card_exp_month,
+//             card_exp_year,
+//             card_holder_name: _,
+//             card_cvc,
+//             card_issuer,
+//             card_network,
+//             card_type,
+//             card_issuing_country,
+//             bank_code,
+//             nick_name,
+//         } = value;
+
+//         Self {
+//             token_number,
+//             token_exp_month,
+//             token_exp_year,
+//             token_cryptogram,
+//             card_issuer,
+//             card_network,
+//             card_type,
+//             card_issuing_country,
+//             bank_code,
+//             nick_name,
+//         }
+//     }
+// }
 
 impl From<api_models::payments::CardRedirectData> for CardRedirectData {
     fn from(value: api_models::payments::CardRedirectData) -> Self {
@@ -951,4 +997,56 @@ impl From<api_models::payments::OpenBankingData> for OpenBankingData {
             api_models::payments::OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
         }
     }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue1 {
+    pub card_number: String,
+    pub exp_year: String,
+    pub exp_month: String,
+    pub nickname: Option<String>,
+    pub card_last_four: Option<String>,
+    pub card_token: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue2 {
+    pub card_security_code: Option<String>,
+    pub card_fingerprint: Option<String>,
+    pub external_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method_id: Option<String>,
+}
+
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue1 {
+    pub data: WalletData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue1 {
+    pub data: BankTransferData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue1 {
+    pub data: BankRedirectData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
 }

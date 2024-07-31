@@ -700,7 +700,7 @@ pub async fn retrieve_payment_method_from_auth_service(
     auth_token: &payment_methods::BankAccountTokenData,
     payment_intent: &PaymentIntent,
     customer: &Option<domain::Customer>,
-) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 
     let connector = PaymentAuthConnectorData::get_connector_by_name(
@@ -833,7 +833,7 @@ pub async fn retrieve_payment_method_from_auth_service(
 
     let payment_method_data = match &bank_account.account_details {
         pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => {
-            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
                 billing_details: Some(billing_details),
                 account_number: ach.account_number.clone(),
                 routing_number: ach.routing_number.clone(),
@@ -845,7 +845,7 @@ pub async fn retrieve_payment_method_from_auth_service(
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => {
-            PaymentMethodData::BankDebit(BankDebitData::BacsBankDebit {
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::BacsBankDebit {
                 billing_details: Some(billing_details),
                 account_number: bacs.account_number.clone(),
                 sort_code: bacs.sort_code.clone(),
@@ -853,7 +853,7 @@ pub async fn retrieve_payment_method_from_auth_service(
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
-            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::SepaBankDebit {
                 billing_details: Some(billing_details),
                 iban: sepa.iban.clone(),
                 bank_account_holder_name: None,

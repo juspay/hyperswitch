@@ -450,7 +450,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone().into()),
             payment_method_info,
             force_sync: None,
             refunds: vec![],

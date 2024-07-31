@@ -442,7 +442,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             ),
             token_data: None,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
             payment_method_info,
             refunds: vec![],
             disputes: vec![],

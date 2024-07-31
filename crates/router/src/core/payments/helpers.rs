@@ -1734,7 +1734,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     payment_intent: &PaymentIntent,
     merchant_key_store: &domain::MerchantKeyStore,
     card_token_data: Option<&CardToken>,
-) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let (pm, supplementary_data) =
         vault::Vault::get_payment_method_data_from_locker(state, token, merchant_key_store)
             .await
@@ -1752,7 +1752,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     )?;
 
     Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm {
-        Some(api::PaymentMethodData::Card(card)) => {
+        Some(domain::PaymentMethodData::Card(card)) => {
             let mut updated_card = card.clone();
             let mut is_card_updated = false;
 
@@ -1800,21 +1800,21 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 Some((updated_pm, enums::PaymentMethod::Card))
             } else {
                 Some((
-                    api::PaymentMethodData::Card(card),
+                    domain::Card(card),
                     enums::PaymentMethod::Card,
                 ))
             }
         }
 
-        Some(the_pm @ api::PaymentMethodData::Wallet(_)) => {
+        Some(the_pm @ domain::Wallet(_)) => {
             Some((the_pm, enums::PaymentMethod::Wallet))
         }
 
-        Some(the_pm @ api::PaymentMethodData::BankTransfer(_)) => {
+        Some(the_pm @ domain::BankTransfer(_)) => {
             Some((the_pm, enums::PaymentMethod::BankTransfer))
         }
 
-        Some(the_pm @ api::PaymentMethodData::BankRedirect(_)) => {
+        Some(the_pm @ domain::BankRedirect(_)) => {
             Some((the_pm, enums::PaymentMethod::BankRedirect))
         }
 
@@ -1831,9 +1831,9 @@ pub async fn retrieve_card_with_permanent_token(
     _payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&CardToken>,
-    _merchant_key_store: &domain::MerchantKeyStore,
+    merchant_key_store: &domain::MerchantKeyStore,
     _storage_scheme: enums::MerchantStorageScheme,
-) -> RouterResult<api::PaymentMethodData> {
+) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
         .as_ref()
@@ -1887,7 +1887,7 @@ pub async fn retrieve_card_with_permanent_token(
         bank_code: None,
     };
 
-    Ok(api::PaymentMethodData::Card(api_card))
+    Ok(domain::Card(api_card).into())
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
@@ -1985,16 +1985,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
-    Option<api::PaymentMethodData>,
+    Option<domain::PaymentMethodData>,
     Option<String>,
 )> {
-    let request = &payment_data.payment_method_data.clone();
+    let request = payment_data.payment_method_data.clone();
 
     let mut card_token_data = payment_data
         .payment_method_data
         .clone()
         .and_then(|pmd| match pmd {
-            api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
+            domain::PaymentMethodData::CardToken(token_data) => Some(token_data),
             _ => None,
         })
         .or(Some(CardToken::default()));
@@ -2025,7 +2025,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     }
 
     // TODO: Handle case where payment method and token both are present in request properly.
-    let (payment_method, pm_id) = match (request, payment_data.token_data.as_ref()) {
+    let (payment_method, pm_id) = match (request.clone(), payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
             let pm_data = payment_methods::retrieve_payment_method_with_token(
                 state,
@@ -2056,7 +2056,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
         (Some(_), _) => {
             let (payment_method_data, payment_token) = payment_methods::retrieve_payment_method(
-                request,
+                &request.map(Into::into),
                 state,
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
@@ -2077,7 +2077,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
 pub async fn store_in_vault_and_generate_ppmt(
     state: &SessionState,
-    payment_method_data: &api_models::payments::PaymentMethodData,
+    payment_method_data: &domain::PaymentMethodData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
@@ -2122,7 +2122,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
-    payment_method_data: &api::PaymentMethodData,
+    payment_method_data: &domain::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<Option<String>> {

@@ -10,7 +10,13 @@ pub use diesel_models::payment_method::{
     TokenizeCoreWorkflow,
 };
 
-use crate::types::api::{self, payments};
+use crate::types::{
+    api::{self, payments},
+    domain::{
+        self,
+        types::{self, AsyncLift},
+    },
+};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -29,7 +35,7 @@ pub struct CardTokenData {
 #[derive(Debug, Clone, serde::Serialize, Default, serde::Deserialize)]
 pub struct PaymentMethodDataWithId {
     pub payment_method: Option<enums::PaymentMethod>,
-    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_data: Option<domain::PaymentMethodData>,
     pub payment_method_id: Option<String>,
 }
 

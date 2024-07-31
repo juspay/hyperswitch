@@ -134,7 +134,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, R>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )>;
 
@@ -194,7 +194,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         _state: &SessionState,
         _payment_id: &str,
         _business_profile: &storage::BusinessProfile,
-        _payment_method_data: &Option<api::PaymentMethodData>,
+        _payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
