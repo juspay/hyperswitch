@@ -55,7 +55,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.amount.clone(),
+                    amount: item.amount,
                     card,
                 })
             }

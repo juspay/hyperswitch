@@ -1,5 +1,5 @@
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, api,domain, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -10,12 +10,12 @@ impl ConnectorActions for PayboxTest {}
 impl utils::Connector for PayboxTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Paybox;
-        api::ConnectorData {
-            connector: Box::new(Paybox::new()),
-            connector_name: types::Connector::Paybox,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+           Box::new(Paybox::new()),
+            types::Connector::Plaid,
+            api::GetToken::Connector,
+            None,
+    )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
