@@ -278,10 +278,8 @@ pub async fn modify_trackers(
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.to_owned(),
-        customer_id: payout_data.payout_attempt.customer_id.to_owned(),
         connector: Some(connector.connector_name.to_string()),
         merchant_id: payout_data.payout_attempt.merchant_id.to_owned(),
-        address_id: payout_data.payout_attempt.address_id.to_owned(),
         business_country: payout_data.payout_attempt.business_country.to_owned(),
         business_label: payout_data.payout_attempt.business_label.to_owned(),
         payout_token: payout_data.payout_attempt.payout_token.to_owned(),

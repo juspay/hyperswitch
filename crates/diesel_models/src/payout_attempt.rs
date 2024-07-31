@@ -11,9 +11,7 @@ use crate::{enums as storage_enums, schema::payout_attempt};
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: common_utils::id_type::CustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -47,9 +45,7 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: common_utils::id_type::CustomerId,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,

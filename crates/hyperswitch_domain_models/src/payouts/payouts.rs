@@ -71,8 +71,8 @@ pub trait PayoutsInterface {
 pub struct Payouts {
     pub payout_id: String,
     pub merchant_id: id_type::MerchantId,
-    pub customer_id: id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -99,8 +99,8 @@ pub struct Payouts {
 pub struct PayoutsNew {
     pub payout_id: String,
     pub merchant_id: id_type::MerchantId,
-    pub customer_id: id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -130,8 +130,8 @@ impl Default for PayoutsNew {
         Self {
             payout_id: String::default(),
             merchant_id: id_type::MerchantId::default(),
-            customer_id: common_utils::generate_customer_id_of_default_length(),
-            address_id: String::default(),
+            customer_id: Some(common_utils::generate_customer_id_of_default_length()),
+            address_id: None,
             payout_type: Some(storage_enums::PayoutType::default()),
             payout_method_id: Option::default(),
             amount: MinorUnit::new(i64::default()),

@@ -313,7 +313,7 @@ pub async fn payouts_create_core(
         &payout_id,
         &profile_id,
         payout_method_data.as_ref(),
-        &customer,
+        customer.as_ref(),
     )
     .await?;
 
@@ -325,7 +325,7 @@ pub async fn payouts_create_core(
         &state,
         req.payout_method_data.as_ref(),
         payout_attempt.payout_token.as_deref(),
-        &payout_attempt.customer_id,
+        &payout_data.payouts.customer_id,
         &payout_attempt.merchant_id,
         payout_type,
         &key_store,
@@ -732,39 +732,43 @@ pub async fn payouts_list_core(
             )
             .await
         {
-            Ok(payout_attempt) => {
-                match db
-                    .find_customer_by_customer_id_merchant_id(
-                        &(&state).into(),
-                        &payouts.customer_id,
-                        merchant_id,
-                        &key_store,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                {
-                    Ok(customer) => Some(Ok((payouts, payout_attempt, customer))),
-                    Err(error) => {
-                        if matches!(
-                            error.current_context(),
-                            storage_impl::errors::StorageError::ValueNotFound(_)
-                        ) {
-                            logger::warn!(
-                                ?error,
-                                "customer missing for customer_id : {:?}",
-                                payouts.customer_id,
-                            );
-                            return None;
+            Ok(payout_attempt) => payouts
+                .customer_id
+                .async_and_then(|customer_id| async move {
+                    match db
+                        .find_customer_by_customer_id_merchant_id(
+                            &(&state).into(),
+                            &customer_id,
+                            merchant_id,
+                            &key_store,
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                    {
+                        Ok(customer) => Some(Ok((payouts, payout_attempt, Some(customer)))),
+                        Err(error) => {
+                            if matches!(
+                                error.current_context(),
+                                storage_impl::errors::StorageError::ValueNotFound(_)
+                            ) {
+                                logger::warn!(
+                                    ?error,
+                                    "customer missing for customer_id : {:?}",
+                                    customer_id,
+                                );
+                                return None;
+                            }
+                            Some(Err(error.change_context(StorageError::ValueNotFound(
+                                format!("customer missing for customer_id : {:?}", customer_id),
+                            ))))
                         }
-                        Some(Err(error.change_context(StorageError::ValueNotFound(
-                            format!(
-                                "customer missing for customer_id : {:?}",
-                                payouts.customer_id
-                            ),
-                        ))))
                     }
-                }
-            }
+                })
+                .await
+                .transpose()?
+                .map_or(Some(Ok((payouts, payout_attempt, None))), |res| {
+                    Some(Ok(res))
+                }),
             Err(error) => {
                 if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
                     logger::warn!(
@@ -934,7 +938,7 @@ pub async fn call_connector_payout(
                 state,
                 payout_data.payout_method_data.to_owned().as_ref(),
                 payout_attempt.payout_token.as_deref(),
-                &payout_attempt.customer_id,
+                &payouts.customer_id,
                 &payout_attempt.merchant_id,
                 payouts.payout_type,
                 key_store,
@@ -1972,17 +1976,28 @@ pub async fn fulfill_payout(
                 && payout_data.payouts.payout_method_id.clone().is_none()
                 && !helpers::is_payout_err_state(status)
             {
-                helpers::save_payout_data_to_locker(
-                    state,
-                    payout_data,
-                    &payout_data
-                        .payout_method_data
-                        .clone()
-                        .get_required_value("payout_method_data")?,
-                    merchant_account,
-                    key_store,
-                )
-                .await?;
+                let payout_method_data = payout_data
+                    .payout_method_data
+                    .clone()
+                    .get_required_value("payout_method_data")?;
+                payout_data
+                    .payouts
+                    .customer_id
+                    .clone()
+                    .async_map(|customer_id| async move {
+                        helpers::save_payout_data_to_locker(
+                            state,
+                            payout_data,
+                            &customer_id,
+                            &payout_method_data,
+                            merchant_account,
+                            key_store,
+                        )
+                        .await
+                    })
+                    .await
+                    .transpose()
+                    .attach_printable("Failed to save payout data to locker")?;
             }
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
@@ -2141,11 +2156,11 @@ pub async fn payout_create_db_entries(
     payout_id: &String,
     profile_id: &String,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
-    customer: &domain::Customer,
+    customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
-    let customer_id = &customer.customer_id;
+    let customer_id = customer.as_ref().map(|cust| cust.customer_id);
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
@@ -2156,7 +2171,7 @@ pub async fn payout_create_db_entries(
             create_payout_link(
                 state,
                 &business_profile,
-                customer_id,
+                &customer_id.get_required_value("customer_id")?,
                 merchant_id,
                 req,
                 payout_id,
@@ -2172,20 +2187,13 @@ pub async fn payout_create_db_entries(
         req.billing.as_ref(),
         None,
         merchant_id,
-        Some(customer_id),
+        customer_id.as_ref(),
         key_store,
         payout_id,
         merchant_account.storage_scheme,
     )
     .await?;
-    let address_id = billing_address
-        .to_owned()
-        .ok_or_else(|| {
-            report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "billing.address",
-            })
-        })?
-        .address_id;
+    let address_id = billing_address.to_owned().map(|address| address.address_id);
 
     // Make payouts entry
     let currency = req.currency.to_owned().get_required_value("currency")?;
@@ -2253,9 +2261,7 @@ pub async fn payout_create_db_entries(
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.to_owned(),
-        customer_id: customer_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
-        address_id: address_id.to_owned(),
         status,
         business_country: req.business_country.to_owned(),
         business_label: req.business_label.to_owned(),
@@ -2279,7 +2285,7 @@ pub async fn payout_create_db_entries(
     Ok(PayoutData {
         billing_address,
         business_profile,
-        customer_details: Some(customer.to_owned()),
+        customer_details: customer.map(ToOwned::to_owned),
         merchant_connector_account: None,
         payouts,
         payout_attempt,
@@ -2331,7 +2337,7 @@ pub async fn make_payout_data(
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         state,
         None,
-        Some(&payouts.address_id.to_owned()),
+        payouts.address_id,
         merchant_id,
         Some(&payouts.customer_id.to_owned()),
         key_store,

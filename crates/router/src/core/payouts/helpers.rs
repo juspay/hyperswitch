@@ -193,11 +193,12 @@ pub async fn make_payout_method_data<'a>(
 pub async fn save_payout_data_to_locker(
     state: &SessionState,
     payout_data: &mut PayoutData,
+    customer_id: &id_type::CustomerId,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let payout_attempt = &payout_data.payout_attempt;
+    let payouts = &payout_data.payouts;
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
         match payout_method_data {
             payouts::PayoutMethodData::Card(card) => {
@@ -214,7 +215,7 @@ pub async fn save_payout_data_to_locker(
                 };
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
                     merchant_id: merchant_account.get_id().clone(),
-                    merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                    merchant_customer_id: customer_id.to_owned(),
                     card: Card {
                         card_number: card.card_number.to_owned(),
                         name_on_card: card.card_holder_name.to_owned(),
@@ -267,7 +268,7 @@ pub async fn save_payout_data_to_locker(
                 })?;
                 let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
                     merchant_id: merchant_account.get_id().to_owned(),
-                    merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                    merchant_customer_id: customer_id.to_owned(),
                     enc_data,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
                 });
@@ -297,7 +298,7 @@ pub async fn save_payout_data_to_locker(
     let stored_resp = cards::call_to_locker_hs(
         state,
         &locker_req,
-        &payout_attempt.customer_id,
+        customer_id,
         api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await
@@ -399,7 +400,7 @@ pub async fn save_payout_data_to_locker(
                 card: card_details.clone(),
                 wallet: None,
                 metadata: None,
-                customer_id: Some(payout_attempt.customer_id.to_owned()),
+                customer_id: Some(customer_id.to_owned()),
                 card_network: None,
                 client_secret: None,
                 payment_method_data: None,
@@ -486,7 +487,7 @@ pub async fn save_payout_data_to_locker(
                     card: None,
                     wallet: wallet_details,
                     metadata: None,
-                    customer_id: Some(payout_attempt.customer_id.to_owned()),
+                    customer_id: Some(customer_id.to_owned()),
                     card_network: None,
                     client_secret: None,
                     payment_method_data: None,
@@ -503,7 +504,7 @@ pub async fn save_payout_data_to_locker(
         cards::create_payment_method(
             state,
             &new_payment_method,
-            &payout_attempt.customer_id,
+            customer_id,
             &payment_method_id,
             Some(stored_resp.card_reference.clone()),
             merchant_account.get_id(),
@@ -534,7 +535,7 @@ pub async fn save_payout_data_to_locker(
         // Delete from locker
         cards::delete_card_from_hs_locker(
             state,
-            &payout_attempt.customer_id,
+            customer_id,
             merchant_account.get_id(),
             card_reference,
         )
@@ -549,7 +550,7 @@ pub async fn save_payout_data_to_locker(
         let stored_resp = cards::call_to_locker_hs(
             state,
             &locker_req,
-            &payout_attempt.customer_id,
+            customer_id,
             api_enums::LockerChoice::HyperswitchCardVault,
         )
         .await
@@ -586,9 +587,9 @@ pub async fn save_payout_data_to_locker(
     };
     payout_data.payouts = db
         .update_payout(
-            &payout_data.payouts,
+            &payouts,
             updated_payout,
-            payout_attempt,
+            &payout_data.payout_attempt,
             merchant_account.storage_scheme,
         )
         .await
@@ -1070,5 +1071,43 @@ pub async fn update_payouts_and_payout_attempt(
                 .attach_printable("Error updating payout_attempt")?;
             Ok(())
         }
+    }
+}
+
+pub fn get_customer_details_from_request(
+    request: &payouts::PayoutCreateRequest,
+) -> CustomerDetails {
+    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
+
+    let customer_name = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.name.clone())
+        .or(request.name.clone());
+
+    let customer_email = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.email.clone())
+        .or(request.email.clone());
+
+    let customer_phone = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone.clone())
+        .or(request.phone.clone());
+
+    let customer_phone_code = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone_country_code.clone())
+        .or(request.phone_country_code.clone());
+
+    CustomerDetails {
+        customer_id,
+        name: customer_name,
+        email: customer_email,
+        phone: customer_phone,
+        phone_country_code: customer_phone_code,
     }
 }

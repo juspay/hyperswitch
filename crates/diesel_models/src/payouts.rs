@@ -13,8 +13,8 @@ use crate::{enums as storage_enums, schema::payouts};
 pub struct Payouts {
     pub payout_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -54,8 +54,8 @@ pub struct Payouts {
 pub struct PayoutsNew {
     pub payout_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,

@@ -167,6 +167,30 @@ pub struct PayoutCreateRequest {
     /// (900) for 15 mins
     #[schema(value_type = Option<u32>, example = 900)]
     pub session_expiry: Option<u32>,
+
+    /// Customer's email. _Use customer object instead, this will be deprecated soon._
+    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<Email>,
+
+    /// Customer's name. _Use customer object instead, this will be deprecated soon._
+    #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
+    pub name: Option<Secret<String>>,
+
+    /// Customer's phone. _Use customer object instead, this will be deprecated soon._
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
+    pub phone: Option<Secret<String>>,
+
+    /// Customer's phone country code. _Use customer object instead, this will be deprecated soon._
+    #[schema(max_length = 255, example = "+1")]
+    pub phone_country_code: Option<String>,
+}
+
+impl PayoutCreateRequest {
+    pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
+        self.customer_id
+            .as_ref()
+            .or(self.customer.as_ref().map(|customer| &customer.id))
+    }
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]

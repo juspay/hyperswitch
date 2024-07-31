@@ -1100,10 +1100,20 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
-    for api::PayoutCreateResponse
+impl
+    ForeignFrom<(
+        storage::Payouts,
+        storage::PayoutAttempt,
+        Option<domain::Customer>,
+    )> for api::PayoutCreateResponse
 {
-    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
+    fn foreign_from(
+        item: (
+            storage::Payouts,
+            storage::PayoutAttempt,
+            Option<domain::Customer>,
+        ),
+    ) -> Self {
         let (payout, payout_attempt, customer) = item;
         let attempt = PayoutAttemptResponse {
             attempt_id: payout_attempt.payout_attempt_id,
@@ -1128,8 +1138,8 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             connector: payout_attempt.connector,
             payout_type: payout.payout_type,
             auto_fulfill: payout.auto_fulfill,
-            customer_id: Some(customer.customer_id.clone()),
-            customer: Some((&customer).foreign_into()),
+            customer_id: customer.map(|cust| cust.customer_id.clone()),
+            customer: customer.map(|cust| cust.foreign_into()),
             return_url: payout.return_url,
             business_country: payout_attempt.business_country,
             business_label: payout_attempt.business_label,

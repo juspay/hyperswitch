@@ -1,6 +1,7 @@
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
+use diesel::NullableExpressionMethods;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "olap")]
@@ -536,7 +537,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             )
             .inner_join(
                 diesel_models::schema::customers::table
-                    .on(cust_dsl::customer_id.eq(po_dsl::customer_id)),
+                    .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())

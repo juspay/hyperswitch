@@ -1,14 +1,11 @@
-use std::collections::HashSet;
-
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::ext_traits::OptionExt;
+use common_utils::{ext_traits::OptionExt, validation::validate_domain_against_allowed_domains};
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
-use globset::Glob;
 pub use hyperswitch_domain_models::errors::StorageError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use url::Url;
 
 use super::helpers;
@@ -60,7 +57,7 @@ pub async fn validate_create_request(
     String,
     Option<payouts::PayoutMethodData>,
     String,
-    domain::Customer,
+    Option<domain::Customer>,
 )> {
     let merchant_id = merchant_account.get_id();
 
@@ -102,6 +99,8 @@ pub async fn validate_create_request(
         })),
         None => Ok(()),
     }?;
+
+    let customer_in_request = helpers::get_customer_details_from_request(req);
 
     // Customer creation
     let customer = match (req.customer_id.clone(), req.customer.clone()) {
@@ -175,7 +174,7 @@ pub async fn validate_create_request(
     )
     .await?;
 
-    Ok((payout_id, payout_method_data, profile_id, customer))
+    Ok((payout_id, payout_method_data, profile_id, Some(customer)))
 }
 
 pub fn validate_payout_link_request(confirm: Option<bool>) -> Result<(), errors::ApiErrorResponse> {
@@ -299,7 +298,7 @@ pub fn validate_payout_link_render_request(
             })?
     };
 
-    if is_domain_allowed(&domain_in_req, link_data.allowed_domains) {
+    if validate_domain_against_allowed_domains(&domain_in_req, link_data.allowed_domains) {
         Ok(())
     } else {
         Err(report!(errors::ApiErrorResponse::AccessForbidden {
@@ -312,13 +311,4 @@ pub fn validate_payout_link_render_request(
             )
         })
     }
-}
-
-fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
-    allowed_domains.iter().any(|allowed_domain| {
-        Glob::new(allowed_domain)
-            .map(|glob| glob.compile_matcher().is_match(domain))
-            .map_err(|err| logger::error!("Invalid glob pattern! - {:?}", err))
-            .unwrap_or(false)
-    })
 }

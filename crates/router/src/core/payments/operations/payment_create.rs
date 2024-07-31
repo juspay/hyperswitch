@@ -1218,12 +1218,21 @@ async fn create_payment_link(
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
-    let payment_link = format!(
+    let open_payment_link = format!(
         "{}/payment_link/{}/{}",
         domain_name,
         merchant_id.get_string_repr(),
         payment_id.clone()
     );
+
+    let secure_link = payment_link_config.allowed_domains.as_ref().map(|_| {
+        format!(
+            "{}/payment_link/s/{}/{}",
+            domain_name,
+            merchant_id.get_string_repr(),
+            payment_id.clone()
+        )
+    });
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
@@ -1235,7 +1244,7 @@ async fn create_payment_link(
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
-        link_to_pay: payment_link.clone(),
+        link_to_pay: open_payment_link.clone(),
         amount: MinorUnit::from(amount),
         currency: request.currency,
         created_at,
@@ -1245,6 +1254,7 @@ async fn create_payment_link(
         description,
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
+        secure_link,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)
@@ -1254,7 +1264,8 @@ async fn create_payment_link(
         })?;
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
-        link: payment_link_db.link_to_pay,
+        link: payment_link_db.link_to_pay.clone(),
+        secure_link: payment_link_db.secure_link,
         payment_link_id: payment_link_db.payment_link_id,
     }))
 }

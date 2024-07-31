@@ -730,6 +730,9 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        #[max_length = 32]
+        id -> Nullable<Varchar>,
+        organization_name -> Nullable<Text>,
     }
 }
 
@@ -922,6 +925,8 @@ diesel::table! {
         description -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        secure_link -> Nullable<Varchar>,
     }
 }
 
@@ -990,11 +995,7 @@ diesel::table! {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
-        #[max_length = 64]
         merchant_id -> Varchar,
-        #[max_length = 64]
-        address_id -> Varchar,
         #[max_length = 64]
         connector -> Nullable<Varchar>,
         #[max_length = 128]
@@ -1029,9 +1030,9 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
-        address_id -> Varchar,
+        address_id -> Nullable<Varchar>,
         payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,

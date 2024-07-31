@@ -1,6 +1,6 @@
 use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
-use common_utils::{generate_customer_id_of_default_length, id_type};
+use common_utils::id_type;
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
@@ -59,9 +59,7 @@ pub struct PayoutListFilters {
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
     pub merchant_id: id_type::MerchantId,
-    pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -84,9 +82,7 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
     pub merchant_id: id_type::MerchantId,
-    pub address_id: String,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -110,9 +106,7 @@ impl Default for PayoutAttemptNew {
         Self {
             payout_attempt_id: String::default(),
             payout_id: String::default(),
-            customer_id: generate_customer_id_of_default_length(),
             merchant_id: id_type::MerchantId::default(),
-            address_id: String::default(),
             connector: None,
             connector_payout_id: Some(String::default()),
             payout_token: None,
