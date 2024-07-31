@@ -24,6 +24,7 @@ use crate::{
     errors, logger,
     routes::{app::ReqState, SessionState},
     types::{domain, storage},
+    utils::MerchantAccountOrBusinessProfile,
 };
 
 pub struct OutgoingWebhookRetryWorkflow;
@@ -370,7 +371,10 @@ async fn get_outgoing_webhook_content_and_event_type(
                 match Box::pin(payments_core::<PSync, PaymentsResponse, _, _, _>(
                     state,
                     req_state,
-                    merchant_account,
+                    MerchantAccountOrBusinessProfile::MerchantAccount {
+                        profile_ids: vec![],
+                        merchant_account,
+                    },
                     key_store,
                     PaymentStatus,
                     request,

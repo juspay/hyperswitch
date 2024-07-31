@@ -28,6 +28,7 @@ use crate::{
         domain,
         transformers::ForeignTryFrom,
     },
+    utils::MerchantAccountOrBusinessProfile,
 };
 
 /// Payments - Create
@@ -199,7 +200,7 @@ pub async fn payments_start(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount{ profile_ids:vec![], merchant_account: auth.merchant_account},
                 auth.key_store,
                 payments::operations::PaymentStart,
                 req,
@@ -274,7 +275,10 @@ pub async fn payments_retrieve(
             payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -347,7 +351,10 @@ pub async fn payments_retrieve_with_gateway_creds(
             payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -554,7 +561,10 @@ pub async fn payments_capture(
             payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentCapture,
                 payload,
@@ -623,7 +633,10 @@ pub async fn payments_connector_session(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentSession,
                 payload,
@@ -855,7 +868,10 @@ pub async fn payments_complete_authorize(
             >(
                 state.clone(),
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::operations::payment_complete_authorize::CompleteAuthorize,
                 payment_confirm_req.clone(),
@@ -914,7 +930,10 @@ pub async fn payments_cancel(
             payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentCancel,
                 req,
@@ -969,7 +988,15 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+            payments::list_payments(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -1074,7 +1101,10 @@ pub async fn payments_approve(
             payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentApprove,
                 payment_types::PaymentsCaptureRequest {
@@ -1128,7 +1158,10 @@ pub async fn payments_reject(
             payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentReject,
                 payment_types::PaymentsCancelRequest {
@@ -1195,7 +1228,10 @@ where
         >(
             state,
             req_state,
-            merchant_account,
+            MerchantAccountOrBusinessProfile::MerchantAccount {
+                profile_ids: vec![],
+                merchant_account,
+            },
             key_store,
             operation,
             req,
@@ -1215,7 +1251,10 @@ where
             >(
                 state,
                 req_state,
-                merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account,
+                },
                 key_store,
                 operation,
                 req,
@@ -1277,7 +1316,10 @@ pub async fn payments_incremental_authorization(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentIncrementalAuthorization,
                 req,

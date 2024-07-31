@@ -91,8 +91,8 @@ use crate::{
         BrowserInformation,
     },
     utils::{
-        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
-        ValueExt,
+        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode,
+        MerchantAccountOrBusinessProfile, OptionExt, ValueExt,
     },
     workflows::payment_sync,
 };
@@ -787,7 +787,7 @@ where
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: SessionState,
     req_state: ReqState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -813,6 +813,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
         connectors
             .into_iter()
@@ -997,7 +998,10 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         >(
             state.clone(),
             req_state,
-            merchant_account,
+            MerchantAccountOrBusinessProfile::MerchantAccount {
+                profile_ids: vec![],
+                merchant_account,
+            },
             merchant_key_store,
             payment_complete_authorize::CompleteAuthorize,
             payment_confirm_req,
@@ -1128,7 +1132,10 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let response = Box::pin(payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state.clone(),
             req_state,
-            merchant_account,
+            MerchantAccountOrBusinessProfile::MerchantAccount {
+                profile_ids: vec![],
+                merchant_account,
+            },
             merchant_key_store,
             PaymentStatus,
             payment_sync_req,
@@ -1285,7 +1292,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             >(
                 state.clone(),
                 req_state,
-                merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account,
+                },
                 merchant_key_store,
                 PaymentConfirm,
                 payment_confirm_req,
@@ -1315,7 +1325,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             Box::pin(payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 state.clone(),
                 req_state,
-                merchant_account.clone(),
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: merchant_account.clone(),
+                },
                 merchant_key_store,
                 PaymentStatus,
                 payment_sync_req,
@@ -2865,10 +2878,11 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 #[cfg(feature = "olap")]
 pub async fn list_payments(
     state: SessionState,
-    merchant: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
+    let merchant = merchant_or_profile.get_merchant_account().await?;
     use hyperswitch_domain_models::errors::StorageError;
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = merchant.get_id();

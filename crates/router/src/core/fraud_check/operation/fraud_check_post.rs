@@ -37,7 +37,9 @@ use crate::{
         },
         ResponseId,
     },
-    utils, SessionState,
+    utils,
+    utils::MerchantAccountOrBusinessProfile,
+    SessionState,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -214,7 +216,10 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             >(
                 state.clone(),
                 req_state.clone(),
-                merchant_account.clone(),
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: merchant_account.clone(),
+                },
                 key_store.clone(),
                 payments::PaymentCancel,
                 cancel_req,
@@ -269,7 +274,10 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             >(
                 state.clone(),
                 req_state.clone(),
-                merchant_account.clone(),
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: merchant_account.clone(),
+                },
                 key_store.clone(),
                 payments::PaymentCapture,
                 capture_request,

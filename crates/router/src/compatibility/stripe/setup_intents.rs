@@ -13,6 +13,7 @@ use crate::{
     routes,
     services::{api, authentication as auth},
     types::api as api_types,
+    utils::MerchantAccountOrBusinessProfile,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
@@ -62,7 +63,7 @@ pub async fn setup_intents_create(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount{ profile_ids:vec![], merchant_account: auth.merchant_account},
                 auth.key_store,
                 payments::PaymentCreate,
                 req,
@@ -122,7 +123,10 @@ pub async fn setup_intents_retrieve(
             payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 payments::PaymentStatus,
                 payload,
@@ -194,7 +198,7 @@ pub async fn setup_intents_update(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount{ profile_ids:vec![], merchant_account: auth.merchant_account},
                 auth.key_store,
                 payments::PaymentUpdate,
                 req,
@@ -267,7 +271,7 @@ pub async fn setup_intents_confirm(
             >(
                 state,
                 req_state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount{ profile_ids:vec![], merchant_account: auth.merchant_account},
                 auth.key_store,
                 payments::PaymentConfirm,
                 req,

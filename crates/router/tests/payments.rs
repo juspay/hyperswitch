@@ -14,6 +14,7 @@ use router::{
         self,
         api::{self, enums as api_enums},
     },
+    utils::MerchantAccountOrBusinessProfile,
 };
 use time::macros::datetime;
 use tokio::sync::oneshot;
@@ -384,7 +385,10 @@ async fn payments_create_core() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_account,
+        MerchantAccountOrBusinessProfile::MerchantAccount {
+            profile_ids: vec![],
+            merchant_account,
+        },
         key_store,
         payments::PaymentCreate,
         req,
@@ -570,7 +574,10 @@ async fn payments_create_core_adyen_no_redirect() {
     >(
         state.clone(),
         state.get_req_state(),
-        merchant_account,
+        MerchantAccountOrBusinessProfile::MerchantAccount {
+            profile_ids: vec![],
+            merchant_account,
+        },
         key_store,
         payments::PaymentCreate,
         req,

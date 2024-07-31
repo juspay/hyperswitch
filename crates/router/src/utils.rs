@@ -982,6 +982,26 @@ where
     Ok(())
 }
 
+pub enum MerchantAccountOrBusinessProfile {
+    MerchantAccount {
+        profile_ids: Vec<String>,
+        merchant_account: domain::MerchantAccount,
+    },
+    BusinessProfile(diesel_models::business_profile::BusinessProfile),
+}
+
+impl MerchantAccountOrBusinessProfile {
+    pub async fn get_merchant_account(&self) -> RouterResult<domain::MerchantAccount> {
+        Ok(match self {
+            MerchantAccountOrBusinessProfile::MerchantAccount {
+                profile_ids: _,
+                merchant_account,
+            } => merchant_account.to_owned(),
+            MerchantAccountOrBusinessProfile::BusinessProfile(_) => todo!(),
+        })
+    }
+}
+
 type Handle<T> = tokio::task::JoinHandle<RouterResult<T>>;
 
 pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
