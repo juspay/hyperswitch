@@ -91,7 +91,7 @@ pub struct ThreeDSRequestor {
     /// Format of this field was changed with EMV 3DS 2.3.1 version:
     /// In versions prior to 2.3.1, this field is a single object.
     /// Starting from EMVCo version 2.3.1, this field is now an array of objects. Accepted value length is 1-3 elements.
-    ///   
+    ///
     /// This field is optional, but recommended to include.
     #[serde(rename = "threeDSRequestorAuthenticationInfo")]
     pub three_ds_requestor_authentication_info:
@@ -206,16 +206,16 @@ pub struct ThreeDSRequestorAuthenticationInformation {
 /// Indicates whether a challenge is requested for this transaction. For example: For 01-PA, a 3DS Requestor may have
 /// concerns about the transaction, and request a challenge. For 02-NPA, a challenge may be necessary when adding a new
 /// card to a wallet.
-///    
+///
 /// This field is optional. The accepted values are:
 ///    
 ///  - 01 -> No preference
 ///  - 02 -> No challenge requested
 ///  - 03 -> Challenge requested: 3DS Requestor Preference
 ///  - 04 -> Challenge requested: Mandate.
-///  The next values are accepted as well if 3DS Server initiates authentication with EMV 3DS 2.2.0 version
-/// or greater (required protocol version can be set in
-///   ThreeDSServerAuthenticationRequest#preferredProtocolVersion field):
+///    The next values are accepted as well if 3DS Server initiates authentication with EMV 3DS 2.2.0 version
+///    or greater (required protocol version can be set in
+///    ThreeDSServerAuthenticationRequest#preferredProtocolVersion field):
 ///
 ///  - 05 -> No challenge requested (transactional risk analysis is already performed)
 ///  - 06 -> No challenge requested (Data share only)
@@ -223,9 +223,9 @@ pub struct ThreeDSRequestorAuthenticationInformation {
 ///  - 08 -> No challenge requested (utilise whitelist exemption if no challenge required)
 ///  - 09 -> Challenge requested (whitelist prompt requested if challenge required).
 ///  - Additionally, 80-99 can be used for PS-specific values, regardless of protocol version.
-///    
+///
 /// If the element is not provided, the expected action is that the ACS would interpret as 01 -> No preference.
-///    
+///
 /// Format of this field was changed with EMV 3DS 2.3.1 version:
 /// In versions prior to 2.3.1, this field is a String.
 /// Starting from EMVCo version 2.3.1, this field is now an array of objects. Accepted value length is 1-2 elements.
@@ -257,7 +257,7 @@ pub enum ThreeDSRequestorChallengeIndicator {
 /// Format of this field was changed with EMV 3DS 2.3.1 version:
 /// In versions prior to 2.3.1, this field is a single object.
 /// Starting from EMVCo version 2.3.1, this field is now an array of objects. Accepted value length is 1-3 elements.
-///    
+///
 /// This field is optional, but recommended to include for versions prior to 2.3.1. From 2.3.1,
 /// it is required for 3RI in the case of Decoupled Authentication Fallback or for SPC.
 #[derive(Serialize, Deserialize, Debug, Clone)]
