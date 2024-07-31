@@ -1,5 +1,5 @@
 #[cfg(feature = "olap")]
-use api_models::payments::AmountFilter;
+use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
@@ -674,7 +674,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
             )
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(pi_dsl::created_at.desc())
             .into_boxed();
 
         query = match constraints {
@@ -682,6 +681,25 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
             PaymentIntentFetchConstraints::List(params) => {
+                query = match params.order {
+                    Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::amount.asc()),
+                    Order {
+                        on: SortOn::Amount,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::amount.desc()),
+                    Order {
+                        on: SortOn::Created,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::created_at.asc()),
+                    Order {
+                        on: SortOn::Created,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::created_at.desc()),
+                };
+
                 if let Some(limit) = params.limit {
                     query = query.limit(limit.into());
                 }

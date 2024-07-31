@@ -2367,7 +2367,7 @@ pub async fn list_payment_methods(
             })?;
         format!(
             "pm_filters_cgraph_{}_{}",
-            merchant_account.get_id(),
+            merchant_account.get_id().get_string_repr(),
             profile_id
         )
     };

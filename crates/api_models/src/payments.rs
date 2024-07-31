@@ -2473,11 +2473,11 @@ pub enum BankTransferData {
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         pix_key: Option<Secret<String>>,
         /// CPF is a Brazilian tax identification number
-        #[schema(value_type = Option<i64>, example = "10599054689")]
-        cpf: Option<Secret<i64>>,
+        #[schema(value_type = Option<String>, example = "10599054689")]
+        cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
-        #[schema(value_type = Option<i64>, example = "74469027417312")]
-        cnpj: Option<Secret<i64>>,
+        #[schema(value_type = Option<String>, example = "74469027417312")]
+        cnpj: Option<Secret<String>>,
     },
     Pse {},
     LocalBankTransfer {
@@ -3674,6 +3674,7 @@ pub struct PaymentsResponse {
     /// Providing this field will automatically set `capture` to true
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[remove_in(PaymentsCreateResponseOpenApi)]
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
@@ -4063,6 +4064,9 @@ pub struct PaymentListFilterConstraints {
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The list of merchant connector ids to filter payments list for selected label
     pub merchant_connector_id: Option<Vec<String>>,
+    /// The order in which payments list should be sorted
+    #[serde(default)]
+    pub order: Order,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -4100,6 +4104,34 @@ pub struct AmountFilter {
     pub start_amount: Option<i64>,
     /// The end amount to filter list of transactions which are less than or equal to the end amount
     pub end_amount: Option<i64>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct Order {
+    /// The field to sort, such as Amount or Created etc.
+    pub on: SortOn,
+    /// The order in which to sort the items, either Ascending or Descending
+    pub by: SortBy,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortOn {
+    /// Sort by the amount field
+    Amount,
+    /// Sort by the created_at field
+    #[default]
+    Created,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SortBy {
+    /// Sort in ascending order
+    Asc,
+    /// Sort in descending order
+    #[default]
+    Desc,
 }
 
 #[derive(
@@ -5306,7 +5338,11 @@ pub struct RetrievePaymentLinkRequest {
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkResponse {
+    /// URL for rendering the open payment link
     pub link: String,
+    /// URL for rendering the secure payment link
+    pub secure_link: Option<String>,
+    /// Identifier for the payment link
     pub payment_link_id: String,
 }
 
@@ -5317,7 +5353,7 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
-    /// Payment Link
+    /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
     #[schema(value_type = i64, example = 6540)]
@@ -5334,6 +5370,8 @@ pub struct RetrievePaymentLinkResponse {
     pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
+    /// Secure payment link (with security checks and listing saved payment methods)
+    pub secure_link: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -5345,8 +5383,8 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum PaymentLinkData<'a> {
-    PaymentLinkDetails(&'a PaymentLinkDetails),
+pub enum PaymentLinkData {
+    PaymentLinkDetails(PaymentLinkDetails),
     PaymentLinkStatusDetails(PaymentLinkStatusDetails),
 }
 
@@ -5368,7 +5406,13 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct SecurePaymentLinkDetails {
     pub enabled_saved_payment_method: bool,
+    #[serde(flatten)]
+    pub payment_link_details: PaymentLinkDetails,
 }
 
 #[derive(Debug, serde::Serialize)]
