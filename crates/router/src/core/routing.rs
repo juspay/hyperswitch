@@ -3,10 +3,11 @@ pub mod transformers;
 
 use api_models::{
     enums,
-    routing::{
-        self as routing_types, RoutingAlgorithmId, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
-    },
+    routing::{self as routing_types, RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+use diesel_models::routing_algorithm::RoutingAlgorithm;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
@@ -16,10 +17,12 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-use crate::consts;
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{consts, core::errors::RouterResult, db::StorageInterface};
+use crate::{
+    consts, core::errors::RouterResult, db::StorageInterface, types::transformers::ForeignTryFrom,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+use crate::{consts, types::transformers::ForeignTryFrom};
 use crate::{
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
@@ -27,10 +30,7 @@ use crate::{
     },
     routes::SessionState,
     services::api as service_api,
-    types::{
-        domain,
-        transformers::{ForeignInto, ForeignTryFrom},
-    },
+    types::{domain, transformers::ForeignInto},
     utils::{self, OptionExt, ValueExt},
 };
 pub enum TransactionData<'a, F>
@@ -435,7 +435,7 @@ pub async fn link_routing_config(
 pub async fn retrieve_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    algorithm_id: RoutingAlgorithmId,
+    algorithm_id: routing_types::RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -465,7 +465,7 @@ pub async fn retrieve_routing_config(
 pub async fn retrieve_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    algorithm_id: RoutingAlgorithmId,
+    algorithm_id: routing_types::RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
