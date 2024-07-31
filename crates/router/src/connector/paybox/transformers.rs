@@ -1,4 +1,4 @@
-use common_utils::types::StringMinorUnit;
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -10,12 +10,12 @@ use crate::{
 
 //TODO: Fill the struct with respective fields
 pub struct PayboxRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for PayboxRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(MinorUnit, T)> for PayboxRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -27,7 +27,7 @@ impl<T> From<(StringMinorUnit, T)> for PayboxRouterData<T> {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct PayboxPaymentsRequest {
-    amount: StringMinorUnit,
+    amount: MinorUnit,
     card: PayboxCard,
 }
 
@@ -139,7 +139,7 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct PayboxRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: MinorUnit,
 }
 
 impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefundRequest {

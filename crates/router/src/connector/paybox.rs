@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 use transformers as paybox;
@@ -26,13 +26,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Paybox {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Paybox {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &MinorUnitForConnector,
         }
     }
 }
@@ -84,12 +84,12 @@ impl ConnectorCommon for Paybox {
         "paybox"
     }
 
-    fn get_currency_unit(&self) -> api::CurrencyUnit {
-        // todo!()
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
-    }
+    // fn get_currency_unit(&self) -> api::CurrencyUnit {
+    //     // todo!()
+    //     //    TODO! Check connector documentation, on which unit they are processing the currency.
+    //     //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+    //     //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+    // }
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
