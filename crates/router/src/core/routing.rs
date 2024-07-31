@@ -60,7 +60,7 @@ impl RoutingAlgorithmUpdate {
     ) -> Self {
         let algorithm_id = common_utils::generate_id(
             consts::ROUTING_CONFIG_ID_LENGTH,
-            &format!("routing_{}", merchant_id),
+            &format!("routing_{}", merchant_id.get_string_repr()),
         );
         let timestamp = common_utils::date_time::now();
         let algo = RoutingAlgorithm {
@@ -208,9 +208,7 @@ pub async fn create_routing_config(
         routing_algorithm: &algorithm,
     };
 
-    algorithm_helper
-        .validate_connectors_in_routing_config()
-        .await?;
+    algorithm_helper.validate_connectors_in_routing_config()?;
 
     let algo = RoutingAlgorithmUpdate::create_new_routing_algorithm(
         algorithm,

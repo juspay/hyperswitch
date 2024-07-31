@@ -573,7 +573,7 @@ pub struct Routing;
 #[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/routing_algorithm")
+        web::scope("/v2/routing_algorithm")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("").route(web::post().to(|state, req, payload| {
@@ -1374,7 +1374,7 @@ pub struct BusinessProfile;
 #[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
-        web::scope("profiles")
+        web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
             .service(
                 web::scope("/{profile_id}")
