@@ -46,6 +46,7 @@ pub mod decision;
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -170,6 +171,7 @@ pub struct AuthToken {
     pub role_id: String,
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
+    pub profile_id: Option<String>,
 }
 
 #[cfg(feature = "olap")]
@@ -180,6 +182,7 @@ impl AuthToken {
         role_id: String,
         settings: &Settings,
         org_id: id_type::OrganizationId,
+        profile_id: Option<String>,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -189,6 +192,7 @@ impl AuthToken {
             role_id,
             exp,
             org_id,
+            profile_id,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -200,6 +204,21 @@ pub struct UserFromToken {
     pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
+    pub profile_id: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct MerchantWithSingleProfile {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct AuthenticationDataWithMultipleProfiles {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: Vec<String>,
 }
 
 pub struct UserIdFromAuth {
@@ -345,6 +364,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
+            profile_id: None,
         };
         Ok((
             auth.clone(),
@@ -574,6 +594,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
+            profile_id: None,
         };
         Ok((
             auth.clone(),
@@ -684,6 +705,43 @@ where
                 merchant_id: payload.merchant_id.clone(),
                 org_id: payload.org_id,
                 role_id: payload.role_id,
+                profile_id: payload.profile_id,
+            },
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithMultipleProfiles, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithMultipleProfiles, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.0, &permissions)?;
+
+        Ok((
+            AuthenticationDataWithMultipleProfiles {
+                org_id: payload.org_id,
+                merchant_id: payload.merchant_id.clone(),
+                profile_id: payload
+                    .profile_id
+                    .map(|profile_id| vec![profile_id])
+                    .unwrap_or(vec![]),
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
@@ -852,6 +910,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
+            profile_id: payload.profile_id,
         };
         Ok((
             auth.clone(),
@@ -907,6 +966,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
+            profile_id: payload.profile_id,
         };
         Ok((
             (auth.clone(), payload.user_id.clone()),
@@ -942,6 +1002,7 @@ where
                 merchant_id: payload.merchant_id.clone(),
                 org_id: payload.org_id,
                 role_id: payload.role_id,
+                profile_id: payload.profile_id,
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
@@ -1007,6 +1068,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
+            profile_id: payload.profile_id,
         };
         Ok((
             auth.clone(),
