@@ -200,6 +200,7 @@ pub async fn payments_start(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::operations::PaymentStart,
                 req,
@@ -275,6 +276,7 @@ pub async fn payments_retrieve(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -348,6 +350,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -555,6 +558,7 @@ pub async fn payments_capture(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCapture,
                 payload,
@@ -624,6 +628,7 @@ pub async fn payments_connector_session(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentSession,
                 payload,
@@ -856,6 +861,7 @@ pub async fn payments_complete_authorize(
                 state.clone(),
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::operations::payment_complete_authorize::CompleteAuthorize,
                 payment_confirm_req.clone(),
@@ -915,6 +921,7 @@ pub async fn payments_cancel(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCancel,
                 req,
@@ -969,7 +976,7 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+            payments::list_payments(state, auth.merchant_account, vec![], auth.key_store, req)
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -995,7 +1002,13 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(state, auth.merchant_account, auth.key_store, req)
+            payments::apply_filters_on_payments(
+                state,
+                auth.merchant_account,
+                vec![],
+                auth.key_store,
+                req,
+            )
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
@@ -1038,7 +1051,7 @@ pub async fn get_payment_filters(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(state, auth.merchant_account)
+            payments::get_payment_filters(state, auth.merchant_account, vec![])
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
@@ -1075,6 +1088,7 @@ pub async fn payments_approve(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentApprove,
                 payment_types::PaymentsCaptureRequest {
@@ -1129,6 +1143,7 @@ pub async fn payments_reject(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentReject,
                 payment_types::PaymentsCancelRequest {
@@ -1196,6 +1211,7 @@ where
             state,
             req_state,
             merchant_account,
+            None,
             key_store,
             operation,
             req,
@@ -1216,6 +1232,7 @@ where
                 state,
                 req_state,
                 merchant_account,
+                None,
                 key_store,
                 operation,
                 req,
@@ -1278,6 +1295,7 @@ pub async fn payments_incremental_authorization(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentIncrementalAuthorization,
                 req,

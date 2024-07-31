@@ -371,6 +371,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     state,
                     req_state,
                     merchant_account,
+                    None,
                     key_store,
                     PaymentStatus,
                     request,
