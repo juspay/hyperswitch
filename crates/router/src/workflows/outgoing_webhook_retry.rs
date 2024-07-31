@@ -438,7 +438,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = DisputeId { dispute_id };
 
             let dispute_response =
-                match retrieve_dispute(state, merchant_account,None, request).await? {
+                match retrieve_dispute(state, merchant_account, None, request).await? {
                     ApplicationResponse::Json(dispute_response)
                     | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
                         Ok(dispute_response)

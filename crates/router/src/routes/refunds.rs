@@ -36,7 +36,9 @@ pub async fn refunds_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| refund_create_core(state, auth.merchant_account, None, auth.key_store, req),
+        |state, auth, req, _| {
+            refund_create_core(state, auth.merchant_account, None, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundWrite),

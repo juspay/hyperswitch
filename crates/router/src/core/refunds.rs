@@ -380,12 +380,18 @@ pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(SessionState, domain::MerchantAccount, Option<String>, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(
+        SessionState,
+        domain::MerchantAccount,
+        Option<String>,
+        domain::MerchantKeyStore,
+        Req,
+    ) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
     Ok(services::ApplicationResponse::Json(
-        f(state, merchant_account,profile_id, key_store, request)
+        f(state, merchant_account, profile_id, key_store, request)
             .await?
             .foreign_into(),
     ))
