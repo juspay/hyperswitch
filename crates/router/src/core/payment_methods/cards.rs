@@ -3370,7 +3370,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 pub async fn filter_payment_methods(
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
     mca_id: String,
-    payment_methods: &[serde_json::Value],
+    payment_methods: &[Secret<serde_json::Value>],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
@@ -3380,7 +3380,9 @@ pub async fn filter_payment_methods(
     saved_payment_methods: &settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
-        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method.clone());
+        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
+            payment_method.clone().expose().clone(),
+        );
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
 

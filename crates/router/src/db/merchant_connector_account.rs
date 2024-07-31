@@ -130,6 +130,10 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -138,6 +142,10 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -266,6 +274,10 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
@@ -320,6 +332,10 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
@@ -944,6 +960,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -977,6 +997,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1157,7 +1181,6 @@ impl MerchantConnectorAccountInterface for MockDb {
             disabled: t.disabled,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
-            frm_configs: None,
             frm_config: t.frm_configs,
             connector_type: t.connector_type,
             connector_label: t.connector_label,
@@ -1665,19 +1688,26 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
 
         let find_call = || async {
-            Conversion::convert(
-                db.find_merchant_connector_account_by_profile_id_connector_name(
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
+            let mca = db
+                .find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
                     profile_id,
                     &mca.connector_name,
                     &merchant_key,
                 )
                 .await
-                .unwrap(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+                .unwrap();
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            let mca: domain::MerchantConnectorAccount = { todo!() };
+            Conversion::convert(mca)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
         };
+
         let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
             &db,
             &format!("{}_{}", merchant_id.clone(), profile_id),

@@ -928,9 +928,15 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled {
-            Some(val) => serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
             None => None,
         };
         let frm_configs = match item.frm_configs {
@@ -951,6 +957,10 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             }
             None => None,
         };
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_connector_account_v2")
+        ))]
         let response = Self {
             connector_type: item.connector_type,
             connector_name: item.connector_name,
@@ -982,6 +992,34 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
         };
+        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        let response = Self {
+            id: item.id,
+            connector_type: item.connector_type,
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            disabled: item.disabled,
+            payment_methods_enabled,
+            metadata: item.metadata,
+            frm_configs,
+            profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
+            status: item.status,
+            additional_merchant_data: item
+                .additional_merchant_data
+                .map(|data| {
+                    let data = data.into_inner();
+                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
+                        data.expose(),
+                        "AdditionalMerchantData",
+                    )
+                    .attach_printable("Unable to deserialize additional_merchant_data")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .transpose()?
+                .map(api_models::admin::AdditionalMerchantData::foreign_from),
+        };
         Ok(response)
     }
 }
@@ -992,9 +1030,15 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled.clone() {
-            Some(val) => serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
             None => None,
         };
         let frm_configs = match item.frm_configs {

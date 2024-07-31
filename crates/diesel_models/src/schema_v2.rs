@@ -688,7 +688,6 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
         connector_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,

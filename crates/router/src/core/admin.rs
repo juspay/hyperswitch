@@ -1664,7 +1664,7 @@ struct PaymentMethodsEnabled<'a> {
 }
 
 impl<'a> PaymentMethodsEnabled<'a> {
-    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<serde_json::Value>>> {
+    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
         let mut vec = Vec::new();
         let payment_methods_enabled = match self.payment_methods_enabled.clone() {
             Some(val) => {
@@ -1675,7 +1675,7 @@ impl<'a> PaymentMethodsEnabled<'a> {
                         .attach_printable(
                             "Failed while encoding to serde_json::Value, PaymentMethod",
                         )?;
-                    vec.push(pm_value)
+                    vec.push(Secret::new(pm_value))
                 }
                 Some(vec)
             }
@@ -2599,12 +2599,12 @@ pub async fn update_payment_connector(
         let _ = &merchant_account;
         todo!()
     };
-
     let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
         pm_enabled
             .iter()
             .flat_map(Encode::encode_to_value)
-            .collect::<Vec<serde_json::Value>>()
+            .map(Secret::new)
+            .collect::<Vec<Secret<serde_json::Value>>>()
     });
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
@@ -2699,9 +2699,7 @@ pub async fn update_payment_connector(
     };
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
-        merchant_id: None,
         connector_type: Some(req.connector_type),
-        connector_name: None,
         connector_label: req.connector_label.clone(),
         connector_account_details: req
             .connector_account_details

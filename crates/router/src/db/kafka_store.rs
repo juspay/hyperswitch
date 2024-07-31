@@ -1035,6 +1035,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1052,6 +1056,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,

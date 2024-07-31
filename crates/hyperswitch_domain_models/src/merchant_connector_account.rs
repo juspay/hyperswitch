@@ -21,14 +21,14 @@ use crate::type_encryption::{decrypt, decrypt_optional, AsyncLift};
 pub struct MerchantConnectorAccount {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_name: String,
-    pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
+    pub connector_account_details: Encryptable<pii::SecretSerdeValue>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: String,
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_configs: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_label: Option<String>,
     pub business_country: Option<enums::CountryAlpha2>,
     pub business_label: Option<String>,
@@ -40,8 +40,8 @@ pub struct MerchantConnectorAccount {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
-    pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub additional_merchant_data: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
+    pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
 }
 
 #[cfg(all(
@@ -60,12 +60,12 @@ pub struct MerchantConnectorAccount {
     pub id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_name: String,
-    pub connector_account_details: Encryptable<Secret<serde_json::Value>>,
+    pub connector_account_details: Encryptable<pii::SecretSerdeValue>,
     pub disabled: Option<bool>,
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_configs: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_label: Option<String>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
@@ -74,8 +74,8 @@ pub struct MerchantConnectorAccount {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
-    pub connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub additional_merchant_data: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
+    pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -94,22 +94,22 @@ pub enum MerchantConnectorAccountUpdate {
     Update {
         connector_type: Option<enums::ConnectorType>,
         connector_name: Option<String>,
-        connector_account_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        connector_account_details: Option<Encryptable<pii::SecretSerdeValue>>,
         test_mode: Option<bool>,
         disabled: Option<bool>,
         merchant_connector_id: Option<String>,
-        payment_methods_enabled: Option<Vec<serde_json::Value>>,
+        payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
-        frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+        frm_configs: Option<Vec<pii::SecretSerdeValue>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
         pm_auth_config: Option<pii::SecretSerdeValue>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
-        connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
     },
     ConnectorWalletDetailsUpdate {
-        connector_wallets_details: Encryptable<Secret<serde_json::Value>>,
+        connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
     },
 }
 
@@ -117,23 +117,21 @@ pub enum MerchantConnectorAccountUpdate {
 #[derive(Debug)]
 pub enum MerchantConnectorAccountUpdate {
     Update {
-        merchant_id: Option<common_utils::id_type::MerchantId>,
         connector_type: Option<enums::ConnectorType>,
-        connector_name: Option<String>,
-        connector_account_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        connector_account_details: Option<Encryptable<pii::SecretSerdeValue>>,
         disabled: Option<bool>,
-        payment_methods_enabled: Option<Vec<serde_json::Value>>,
+        payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
-        frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+        frm_configs: Option<Vec<pii::SecretSerdeValue>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
         pm_auth_config: Option<pii::SecretSerdeValue>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
-        connector_wallets_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
     },
     ConnectorWalletDetailsUpdate {
-        connector_wallets_details: Encryptable<Secret<serde_json::Value>>,
+        connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
     },
 }
 
@@ -285,7 +283,6 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 payment_methods_enabled: self.payment_methods_enabled,
                 connector_type: self.connector_type,
                 metadata: self.metadata,
-                frm_configs: None,
                 frm_config: self.frm_configs,
                 connector_label: self.connector_label,
                 created_at: self.created_at,
@@ -368,7 +365,6 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             payment_methods_enabled: self.payment_methods_enabled,
             connector_type: Some(self.connector_type),
             metadata: self.metadata,
-            frm_configs: None,
             frm_config: self.frm_configs,
             connector_label: self.connector_label,
             created_at: now,
@@ -456,9 +452,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
     fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
         match merchant_connector_account_update {
             MerchantConnectorAccountUpdate::Update {
-                merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details,
                 disabled,
                 payment_methods_enabled,
@@ -471,14 +465,11 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status,
                 connector_wallets_details,
             } => Self {
-                merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details: connector_account_details.map(Encryption::from),
                 disabled,
                 payment_methods_enabled,
                 metadata,
-                frm_configs: None,
                 frm_config: frm_configs,
                 modified_at: Some(date_time::now()),
                 connector_webhook_details,
@@ -492,14 +483,11 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_wallets_details,
             } => Self {
                 connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
-                merchant_id: None,
                 connector_type: None,
-                connector_name: None,
                 connector_account_details: None,
                 connector_label: None,
                 disabled: None,
                 payment_methods_enabled: None,
-                frm_configs: None,
                 metadata: None,
                 modified_at: None,
                 connector_webhook_details: None,
