@@ -96,7 +96,7 @@ pub async fn initiate_payment_link_flow(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-            merchant_details: HashMap::new(),
+            merchant_details: serde_json::Value::default(),
         }
     };
 
@@ -469,7 +469,7 @@ pub fn get_payment_link_config_based_on_priority(
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         ),
-        (merchant_details, HashMap::new())
+        (merchant_details, serde_json::Value::default())
     );
 
     let payment_link_config = admin_types::PaymentLinkConfig {
@@ -561,7 +561,7 @@ pub async fn get_payment_link_status(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-            merchant_details: HashMap::new(),
+            merchant_details: serde_json::Value::default(),
         }
     };
 

@@ -1779,7 +1779,7 @@ pub struct PaymentLinkConfigRequest {
     pub enabled_saved_payment_method: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     #[schema(value_type = Option<Object>, example = r#"{ "value1": "some-value", "value2": "some-value" }"#)]
-    pub merchant_details: Option<HashMap<String, String>>,
+    pub merchant_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -1797,7 +1797,7 @@ pub struct PaymentLinkConfig {
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: bool,
     /// Dynamic details related to merchant to be rendered in payment link
-    pub merchant_details: HashMap<String, String>,
+    pub merchant_details: serde_json::Value,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
