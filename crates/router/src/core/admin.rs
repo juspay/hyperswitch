@@ -679,20 +679,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         "timestamp": 0
                     })),
                     publishable_key,
-                    locker_id: None,
                     metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),
-                    intent_fulfillment_time: None,
                     frm_routing_algorithm: None,
                     payout_routing_algorithm: None,
                     organization_id: self.organization_id,
-                    is_recon_enabled: false,
-                    default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
-                    payment_link_config: None,
-                    pm_collect_link_config: None,
                 }),
             )
         }
@@ -1054,15 +1048,10 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant name")?,
             webhook_details,
-            locker_id: None,
             metadata,
             publishable_key: None,
             frm_routing_algorithm: None,
-            intent_fulfillment_time: None,
             payout_routing_algorithm: None,
-            default_profile: None,
-            payment_link_config: None,
-            pm_collect_link_config: None,
             routing_algorithm: None,
         })
     }
@@ -1958,7 +1947,8 @@ trait MerchantConnectorAccountCreateBridge {
 #[cfg(all(
     feature = "v2",
     feature = "merchant_connector_account_v2",
-    feature = "olap"
+    feature = "olap",
+    feature = "merchant_account_v2"
 ))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
@@ -2114,7 +2104,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap"),
-    not(feature = "merchant_connector_account_v2")
+    not(feature = "merchant_connector_account_v2"),
+    not(feature = "merchant_account_v2")
 ))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
@@ -2987,6 +2978,10 @@ pub async fn create_and_insert_business_profile(
         .attach_printable("Failed to insert Business profile because of duplication error")
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn create_business_profile(
     state: SessionState,
     request: api::BusinessProfileCreate,
@@ -3050,6 +3045,15 @@ pub async fn create_business_profile(
             .attach_printable("Failed to parse business profile details")
             .await?,
     ))
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn create_business_profile(
+    _state: SessionState,
+    _request: api::BusinessProfileCreate,
+    _merchant_id: &id_type::MerchantId,
+) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    todo!()
 }
 
 pub async fn list_business_profile(

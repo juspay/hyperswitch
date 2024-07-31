@@ -187,6 +187,10 @@ pub async fn update_routing_algorithm(
 
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn update_merchant_active_algorithm_ref(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -198,10 +202,6 @@ pub async fn update_merchant_active_algorithm_ref(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed converting routing algorithm ref to json value")?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
     let merchant_account_update = storage::MerchantAccountUpdate::Update {
         merchant_name: None,
         merchant_details: None,
@@ -225,16 +225,6 @@ pub async fn update_merchant_active_algorithm_ref(
         pm_collect_link_config: None,
     };
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    // We cannot update the routing algorithm ref in the merchant account as the fields is removed in v2
-    let merchant_account_update = {
-        let _ = ref_value;
-        let _ = state;
-        let _ = key_store;
-        let _ = config_key;
-        todo!();
-    };
-
     let db = &*state.store;
     db.update_specific_fields_in_merchant(
         &state.into(),
@@ -252,6 +242,16 @@ pub async fn update_merchant_active_algorithm_ref(
         .attach_printable("Failed to invalidate the config cache")?;
 
     Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn update_merchant_active_algorithm_ref(
+    _state: &SessionState,
+    _key_store: &domain::MerchantKeyStore,
+    _config_key: cache::CacheKind<'_>,
+    _algorithm_id: routing_types::RoutingAlgorithmRef,
+) -> RouterResult<()> {
+    return Ok(());
 }
 
 pub async fn update_business_profile_active_algorithm_ref(

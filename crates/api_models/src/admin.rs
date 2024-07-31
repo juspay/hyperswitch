@@ -583,9 +583,6 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
     pub organization_id: id_type::OrganizationId,
 
-    ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
-    pub is_recon_enabled: bool,
-
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: api_enums::ReconStatus,

@@ -1069,6 +1069,10 @@ pub fn get_connector_label(
         })
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
 /// or return a `MissingRequiredField` error
@@ -1112,6 +1116,34 @@ pub async fn get_profile_id_from_business_details(
                 field_name: "profile_id or business_country, business_label"
             })),
         },
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn get_profile_id_from_business_details(
+    _business_country: Option<api_models::enums::CountryAlpha2>,
+    _business_label: Option<&String>,
+    merchant_account: &domain::MerchantAccount,
+    request_profile_id: Option<&String>,
+    db: &dyn StorageInterface,
+    should_validate: bool,
+) -> RouterResult<String> {
+    match request_profile_id {
+        Some(profile_id) => {
+            // Check whether this business profile belongs to the merchant
+            if should_validate {
+                let _ = validate_and_get_business_profile(
+                    db,
+                    Some(profile_id),
+                    merchant_account.get_id(),
+                )
+                .await?;
+            }
+            Ok(profile_id.clone())
+        }
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id"
+        })),
     }
 }
 

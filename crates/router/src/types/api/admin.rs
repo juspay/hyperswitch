@@ -105,7 +105,6 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             publishable_key: item.publishable_key,
             metadata: item.metadata,
             organization_id: item.organization_id,
-            is_recon_enabled: item.is_recon_enabled,
             recon_status: item.recon_status,
         })
     }

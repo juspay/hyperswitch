@@ -640,23 +640,15 @@ diesel::table! {
         #[max_length = 128]
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
-        #[max_length = 64]
-        locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
-        is_recon_enabled -> Bool,
-        #[max_length = 64]
-        default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
-        payment_link_config -> Nullable<Jsonb>,
-        pm_collect_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
     }

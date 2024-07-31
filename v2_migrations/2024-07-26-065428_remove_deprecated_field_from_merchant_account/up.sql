@@ -13,4 +13,14 @@ ALTER TABLE merchant_account DROP parent_merchant_id;
 
 ALTER TABLE merchant_account DROP primary_business_details;
 
--- ALTER TABLE merchant_account DROP locker_id;
+ALTER TABLE merchant_account DROP locker_id;
+
+ALTER TABLE merchant_account DROP intent_fulfillment_time;
+
+ALTER TABLE merchant_account DROP default_profile;
+
+ALTER TABLE merchant_account DROP payment_link_config;
+
+ALTER TABLE merchant_account DROP pm_collect_link_config;
+
+ALTER TABLE merchant_account DROP is_recon_enabled;
