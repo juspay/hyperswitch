@@ -1,4 +1,6 @@
 pub mod transformers;
+use std::str::FromStr;
+
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_utils::{
@@ -12,7 +14,6 @@ use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::hmac;
 use sha1::{Digest, Sha1};
-use std::str::FromStr;
 
 use self::transformers as braintree;
 use super::utils::{self as connector_utils, PaymentsAuthorizeRequestData};
