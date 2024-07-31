@@ -982,13 +982,17 @@ where
     Ok(())
 }
 
+// This enum will be constructed in auth layer
 #[derive(Debug)]
 pub enum MerchantAccountOrBusinessProfile {
     MerchantAccount {
         profile_ids: Vec<String>,
         merchant_account: domain::MerchantAccount,
     },
-    BusinessProfile(diesel_models::business_profile::BusinessProfile),
+    BusinessProfile {
+        business_profile: diesel_models::business_profile::BusinessProfile,
+        merchant_account: domain::MerchantAccount,
+    },
 }
 
 impl MerchantAccountOrBusinessProfile {
@@ -998,7 +1002,10 @@ impl MerchantAccountOrBusinessProfile {
                 profile_ids: _,
                 merchant_account,
             } => merchant_account.to_owned(),
-            MerchantAccountOrBusinessProfile::BusinessProfile(_) => todo!(),
+            MerchantAccountOrBusinessProfile::BusinessProfile {
+                merchant_account,
+                business_profile: _,
+            } => merchant_account.to_owned(),
         })
     }
     pub fn get_merchant_id(&self) -> &common_utils::id_type::MerchantId {
@@ -1007,9 +1014,10 @@ impl MerchantAccountOrBusinessProfile {
                 profile_ids: _,
                 merchant_account,
             } => merchant_account.get_id(),
-            MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => {
-                &business_profile.merchant_id
-            }
+            MerchantAccountOrBusinessProfile::BusinessProfile {
+                merchant_account: _,
+                business_profile,
+            } => &business_profile.merchant_id,
         }
     }
 }
