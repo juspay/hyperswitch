@@ -678,16 +678,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         "algorithm_id": null,
                         "timestamp": 0
                     })),
-                    sub_merchants_enabled: None,
-                    parent_merchant_id: None,
-                    enable_payment_response_hash: true,
-                    payment_response_hash_key: None,
-                    redirect_to_merchant_with_http_post: true,
                     publishable_key,
                     locker_id: None,
                     metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
-                    primary_business_details,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),
                     intent_fulfillment_time: None,
@@ -760,7 +754,11 @@ pub async fn get_merchant_account(
     ))
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    feature = "olap",
+    not(feature = "merchant_account_v2")
+))]
 /// For backwards compatibility, whenever new business labels are passed in
 /// primary_business_details, create a business profile
 pub async fn create_business_profile_from_business_labels(
@@ -1056,15 +1054,9 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant name")?,
             webhook_details,
-            sub_merchants_enabled: None,
-            parent_merchant_id: None,
-            enable_payment_response_hash: None,
-            payment_response_hash_key: None,
-            redirect_to_merchant_with_http_post: None,
             locker_id: None,
             metadata,
             publishable_key: None,
-            primary_business_details: None,
             frm_routing_algorithm: None,
             intent_fulfillment_time: None,
             payout_routing_algorithm: None,
@@ -2343,7 +2335,7 @@ pub async fn create_payment_connector(
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
+        not(feature = "merchant_account_v2")
     ))]
     helpers::validate_business_details(
         req.business_country,

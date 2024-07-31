@@ -368,16 +368,12 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let profile_id = crate::core::utils::get_profile_id_from_business_details(
-            payment_intent.business_country,
-            payment_intent.business_label.as_ref(),
-            merchant_account,
-            payment_intent.profile_id.as_ref(),
-            &*state.store,
-            false,
-        )
-        .await
-        .attach_printable("Could not find profile id from business details")?;
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("profile_id is not set in payment_intent")?;
 
         let filtered_connector_accounts =
             helpers::filter_mca_based_on_business_profile(all_connector_accounts, Some(profile_id));

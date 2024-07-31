@@ -226,26 +226,13 @@ pub async fn update_merchant_active_algorithm_ref(
     };
 
     #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let merchant_account_update = storage::MerchantAccountUpdate::Update {
-        merchant_name: None,
-        merchant_details: None,
-        webhook_details: None,
-        sub_merchants_enabled: None,
-        parent_merchant_id: None,
-        enable_payment_response_hash: None,
-        payment_response_hash_key: None,
-        redirect_to_merchant_with_http_post: None,
-        publishable_key: None,
-        locker_id: None,
-        metadata: None,
-        routing_algorithm: Some(ref_value),
-        primary_business_details: None,
-        intent_fulfillment_time: None,
-        frm_routing_algorithm: None,
-        payout_routing_algorithm: None,
-        default_profile: None,
-        payment_link_config: None,
-        pm_collect_link_config: None,
+    // We cannot update the routing algorithm ref in the merchant account as the fields is removed in v2
+    let merchant_account_update = {
+        let _ = ref_value;
+        let _ = state;
+        let _ = key_store;
+        let _ = config_key;
+        todo!();
     };
 
     let db = &*state.store;

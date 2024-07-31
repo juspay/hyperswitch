@@ -2335,16 +2335,12 @@ pub async fn list_payment_methods(
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            crate::core::utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
+            payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")
         })
         .await
         .transpose()?;
@@ -3738,16 +3734,12 @@ pub async fn list_customer_payment_method(
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            core_utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
+            payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")
         })
         .await
         .transpose()?;

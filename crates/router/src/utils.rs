@@ -408,20 +408,13 @@ pub async fn get_mca_from_payment_intent(
                 id: merchant_connector_id,
             }),
         None => {
-            let profile_id = match payment_intent.profile_id {
-                Some(profile_id) => profile_id,
-                None => utils::get_profile_id_from_business_details(
-                    payment_intent.business_country,
-                    payment_intent.business_label.as_ref(),
-                    merchant_account,
-                    payment_intent.profile_id.as_ref(),
-                    db,
-                    false,
-                )
-                .await
+            let profile_id = payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")?,
-            };
+                .attach_printable("profile_id is not set in payment_intent")?
+                .clone();
 
             db.find_merchant_connector_account_by_profile_id_connector_name(
                 key_manager_state,

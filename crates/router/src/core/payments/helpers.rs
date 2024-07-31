@@ -2938,6 +2938,10 @@ pub async fn verify_payment_intent_time_and_client_secret(
         .transpose()
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 /// Check whether the business details are configured in the merchant account
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
@@ -2968,41 +2972,6 @@ pub fn validate_business_details(
         .transpose()?;
 
     Ok(())
-}
-
-/// Do lazy parsing of primary business details
-/// If both country and label are passed, no need to parse business details from merchant_account
-/// If any one is missing, get it from merchant_account
-/// If there is more than one label or country configured in merchant account, then
-/// passing business details for payment is mandatory to avoid ambiguity
-pub fn get_business_details(
-    business_country: Option<api_enums::CountryAlpha2>,
-    business_label: Option<&String>,
-    merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(api_enums::CountryAlpha2, String)> {
-    let primary_business_details = merchant_account
-        .primary_business_details
-        .clone()
-        .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to parse primary business details")?;
-
-    match business_country.zip(business_label) {
-        Some((business_country, business_label)) => {
-            Ok((business_country.to_owned(), business_label.to_owned()))
-        }
-        _ => match primary_business_details.first() {
-            Some(business_details) if primary_business_details.len() == 1 => Ok((
-                business_country.unwrap_or_else(|| business_details.country.to_owned()),
-                business_label
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| business_details.business.to_owned()),
-            )),
-            _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "business_country, business_label"
-            })),
-        },
-    }
 }
 
 #[inline]

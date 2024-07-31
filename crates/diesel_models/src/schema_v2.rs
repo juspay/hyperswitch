@@ -634,16 +634,9 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_account (id) {
-        enable_payment_response_hash -> Bool,
-        #[max_length = 255]
-        payment_response_hash_key -> Nullable<Varchar>,
-        redirect_to_merchant_with_http_post -> Bool,
         merchant_name -> Nullable<Bytea>,
         merchant_details -> Nullable<Bytea>,
         webhook_details -> Nullable<Json>,
-        sub_merchants_enabled -> Nullable<Bool>,
-        #[max_length = 64]
-        parent_merchant_id -> Nullable<Varchar>,
         #[max_length = 128]
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
@@ -651,7 +644,6 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        primary_business_details -> Json,
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
