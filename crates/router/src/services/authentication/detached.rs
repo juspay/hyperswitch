@@ -1,4 +1,4 @@
-use std::string::ToString;
+use std::{borrow::Cow, string::ToString};
 
 use actix_web::http::header::HeaderMap;
 use common_utils::{crypto::VerifySignature, id_type::MerchantId};
@@ -40,7 +40,7 @@ impl ExtractedPayload {
             })
             .map_err(error_stack::Report::from)
             .and_then(|merchant_id| {
-                MerchantId::from(merchant_id.to_string().into()).change_context(
+                MerchantId::try_from(Cow::from(merchant_id.to_string())).change_context(
                     ApiErrorResponse::InvalidRequestData {
                         message: format!(
                             "`{}` header is invalid or not present",
