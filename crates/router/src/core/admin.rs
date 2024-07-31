@@ -1292,9 +1292,7 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
             }
             api_enums::Connector::Braintree => {
                 braintree::transformers::BraintreeAuthType::try_from(self.auth_type)?;
-                braintree::braintree_graphql_transformers::BraintreeMeta::try_from(
-                    self.connector_meta_data,
-                )?;
+                braintree::transformers::BraintreeMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Cashtocode => {
