@@ -5824,7 +5824,8 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
             .clone()
             .map(serde_json::to_value)
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(Secret::new);
 
         let payment_method_billing_address = req.billing.clone();
 
@@ -5996,7 +5997,10 @@ impl pm_core::PaymentMethodAdd<pm_core::PaymentMethodVaultingData>
                     pm_metadata.cloned(),
                     None,
                     locker_id,
-                    data.connector_mandate_details.clone(),
+                    data.connector_mandate_details
+                        .as_ref()
+                        .map(|val| val.peek())
+                        .cloned(),
                     data.network_transaction_id.clone(),
                     merchant_account.storage_scheme,
                     payment_method_billing_address.map(Into::into),

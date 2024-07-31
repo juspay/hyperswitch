@@ -5,12 +5,14 @@ pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
 pub mod vault;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use api_mdoels::payments::Address;
 pub use api_models::enums::Connector;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use api_models::payments::Address;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, payments::CardToken};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::pii;
 use common_utils::{ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -608,6 +610,6 @@ pub struct PaymentMethodVaultingData {
     pub response: Option<api::PaymentMethodResponse>,
     pub duplication_check: Option<pm_transformers::DataDuplicationCheck>,
     pub network_transaction_id: Option<String>,
-    pub connector_mandate_details: Option<serde_json::Value>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub payment_method_billing_address: Option<Address>,
 }
