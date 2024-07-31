@@ -103,7 +103,7 @@ pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
-    mut json_payload: web::Json<customers::CustomerRequest>,
+    mut json_payload: web::Json<customers::CustomerUpdateRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
     let customer_id = path.into_inner();
@@ -113,7 +113,43 @@ pub async fn customers_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| update_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth, req, _| {
+            update_customer(state, auth.merchant_account, req, auth.key_store, None)
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::CustomerWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
+pub async fn customers_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<customers::CustomerUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomersUpdate;
+    let id = path.into_inner().clone();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| {
+            update_customer(
+                state,
+                auth.merchant_account,
+                req,
+                auth.key_store,
+                Some(id.clone()),
+            )
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::CustomerWrite),

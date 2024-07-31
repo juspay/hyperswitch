@@ -376,6 +376,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
+    // #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -391,6 +392,28 @@ impl CustomerInterface for KafkaStore {
                 state,
                 customer_id,
                 merchant_id,
+                customer,
+                customer_update,
+                key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn update_customer_by_id(
+        &self,
+        state: &KeyManagerState,
+        id: String,
+        customer: domain::Customer,
+        customer_update: storage::CustomerUpdate,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
+        self.diesel_store
+            .update_customer_by_id(
+                state,
+                id,
                 customer,
                 customer_update,
                 key_store,
@@ -426,6 +449,19 @@ impl CustomerInterface for KafkaStore {
                 key_store,
                 storage_scheme,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_customer_by_id(
+        &self,
+        state: &KeyManagerState,
+        id: &String,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, errors::StorageError> {
+        self.diesel_store
+            .find_customer_by_id(state, id, key_store, storage_scheme)
             .await
     }
 

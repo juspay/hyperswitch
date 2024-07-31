@@ -37,6 +37,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<customer::Customer>, errors::StorageError>;
 
+    // #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -49,11 +50,34 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError>;
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[allow(clippy::too_many_arguments)]
+    async fn update_customer_by_id(
+        &self,
+        state: &KeyManagerState,
+        id: String,
+        // merchant_id: id_type::MerchantId,
+        customer: customer::Customer,
+        customer_update: storage_types::CustomerUpdate,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<customer::Customer, errors::StorageError>;
+
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<customer::Customer, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_customer_by_id(
+        &self,
+        state: &KeyManagerState,
+        customer_id: &String,
+        // merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError>;
@@ -179,11 +203,10 @@ mod storage {
         }
 
         #[instrument(skip_all)]
-        async fn update_customer_by_customer_id_merchant_id(
+        async fn update_customer_by_id(
             &self,
             state: &KeyManagerState,
-            customer_id: id_type::CustomerId,
-            merchant_id: id_type::MerchantId,
+            id: String,
             customer: customer::Customer,
             customer_update: storage_types::CustomerUpdate,
             key_store: &domain::MerchantKeyStore,
@@ -194,20 +217,17 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
             let database_call = || async {
-                storage_types::Customer::update_by_customer_id_merchant_id(
+                storage_types::Customer::update_by_id(
                     &conn,
-                    customer_id.clone(),
-                    merchant_id.clone(),
+                    id.clone(),
+                    // merchant_id.clone(),
                     customer_update.clone().into(),
                 )
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
             };
-            let key = PartitionKey::MerchantIdCustomerId {
-                merchant_id: &merchant_id,
-                customer_id: customer_id.get_string_repr(),
-            };
-            let field = format!("cust_{}", customer_id.get_string_repr());
+            let key = PartitionKey::GlobalId { id: &id };
+            let field = format!("cust_{}", id);
             let storage_scheme = decide_storage_scheme::<_, diesel_models::Customer>(
                 self,
                 storage_scheme,
@@ -263,21 +283,41 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
+            _state: &KeyManagerState,
+            _customer_id: &id_type::CustomerId,
+            _merchant_id: &id_type::MerchantId,
+            _key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
+            todo!()
+        }
+
+        #[instrument(skip_all)]
+        async fn update_customer_by_customer_id_merchant_id(
+            &self,
+            _state: &KeyManagerState,
+            _customer_id: id_type::CustomerId,
+            _merchant_id: id_type::MerchantId,
+            _customer: customer::Customer,
+            _customer_update: storage_types::CustomerUpdate,
+            _key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
+            todo!()
+        }
+
+        async fn find_customer_by_id(
+            &self,
             state: &KeyManagerState,
-            customer_id: &id_type::CustomerId,
-            merchant_id: &id_type::MerchantId,
+            id: &String,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<customer::Customer, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             let database_call = || async {
-                storage_types::Customer::find_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
-                    merchant_id,
-                )
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                storage_types::Customer::find_by_id(&conn, id)
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
             };
             let storage_scheme =
                 decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
@@ -285,11 +325,8 @@ mod storage {
             let customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdCustomerId {
-                        merchant_id,
-                        customer_id: customer_id.get_string_repr(),
-                    };
-                    let field = format!("cust_{}", customer_id.get_string_repr());
+                    let key = PartitionKey::GlobalId { id };
+                    let field = format!("cust_{}", id);
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -1221,6 +1258,35 @@ impl CustomerInterface for MockDb {
         Ok(customers)
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn update_customer_by_id(
+        &self,
+        _state: &KeyManagerState,
+        _customer_id: String,
+        _customer: customer::Customer,
+        _customer_update: storage_types::CustomerUpdate,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<customer::Customer, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_customer_by_id(
+        &self,
+        _state: &KeyManagerState,
+        _customer_id: &String,
+        // merchant_id: &id_type::MerchantId,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<customer::Customer, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    // #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,

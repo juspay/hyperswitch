@@ -280,6 +280,9 @@ pub enum CustomerUpdate {
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
         connector_customer: Option<serde_json::Value>,
+        default_billing_address: Option<Encryption>,
+        default_shipping_address: Option<Encryption>,
+        default_payment_method_id: Option<Option<String>>,
     },
     ConnectorCustomer {
         connector_customer: Option<serde_json::Value>,
@@ -301,6 +304,9 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
+                default_billing_address,
+                default_shipping_address,
+                default_payment_method_id,
             } => Self {
                 name: name.map(Encryption::from),
                 email: email.map(Encryption::from),
@@ -310,6 +316,9 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata,
                 connector_customer,
                 modified_at: Some(date_time::now()),
+                default_billing_address,
+                default_shipping_address,
+                default_payment_method_id,
                 ..Default::default()
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {

@@ -800,7 +800,9 @@ impl Customers {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
-            route = route.service(web::resource("").route(web::post().to(customers_create)))
+            route = route
+                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(web::resource("/{id}").route(web::post().to(customers_update)))
         }
         route
     }

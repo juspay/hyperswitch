@@ -80,13 +80,7 @@ impl From<CustomerNew> for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Insertable,
-    router_derive::DebugAsDisplay,
-    serde::Deserialize,
-    serde::Serialize,
+    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct CustomerNew {
@@ -271,9 +265,10 @@ pub struct CustomerUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub connector_customer: Option<serde_json::Value>,
-    // pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
     pub updated_by: Option<String>,
+    pub default_billing_address: Option<Encryption>,
+    pub default_shipping_address: Option<Encryption>,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -289,6 +284,8 @@ impl CustomerUpdateInternal {
             connector_customer,
             // address_id,
             default_payment_method_id,
+            default_billing_address,
+            default_shipping_address,
             ..
         } = self;
 
@@ -305,6 +302,10 @@ impl CustomerUpdateInternal {
             default_payment_method_id: default_payment_method_id
                 .flatten()
                 .map_or(source.default_payment_method_id, Some),
+            default_billing_address: default_billing_address
+                .map_or(source.default_billing_address, Some),
+            default_shipping_address: default_shipping_address
+                .map_or(source.default_shipping_address, Some),
             ..source
         }
     }
