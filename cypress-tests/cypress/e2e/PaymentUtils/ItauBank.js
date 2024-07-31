@@ -33,8 +33,8 @@ export const connectorDetails = {
           bank_transfer: {
             pix: {
               pix_key: "a1f4102e-a446-4a57-bcce-6fa48899c1d1",
-              cnpj: 74469027417312,
-              cpf: 10599054689,
+              cnpj: "74469027417312",
+              cpf: "10599054689",
             },
           },
         },
