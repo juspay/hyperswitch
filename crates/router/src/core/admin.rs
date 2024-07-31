@@ -2018,7 +2018,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }
@@ -2186,7 +2186,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }
@@ -3592,7 +3592,7 @@ async fn locker_recipient_create_call(
 
     let merchant_id_string = merchant_id.get_string_repr().to_owned();
 
-    let cust_id = id_type::CustomerId::from(merchant_id_string.into())
+    let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_string))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert to CustomerId")?;
 

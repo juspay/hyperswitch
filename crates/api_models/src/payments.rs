@@ -2473,11 +2473,11 @@ pub enum BankTransferData {
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         pix_key: Option<Secret<String>>,
         /// CPF is a Brazilian tax identification number
-        #[schema(value_type = Option<i64>, example = "10599054689")]
-        cpf: Option<Secret<i64>>,
+        #[schema(value_type = Option<String>, example = "10599054689")]
+        cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
-        #[schema(value_type = Option<i64>, example = "74469027417312")]
-        cnpj: Option<Secret<i64>>,
+        #[schema(value_type = Option<String>, example = "74469027417312")]
+        cnpj: Option<Secret<String>>,
     },
     Pse {},
     LocalBankTransfer {
@@ -3674,6 +3674,7 @@ pub struct PaymentsResponse {
     /// Providing this field will automatically set `capture` to true
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[remove_in(PaymentsCreateResponseOpenApi)]
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.

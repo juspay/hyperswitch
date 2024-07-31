@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.31.0
+
+### Features
+
+- **connector:** [BAMBORA, BITPAY, STAX] Move connector to hyperswitch_connectors ([#5450](https://github.com/juspay/hyperswitch/pull/5450)) ([`827fa07`](https://github.com/juspay/hyperswitch/commit/827fa07418b0514cbc5a43af2e4c7a88d1b7b4e7))
+- **payment_link:** Add provision for secured payment links ([#5357](https://github.com/juspay/hyperswitch/pull/5357)) ([`043abb5`](https://github.com/juspay/hyperswitch/commit/043abb59b9291e18824d16363f60657f22bd33e1))
+- Rename columns in organization for v2 ([#5424](https://github.com/juspay/hyperswitch/pull/5424)) ([`a791391`](https://github.com/juspay/hyperswitch/commit/a791391e2ac125ef7bb6a92de5f1419e673bdfe0))
+
+### Bug Fixes
+
+- **connector:** [Pix] convert data type of pix fields ([#5476](https://github.com/juspay/hyperswitch/pull/5476)) ([`be9347b`](https://github.com/juspay/hyperswitch/commit/be9347b8d56c0a6cf0d04cf51c75dd6426d3a21a))
+
+### Refactors
+
+- **configs:** Include env for cybersource in integration_test ([#5474](https://github.com/juspay/hyperswitch/pull/5474)) ([`b3b71b1`](https://github.com/juspay/hyperswitch/commit/b3b71b10c3627868420648e70913a0620dcb3b6e))
+- **id_type:** Use macros for defining ID types and implementing common traits ([#5471](https://github.com/juspay/hyperswitch/pull/5471)) ([`1d4fb1d`](https://github.com/juspay/hyperswitch/commit/1d4fb1d2474190ea0a70810e416c61883fab34b8))
+
+### Documentation
+
+- Update postgreSQL database url ([#5482](https://github.com/juspay/hyperswitch/pull/5482)) ([`ef7fa0d`](https://github.com/juspay/hyperswitch/commit/ef7fa0d16ebe12bd86572c7ab80e7caa70d75578))
+
+**Full Changelog:** [`2024.07.30.0...2024.07.31.0`](https://github.com/juspay/hyperswitch/compare/2024.07.30.0...2024.07.31.0)
+
+- - -
+
 ## 2024.07.30.0
 
 ### Features
