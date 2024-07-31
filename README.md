@@ -53,7 +53,7 @@ Using Hyperswitch, you can:
 <br>
 <img src="./docs/imgs/hyperswitch-product.png" alt="Hyperswitch-Product" width="50%"/>
 
-<a href="#Try a Payment">
+<a href="https://app.hyperswitch.io/">
   <h2 id="Try a Payment">⚡️ Try a Payment</h2>
 </a>
 
@@ -61,31 +61,24 @@ To quickly experience the ease that Hyperswitch provides while handling the paym
 
 Congratulations🎉 on making your first payment with Hyperswitch. 
 
-<a href="#For Enterprise">
-  <h2 id="For Enterprise">⚡️ For Enterprises</h2>
-</a>
+## Get Started with Hyperswitch
 
-Hyperswitch helps enterprises in -  
-- Improving profitability
-- Increasing conversion rates
-- Lowering payment costs
-- Streamlining payment operations 
+- ### [For Enterprises][Docs-link-for-Enterprise]
+  Hyperswitch helps enterprises in -  
+  - Improving profitability
+  - Increasing conversion rates
+  - Lowering payment costs
+  - Streamlining payment operations 
+  
+  Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our enterprise offering**][Website-link]. 
 
-Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our enterprise offering**][Website-link]. 
+- ### [For Contributers][Contributing-guidelines]
+  Hyperswitch is an open-source project that aims to make digital payments accessible to people across the globe like a basic utility. With the vision of developing Hyperswitch as the **Linux of Payments**, we seek support from developers worldwide.
 
-<a href="#For Contributors">
-  <h2 id="For Contributors">⚡️ For Contributors</h2>
-</a>
-
-Hyperswitch is an open-source project that aims to make digital payments accessible to people across the globe like a basic utility. With the vision of developing Hyperswitch as the **Linux of Payments**, we seek support from developers worldwide.
-
-Utilise the following resources to quickstart your journey with Hyperswitch -
-- [Guide for contributors][Contributing-guidelines]
-- [Developer Docs][Docs-link-for-developers]
-- [Learning Resources][learning-resources]
-
-
-
+  Utilise the following resources to quickstart your journey with Hyperswitch -
+  - [Guide for contributors][Contributing-guidelines]
+  - [Developer Docs][Docs-link-for-developers]
+  - [Learning Resources][learning-resources]
 
 <a href="#Quick Start Guide">
   <h2 id="Quick Start Guide">⚡️ Quick Start Guide</h2>
@@ -127,7 +120,6 @@ setup, which includes the [scheduler and monitoring services][docker-compose-sch
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
-
 <a href="#Fast-Integration-for-Stripe-Users">
   <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
 </a>

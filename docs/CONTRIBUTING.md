@@ -64,12 +64,13 @@ variations.
 ### Repositories
 The current setup contains a three different repos, which contains different Hyperswitch components.
 
--  App Server - The core payments engine responsible for managing payment flows, payment unification and smart routing, App server is maintained using this repo itself.
+-  [App Server][app-server-repo] - The core payments engine responsible for managing payment flows, payment unification and smart routing, App server is maintained using this repo itself.
 
 - [Web Client (SDK)][web-client-repo] - An inclusive, consistent and blended payment experience optimized for the best payment conversions
 
 - [Control center][control-centre-repo] - A dashboard for payment analytics and operations, managing payment processors or payment methods and configuring payment routing rules.
 
+[app-server-repo]: https://github.com/juspay/hyperswitch
 [web-client-repo]: https://github.com/juspay/hyperswitch-web
 [control-centre-repo]: https://github.com/juspay/hyperswitch-control-center
 
