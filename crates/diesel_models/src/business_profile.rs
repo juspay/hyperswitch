@@ -339,7 +339,7 @@ impl BusinessProfileUpdate {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
         let BusinessProfileUpdateInternal {
             profile_name,
-            modified_at: _,
+            modified_at,
             return_url,
             enable_payment_response_hash,
             payment_response_hash_key,
@@ -365,34 +365,48 @@ impl BusinessProfileUpdate {
             outgoing_webhook_custom_http_headers,
         } = self.into();
         BusinessProfile {
+            profile_id: source.profile_id,
+            merchant_id: source.merchant_id,
             profile_name: profile_name.unwrap_or(source.profile_name),
-            modified_at: common_utils::date_time::now(),
-            return_url,
+            created_at: source.created_at,
+            modified_at,
+            return_url: return_url.or(source.return_url),
             enable_payment_response_hash: enable_payment_response_hash
                 .unwrap_or(source.enable_payment_response_hash),
-            payment_response_hash_key,
+            payment_response_hash_key: payment_response_hash_key
+                .or(source.payment_response_hash_key),
             redirect_to_merchant_with_http_post: redirect_to_merchant_with_http_post
                 .unwrap_or(source.redirect_to_merchant_with_http_post),
-            webhook_details,
-            metadata,
-            routing_algorithm,
-            intent_fulfillment_time,
-            frm_routing_algorithm,
-            payout_routing_algorithm,
+            webhook_details: webhook_details.or(source.webhook_details),
+            metadata: metadata.or(source.metadata),
+            routing_algorithm: routing_algorithm.or(source.routing_algorithm),
+            intent_fulfillment_time: intent_fulfillment_time.or(source.intent_fulfillment_time),
+            frm_routing_algorithm: frm_routing_algorithm.or(source.frm_routing_algorithm),
+            payout_routing_algorithm: payout_routing_algorithm.or(source.payout_routing_algorithm),
             is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
-            applepay_verified_domains,
-            payment_link_config,
-            session_expiry,
-            authentication_connector_details,
-            payout_link_config,
-            is_extended_card_info_enabled,
-            is_connector_agnostic_mit_enabled,
-            extended_card_info_config,
-            use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector,
-            outgoing_webhook_custom_http_headers,
-            ..source
+            applepay_verified_domains: applepay_verified_domains
+                .or(source.applepay_verified_domains),
+            payment_link_config: payment_link_config.or(source.payment_link_config),
+            session_expiry: session_expiry.or(source.session_expiry),
+            authentication_connector_details: authentication_connector_details
+                .or(source.authentication_connector_details),
+            payout_link_config: payout_link_config.or(source.payout_link_config),
+            is_extended_card_info_enabled: is_extended_card_info_enabled
+                .or(source.is_extended_card_info_enabled),
+            is_connector_agnostic_mit_enabled: is_connector_agnostic_mit_enabled
+                .or(source.is_connector_agnostic_mit_enabled),
+            extended_card_info_config: extended_card_info_config
+                .or(source.extended_card_info_config),
+            use_billing_as_payment_method_billing: use_billing_as_payment_method_billing
+                .or(source.use_billing_as_payment_method_billing),
+            collect_shipping_details_from_wallet_connector:
+                collect_shipping_details_from_wallet_connector
+                    .or(source.collect_shipping_details_from_wallet_connector),
+            collect_billing_details_from_wallet_connector:
+                collect_billing_details_from_wallet_connector
+                    .or(source.collect_billing_details_from_wallet_connector),
+            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                .or(source.outgoing_webhook_custom_http_headers),
         }
     }
 }
