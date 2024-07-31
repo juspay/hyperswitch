@@ -1,22 +1,25 @@
 use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
 use common_enums::{enums, enums::FutureUsage};
 use common_utils::{
-    errors::ReportSwitchExt,
+    errors::{CustomResult, ReportSwitchExt},
     ext_traits::{OptionExt, ValueExt},
     id_type,
     pii::{self, Email, IpAddress},
+    types::{AmountConvertor, MinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
-        AuthenticationData, BrowserInformation, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, RefundsData, SetupMandateRequestData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
+use serde::Serializer;
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -29,6 +32,27 @@ pub(crate) fn construct_not_supported_error_report(
         connector: connector_name,
     }
     .into()
+}
+
+pub(crate) fn get_amount_as_string(
+    currency_unit: &api::CurrencyUnit,
+    amount: i64,
+    currency: enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let amount = match currency_unit {
+        api::CurrencyUnit::Minor => amount.to_string(),
+        api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+    };
+    Ok(amount)
+}
+
+pub(crate) fn to_currency_base_unit(
+    amount: i64,
+    currency: enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_base_unit(amount)
+        .change_context(errors::ConnectorError::ParsingFailed)
 }
 
 pub(crate) fn get_amount_as_f64(
@@ -54,6 +78,18 @@ pub(crate) fn to_currency_base_unit_asf64(
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
+pub(crate) fn to_connector_meta_from_secret<T>(
+    connector_meta: Option<Secret<serde_json::Value>>,
+) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connector_meta_secret =
+        connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
+    let json = connector_meta_secret.expose();
+    json.parse_value(std::any::type_name::<T>()).switch()
+}
+
 pub(crate) fn missing_field_err(
     message: &'static str,
 ) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + '_> {
@@ -63,6 +99,24 @@ pub(crate) fn missing_field_err(
         }
         .into()
     })
+}
+
+pub(crate) fn construct_not_implemented_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
+        .into()
+}
+
+pub(crate) fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let float_value = value.parse::<f64>().map_err(|_| {
+        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
+    })?;
+    serializer.serialize_f64(float_value)
 }
 
 pub(crate) const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
@@ -77,6 +131,16 @@ where
 {
     let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+pub(crate) fn convert_amount<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<T, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
@@ -943,6 +1007,33 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
     }
 }
 
+pub trait PaymentsSyncRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
+}
+
+impl PaymentsSyncRequestData for PaymentsSyncData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
+            _ => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "connector_transaction_id",
+                },
+            )
+            .attach_printable("Expected connector transaction ID not found")
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+}
+
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
@@ -1015,6 +1106,54 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
 }
 
+pub trait PaymentsCompleteAuthorizeRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_mandate_payment(&self) -> bool;
+}
+
+impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == FutureUsage::OffSession
+            }))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
+    }
+}
+
 pub trait BrowserInformationData {
     fn get_accept_header(&self) -> Result<String, Error>;
     fn get_language(&self) -> Result<String, Error>;
@@ -1074,4 +1213,20 @@ impl BrowserInformationData for BrowserInformation {
         self.java_script_enabled
             .ok_or_else(missing_field_err("browser_info.java_script_enabled"))
     }
+}
+
+#[macro_export]
+macro_rules! unimplemented_payment_method {
+    ($payment_method:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} through {}",
+            $payment_method, $connector
+        ))
+    };
+    ($payment_method:expr, $flow:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} {} through {}",
+            $payment_method, $flow, $connector
+        ))
+    };
 }

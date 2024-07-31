@@ -91,7 +91,7 @@ pub async fn payment_connector_retrieve() {}
         ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
     ),
     responses(
-        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorListResponse>),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),

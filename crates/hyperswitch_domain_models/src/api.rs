@@ -71,6 +71,7 @@ pub enum GenericLinksData {
     PayoutLink(GenericLinkFormData),
     PayoutLinkStatus(GenericLinkStatusData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
+    SecurePaymentLink(PaymentLinkFormData),
 }
 
 impl Display for GenericLinksData {
@@ -84,6 +85,7 @@ impl Display for GenericLinksData {
                 Self::PayoutLink(_) => "PayoutLink",
                 Self::PayoutLinkStatus(_) => "PayoutLinkStatus",
                 Self::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+                Self::SecurePaymentLink(_) => "SecurePaymentLink",
             }
         )
     }
