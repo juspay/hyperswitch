@@ -11,6 +11,7 @@ use crate::{
     core::disputes,
     services::{api, authentication as auth},
     types::api::disputes as dispute_types,
+    utils::MerchantAccountOrBusinessProfile,
 };
 
 /// Disputes - Retrieve Dispute
@@ -43,7 +44,16 @@ pub async fn retrieve_dispute(
         state,
         &req,
         dispute_id,
-        |state, auth, req, _| disputes::retrieve_dispute(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            disputes::retrieve_dispute(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                req,
+            )
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::DisputeRead),
@@ -90,7 +100,16 @@ pub async fn retrieve_disputes_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| disputes::retrieve_disputes_list(state, auth.merchant_account, req),
+        |state, auth, req, _| {
+            disputes::retrieve_disputes_list(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                req,
+            )
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::DisputeRead),
@@ -131,7 +150,15 @@ pub async fn accept_dispute(
         &req,
         dispute_id,
         |state, auth, req, _| {
-            disputes::accept_dispute(state, auth.merchant_account, auth.key_store, req)
+            disputes::accept_dispute(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -168,7 +195,15 @@ pub async fn submit_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| {
-            disputes::submit_evidence(state, auth.merchant_account, auth.key_store, req)
+            disputes::submit_evidence(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -213,7 +248,15 @@ pub async fn attach_dispute_evidence(
         &req,
         attach_evidence_request,
         |state, auth, req, _| {
-            disputes::attach_evidence(state, auth.merchant_account, auth.key_store, req)
+            disputes::attach_evidence(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -256,7 +299,14 @@ pub async fn retrieve_dispute_evidence(
         &req,
         dispute_id,
         |state, auth, req, _| {
-            disputes::retrieve_dispute_evidence(state, auth.merchant_account, req)
+            disputes::retrieve_dispute_evidence(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                req,
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,

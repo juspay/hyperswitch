@@ -9,6 +9,7 @@ use crate::{
     logger, routes,
     services::{api, authentication as auth},
     types::api::refunds as refund_types,
+    utils::MerchantAccountOrBusinessProfile,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate, payment_id))]
@@ -49,7 +50,15 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         |state, auth, req, _| {
-            refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
+            refunds::refund_create_core(
+                state,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
+                auth.key_store,
+                req,
+            )
         },
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
@@ -95,7 +104,10 @@ pub async fn refund_retrieve_with_gateway_creds(
         |state, auth, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 refund_request,
                 refunds::refund_retrieve_core,
@@ -137,7 +149,10 @@ pub async fn refund_retrieve(
         |state, auth, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
-                auth.merchant_account,
+                MerchantAccountOrBusinessProfile::MerchantAccount {
+                    profile_ids: vec![],
+                    merchant_account: auth.merchant_account,
+                },
                 auth.key_store,
                 refund_request,
                 refunds::refund_retrieve_core,

@@ -37,7 +37,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
         ChargeRefunds,
     },
-    utils::{self, OptionExt},
+    utils::{self, MerchantAccountOrBusinessProfile, OptionExt},
     workflows::payment_sync,
 };
 
@@ -46,10 +46,11 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn refund_create_core(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, amount);
 
@@ -372,18 +373,18 @@ where
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(SessionState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(SessionState, MerchantAccountOrBusinessProfile, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
     Ok(services::ApplicationResponse::Json(
-        f(state, merchant_account, key_store, request)
+        f(state, merchant_or_profile, key_store, request)
             .await?
             .foreign_into(),
     ))
@@ -392,10 +393,11 @@ where
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     let refund_id = request.refund_id;
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
@@ -855,9 +857,10 @@ pub async fn validate_and_create_refund(
 #[cfg(feature = "olap")]
 pub async fn refund_list(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     let db = state.store;
     let limit = validator::validate_refund_list(req.limit)?;
     let offset = req.offset.unwrap_or_default();
@@ -900,9 +903,10 @@ pub async fn refund_list(
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     req: api_models::payments::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     let db = state.store;
     let filter_list = db
         .filter_refund_by_meta_constraints(
@@ -976,10 +980,14 @@ pub async fn refund_manual_update(
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_refunds(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant_account.get_id().to_owned()).await?
+        super::admin::list_payment_connectors(
+            state,
+            merchant_or_profile.get_merchant_id().to_owned(),
+        )
+        .await?
     {
         data
     } else {
@@ -1158,7 +1166,10 @@ pub async fn sync_refund_with_gateway_workflow(
 
     let response = Box::pin(refund_retrieve_core(
         state.clone(),
-        merchant_account,
+        MerchantAccountOrBusinessProfile::MerchantAccount {
+            profile_ids: vec![],
+            merchant_account,
+        },
         key_store,
         refunds::RefundsRetrieveRequest {
             refund_id: refund_core.refund_internal_reference_id,

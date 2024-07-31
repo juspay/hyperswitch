@@ -54,7 +54,7 @@ use crate::{
         storage::{self, PaymentRoutingInfo},
         transformers::ForeignFrom,
     },
-    utils::{self, OptionExt},
+    utils::{self, MerchantAccountOrBusinessProfile, OptionExt},
 };
 
 // ********************************************** TYPES **********************************************
@@ -481,10 +481,11 @@ pub async fn payouts_update_core(
 #[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
@@ -706,10 +707,11 @@ pub async fn payouts_fulfill_core(
 #[cfg(feature = "olap")]
 pub async fn payouts_list_core(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     validator::validate_payout_list_request(&constraints)?;
     let merchant_id = merchant_account.get_id();
     let db = state.store.as_ref();
@@ -804,10 +806,11 @@ pub async fn payouts_list_core(
 #[cfg(feature = "olap")]
 pub async fn payouts_filtered_list_core(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    merchant_or_profile: MerchantAccountOrBusinessProfile,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
+    let merchant_account = merchant_or_profile.get_merchant_account().await?;
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
     let db = state.store.as_ref();

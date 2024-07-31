@@ -982,6 +982,7 @@ where
     Ok(())
 }
 
+#[derive(Debug)]
 pub enum MerchantAccountOrBusinessProfile {
     MerchantAccount {
         profile_ids: Vec<String>,
@@ -999,6 +1000,17 @@ impl MerchantAccountOrBusinessProfile {
             } => merchant_account.to_owned(),
             MerchantAccountOrBusinessProfile::BusinessProfile(_) => todo!(),
         })
+    }
+    pub fn get_merchant_id(&self) -> &common_utils::id_type::MerchantId {
+        match self {
+            MerchantAccountOrBusinessProfile::MerchantAccount {
+                profile_ids: _,
+                merchant_account,
+            } => merchant_account.get_id(),
+            MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => {
+                &business_profile.merchant_id
+            }
+        }
     }
 }
 

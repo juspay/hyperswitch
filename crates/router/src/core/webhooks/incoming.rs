@@ -826,7 +826,10 @@ async fn refunds_incoming_webhook_flow(
     } else {
         Box::pin(refunds::refund_retrieve_core(
             state.clone(),
-            merchant_account.clone(),
+            MerchantAccountOrBusinessProfile::MerchantAccount {
+                profile_ids: vec![],
+                merchant_account: merchant_account.clone(),
+            },
             key_store.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
