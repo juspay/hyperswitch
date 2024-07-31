@@ -825,6 +825,7 @@ async fn refunds_incoming_webhook_flow(
         Box::pin(refunds::refund_retrieve_core(
             state.clone(),
             merchant_account.clone(),
+            None,
             key_store.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),

@@ -418,6 +418,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let refund = Box::pin(refund_retrieve_core(
                 state,
                 merchant_account,
+                None,
                 key_store,
                 request,
             ))
