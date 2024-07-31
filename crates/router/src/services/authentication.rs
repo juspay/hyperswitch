@@ -49,6 +49,13 @@ pub struct AuthenticationData {
     pub profile_id: Option<String>,
 }
 
+#[derive(Clone)]
+pub struct AuthenticationDataWithMultipleProfiles {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: Vec<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(
     tag = "api_auth_type",
@@ -205,20 +212,6 @@ pub struct UserFromToken {
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
     pub profile_id: Option<String>,
-}
-
-#[derive(Clone)]
-pub struct MerchantWithSingleProfile {
-    pub org_id: id_type::OrganizationId,
-    pub merchant_id: id_type::MerchantId,
-    pub profile_id: Option<String>,
-}
-
-#[derive(Clone)]
-pub struct AuthenticationDataWithMultipleProfiles {
-    pub org_id: id_type::OrganizationId,
-    pub merchant_id: id_type::MerchantId,
-    pub profile_id: Vec<String>,
 }
 
 pub struct UserIdFromAuth {
