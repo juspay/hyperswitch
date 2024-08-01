@@ -44,13 +44,9 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
   printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
 
 else
-  # If we are doing this locally or on merge queue, then check for all the crates
-  crates_with_features="$(cargo metadata --format-version 1 --no-deps \
-    | jq \
-      --compact-output \
-      --monochrome-output \
-      --raw-output \
-      '[ ( .workspace_members | sort ) as $package_ids | .packages[] | select( IN( .id; $package_ids[] ) ) | { name: .name, features: ( .features | keys ) } ]')"
+  # If we are doing this locally or on merge queue, then check for all the V2 crates
+  all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
+  all_commands+=("cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package 'hyperswitch_domain_models' --package 'diesel_models' --package 'api_models'")
 fi
 
 if ((${#all_commands[@]} == 0)); then
