@@ -1,14 +1,11 @@
 use api_models::customers::CustomerRequestWithEmail;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{crypto::Encryptable, ext_traits::OptionExt};
+use common_utils::{crypto::Encryptable, ext_traits::OptionExt, types::Description};
 use common_utils::{
     errors::ReportSwitchExt,
     ext_traits::AsyncExt,
     id_type,
-    types::{
-        keymanager::{Identifier, KeyManagerState, ToEncryptable},
-        Description,
-    },
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
