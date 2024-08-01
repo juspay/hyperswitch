@@ -1,6 +1,8 @@
 pub mod helpers;
 pub mod transformers;
 
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use api_models::routing::RoutingConfigRequest;
 use api_models::{
     enums,
     routing::{self as routing_types, RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
@@ -30,8 +32,6 @@ use crate::{
 };
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 use crate::{core::errors::RouterResult, db::StorageInterface};
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use api_models::routing::RoutingConfigRequest;
 pub enum TransactionData<'a, F>
 where
     F: Clone,
