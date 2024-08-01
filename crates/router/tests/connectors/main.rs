@@ -50,6 +50,7 @@ mod nuvei;
 #[cfg(feature = "dummy_connector")]
 mod opayo;
 mod opennode;
+mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payme;

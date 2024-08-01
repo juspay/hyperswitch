@@ -361,8 +361,10 @@ impl DisputeInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    #[allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
     mod mockdb_dispute_interface {
+        use std::borrow::Cow;
+
         use api_models::disputes::DisputeListConstraints;
         use diesel_models::{
             dispute::DisputeNew,
@@ -410,12 +412,12 @@ mod tests {
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create a mock DB");
 
-            let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -443,9 +445,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
-            let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
-            #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -488,8 +490,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_dispute_by_merchant_id_dispute_id() {
-            let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
-            #[allow(clippy::expect_used)]
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -526,8 +529,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id() {
-            let merchant_id = common_utils::id_type::MerchantId::from("merchant_2".into()).unwrap();
-            #[allow(clippy::expect_used)]
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_2")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -581,8 +585,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id_payment_id() {
-            let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
-            #[allow(clippy::expect_used)]
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -620,6 +625,8 @@ mod tests {
         }
 
         mod update_dispute {
+            use std::borrow::Cow;
+
             use diesel_models::{
                 dispute::DisputeUpdate,
                 enums::{DisputeStage, DisputeStatus},
@@ -639,8 +646,8 @@ mod tests {
             #[tokio::test]
             async fn test_update_dispute_update() {
                 let merchant_id =
-                    common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
-                #[allow(clippy::expect_used)]
+                    common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -720,8 +727,8 @@ mod tests {
             #[tokio::test]
             async fn test_update_dispute_update_status() {
                 let merchant_id =
-                    common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
-                #[allow(clippy::expect_used)]
+                    common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -796,8 +803,8 @@ mod tests {
             #[tokio::test]
             async fn test_update_dispute_update_evidence() {
                 let merchant_id =
-                    common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
-                #[allow(clippy::expect_used)]
+                    common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");

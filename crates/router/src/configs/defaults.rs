@@ -8929,6 +8929,13 @@ impl Default for super::settings::ApiKeys {
             // Specifies the number of days before API key expiry when email reminders should be sent
             #[cfg(feature = "email")]
             expiry_reminder_days: vec![7, 3, 1],
+
+            // Hex-encoded key used for calculating checksum for partial auth
+            #[cfg(feature = "partial-auth")]
+            checksum_auth_key: String::new().into(),
+            // context used for blake3
+            #[cfg(feature = "partial-auth")]
+            checksum_auth_context: String::new().into(),
         }
     }
 }
@@ -8936,6 +8943,7 @@ impl Default for super::settings::ApiKeys {
 impl Default for super::settings::KeyManagerConfig {
     fn default() -> Self {
         Self {
+            enabled: None,
             url: String::from("localhost:5000"),
             #[cfg(feature = "keymanager_mtls")]
             ca: String::default().into(),

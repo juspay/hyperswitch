@@ -1,4 +1,5 @@
 pub mod types;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -78,7 +79,7 @@ pub async fn payment_intents_create(
                 api_types::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -417,7 +418,7 @@ pub async fn payment_intents_capture(
                 api_types::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -519,7 +520,7 @@ pub async fn payment_intent_list(
         |state, auth, req, _| {
             payments::list_payments(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

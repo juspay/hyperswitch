@@ -730,7 +730,7 @@ pub async fn toggle_connector_agnostic_mit(
         json_payload.into_inner(),
         |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -772,7 +772,7 @@ pub async fn merchant_account_transfer_keys(
     payload: web::Json<api_models::admin::MerchantKeyTransferRequest>,
 ) -> HttpResponse {
     let flow = Flow::ConfigKeyFetch;
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -780,7 +780,7 @@ pub async fn merchant_account_transfer_keys(
         |state, _, req, _| transfer_key_store_to_key_manager(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 

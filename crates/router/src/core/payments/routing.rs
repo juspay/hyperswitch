@@ -45,7 +45,7 @@ use crate::{
     types::{
         api::{self, routing as routing_types},
         domain, storage as oss_storage,
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{OptionExt, ValueExt},
     SessionState,
@@ -567,7 +567,7 @@ pub async fn refresh_cgraph_cache<'a>(
 
     let api_mcas = merchant_connector_accounts
         .into_iter()
-        .map(admin_api::MerchantConnectorResponse::try_from)
+        .map(admin_api::MerchantConnectorResponse::foreign_try_from)
         .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
     let connector_configs = state
