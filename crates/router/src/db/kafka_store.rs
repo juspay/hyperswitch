@@ -1018,6 +1018,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .update_multiple_merchant_connector_accounts(merchant_connector_accounts)
             .await
     }
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,

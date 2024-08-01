@@ -187,20 +187,6 @@ impl MerchantConnectorAccount {
             .await
     }
 
-    pub async fn find_by_merchant_id_connector(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_label: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::connector_label.eq(connector_label.to_owned())),
-        )
-        .await
-    }
-
     pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
