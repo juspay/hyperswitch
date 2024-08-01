@@ -1,9 +1,10 @@
+use common_utils::events::{ApiEventMetric, ApiEventsType};
+
 use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingDictionaryRecord, RoutingKind, RoutingLinkWrapper,
     RoutingPayloadWrapper, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
 };
-use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 impl ApiEventMetric for RoutingKind {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
