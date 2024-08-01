@@ -7,7 +7,6 @@ use api_models::{
     enums,
     routing::{self as routing_types, RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
 };
-
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
@@ -17,7 +16,6 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-
 use crate::{
     consts,
     core::{
@@ -26,8 +24,10 @@ use crate::{
     },
     routes::SessionState,
     services::api as service_api,
-    types::transformers::ForeignTryFrom,
-    types::{domain, transformers::ForeignInto},
+    types::{
+        domain,
+        transformers::{ForeignInto, ForeignTryFrom},
+    },
     utils::{self, OptionExt, ValueExt},
 };
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
