@@ -993,9 +993,7 @@ pub async fn get_filters_for_refunds(
                 .connector_label
                 .clone()
                 .map(|label| {
-                    let info = merchant_connector_account
-                        .clone()
-                        .to_merchant_connector_info(&label.clone());
+                    let info = merchant_connector_account.to_merchant_connector_info(&label);
                     (merchant_connector_account.connector_name, info)
                 })
         })
