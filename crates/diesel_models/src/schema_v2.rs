@@ -633,9 +633,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_account (merchant_id) {
-        #[max_length = 64]
-        merchant_id -> Varchar,
+    merchant_account (id) {
         #[max_length = 255]
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
@@ -669,6 +667,8 @@ diesel::table! {
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
+        #[max_length = 64]
+        id -> Varchar,
     }
 }
 
@@ -728,10 +728,14 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    organization (org_id) {
+    organization (id) {
+        organization_details -> Nullable<Jsonb>,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
         #[max_length = 32]
-        org_id -> Varchar,
-        org_name -> Nullable<Text>,
+        id -> Varchar,
+        organization_name -> Nullable<Text>,
     }
 }
 
@@ -924,6 +928,8 @@ diesel::table! {
         description -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        secure_link -> Nullable<Varchar>,
     }
 }
 
@@ -931,7 +937,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_methods (id) {
+    payment_methods (payment_method_id) {
         id -> Int4,
         #[max_length = 64]
         customer_id -> Varchar,
@@ -1183,6 +1189,8 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         last_modified_by -> Varchar,
+        #[max_length = 64]
+        entity_type -> Nullable<Varchar>,
     }
 }
 
@@ -1248,16 +1256,16 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    user_roles (user_id, merchant_id) {
+    user_roles (id) {
         id -> Int4,
         #[max_length = 64]
         user_id -> Varchar,
         #[max_length = 64]
-        merchant_id -> Varchar,
+        merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         role_id -> Varchar,
         #[max_length = 64]
-        org_id -> Varchar,
+        org_id -> Nullable<Varchar>,
         status -> UserStatus,
         #[max_length = 64]
         created_by -> Varchar,
@@ -1265,6 +1273,13 @@ diesel::table! {
         last_modified_by -> Varchar,
         created_at -> Timestamp,
         last_modified -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        entity_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        entity_type -> Nullable<Varchar>,
+        version -> UserRoleVersion,
     }
 }
 

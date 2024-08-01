@@ -108,7 +108,7 @@ pub async fn payments_create(
 
     tracing::Span::current().record(
         "payment_id",
-        &payload
+        payload
             .payment_id
             .as_ref()
             .map(|payment_id_type| payment_id_type.get_payment_intent_id())
@@ -137,9 +137,9 @@ pub async fn payments_create(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 req.headers(),
             ),
@@ -170,7 +170,7 @@ pub async fn payments_create(
 pub async fn payments_start(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsStart;
     let (payment_id, merchant_id, attempt_id) = path.into_inner();
@@ -254,8 +254,8 @@ pub async fn payments_retrieve(
         ..Default::default()
     };
 
-    tracing::Span::current().record("payment_id", &path.to_string());
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("payment_id", path.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     let (auth_type, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
@@ -334,7 +334,7 @@ pub async fn payments_retrieve_with_gateway_creds(
     };
 
     tracing::Span::current().record("payment_id", &json_payload.payment_id);
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     let locking_action = payload.get_locking_input(flow.clone());
 
@@ -564,7 +564,7 @@ pub async fn payments_capture(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -633,7 +633,7 @@ pub async fn payments_connector_session(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,
     ))
     .await
@@ -661,7 +661,7 @@ pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsRedirect;
     let (payment_id, merchant_id, connector) = path.into_inner();
@@ -723,7 +723,7 @@ pub async fn payments_redirect_response(
 pub async fn payments_redirect_response_with_creds_identifier(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String, String)>,
 ) -> impl Responder {
     let (payment_id, merchant_id, connector, creds_identifier) = path.into_inner();
     let param_string = req.query_string();
@@ -767,7 +767,7 @@ pub async fn payments_complete_authorize_redirect(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsRedirect;
     let (payment_id, merchant_id, connector) = path.into_inner();
@@ -924,7 +924,7 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -972,7 +972,7 @@ pub async fn payments_list(
             payments::list_payments(state, auth.merchant_account, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::PaymentRead),
             req.headers(),
         ),
@@ -1088,9 +1088,9 @@ pub async fn payments_approve(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 http_req.headers(),
             ),
@@ -1143,9 +1143,9 @@ pub async fn payments_reject(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 http_req.headers(),
             ),
@@ -1287,7 +1287,7 @@ pub async fn payments_incremental_authorization(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -1339,7 +1339,7 @@ pub async fn payments_external_authentication(
                 req,
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,
     ))
     .await
@@ -1365,7 +1365,7 @@ pub async fn post_3ds_payments_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: Option<web::Form<serde_json::Value>>,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsAuthorize;
 
@@ -1450,9 +1450,13 @@ pub async fn retrieve_extended_card_info(
         &req,
         payment_id,
         |state, auth, payment_id, _| {
-            payments::get_extended_card_info(state, auth.merchant_account.merchant_id, payment_id)
+            payments::get_extended_card_info(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                payment_id,
+            )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

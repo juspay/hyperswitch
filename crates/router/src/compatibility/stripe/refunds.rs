@@ -1,4 +1,5 @@
 pub mod types;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow, Tag};
@@ -26,7 +27,7 @@ pub async fn refund_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    tracing::Span::current().record("payment_id", &payload.payment_intent.clone());
+    tracing::Span::current().record("payment_id", payload.payment_intent.clone());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
@@ -51,7 +52,7 @@ pub async fn refund_create(
         |state, auth, req, _| {
             refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -76,7 +77,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         _ => Flow::RefundsRetrieve,
     };
 
-    tracing::Span::current().record("flow", &flow.to_string());
+    tracing::Span::current().record("flow", flow.to_string());
 
     Box::pin(wrap::compatibility_api_wrap::<
         _,
@@ -101,7 +102,7 @@ pub async fn refund_retrieve_with_gateway_creds(
                 refunds::refund_retrieve_core,
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -143,7 +144,7 @@ pub async fn refund_retrieve(
                 refunds::refund_retrieve_core,
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -175,7 +176,7 @@ pub async fn refund_update(
         &req,
         create_refund_update_req,
         |state, auth, req, _| refunds::refund_update_core(state, auth.merchant_account, req),
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

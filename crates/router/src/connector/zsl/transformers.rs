@@ -158,7 +158,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                     | domain::BankTransferData::CimbVaBankTransfer { .. }
                     | domain::BankTransferData::DanamonVaBankTransfer { .. }
                     | domain::BankTransferData::MandiriVaBankTransfer { .. }
-                    | domain::BankTransferData::Pix {}
+                    | domain::BankTransferData::Pix { .. }
                     | domain::BankTransferData::Pse {} => {
                         Err(errors::ConnectorError::NotImplemented(
                             connector_utils::get_unimplemented_payment_method_error_message(

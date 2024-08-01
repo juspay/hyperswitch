@@ -1,10 +1,16 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "routing_v2")
+))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+#[cfg(feature = "partial-auth")]
+use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -20,14 +26,26 @@ use tokio::sync::oneshot;
 use self::settings::Tenant;
 #[cfg(feature = "olap")]
 use super::blocklist;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "customer_v2")))]
+use super::payment_methods::*;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(
+    feature = "oltp",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use super::pm_auth;
+#[cfg(feature = "oltp")]
+use super::poll::retrieve_poll_status;
 #[cfg(feature = "olap")]
-use super::routing as cloud_routing;
+use super::routing;
 #[cfg(feature = "olap")]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
@@ -38,25 +56,20 @@ use super::{
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{currency, payment_methods::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
-#[cfg(feature = "oltp")]
-use super::{pm_auth, poll::retrieve_poll_status};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
+#[cfg(feature = "partial-auth")]
+use crate::errors::RouterResult;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
-#[cfg(feature = "olap")]
-use crate::routes::verify_connector::payment_connector_verify;
 pub use crate::{
     configs::settings,
-    core::routing,
     db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
     routes::cards_info::card_iin_info,
@@ -110,6 +123,8 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    #[cfg(feature = "partial-auth")]
+    fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
 }
 
@@ -130,6 +145,39 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id);
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
+    }
+
+    #[cfg(feature = "partial-auth")]
+    fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])> {
+        use error_stack::ResultExt;
+        use hyperswitch_domain_models::errors::api_error_response as errors;
+        use masking::prelude::PeekInterface as _;
+        use router_env::logger;
+
+        let output = CHECKSUM_KEY.get_or_try_init(|| {
+            let conf = self.conf();
+            let context = conf
+                .api_keys
+                .get_inner()
+                .checksum_auth_context
+                .peek()
+                .clone();
+            let key = conf.api_keys.get_inner().checksum_auth_key.peek();
+            hex::decode(key).map(|key| {
+                (
+                    masking::StrongSecret::new(context),
+                    masking::StrongSecret::new(key),
+                )
+            })
+        });
+
+        match output {
+            Ok((context, key)) => Ok((Blake3::new(context.peek().clone()), key.peek())),
+            Err(err) => {
+                logger::error!("Failed to get checksum key");
+                Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+        }
     }
     fn session_state(&self) -> SessionState {
         self.clone()
@@ -164,10 +212,15 @@ pub trait AppStateInfo {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailService>;
     fn add_request_id(&mut self, request_id: RequestId);
-    fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
 }
+
+#[cfg(feature = "partial-auth")]
+static CHECKSUM_KEY: once_cell::sync::OnceCell<(
+    masking::StrongSecret<String>,
+    masking::StrongSecret<Vec<u8>>,
+)> = once_cell::sync::OnceCell::new();
 
 impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings<RawSecret> {
@@ -185,9 +238,6 @@ impl AppStateInfo for AppState {
         self.request_id.replace(request_id);
     }
 
-    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
-        self.api_client.add_merchant_id(merchant_id);
-    }
     fn add_flow_name(&mut self, flow_name: String) {
         self.api_client.add_flow_name(flow_name);
     }
@@ -338,6 +388,7 @@ impl AppState {
                             .expect("Failed to create store"),
                         kafka_client.clone(),
                         TenantID(tenant.get_schema().to_string()),
+                        tenant,
                     )
                     .await,
                 ),
@@ -371,22 +422,19 @@ impl AppState {
         .await
     }
 
-    pub fn get_req_state(&self) -> ReqState {
-        ReqState {
-            event_context: events::EventContext::new(self.event_handler.clone()),
-        }
-    }
     pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
     where
         F: FnOnce() -> E + Copy,
     {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
+        let mut event_handler = self.event_handler.clone();
+        event_handler.add_tenant(tenant_conf);
         Ok(SessionState {
             store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
             conf: Arc::clone(&self.conf),
             api_client: self.api_client.clone(),
-            event_handler: self.event_handler.clone(),
+            event_handler,
             #[cfg(feature = "olap")]
             pool: self.pools.get(tenant).ok_or_else(err)?.clone(),
             file_storage_client: self.file_storage_client.clone(),
@@ -567,7 +615,27 @@ impl Forex {
 #[cfg(feature = "olap")]
 pub struct Routing;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+impl Routing {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/routing_algorithm")
+            .app_data(web::Data::new(state.clone()))
+            .service(
+                web::resource("").route(web::post().to(|state, req, payload| {
+                    routing::routing_create_config(state, req, payload, &TransactionType::Payment)
+                })),
+            )
+            .service(
+                web::resource("/{algorithm_id}")
+                    .route(web::get().to(routing::routing_retrieve_config)),
+            )
+    }
+}
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "routing_v2")
+))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
         #[allow(unused_mut)]
@@ -575,7 +643,7 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
-                    cloud_routing::routing_retrieve_linked_config(
+                    routing::routing_retrieve_linked_config(
                         state,
                         req,
                         query_params,
@@ -587,7 +655,7 @@ impl Routing {
                 web::resource("")
                     .route(
                         web::get().to(|state, req, path: web::Query<RoutingRetrieveQuery>| {
-                            cloud_routing::list_routing_configs(
+                            routing::list_routing_configs(
                                 state,
                                 req,
                                 path,
@@ -596,7 +664,7 @@ impl Routing {
                         }),
                     )
                     .route(web::post().to(|state, req, payload| {
-                        cloud_routing::routing_create_config(
+                        routing::routing_create_config(
                             state,
                             req,
                             payload,
@@ -607,14 +675,14 @@ impl Routing {
             .service(
                 web::resource("/default")
                     .route(web::get().to(|state, req| {
-                        cloud_routing::routing_retrieve_default_config(
+                        routing::routing_retrieve_default_config(
                             state,
                             req,
                             &TransactionType::Payment,
                         )
                     }))
                     .route(web::post().to(|state, req, payload| {
-                        cloud_routing::routing_update_default_config(
+                        routing::routing_update_default_config(
                             state,
                             req,
                             payload,
@@ -624,32 +692,25 @@ impl Routing {
             )
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
-                    cloud_routing::routing_unlink_config(
-                        state,
-                        req,
-                        payload,
-                        &TransactionType::Payment,
-                    )
+                    routing::routing_unlink_config(state, req, payload, &TransactionType::Payment)
                 })),
             )
             .service(
                 web::resource("/decision")
-                    .route(web::put().to(cloud_routing::upsert_decision_manager_config))
-                    .route(web::get().to(cloud_routing::retrieve_decision_manager_config))
-                    .route(web::delete().to(cloud_routing::delete_decision_manager_config)),
+                    .route(web::put().to(routing::upsert_decision_manager_config))
+                    .route(web::get().to(routing::retrieve_decision_manager_config))
+                    .route(web::delete().to(routing::delete_decision_manager_config)),
             )
             .service(
                 web::resource("/decision/surcharge")
-                    .route(web::put().to(cloud_routing::upsert_surcharge_decision_manager_config))
-                    .route(web::get().to(cloud_routing::retrieve_surcharge_decision_manager_config))
-                    .route(
-                        web::delete().to(cloud_routing::delete_surcharge_decision_manager_config),
-                    ),
+                    .route(web::put().to(routing::upsert_surcharge_decision_manager_config))
+                    .route(web::get().to(routing::retrieve_surcharge_decision_manager_config))
+                    .route(web::delete().to(routing::delete_surcharge_decision_manager_config)),
             )
             .service(
                 web::resource("/default/profile/{profile_id}").route(web::post().to(
                     |state, req, path, payload| {
-                        cloud_routing::routing_update_default_config_for_profile(
+                        routing::routing_update_default_config_for_profile(
                             state,
                             req,
                             path,
@@ -661,7 +722,7 @@ impl Routing {
             )
             .service(
                 web::resource("/default/profile").route(web::get().to(|state, req| {
-                    cloud_routing::routing_retrieve_default_config_for_profiles(
+                    routing::routing_retrieve_default_config_for_profiles(
                         state,
                         req,
                         &TransactionType::Payment,
@@ -676,7 +737,7 @@ impl Routing {
                     web::resource("/payouts")
                         .route(web::get().to(
                             |state, req, path: web::Query<RoutingRetrieveQuery>| {
-                                cloud_routing::list_routing_configs(
+                                routing::list_routing_configs(
                                     state,
                                     req,
                                     path,
@@ -685,7 +746,7 @@ impl Routing {
                             },
                         ))
                         .route(web::post().to(|state, req, payload| {
-                            cloud_routing::routing_create_config(
+                            routing::routing_create_config(
                                 state,
                                 req,
                                 payload,
@@ -695,7 +756,7 @@ impl Routing {
                 )
                 .service(web::resource("/payouts/active").route(web::get().to(
                     |state, req, query_params| {
-                        cloud_routing::routing_retrieve_linked_config(
+                        routing::routing_retrieve_linked_config(
                             state,
                             req,
                             query_params,
@@ -706,14 +767,14 @@ impl Routing {
                 .service(
                     web::resource("/payouts/default")
                         .route(web::get().to(|state, req| {
-                            cloud_routing::routing_retrieve_default_config(
+                            routing::routing_retrieve_default_config(
                                 state,
                                 req,
                                 &TransactionType::Payout,
                             )
                         }))
                         .route(web::post().to(|state, req, payload| {
-                            cloud_routing::routing_update_default_config(
+                            routing::routing_update_default_config(
                                 state,
                                 req,
                                 payload,
@@ -724,18 +785,13 @@ impl Routing {
                 .service(
                     web::resource("/payouts/{algorithm_id}/activate").route(web::post().to(
                         |state, req, path| {
-                            cloud_routing::routing_link_config(
-                                state,
-                                req,
-                                path,
-                                &TransactionType::Payout,
-                            )
+                            routing::routing_link_config(state, req, path, &TransactionType::Payout)
                         },
                     )),
                 )
                 .service(web::resource("/payouts/deactivate").route(web::post().to(
                     |state, req, payload| {
-                        cloud_routing::routing_unlink_config(
+                        routing::routing_unlink_config(
                             state,
                             req,
                             payload,
@@ -746,7 +802,7 @@ impl Routing {
                 .service(
                     web::resource("/payouts/default/profile/{profile_id}").route(web::post().to(
                         |state, req, path, payload| {
-                            cloud_routing::routing_update_default_config_for_profile(
+                            routing::routing_update_default_config_for_profile(
                                 state,
                                 req,
                                 path,
@@ -758,7 +814,7 @@ impl Routing {
                 )
                 .service(
                     web::resource("/payouts/default/profile").route(web::get().to(|state, req| {
-                        cloud_routing::routing_retrieve_default_config_for_profiles(
+                        routing::routing_retrieve_default_config_for_profiles(
                             state,
                             req,
                             &TransactionType::Payout,
@@ -770,17 +826,12 @@ impl Routing {
         route = route
             .service(
                 web::resource("/{algorithm_id}")
-                    .route(web::get().to(cloud_routing::routing_retrieve_config)),
+                    .route(web::get().to(routing::routing_retrieve_config)),
             )
             .service(
                 web::resource("/{algorithm_id}/activate").route(web::post().to(
                     |state, req, path| {
-                        cloud_routing::routing_link_config(
-                            state,
-                            req,
-                            path,
-                            &TransactionType::Payment,
-                        )
+                        routing::routing_link_config(state, req, path, &TransactionType::Payment)
                     },
                 )),
             );
@@ -790,7 +841,27 @@ impl Routing {
 
 pub struct Customers;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    any(feature = "olap", feature = "oltp")
+))]
+impl Customers {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("").route(web::post().to(customers_create)))
+        }
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    any(feature = "olap", feature = "oltp")
+))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
@@ -902,7 +973,11 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    any(feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
@@ -998,6 +1073,22 @@ impl Blocklist {
     }
 }
 
+#[cfg(feature = "olap")]
+pub struct Organization;
+#[cfg(feature = "olap")]
+impl Organization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/organization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(organization_retrieve))
+                    .route(web::put().to(organization_update)),
+            )
+    }
+}
+
 pub struct MerchantAccount;
 
 #[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
@@ -1040,7 +1131,31 @@ impl MerchantAccount {
 
 pub struct MerchantConnectorAccount;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "merchant_connector_account_v2"
+))]
+impl MerchantConnectorAccount {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/connector_accounts").app_data(web::Data::new(state));
+
+        #[cfg(feature = "olap")]
+        {
+            use super::admin::*;
+
+            route =
+                route.service(web::resource("").route(web::post().to(payment_connector_create)));
+        }
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/account").app_data(web::Data::new(state));
@@ -1052,7 +1167,7 @@ impl MerchantConnectorAccount {
             route = route
                 .service(
                     web::resource("/connectors/verify")
-                        .route(web::post().to(payment_connector_verify)),
+                        .route(web::post().to(super::verify_connector::payment_connector_verify)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors")
@@ -1276,6 +1391,10 @@ impl PaymentLink {
                     .route(web::get().to(initiate_payment_link)),
             )
             .service(
+                web::resource("s/{merchant_id}/{payment_id}")
+                    .route(web::get().to(initiate_secure_payment_link)),
+            )
+            .service(
                 web::resource("status/{merchant_id}/{payment_id}")
                     .route(web::get().to(payment_link_status)),
             )
@@ -1297,8 +1416,64 @@ impl PayoutLink {
 }
 
 pub struct BusinessProfile;
-
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+impl BusinessProfile {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/profiles")
+            .app_data(web::Data::new(state))
+            .service(
+                web::scope("/{profile_id}")
+                    .service(
+                        web::resource("/fallback_routing")
+                            .route(web::get().to(|state, req| {
+                                routing::routing_retrieve_default_config(
+                                    state,
+                                    req,
+                                    &TransactionType::Payment,
+                                )
+                            }))
+                            .route(web::post().to(|state, req, payload| {
+                                routing::routing_update_default_config(
+                                    state,
+                                    req,
+                                    payload,
+                                    &TransactionType::Payment,
+                                )
+                            })),
+                    )
+                    .service(
+                        web::resource("/activate_routing_algorithm").route(web::patch().to(
+                            |state, req, path, payload| {
+                                routing::routing_link_config(
+                                    state,
+                                    req,
+                                    path,
+                                    payload,
+                                    &TransactionType::Payment,
+                                )
+                            },
+                        )),
+                    )
+                    .service(
+                        web::resource("/deactivate_routing_algorithm").route(web::post().to(
+                            |state, req, path| {
+                                routing::routing_unlink_config(
+                                    state,
+                                    req,
+                                    path,
+                                    &TransactionType::Payment,
+                                )
+                            },
+                        )),
+                    ),
+            )
+    }
+}
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "routing_v2")
+))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
