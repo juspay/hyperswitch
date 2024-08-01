@@ -1164,7 +1164,6 @@ pub async fn merchant_account_delete(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    feature = "olap",
     not(feature = "merchant_account_v2")
 ))]
 async fn get_parent_merchant(
