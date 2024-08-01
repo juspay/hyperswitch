@@ -30,9 +30,9 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
     # A package must be checked if it has been modified
     if grep --quiet --extended-regexp "^crates/${package_name}" <<< "${files_modified}"; then
       if [[ "${package_name}" == "storage_impl" ]]; then
-        all_commands+="cargo hack clippy --features 'v2,payment_v2' -p storage_impl"
+        all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
       else
-        all_commands+="cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package '${package_name}'"
+        all_commands+=("cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package '${package_name}'")
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
       PACKAGES_CHECKED+=("${package_name}")
