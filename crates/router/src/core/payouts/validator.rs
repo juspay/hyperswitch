@@ -100,68 +100,37 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
+    // Fetch customer details (merge of loose fields + customer object) and create DB entry
     let customer_in_request = helpers::get_customer_details_from_request(req);
+    let customer = helpers::get_or_create_customer_details(
+        state,
+        &customer_in_request,
+        merchant_account,
+        merchant_key_store,
+    )
+    .await?;
 
-    // Customer creation
-    let customer = match (req.customer_id.clone(), req.customer.clone()) {
-        // Create a new customer if ID is unique, else throw error
-        (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "customer_id cannot be passed when passing customer object".to_string()
-        }))
-        .attach_printable(
-            "ambiguous operation - both customer_id and customer passed in the request",
-        ),
-        // Fetch customer using id or else throw 404
-        (Some(customer_id), None) => db
-            .find_customer_optional_by_customer_id_merchant_id(
-                &state.into(),
-                &customer_id,
-                merchant_id,
-                merchant_key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError),
-        // Create a new customer
-        (None, Some(customer)) => {
-            helpers::get_or_create_customer_details(
-                state,
-                &customer.foreign_into(),
-                merchant_account,
-                merchant_key_store,
-            )
-            .await
-        }
-        // Customer not present
-        (None, None) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer or customer_id"
-        }))
-        .attach_printable("customer or customer_id must be passed in the request"),
-    }?
-    .get_required_value("customer")
-    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-        field_name: "customer or customer_id",
-    })?;
-
-    // Payout token
-    let payout_method_data = match req.payout_token.to_owned() {
-        Some(payout_token) => {
-            let customer_id = &customer.customer_id;
+    // payout_token
+    let payout_method_data = match (req.payout_token.as_ref(), customer.as_ref()) {
+        (Some(_), None) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer or customer_id when payout_token is provided"
+        })),
+        (Some(payout_token), Some(customer)) => {
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(&payout_token),
-                customer_id,
+                &customer.customer_id,
                 merchant_account.get_id(),
                 req.payout_type,
                 merchant_key_store,
                 None,
                 merchant_account.storage_scheme,
             )
-            .await?
+            .await
         }
-        None => None,
-    };
+        _ => Ok(None),
+    }?;
 
     // Profile ID
     let profile_id = core_utils::get_profile_id_from_business_details(
@@ -174,7 +143,7 @@ pub async fn validate_create_request(
     )
     .await?;
 
-    Ok((payout_id, payout_method_data, profile_id, Some(customer)))
+    Ok((payout_id, payout_method_data, profile_id, customer))
 }
 
 pub fn validate_payout_link_request(confirm: Option<bool>) -> Result<(), errors::ApiErrorResponse> {

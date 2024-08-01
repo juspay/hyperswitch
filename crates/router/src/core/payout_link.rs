@@ -326,7 +326,10 @@ pub async fn filter_payout_methods(
                         payout_filter,
                         request_payout_method_type,
                         &payout.destination_currency,
-                        address.as_ref().and_then(|address| address.country).as_ref(),
+                        address
+                            .as_ref()
+                            .and_then(|address| address.country)
+                            .as_ref(),
                     )?;
                     if currency_country_filter.unwrap_or(true) {
                         match payment_method {

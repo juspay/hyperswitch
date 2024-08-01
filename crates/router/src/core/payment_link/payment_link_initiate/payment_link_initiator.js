@@ -41,6 +41,7 @@ function initializeSDK() {
 
   var unifiedCheckoutOptions = {
     displaySavedPaymentMethodsCheckbox: false,
+    displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",

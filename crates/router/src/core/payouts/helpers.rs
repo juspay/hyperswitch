@@ -627,51 +627,63 @@ pub async fn get_or_create_customer_details(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
     {
+        // Customer found
         Some(customer) => Ok(Some(customer)),
+
+        // Customer not found
+        // create only if atleast one of the fields were provided for customer creation
         None => {
-            let encrypted_data = batch_encrypt(
-                &state.into(),
-                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                    name: customer_details.name.clone(),
-                    email: customer_details.email.clone(),
-                    phone: customer_details.phone.clone(),
-                }),
-                Identifier::Merchant(key_store.merchant_id.clone()),
-                key,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let encryptable_customer =
-                CustomerRequestWithEmail::from_encryptable(encrypted_data)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            let customer = domain::Customer {
-                customer_id,
-                merchant_id: merchant_id.to_owned().clone(),
-                name: encryptable_customer.name,
-                email: encryptable_customer.email,
-                phone: encryptable_customer.phone,
-                description: None,
-                phone_country_code: customer_details.phone_country_code.to_owned(),
-                metadata: None,
-                connector_customer: None,
-                created_at: common_utils::date_time::now(),
-                modified_at: common_utils::date_time::now(),
-                address_id: None,
-                default_payment_method_id: None,
-                updated_by: None,
-            };
-
-            Ok(Some(
-                db.insert_customer(
-                    customer,
-                    key_manager_state,
-                    key_store,
-                    merchant_account.storage_scheme,
+            if customer_details.name.is_some()
+                || customer_details.email.is_some()
+                || customer_details.phone.is_some()
+                || customer_details.phone_country_code.is_some()
+            {
+                let encrypted_data = batch_encrypt(
+                    &state.into(),
+                    CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
+                        name: customer_details.name.clone(),
+                        email: customer_details.email.clone(),
+                        phone: customer_details.phone.clone(),
+                    }),
+                    Identifier::Merchant(key_store.merchant_id.clone()),
+                    key,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            ))
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let encryptable_customer =
+                    CustomerRequestWithEmail::from_encryptable(encrypted_data)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                let customer = domain::Customer {
+                    customer_id,
+                    merchant_id: merchant_id.to_owned().clone(),
+                    name: encryptable_customer.name,
+                    email: encryptable_customer.email,
+                    phone: encryptable_customer.phone,
+                    description: None,
+                    phone_country_code: customer_details.phone_country_code.to_owned(),
+                    metadata: None,
+                    connector_customer: None,
+                    created_at: common_utils::date_time::now(),
+                    modified_at: common_utils::date_time::now(),
+                    address_id: None,
+                    default_payment_method_id: None,
+                    updated_by: None,
+                };
+
+                Ok(Some(
+                    db.insert_customer(
+                        customer,
+                        key_manager_state,
+                        key_store,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                ))
+            } else {
+                Ok(None)
+            }
         }
     }
 }
