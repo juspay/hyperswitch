@@ -51,8 +51,8 @@ pub struct AuthenticationData {
 
 #[derive(Clone)]
 pub struct AuthenticationDataWithMultipleProfiles {
-    pub org_id: id_type::OrganizationId,
-    pub merchant_id: id_type::MerchantId,
+    pub merchant_id: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
     pub profile_id: Vec<String>,
 }
 
@@ -726,11 +726,32 @@ where
 
         let permissions = authorization::get_permissions(state, &payload).await?;
         authorization::check_authorization(&self.0, &permissions)?;
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
         Ok((
             AuthenticationDataWithMultipleProfiles {
-                org_id: payload.org_id,
-                merchant_id: payload.merchant_id.clone(),
+                key_store,
+                merchant_id: merchant,
                 profile_id: payload
                     .profile_id
                     .map(|profile_id| vec![profile_id])
