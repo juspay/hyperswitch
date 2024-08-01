@@ -9,6 +9,8 @@ use actix_web::{web, Scope};
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
+#[cfg(feature = "partial-auth")]
+use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
 use external_services::email::{ses::AwsSes, EmailService};
 use external_services::file_storage::FileStorageInterface;
@@ -60,6 +62,8 @@ use super::{ephemeral_key::*, webhooks::*};
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
+#[cfg(feature = "partial-auth")]
+use crate::errors::RouterResult;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -119,6 +123,8 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    #[cfg(feature = "partial-auth")]
+    fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
 }
 
@@ -139,6 +145,39 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id);
         self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
+    }
+
+    #[cfg(feature = "partial-auth")]
+    fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])> {
+        use error_stack::ResultExt;
+        use hyperswitch_domain_models::errors::api_error_response as errors;
+        use masking::prelude::PeekInterface as _;
+        use router_env::logger;
+
+        let output = CHECKSUM_KEY.get_or_try_init(|| {
+            let conf = self.conf();
+            let context = conf
+                .api_keys
+                .get_inner()
+                .checksum_auth_context
+                .peek()
+                .clone();
+            let key = conf.api_keys.get_inner().checksum_auth_key.peek();
+            hex::decode(key).map(|key| {
+                (
+                    masking::StrongSecret::new(context),
+                    masking::StrongSecret::new(key),
+                )
+            })
+        });
+
+        match output {
+            Ok((context, key)) => Ok((Blake3::new(context.peek().clone()), key.peek())),
+            Err(err) => {
+                logger::error!("Failed to get checksum key");
+                Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+        }
     }
     fn session_state(&self) -> SessionState {
         self.clone()
@@ -176,6 +215,12 @@ pub trait AppStateInfo {
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
 }
+
+#[cfg(feature = "partial-auth")]
+static CHECKSUM_KEY: once_cell::sync::OnceCell<(
+    masking::StrongSecret<String>,
+    masking::StrongSecret<Vec<u8>>,
+)> = once_cell::sync::OnceCell::new();
 
 impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings<RawSecret> {

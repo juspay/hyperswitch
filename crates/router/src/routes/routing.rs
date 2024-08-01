@@ -2,6 +2,7 @@
 //!
 //! Functions that are used to perform the api level configuration, retrieval, updation
 //! of Routing configs.
+
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{
     enums, routing as routing_types,
@@ -42,7 +43,7 @@ pub async fn routing_create_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -81,7 +82,7 @@ pub async fn routing_link_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -153,7 +154,7 @@ pub async fn routing_retrieve_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -188,7 +189,7 @@ pub async fn list_routing_configs(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -257,7 +258,7 @@ pub async fn routing_unlink_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -291,7 +292,7 @@ pub async fn routing_update_default_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -319,7 +320,7 @@ pub async fn routing_retrieve_default_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -353,7 +354,7 @@ pub async fn upsert_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
             req.headers(),
         ),
@@ -384,7 +385,7 @@ pub async fn delete_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
             req.headers(),
         ),
@@ -415,7 +416,7 @@ pub async fn retrieve_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
             req.headers(),
         ),
@@ -449,7 +450,7 @@ pub async fn upsert_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
             req.headers(),
         ),
@@ -481,7 +482,7 @@ pub async fn delete_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
             req.headers(),
         ),
@@ -509,7 +510,7 @@ pub async fn retrieve_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
             req.headers(),
         ),
@@ -545,7 +546,7 @@ pub async fn routing_retrieve_linked_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -577,13 +578,13 @@ pub async fn routing_retrieve_default_config_for_profiles(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
         #[cfg(feature = "release")]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -621,7 +622,7 @@ pub async fn routing_update_default_config_for_profile(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
