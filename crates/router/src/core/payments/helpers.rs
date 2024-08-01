@@ -784,7 +784,8 @@ pub fn validate_merchant_id(
     utils::when(merchant_id.ne(request_merchant_id), || {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
-                "Invalid `merchant_id`: {request_merchant_id} not found in merchant account"
+                "Invalid `merchant_id`: {} not found in merchant account",
+                request_merchant_id.get_string_repr()
             )
         }))
     })
@@ -5055,7 +5056,10 @@ pub fn get_redis_key_for_extended_card_info(
     merchant_id: &id_type::MerchantId,
     payment_id: &str,
 ) -> String {
-    format!("{merchant_id}_{payment_id}_extended_card_info")
+    format!(
+        "{}_{payment_id}_extended_card_info",
+        merchant_id.get_string_repr()
+    )
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(

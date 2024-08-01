@@ -1,10 +1,13 @@
-use std::collections::HashSet;
 pub mod cards;
 pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
+mod validator;
 pub mod vault;
+
+use std::{borrow::Cow, collections::HashSet};
+
 pub use api_models::enums::Connector;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use api_models::payments::Address;
@@ -39,7 +42,6 @@ use crate::{
         domain, storage,
     },
 };
-mod validator;
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
@@ -148,11 +150,10 @@ pub async fn initiate_pm_collect_link(
         req.return_url.clone(),
     )
     .await?;
-    let customer_id = CustomerId::from(pm_collect_link.primary_reference.into()).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
+    let customer_id = CustomerId::try_from(Cow::from(pm_collect_link.primary_reference))
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "customer_id",
-        },
-    )?;
+        })?;
 
     // Return response
     let url = pm_collect_link.url.peek();
@@ -261,7 +262,7 @@ pub async fn render_pm_collect_link(
             // else, send back form link
             } else {
                 let customer_id =
-                    CustomerId::from(pm_collect_link.primary_reference.clone().into())
+                    CustomerId::try_from(Cow::from(pm_collect_link.primary_reference.clone()))
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "customer_id",
                         })?;

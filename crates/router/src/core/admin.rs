@@ -1420,6 +1420,7 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 opennode::transformers::OpennodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Paybox => todo!(), added for future usage
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -2018,7 +2019,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }
@@ -2186,7 +2187,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }
@@ -3144,12 +3145,15 @@ pub async fn update_business_profile(
     let payment_link_config = request
         .payment_link_config
         .as_ref()
-        .map(|pl_metadata| {
-            pl_metadata.encode_to_value().change_context(
+        .map(|payment_link_conf| match payment_link_conf.validate() {
+            Ok(_) => payment_link_conf.encode_to_value().change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_link_config",
                 },
-            )
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
         })
         .transpose()?;
 
@@ -3589,7 +3593,7 @@ async fn locker_recipient_create_call(
 
     let merchant_id_string = merchant_id.get_string_repr().to_owned();
 
-    let cust_id = id_type::CustomerId::from(merchant_id_string.into())
+    let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_string))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert to CustomerId")?;
 
