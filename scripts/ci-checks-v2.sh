@@ -32,7 +32,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
       if [[ "${package_name}" == "storage_impl" ]]; then
         all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
       else
-        all_commands+=("cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package '${package_name}'")
+        all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package '${package_name}'")
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
       PACKAGES_CHECKED+=("${package_name}")
@@ -46,7 +46,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
 else
   # If we are doing this locally or on merge queue, then check for all the V2 crates
   all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
-  all_commands+=("cargo hack clippy --feature-powerset --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package 'hyperswitch_domain_models' --package 'diesel_models' --package 'api_models'")
+  all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2' --package 'hyperswitch_domain_models' --package 'diesel_models' --package 'api_models'")
 fi
 
 if ((${#all_commands[@]} == 0)); then
