@@ -412,7 +412,7 @@ pub async fn validate_connectors_in_routing_config(
     let name_mca_id_set = all_mcas
         .iter()
         .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
-        .map(|mca| (&mca.connector_name, &mca.merchant_connector_id))
+        .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
@@ -424,7 +424,7 @@ pub async fn validate_connectors_in_routing_config(
     let connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id)),
+                name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
