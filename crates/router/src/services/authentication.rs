@@ -752,7 +752,7 @@ where
             AuthenticationDataWithMultipleProfiles {
                 key_store,
                 merchant_account: merchant,
-                profile_id_list: payload.profile_id.map(|profile_id| vec![profile_id]),
+                profile_id_list: None,
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
