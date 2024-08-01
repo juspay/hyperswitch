@@ -51,7 +51,7 @@ pub struct AuthenticationData {
 
 #[derive(Clone)]
 pub struct AuthenticationDataWithMultipleProfiles {
-    pub merchant_id: domain::MerchantAccount,
+    pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
     pub profile_id: Vec<String>,
 }
@@ -751,7 +751,7 @@ where
         Ok((
             AuthenticationDataWithMultipleProfiles {
                 key_store,
-                merchant_id: merchant,
+                merchant_account: merchant,
                 profile_id: payload
                     .profile_id
                     .map(|profile_id| vec![profile_id])
