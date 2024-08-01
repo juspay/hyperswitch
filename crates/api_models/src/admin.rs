@@ -422,9 +422,6 @@ pub struct MerchantAccountUpdate {
     /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
 
-    /// Webhook related details
-    pub webhook_details: Option<WebhookDetails>,
-
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -447,15 +444,6 @@ impl MerchantAccountUpdate {
         self.metadata
             .as_ref()
             .map(|metadata| metadata.encode_to_value().map(Secret::new))
-            .transpose()
-    }
-
-    pub fn get_webhook_details_as_value(
-        &self,
-    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
-        self.webhook_details
-            .as_ref()
-            .map(|webhook_details| webhook_details.encode_to_value())
             .transpose()
     }
 }

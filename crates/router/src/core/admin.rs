@@ -669,7 +669,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                             )
                         })
                         .await?,
-                    webhook_details: None,
                     routing_algorithm: Some(serde_json::json!({
                         "algorithm_id": null,
                         "timestamp": 0
@@ -1004,12 +1003,6 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
             },
         )?;
 
-        let webhook_details = self.get_webhook_details_as_value().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "webhook details",
-            },
-        )?;
-
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "metadata",
@@ -1044,7 +1037,6 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant name")?,
-            webhook_details,
             metadata,
             publishable_key: None,
             frm_routing_algorithm: None,

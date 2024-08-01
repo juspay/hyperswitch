@@ -176,6 +176,7 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2"))]
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 pub async fn update_merchant_active_algorithm_ref(
     _state: &SessionState,
@@ -187,10 +188,6 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,

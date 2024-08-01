@@ -636,7 +636,6 @@ diesel::table! {
     merchant_account (id) {
         merchant_name -> Nullable<Bytea>,
         merchant_details -> Nullable<Bytea>,
-        webhook_details -> Nullable<Json>,
         #[max_length = 128]
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,

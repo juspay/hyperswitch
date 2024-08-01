@@ -148,7 +148,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 pub struct MerchantAccount {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -169,7 +168,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             id: item.id,
             merchant_name: item.merchant_name,
             merchant_details: item.merchant_details,
-            webhook_details: item.webhook_details,
             publishable_key: item.publishable_key,
             storage_scheme: item.storage_scheme,
             metadata: item.metadata,
@@ -189,7 +187,6 @@ pub struct MerchantAccountSetter {
     pub id: common_utils::id_type::MerchantId,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -259,7 +256,6 @@ pub struct MerchantAccountNew {
 pub struct MerchantAccountNew {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
     pub publishable_key: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
@@ -278,7 +274,6 @@ pub struct MerchantAccountNew {
 pub struct MerchantAccountUpdateInternal {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
     pub publishable_key: Option<String>,
     pub storage_scheme: Option<storage_enums::MerchantStorageScheme>,
     pub metadata: Option<pii::SecretSerdeValue>,

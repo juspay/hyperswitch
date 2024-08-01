@@ -24,3 +24,5 @@ ALTER TABLE merchant_account DROP payment_link_config;
 ALTER TABLE merchant_account DROP pm_collect_link_config;
 
 ALTER TABLE merchant_account DROP is_recon_enabled;
+
+ALTER TABLE merchant_account DROP webhook_details;
