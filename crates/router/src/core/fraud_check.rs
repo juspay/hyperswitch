@@ -168,8 +168,16 @@ where
                     id: merchant_account.get_id().get_string_repr().to_owned(),
                 })
                 .ok();
+            let enabled_merchant_connector_account_from_db_option =
+                merchant_connector_account_from_db_option.and_then(|mca| {
+                    if mca.disabled.unwrap_or(true) {
+                        None
+                    } else {
+                        Some(mca)
+                    }
+                });
 
-            match merchant_connector_account_from_db_option {
+            match enabled_merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
                     let frm_configs_option = merchant_connector_account_from_db
                         .frm_configs
