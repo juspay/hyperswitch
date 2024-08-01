@@ -1106,7 +1106,7 @@ mod merchant_connector_account_cache_tests {
             connector_name: "stripe".to_string(),
             connector_account_details: domain::types::crypto_operation(
                 key_manager_state,
-                type_name!(domain::MerchantKeyStore),
+                type_name!(domain::MerchantConnectorAccount),
                 domain::types::CryptoOperation::Encrypt(serde_json::Value::default().into()),
                 Identifier::Merchant(merchant_key.merchant_id.clone()),
                 merchant_key.key.get_inner().peek(),

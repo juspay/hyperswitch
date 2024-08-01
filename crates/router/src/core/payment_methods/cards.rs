@@ -4265,7 +4265,7 @@ async fn get_bank_account_connector_details(
     let payment_method_data =
         domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
             &state.into(),
-            type_name!(domain::MerchantKeyStore),
+            type_name!(payment_method::PaymentMethod),
             domain::types::CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
             identifier,
             key,
