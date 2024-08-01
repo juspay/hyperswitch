@@ -728,7 +728,7 @@ impl From<Description> for String {
 
 impl From<String> for Description {
     fn from(description: String) -> Self {
-        Description(description)
+        Self(description)
     }
 }
 
