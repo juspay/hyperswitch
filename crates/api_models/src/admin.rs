@@ -351,11 +351,11 @@ pub struct MerchantAccountUpdate {
 impl MerchantAccountUpdate {
     pub fn get_primary_details_as_value(
         &self,
-    ) -> CustomResult<serde_json::Value, errors::ParsingError> {
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
         self.primary_business_details
-            .clone()
-            .unwrap_or_default()
-            .encode_to_value()
+            .as_ref()
+            .map(|primary_business_details| primary_business_details.encode_to_value())
+            .transpose()
     }
 
     pub fn get_pm_link_config_as_value(

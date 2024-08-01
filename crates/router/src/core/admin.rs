@@ -746,7 +746,6 @@ pub async fn get_merchant_account(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    feature = "olap",
     not(feature = "merchant_account_v2")
 ))]
 /// For backwards compatibility, whenever new business labels are passed in
@@ -831,7 +830,6 @@ trait MerchantConnectorAccountUpdateBridge {
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    feature = "olap",
     not(feature = "merchant_account_v2")
 ))]
 #[async_trait::async_trait]
@@ -973,7 +971,7 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
             locker_id: self.locker_id,
             metadata: self.metadata,
             publishable_key: None,
-            primary_business_details: Some(primary_business_details),
+            primary_business_details,
             frm_routing_algorithm: self.frm_routing_algorithm,
             intent_fulfillment_time: None,
             #[cfg(feature = "payouts")]
