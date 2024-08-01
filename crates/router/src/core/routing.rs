@@ -33,6 +33,8 @@ use crate::{
     types::{domain, transformers::ForeignInto},
     utils::{self, OptionExt, ValueExt},
 };
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use api_models::routing::RoutingConfigRequest;
 pub enum TransactionData<'a, F>
 where
     F: Clone,
@@ -48,10 +50,8 @@ struct RoutingAlgorithmUpdate(RoutingAlgorithm);
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 impl RoutingAlgorithmUpdate {
     pub fn create_new_routing_algorithm(
-        algorithm: routing_types::RoutingAlgorithm,
+        request: &RoutingConfigRequest,
         merchant_id: &common_utils::id_type::MerchantId,
-        name: String,
-        description: String,
         profile_id: String,
         transaction_type: &enums::TransactionType,
     ) -> Self {
@@ -64,10 +64,10 @@ impl RoutingAlgorithmUpdate {
             algorithm_id,
             profile_id,
             merchant_id: merchant_id.clone(),
-            name,
-            description: Some(description),
-            kind: algorithm.get_kind().foreign_into(),
-            algorithm_data: serde_json::json!(algorithm),
+            name: request.name.clone(),
+            description: Some(request.description.clone()),
+            kind: request.algorithm.get_kind().foreign_into(),
+            algorithm_data: serde_json::json!(request.algorithm),
             created_at: timestamp,
             modified_at: timestamp,
             algorithm_for: transaction_type.to_owned(),
@@ -147,36 +147,15 @@ pub async fn create_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    request: routing_types::RoutingConfigRequest,
+    request: RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = &*state.store;
-    let name = request
-        .name
-        .get_required_value("name")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "name" })
-        .attach_printable("Name of config not given")?;
-
-    let description = request
-        .description
-        .get_required_value("description")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "description",
-        })
-        .attach_printable("Description of config not given")?;
-
-    let algorithm = request
-        .algorithm
-        .get_required_value("algorithm")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "algorithm",
-        })
-        .attach_printable("Algorithm of config not given")?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        request.profile_id.as_ref(),
+        Some(&request.profile_id),
         merchant_account.get_id(),
     )
     .await?
@@ -202,16 +181,14 @@ pub async fn create_routing_config(
     let algorithm_helper = helpers::RoutingAlgorithmHelpers {
         name_mca_id_set,
         name_set,
-        routing_algorithm: &algorithm,
+        routing_algorithm: &request.algorithm,
     };
 
     algorithm_helper.validate_connectors_in_routing_config()?;
 
     let algo = RoutingAlgorithmUpdate::create_new_routing_algorithm(
-        algorithm,
+        &request,
         merchant_account.get_id(),
-        name,
-        description,
         business_profile.profile_id,
         transaction_type,
     );
