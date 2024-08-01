@@ -28,7 +28,7 @@ describe("Corner cases", () => {
 
     it("[Payment] Invalid card number", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidCardNumber"
+        "InvalidCardNumber"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -45,7 +45,7 @@ describe("Corner cases", () => {
 
     it("[Payment] Invalid expiry month", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidExpiryMonth"
+        "InvalidExpiryMonth"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -62,7 +62,7 @@ describe("Corner cases", () => {
 
     it("[Payment] Invalid expiry year", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidExpiryYear"
+        "InvalidExpiryYear"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -79,7 +79,7 @@ describe("Corner cases", () => {
 
     it("[Payment] Invalid card CVV", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidCardCvv"
+        "InvalidCardCvv"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];

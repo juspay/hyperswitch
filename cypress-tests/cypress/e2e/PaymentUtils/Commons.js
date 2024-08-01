@@ -386,7 +386,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: getCustomExchange({
+    Ideal: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -413,7 +413,7 @@ export const connectorDetails = {
         },
       },
     }),
-    giropay: getCustomExchange({
+    Giropay: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -443,7 +443,7 @@ export const connectorDetails = {
         },
       },
     }),
-    sofort: getCustomExchange({
+    Sofort: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -470,7 +470,7 @@ export const connectorDetails = {
         },
       },
     }),
-    eps: getCustomExchange({
+    Eps: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -496,7 +496,7 @@ export const connectorDetails = {
         },
       },
     }),
-    przelewy24: getCustomExchange({
+    Przelewy24: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "przelewy24",
@@ -512,7 +512,7 @@ export const connectorDetails = {
         },
       },
     }),
-    blikPaymentIntent: getCustomExchange({
+    BlikPaymentIntent: getCustomExchange({
       Request: {
         currency: "PLN",
       },
@@ -523,7 +523,7 @@ export const connectorDetails = {
         },
       },
     }),
-    blik: getCustomExchange({
+    Blik: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
@@ -879,7 +879,7 @@ export const connectorDetails = {
         },
       },
     }),
-    invalidCardNumber: {
+    InvalidCardNumber: {
       Request: {
         currency: "USD",
         payment_method: "card",
@@ -902,7 +902,7 @@ export const connectorDetails = {
         },
       },
     },
-    invalidExpiryMonth: {
+    InvalidExpiryMonth: {
       Request: {
         currency: "USD",
         payment_method: "card",
@@ -929,7 +929,7 @@ export const connectorDetails = {
         },
       },
     },
-    invalidExpiryYear: {
+    InvalidExpiryYear: {
       Request: {
         currency: "USD",
         payment_method: "card",
@@ -956,7 +956,7 @@ export const connectorDetails = {
         },
       },
     },
-    invalidCardCvv: {
+    InvalidCardCvv: {
       Request: {
         currency: "USD",
         payment_method: "card",
