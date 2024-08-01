@@ -53,7 +53,7 @@ pub struct AuthenticationData {
 pub struct AuthenticationDataWithMultipleProfiles {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
-    pub profile_id: Vec<String>,
+    pub profile_id_list: Vec<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -752,7 +752,7 @@ where
             AuthenticationDataWithMultipleProfiles {
                 key_store,
                 merchant_account: merchant,
-                profile_id: payload
+                profile_id_list: payload
                     .profile_id
                     .map(|profile_id| vec![profile_id])
                     .unwrap_or(vec![]),
