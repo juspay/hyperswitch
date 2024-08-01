@@ -270,6 +270,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
+            // api_enums::Connector::Paybox => Self::Paybox, added for future usage
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,
@@ -1355,6 +1356,7 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
             description: payment_link_config.description,
             currency: payment_link_config.currency,
             status,
+            secure_link: payment_link_config.secure_link,
         }
     }
 }

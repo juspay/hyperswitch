@@ -127,11 +127,12 @@ pub mod html {
 
 Dashboard Pro Feature Request,
 Feature name  : {feature_name}
-Merchant ID   : {merchant_id}
+Merchant ID   : {}
 Merchant Name : {user_name}
 Email         : {user_email}
 
 (note: This is an auto generated email. Use merchant email for any further communications)",
+                merchant_id.get_string_repr()
             ),
             EmailBody::ApiKeyExpiryReminder {
                 expires_in,
