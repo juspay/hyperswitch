@@ -372,6 +372,8 @@ impl ApiKeyInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use storage_impl::redis::{
         cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
@@ -392,7 +394,8 @@ mod tests {
             .await
             .expect("Failed to create Mock store");
 
-        let merchant_id = common_utils::id_type::MerchantId::from("merchant1".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(Cow::from("merchant1")).unwrap();
 
         let key1 = mockdb
             .insert_api_key(storage::ApiKeyNew {
@@ -478,7 +481,8 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_api_keys_cache() {
-        let merchant_id = common_utils::id_type::MerchantId::from("test_merchant".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(Cow::from("test_merchant")).unwrap();
 
         #[allow(clippy::expect_used)]
         let db = MockDb::new(&redis_interface::RedisSettings::default())

@@ -210,6 +210,7 @@ pub struct KvConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct KeyManagerConfig {
+    pub enabled: Option<bool>,
     pub url: String,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,

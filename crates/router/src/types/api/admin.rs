@@ -16,6 +16,7 @@ use common_utils::{
     type_name,
     types::keymanager::Identifier,
 };
+use diesel_models::organization::OrganizationBridge;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
@@ -32,8 +33,8 @@ use crate::{
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
     fn foreign_from(org: diesel_models::organization::Organization) -> Self {
         Self {
-            organization_id: org.org_id,
-            organization_name: org.org_name,
+            organization_id: org.get_organization_id(),
+            organization_name: org.get_organization_name(),
             organization_details: org.organization_details,
             metadata: org.metadata,
             modified_at: org.modified_at,

@@ -1,15 +1,25 @@
+use common_enums::enums;
 use common_utils::pii::Email;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{BankDebitData, PaymentMethodData},
+    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData,
-    },
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
+    utils::{
+        self, missing_field_err, CardData as CardDataUtil, PaymentsAuthorizeRequestData,
+        RouterData as _,
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -59,7 +69,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
         let total = item.amount;
 
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(_) => {
+            PaymentMethodData::Card(_) => {
                 let pm_token = item.router_data.get_payment_method_token()?;
                 let pre_auth = !item.router_data.request.is_auto_capture()?;
                 Ok(Self {
@@ -68,17 +78,15 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: match pm_token {
-                        types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
-            domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
-                ..
-            }) => {
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. }) => {
                 let pm_token = item.router_data.get_payment_method_token()?;
                 let pre_auth = !item.router_data.request.is_auto_capture()?;
                 Ok(Self {
@@ -87,33 +95,31 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: match pm_token {
-                        types::PaymentMethodToken::Token(token) => token,
-                        types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
+                        PaymentMethodToken::Token(token) => token,
+                        PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Stax"),
                         )?,
                     },
                     idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
-            domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Stax"),
-                ))?
-            }
+            PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
@@ -123,11 +129,11 @@ pub struct StaxAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
+impl TryFrom<&ConnectorAuthType> for StaxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -165,16 +171,15 @@ pub struct StaxCustomerResponse {
     id: Secret<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, StaxCustomerResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, StaxCustomerResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, StaxCustomerResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, StaxCustomerResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
                 connector_customer_id: item.response.id.expose(),
             }),
             ..item.data
@@ -215,7 +220,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         let customer_id = item.get_connector_customer_id()?;
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(card_data) => {
+            PaymentMethodData::Card(card_data) => {
                 let stax_card_data = StaxTokenizeData {
                     card_exp: card_data
                         .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
@@ -228,7 +233,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Card(stax_card_data))
             }
-            domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
                 bank_name,
@@ -248,25 +253,23 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Bank(stax_bank_data))
             }
-            domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Stax"),
-                ))?
-            }
+            PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Stax"),
+            ))?,
         }
     }
 }
@@ -276,15 +279,15 @@ pub struct StaxTokenResponse {
     id: Secret<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, StaxTokenResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, StaxTokenResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, StaxTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+            response: Ok(PaymentsResponseData::TokenizationResponse {
                 token: item.response.id.expose(),
             }),
             ..item.data
@@ -321,13 +324,12 @@ pub struct StaxMetaData {
     pub capture_id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, StaxPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, StaxPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let mut connector_metadata = None;
         let mut status = match item.response.success {
@@ -354,8 +356,8 @@ impl<F, T>
 
         Ok(Self {
             status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata,
@@ -415,12 +417,12 @@ pub struct RefundResponse {
     child_transactions: Vec<ChildTransactionsInResponse>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_amount = utils::to_currency_base_unit_asf64(
             item.data.request.refund_amount,
@@ -450,7 +452,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         };
 
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: refund_txn.id.clone(),
                 refund_status,
             }),
@@ -459,19 +461,17 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = match item.response.success {
             true => enums::RefundStatus::Success,
             false => enums::RefundStatus::Failure,
         };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status,
             }),

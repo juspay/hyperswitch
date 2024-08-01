@@ -174,6 +174,7 @@ pub struct ConnectorConfig {
     pub nmi: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
+    // pub paybox: Option<ConnectorTomlConfig>, added for future usage
     pub payme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
@@ -350,6 +351,7 @@ impl ConnectorConfig {
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
+            // Connector::Paybox => Ok(connector_data.paybox), added for future usage
         }
     }
 }
