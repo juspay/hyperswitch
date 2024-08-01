@@ -1440,6 +1440,7 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 opennode::transformers::OpennodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Paybox => todo!(), added for future usage
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
