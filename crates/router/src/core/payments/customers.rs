@@ -1,3 +1,5 @@
+use common_utils::pii;
+use masking::{ExposeInterface, ExposeOptionInterface};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
@@ -72,23 +74,29 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     Ok(connector_customer_id)
 }
 
-pub fn get_connector_customer_details_if_present<'a>(
-    customer: &'a domain::Customer,
+pub fn get_connector_customer_details_if_present(
+    customer: &domain::Customer,
     connector_name: &str,
-) -> Option<&'a str> {
+) -> Option<String> {
     customer
         .connector_customer
         .as_ref()
-        .and_then(|connector_customer_value| connector_customer_value.get(connector_name))
-        .and_then(|connector_customer| connector_customer.as_str())
+        .and_then(|connector_customer_value| {
+            connector_customer_value
+                .clone()
+                .expose()
+                .get(connector_name)
+                .cloned()
+        })
+        .and_then(|connector_customer| serde_json::from_value::<String>(connector_customer).ok())
 }
 
-pub fn should_call_connector_create_customer<'a>(
+pub fn should_call_connector_create_customer(
     state: &SessionState,
     connector: &api::ConnectorData,
-    customer: &'a Option<domain::Customer>,
+    customer: &Option<domain::Customer>,
     connector_label: &str,
-) -> (bool, Option<&'a str>) {
+) -> (bool, Option<String>) {
     // Check if create customer is required for the connector
     let connector_needs_customer = state
         .conf
@@ -114,9 +122,8 @@ pub async fn update_connector_customer_in_customers(
     connector_customer_id: &Option<String>,
 ) -> Option<storage::CustomerUpdate> {
     let connector_customer_map = customer
-        .and_then(|customer| customer.connector_customer.as_ref())
-        .and_then(|connector_customer| connector_customer.as_object())
-        .map(ToOwned::to_owned)
+        .and_then(|customer| customer.connector_customer.clone().expose_option())
+        .and_then(|connector_customer| connector_customer.as_object().cloned())
         .unwrap_or_default();
 
     let updated_connector_customer_map =
@@ -132,7 +139,9 @@ pub async fn update_connector_customer_in_customers(
         .map(serde_json::Value::Object)
         .map(
             |connector_customer_value| storage::CustomerUpdate::ConnectorCustomer {
-                connector_customer: Some(connector_customer_value),
+                connector_customer: Some(pii::SecretSerdeValue::new(
+                    connector_customer_value.into(),
+                )),
             },
         )
 }

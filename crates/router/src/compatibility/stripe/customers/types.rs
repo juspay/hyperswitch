@@ -6,6 +6,7 @@ use common_utils::{crypto::Encryptable, date_time};
 use common_utils::{
     id_type,
     pii::{self, Email},
+    types::Description,
 };
 use serde::{Deserialize, Serialize};
 
@@ -40,7 +41,7 @@ pub struct CreateCustomerRequest {
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub shipping: Option<Shipping>,
     pub payment_method: Option<String>,              // not used
     pub balance: Option<i64>,                        // not used
@@ -59,7 +60,7 @@ pub struct CreateCustomerRequest {
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerUpdateRequest {
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub email: Option<Email>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub name: Option<masking::Secret<String>>,
@@ -85,7 +86,7 @@ pub struct CreateCustomerResponse {
     pub id: id_type::CustomerId,
     pub object: String,
     pub created: u64,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub email: Option<Email>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub name: Option<masking::Secret<String>>,

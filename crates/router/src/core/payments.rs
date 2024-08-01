@@ -2012,8 +2012,7 @@ where
                 Ok(customer_update)
             } else {
                 // Customer already created in previous calls use the same value, no need to update
-                payment_data.connector_customer_id =
-                    existing_connector_customer_id.map(ToOwned::to_owned);
+                payment_data.connector_customer_id = existing_connector_customer_id;
                 Ok(None)
             }
         }

@@ -446,7 +446,7 @@ impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
             "customer_{}_{}",
-            self.merchant_customer_reference_id
+            self.merchant_reference_id
                 .clone()
                 .unwrap_or_default()
                 .get_string_repr(),

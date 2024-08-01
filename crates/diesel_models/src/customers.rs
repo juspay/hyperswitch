@@ -1,7 +1,7 @@
 // #[cfg(all(feature = "v2", feature = "customer_v2"))]
 // use crate::enums::SoftDeleteStatus;
 use common_enums::ApiVersion;
-use common_utils::{encryption::Encryption, pii};
+use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -12,7 +12,7 @@ use crate::schema_v2::customers;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(
-    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
+    Clone, Debug, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize, Insertable,
 )]
 #[diesel(table_name = customers)]
 pub struct CustomerNew {
@@ -21,10 +21,10 @@ pub struct CustomerNew {
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
@@ -95,15 +95,15 @@ pub struct CustomerNew {
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
     pub phone_country_code: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
-    pub merchant_customer_reference_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
@@ -133,7 +133,7 @@ impl From<CustomerNew> for Customer {
             modified_at: customer_new.modified_at,
             default_payment_method_id: None,
             updated_by: customer_new.updated_by,
-            merchant_customer_reference_id: customer_new.merchant_customer_reference_id,
+            merchant_reference_id: customer_new.merchant_reference_id,
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
             id: customer_new.id,
@@ -155,10 +155,10 @@ pub struct Customer {
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
     pub phone_country_code: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
@@ -177,15 +177,15 @@ pub struct Customer {
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
     pub phone_country_code: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
-    pub merchant_customer_reference_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
@@ -207,11 +207,11 @@ pub struct CustomerUpdateInternal {
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
     pub updated_by: Option<String>,
@@ -266,12 +266,11 @@ pub struct CustomerUpdateInternal {
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
     pub phone: Option<Encryption>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub connector_customer: Option<serde_json::Value>,
-    // pub address_id: Option<String>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub default_payment_method_id: Option<Option<String>>,
     pub updated_by: Option<String>,
 }

@@ -9,6 +9,7 @@ use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
+use masking::ExposeInterface;
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
 use maud::{html, PreEscaped};
@@ -128,8 +129,14 @@ pub async fn construct_payout_router_data<'a, F>(
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
-        .and_then(|cc| cc.get(connector_label))
-        .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
+        .and_then(|connector_customer_value| {
+            connector_customer_value
+                .clone()
+                .expose()
+                .get(connector_label)
+                .cloned()
+        })
+        .and_then(|id| serde_json::from_value::<String>(id).ok());
 
     let vendor_details: Option<PayoutVendorAccountDetails> =
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(

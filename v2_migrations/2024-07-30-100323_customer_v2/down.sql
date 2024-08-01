@@ -1,5 +1,5 @@
 -- This file should undo anything in `up.sql`
-ALTER TABLE customers DROP COLUMN IF EXISTS merchant_customer_reference_id;
+ALTER TABLE customers DROP COLUMN IF EXISTS merchant_reference_id;
 ALTER TABLE customers DROP COLUMN IF EXISTS default_billing_address;
 ALTER TABLE customers DROP COLUMN IF EXISTS default_shipping_address;
 

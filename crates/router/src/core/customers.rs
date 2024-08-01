@@ -5,7 +5,10 @@ use common_utils::{
     errors::ReportSwitchExt,
     ext_traits::AsyncExt,
     id_type,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    types::{
+        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        Description,
+    },
 };
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -245,7 +248,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
 
         Ok(domain::Customer {
             id: common_utils::generate_time_ordered_id("cus"),
-            merchant_customer_reference_id: merchant_reference_id.to_owned(),
+            merchant_reference_id: merchant_reference_id.to_owned(),
             merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email,
@@ -573,7 +576,7 @@ pub async fn delete_customer(
             .switch()?,
         ),
         phone: Box::new(Some(redacted_encrypted_value.clone())),
-        description: Some(REDACTED.to_string()),
+        description: Some(Description::new(REDACTED.to_string())),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
         connector_customer: None,
