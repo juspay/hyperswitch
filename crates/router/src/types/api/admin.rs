@@ -201,8 +201,9 @@ pub async fn create_business_profile(
     storage::business_profile::BusinessProfileNew,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
-    use crate::core;
     use common_utils::ext_traits::{AsyncExt, Encode};
+
+    use crate::core;
 
     // Generate a unique profile id
     let profile_id = common_utils::generate_id_with_default_len("pro");
