@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use common_utils::{encryption::Encryption, id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
 
 use crate::enums as storage_enums;
 #[cfg(all(
@@ -35,20 +34,20 @@ pub struct MerchantConnectorAccount {
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: String,
-    #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
+    pub frm_configs: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
     pub profile_id: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -85,17 +84,16 @@ pub struct MerchantConnectorAccount {
     pub connector_name: String,
     pub connector_account_details: Encryption,
     pub disabled: Option<bool>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
     pub profile_id: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -127,18 +125,18 @@ pub struct MerchantConnectorAccountNew {
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: String,
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
+    pub frm_configs: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
     pub profile_id: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -157,15 +155,14 @@ pub struct MerchantConnectorAccountNew {
     pub connector_name: Option<String>,
     pub connector_account_details: Option<Encryption>,
     pub disabled: Option<bool>,
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
     pub profile_id: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -190,13 +187,13 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: Option<String>,
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
+    pub frm_configs: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<time::PrimitiveDateTime>,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
@@ -208,19 +205,16 @@ pub struct MerchantConnectorAccountUpdateInternal {
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
-    pub merchant_id: Option<id_type::MerchantId>,
     pub connector_type: Option<storage_enums::ConnectorType>,
-    pub connector_name: Option<String>,
     pub connector_account_details: Option<Encryption>,
     pub connector_label: Option<String>,
     pub disabled: Option<bool>,
-    pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
+    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<time::PrimitiveDateTime>,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
@@ -266,7 +260,6 @@ impl MerchantConnectorAccountUpdateInternal {
         source: MerchantConnectorAccount,
     ) -> MerchantConnectorAccount {
         MerchantConnectorAccount {
-            merchant_id: self.merchant_id.unwrap_or(source.merchant_id),
             connector_type: self.connector_type.unwrap_or(source.connector_type),
             connector_account_details: self
                 .connector_account_details

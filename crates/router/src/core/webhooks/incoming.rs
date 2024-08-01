@@ -544,6 +544,7 @@ async fn payments_incoming_webhook_flow(
                 state.clone(),
                 req_state,
                 merchant_account.clone(),
+                None,
                 key_store.clone(),
                 payments::operations::PaymentStatus,
                 api::PaymentsRetrieveRequest {
@@ -824,6 +825,7 @@ async fn refunds_incoming_webhook_flow(
         Box::pin(refunds::refund_retrieve_core(
             state.clone(),
             merchant_account.clone(),
+            None,
             key_store.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
@@ -1075,6 +1077,7 @@ async fn external_authentication_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account.clone(),
+                    None,
                     key_store.clone(),
                     payments::PaymentConfirm,
                     payment_confirm_req,
@@ -1268,6 +1271,7 @@ async fn frm_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account.clone(),
+                    None,
                     key_store.clone(),
                     payments::PaymentApprove,
                     api::PaymentsCaptureRequest {
@@ -1293,6 +1297,7 @@ async fn frm_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account.clone(),
+                    None,
                     key_store.clone(),
                     payments::PaymentReject,
                     api::PaymentsCancelRequest {
@@ -1459,6 +1464,7 @@ async fn bank_transfer_webhook_flow(
             state.clone(),
             req_state,
             merchant_account.to_owned(),
+            None,
             key_store.clone(),
             payments::PaymentConfirm,
             request,

@@ -83,9 +83,7 @@ pub async fn check_existence_and_add_domain_to_db(
     };
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
-        merchant_id: None,
         connector_type: None,
-        connector_name: None,
         connector_account_details: None,
         disabled: None,
         payment_methods_enabled: None,

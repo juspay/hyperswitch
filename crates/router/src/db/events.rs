@@ -806,7 +806,9 @@ mod tests {
         let state = &Arc::new(app_state)
             .get_session_state("public", || {})
             .unwrap();
-        let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
+                .unwrap();
         let business_profile_id = "profile1";
         let payment_id = "test_payment_id";
         let key_manager_state = &state.into();

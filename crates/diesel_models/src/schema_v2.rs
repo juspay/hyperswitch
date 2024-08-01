@@ -188,10 +188,6 @@ diesel::table! {
         redirect_to_merchant_with_http_post -> Bool,
         webhook_details -> Nullable<Json>,
         metadata -> Nullable<Json>,
-        routing_algorithm -> Nullable<Json>,
-        intent_fulfillment_time -> Nullable<Int8>,
-        frm_routing_algorithm -> Nullable<Jsonb>,
-        payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
@@ -205,6 +201,15 @@ diesel::table! {
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
+        #[max_length = 64]
+        routing_algorithm_id -> Nullable<Varchar>,
+        order_fulfillment_time -> Nullable<Int8>,
+        order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
+        #[max_length = 64]
+        frm_routing_algorithm_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payout_routing_algorithm_id -> Nullable<Varchar>,
+        default_fallback_routing -> Nullable<Jsonb>,
     }
 }
 
@@ -688,7 +693,6 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
         connector_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
@@ -721,14 +725,14 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    organization (org_id) {
-        #[max_length = 32]
-        org_id -> Varchar,
-        org_name -> Nullable<Text>,
+    organization (id) {
         organization_details -> Nullable<Jsonb>,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        #[max_length = 32]
+        id -> Varchar,
+        organization_name -> Nullable<Text>,
     }
 }
 
@@ -921,6 +925,8 @@ diesel::table! {
         description -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        secure_link -> Nullable<Varchar>,
     }
 }
 
@@ -1180,6 +1186,8 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         last_modified_by -> Varchar,
+        #[max_length = 64]
+        entity_type -> Nullable<Varchar>,
     }
 }
 

@@ -106,7 +106,8 @@ impl MerchantKeyStoreInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            let key_store_cache_key =
+                format!("merchant_key_store_{}", merchant_id.get_string_repr());
             cache::get_or_populate_in_memory(
                 self,
                 &key_store_cache_key,
@@ -318,7 +319,7 @@ impl MerchantKeyStoreInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{borrow::Cow, sync::Arc};
 
     use common_utils::types::keymanager::Identifier;
     use time::macros::datetime;
@@ -354,7 +355,8 @@ mod tests {
             .await
             .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
-        let merchant_id = common_utils::id_type::MerchantId::from("merchant1".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(Cow::from("merchant1")).unwrap();
         let identifier = Identifier::Merchant(merchant_id.clone());
         let key_manager_state = &state.into();
         let merchant_key1 = mock_db
@@ -410,7 +412,7 @@ mod tests {
         assert!(insert_duplicate_merchant_key1_result.is_err());
 
         let non_existent_merchant_id =
-            common_utils::id_type::MerchantId::from("non_existent".into()).unwrap();
+            common_utils::id_type::MerchantId::try_from(Cow::from("non_existent")).unwrap();
 
         let find_non_existent_merchant_key_result = mock_db
             .get_merchant_key_store_by_merchant_id(

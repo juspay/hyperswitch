@@ -12,6 +12,8 @@ use common_utils::{
     types::keymanager::{self as km_types, KeyManagerState},
 };
 use diesel_models::configs;
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
+use diesel_models::organization::OrganizationBridge;
 use error_stack::{report, FutureExt, ResultExt};
 use futures::future::try_join_all;
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -134,7 +136,7 @@ pub async fn update_organization(
     req: api::OrganizationRequest,
 ) -> RouterResponse<api::OrganizationResponse> {
     let organization_update = diesel_models::organization::OrganizationUpdate::Update {
-        org_name: req.organization_name,
+        organization_name: req.organization_name,
         organization_details: req.organization_details,
         metadata: req.metadata,
     };
@@ -387,7 +389,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     payout_routing_algorithm: self.payout_routing_algorithm,
                     #[cfg(not(feature = "payouts"))]
                     payout_routing_algorithm: None,
-                    organization_id: organization.org_id,
+                    organization_id: organization.get_organization_id(),
                     is_recon_enabled: false,
                     default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
@@ -638,7 +640,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        CreateOrValidateOrganization::new(self.organization_id.clone())
+        let organization = CreateOrValidateOrganization::new(self.organization_id.clone())
             .create_or_validate(db)
             .await?;
 
@@ -692,7 +694,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     intent_fulfillment_time: None,
                     frm_routing_algorithm: None,
                     payout_routing_algorithm: None,
-                    organization_id: self.organization_id,
+                    organization_id: organization.get_organization_id(),
                     is_recon_enabled: false,
                     default_profile: None,
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
@@ -1418,6 +1420,7 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 opennode::transformers::OpennodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Paybox => todo!(), added for future usage
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1664,7 +1667,7 @@ struct PaymentMethodsEnabled<'a> {
 }
 
 impl<'a> PaymentMethodsEnabled<'a> {
-    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<serde_json::Value>>> {
+    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
         let mut vec = Vec::new();
         let payment_methods_enabled = match self.payment_methods_enabled.clone() {
             Some(val) => {
@@ -1675,7 +1678,7 @@ impl<'a> PaymentMethodsEnabled<'a> {
                         .attach_printable(
                             "Failed while encoding to serde_json::Value, PaymentMethod",
                         )?;
-                    vec.push(pm_value)
+                    vec.push(Secret::new(pm_value))
                 }
                 Some(vec)
             }
@@ -2008,9 +2011,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         pm_auth_config_validation.validate_pm_auth_config().await?;
 
         Ok(storage::MerchantConnectorAccountUpdate::Update {
-            merchant_id: None,
             connector_type: Some(self.connector_type),
-            connector_name: None,
             connector_label: self.connector_label.clone(),
             connector_account_details: self
                 .connector_account_details
@@ -2088,7 +2089,8 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             pm_enabled
                 .iter()
                 .flat_map(Encode::encode_to_value)
-                .collect::<Vec<serde_json::Value>>()
+                .map(Secret::new)
+                .collect::<Vec<pii::SecretSerdeValue>>()
         });
 
         let frm_configs = get_frm_config_as_secret(self.frm_configs);
@@ -2300,7 +2302,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }
@@ -2464,7 +2466,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     connector_webhook_details.encode_to_value(
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {}", business_profile.merchant_id))
+                    .attach_printable(format!("Failed to serialize api_models::admin::MerchantConnectorWebhookDetails for Merchant: {:?}", business_profile.merchant_id))
                     .map(Some)?
                     .map(Secret::new)
                 }
@@ -3371,12 +3373,15 @@ pub async fn update_business_profile(
     let payment_link_config = request
         .payment_link_config
         .as_ref()
-        .map(|pl_metadata| {
-            pl_metadata.encode_to_value().change_context(
+        .map(|payment_link_conf| match payment_link_conf.validate() {
+            Ok(_) => payment_link_conf.encode_to_value().change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_link_config",
                 },
-            )
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
         })
         .transpose()?;
 
@@ -3417,7 +3422,6 @@ pub async fn update_business_profile(
 
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
-        modified_at: Some(date_time::now()),
         return_url: request.return_url.map(|return_url| return_url.to_string()),
         enable_payment_response_hash: request.enable_payment_response_hash,
         payment_response_hash_key: request.payment_response_hash_key,
@@ -3816,7 +3820,7 @@ async fn locker_recipient_create_call(
 
     let merchant_id_string = merchant_id.get_string_repr().to_owned();
 
-    let cust_id = id_type::CustomerId::from(merchant_id_string.into())
+    let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_string))
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert to CustomerId")?;
 

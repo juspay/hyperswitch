@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use common_enums::{PermissionGroup, RoleScope};
+use common_enums::{EntityType, PermissionGroup, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
 use super::{permission_groups::get_permissions_vec, permissions::Permission};
@@ -14,6 +14,7 @@ pub struct RoleInfo {
     role_name: String,
     groups: Vec<PermissionGroup>,
     scope: RoleScope,
+    entity_type: EntityType,
     is_invitable: bool,
     is_deletable: bool,
     is_updatable: bool,
@@ -35,6 +36,10 @@ impl RoleInfo {
 
     pub fn get_scope(&self) -> RoleScope {
         self.scope
+    }
+
+    pub fn get_entity_type(&self) -> EntityType {
+        self.entity_type
     }
 
     pub fn is_invitable(&self) -> bool {
@@ -91,6 +96,7 @@ impl From<diesel_models::role::Role> for RoleInfo {
             role_name: role.role_name,
             groups: role.groups.into_iter().map(Into::into).collect(),
             scope: role.scope,
+            entity_type: role.entity_type.unwrap_or(EntityType::Merchant),
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,

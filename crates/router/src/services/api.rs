@@ -18,6 +18,7 @@ use actix_web::{
     web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
@@ -37,7 +38,7 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
-        ConnectorIntegrationAny, ConnectorValidation,
+        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -47,7 +48,7 @@ use masking::{Maskable, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
-use tera::{Context, Tera};
+use tera::{Context, Error as TeraError, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use super::{
@@ -672,13 +673,6 @@ async fn handle_response(
         .await
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentAction {
-    PSync,
-    CompleteAuthorize,
-    PaymentAuthenticateCompleteAuthorize,
-}
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
@@ -989,14 +983,18 @@ where
             let link_type = boxed_generic_link_data.data.to_string();
             match build_generic_link_html(boxed_generic_link_data.data) {
                 Ok(rendered_html) => {
-                    let domains_str = boxed_generic_link_data
-                        .allowed_domains
-                        .into_iter()
-                        .collect::<Vec<String>>()
-                        .join(" ");
-                    let csp_header = format!("frame-ancestors 'self' {};", domains_str);
-                    let headers = HashSet::from([("content-security-policy", csp_header)]);
-                    http_response_html_data(rendered_html, Some(headers))
+                    let headers = if !boxed_generic_link_data.allowed_domains.is_empty() {
+                        let domains_str = boxed_generic_link_data
+                            .allowed_domains
+                            .into_iter()
+                            .collect::<Vec<String>>()
+                            .join(" ");
+                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                        Some(HashSet::from([("content-security-policy", csp_header)]))
+                    } else {
+                        None
+                    };
+                    http_response_html_data(rendered_html, headers)
                 }
                 Err(_) => {
                     http_response_err(format!("Error while rendering {} HTML page", link_type))
@@ -1217,17 +1215,6 @@ pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpRes
     HttpResponse::BadRequest()
         .content_type(mime::APPLICATION_JSON)
         .body(response)
-}
-
-pub trait ConnectorRedirectResponse {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Avoid)
-    }
 }
 
 pub trait Authenticate {
@@ -1794,9 +1781,9 @@ pub fn build_redirection_form(
     }
 }
 
-pub fn build_payment_link_html(
+fn build_payment_link_template(
     payment_link_data: PaymentLinkFormData,
-) -> CustomResult<String, errors::ApiErrorResponse> {
+) -> CustomResult<(Tera, Context), errors::ApiErrorResponse> {
     let mut tera = Tera::default();
 
     // Add modification to css template with dynamic data
@@ -1848,11 +1835,6 @@ pub fn build_payment_link_html(
     );
 
     context.insert(
-        "preload_link_tags",
-        &get_preload_link_html_template(&payment_link_data.sdk_url),
-    );
-
-    context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
@@ -1861,13 +1843,43 @@ pub fn build_payment_link_html(
 
     context.insert("logging_template", &logging_template);
 
-    match tera.render("payment_link", &context) {
-        Ok(rendered_html) => Ok(rendered_html),
-        Err(tera_error) => {
+    Ok((tera, context))
+}
+
+pub fn build_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let (tera, mut context) = build_payment_link_template(payment_link_data)
+        .attach_printable("Failed to build payment link's HTML template")?;
+    let payment_link_initiator =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link_initiator.js")
+            .to_string();
+    context.insert("payment_link_initiator", &payment_link_initiator);
+
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
             crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering open payment link's HTML template")
+}
+
+pub fn build_secure_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let (tera, mut context) = build_payment_link_template(payment_link_data)
+        .attach_printable("Failed to build payment link's HTML template")?;
+    let payment_link_initiator =
+        include_str!("../core/payment_link/payment_link_initiate/secure_payment_link_initiator.js")
+            .to_string();
+    context.insert("payment_link_initiator", &payment_link_initiator);
+
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
+            crate::logger::warn!("{tera_error}");
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering secure payment link's HTML template")
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {

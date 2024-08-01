@@ -122,6 +122,10 @@ where
         NewDstType = storage::MerchantConnectorAccountNew,
     >,
 {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
@@ -130,6 +134,10 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -138,6 +146,10 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -216,6 +228,10 @@ where
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
@@ -248,7 +264,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             cache::get_or_populate_in_memory(
                 self,
-                &format!("{}_{}", merchant_id, connector_label),
+                &format!("{}_{}", merchant_id.get_string_repr(), connector_label),
                 find_call,
                 &cache::ACCOUNTS_CACHE,
             )
@@ -266,6 +282,10 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
@@ -320,6 +340,10 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
@@ -750,13 +774,22 @@ impl MerchantConnectorAccountInterface for Store {
                         format!("{}_{}", _profile_id, _connector_name).into(),
                     ),
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", _merchant_id, _merchant_connector_id).into(),
+                        format!(
+                            "{}_{}",
+                            _merchant_id.get_string_repr(),
+                            _merchant_connector_id
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", _merchant_id).into(),
+                        format!("cgraph_{}_{_profile_id}", _merchant_id.get_string_repr()).into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", _merchant_id).into(),
+                        format!(
+                            "pm_filters_cgraph_{}_{_profile_id}",
+                            _merchant_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                 ],
                 update_call,
@@ -871,13 +904,18 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 [
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", mca.merchant_id, _profile_id).into(),
+                        format!("{}_{}", mca.merchant_id.get_string_repr(), _profile_id).into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                        format!("cgraph_{}_{_profile_id}", mca.merchant_id.get_string_repr())
+                            .into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
-                        format!("pm_filters_cgraph_{}_{_profile_id}", mca.merchant_id).into(),
+                        format!(
+                            "pm_filters_cgraph_{}_{_profile_id}",
+                            mca.merchant_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                 ],
                 delete_call,
@@ -905,6 +943,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         // apple pay certificate migration
         Err(errors::StorageError::MockDbError)?
     }
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
@@ -944,6 +986,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -977,6 +1023,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1157,7 +1207,6 @@ impl MerchantConnectorAccountInterface for MockDb {
             disabled: t.disabled,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
-            frm_configs: None,
             frm_config: t.frm_configs,
             connector_type: t.connector_type,
             connector_label: t.connector_label,
@@ -1432,7 +1481,9 @@ mod merchant_connector_account_cache_tests {
             .await
             .unwrap();
 
-        let merchant_id = common_utils::id_type::MerchantId::from("test_merchant".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("test_merchant"))
+                .unwrap();
 
         let connector_label = "stripe_USA";
         let merchant_connector_id = "simple_merchant_connector_id";
@@ -1528,7 +1579,7 @@ mod merchant_connector_account_cache_tests {
         };
         let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
             &db,
-            &format!("{}_{}", merchant_id, profile_id),
+            &format!("{}_{}", merchant_id.get_string_repr(), profile_id),
             find_call,
             &ACCOUNTS_CACHE,
         )
@@ -1545,7 +1596,9 @@ mod merchant_connector_account_cache_tests {
 
         cache::publish_and_redact(
             &db,
-            CacheKind::Accounts(format!("{}_{}", merchant_id, connector_label).into()),
+            CacheKind::Accounts(
+                format!("{}_{}", merchant_id.get_string_repr(), connector_label).into(),
+            ),
             delete_call,
         )
         .await
@@ -1553,7 +1606,164 @@ mod merchant_connector_account_cache_tests {
 
         assert!(ACCOUNTS_CACHE
             .get_val::<domain::MerchantConnectorAccount>(CacheKey {
-                key: format!("{}_{}", merchant_id, connector_label),
+                key: format!("{}_{}", merchant_id.get_string_repr(), connector_label),
+                prefix: String::default(),
+            },)
+            .await
+            .is_none())
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    async fn test_connector_profile_id_cache() {
+        let conf = Settings::new().unwrap();
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+
+        let app_state = Box::pin(routes::AppState::with_storage(
+            conf,
+            StorageImpl::PostgresqlTest,
+            tx,
+            Box::new(services::MockApiClient),
+        ))
+        .await;
+        let state = &Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
+        #[allow(clippy::expect_used)]
+        let db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
+
+        let redis_conn = db.get_redis_conn().unwrap();
+        let master_key = db.get_master_key();
+        redis_conn
+            .subscribe("hyperswitch_invalidate")
+            .await
+            .unwrap();
+
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("test_merchant"))
+                .unwrap();
+        let connector_label = "stripe_USA";
+        let id = "simple_id";
+        let profile_id = "pro_max_ultra";
+        let key_manager_state = &state.into();
+        db.insert_merchant_key_store(
+            key_manager_state,
+            domain::MerchantKeyStore {
+                merchant_id: merchant_id.clone(),
+                key: domain::types::encrypt(
+                    key_manager_state,
+                    services::generate_aes256_key().unwrap().to_vec().into(),
+                    Identifier::Merchant(merchant_id.clone()),
+                    master_key,
+                )
+                .await
+                .unwrap(),
+                created_at: datetime!(2023-02-01 0:00),
+            },
+            &master_key.to_vec().into(),
+        )
+        .await
+        .unwrap();
+
+        let merchant_key = db
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &master_key.to_vec().into(),
+            )
+            .await
+            .unwrap();
+
+        let mca = domain::MerchantConnectorAccount {
+            id: id.to_string(),
+            merchant_id: merchant_id.clone(),
+            connector_name: "stripe".to_string(),
+            connector_account_details: domain::types::encrypt(
+                key_manager_state,
+                serde_json::Value::default().into(),
+                Identifier::Merchant(merchant_key.merchant_id.clone()),
+                merchant_key.key.get_inner().peek(),
+            )
+            .await
+            .unwrap(),
+            disabled: None,
+            payment_methods_enabled: None,
+            connector_type: ConnectorType::FinOperations,
+            metadata: None,
+            frm_configs: None,
+            connector_label: Some(connector_label.to_string()),
+            created_at: date_time::now(),
+            modified_at: date_time::now(),
+            connector_webhook_details: None,
+            profile_id: Some(profile_id.to_string()),
+            applepay_verified_domains: None,
+            pm_auth_config: None,
+            status: common_enums::ConnectorStatus::Inactive,
+            connector_wallets_details: Some(
+                domain::types::encrypt(
+                    key_manager_state,
+                    serde_json::Value::default().into(),
+                    Identifier::Merchant(merchant_key.merchant_id.clone()),
+                    merchant_key.key.get_inner().peek(),
+                )
+                .await
+                .unwrap(),
+            ),
+            additional_merchant_data: None,
+        };
+
+        db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)
+            .await
+            .unwrap();
+
+        let find_call = || async {
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
+            let mca = db
+                .find_merchant_connector_account_by_profile_id_connector_name(
+                    key_manager_state,
+                    profile_id,
+                    &mca.connector_name,
+                    &merchant_key,
+                )
+                .await
+                .unwrap();
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            let mca: domain::MerchantConnectorAccount = { todo!() };
+            Conversion::convert(mca)
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        };
+
+        let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
+            &db,
+            &format!("{}_{}", merchant_id.clone().get_string_repr(), profile_id),
+            find_call,
+            &ACCOUNTS_CACHE,
+        )
+        .await
+        .unwrap();
+
+        let delete_call = || async { db.delete_merchant_connector_account_by_id(id).await };
+
+        cache::publish_and_redact(
+            &db,
+            CacheKind::Accounts(
+                format!("{}_{}", merchant_id.get_string_repr(), connector_label).into(),
+            ),
+            delete_call,
+        )
+        .await
+        .unwrap();
+
+        assert!(ACCOUNTS_CACHE
+            .get_val::<domain::MerchantConnectorAccount>(CacheKey {
+                key: format!("{}_{}", merchant_id.get_string_repr(), connector_label),
                 prefix: String::default(),
             },)
             .await

@@ -270,6 +270,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
+            // api_enums::Connector::Paybox => Self::Paybox, added for future usage
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,
@@ -928,9 +929,15 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled {
-            Some(val) => serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
             None => None,
         };
         let frm_configs = match item.frm_configs {
@@ -1024,9 +1031,15 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled.clone() {
-            Some(val) => serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            Some(secret_val) => {
+                let val = secret_val
+                    .into_iter()
+                    .map(|secret| secret.expose())
+                    .collect();
+                serde_json::Value::Array(val)
+                    .parse_value("PaymentMethods")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+            }
             None => None,
         };
         let frm_configs = match item.frm_configs {
@@ -1389,6 +1402,7 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
             description: payment_link_config.description,
             currency: payment_link_config.currency,
             status,
+            secure_link: payment_link_config.secure_link,
         }
     }
 }
@@ -1423,14 +1437,7 @@ impl ForeignFrom<api_models::organization::OrganizationNew>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::organization::OrganizationNew) -> Self {
-        Self {
-            org_id: item.org_id,
-            org_name: item.org_name,
-            organization_details: None,
-            metadata: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        }
+        Self::new(item.org_id, item.org_name)
     }
 }
 
@@ -1439,14 +1446,15 @@ impl ForeignFrom<api_models::organization::OrganizationRequest>
 {
     fn foreign_from(item: api_models::organization::OrganizationRequest) -> Self {
         let org_new = api_models::organization::OrganizationNew::new(None);
-        Self {
-            org_id: org_new.org_id,
-            org_name: item.organization_name,
-            organization_details: item.organization_details,
-            metadata: item.metadata,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        }
+        let api_models::organization::OrganizationRequest {
+            organization_name,
+            organization_details,
+            metadata,
+        } = item;
+        let mut org_new_db = Self::new(org_new.org_id, organization_name);
+        org_new_db.organization_details = organization_details;
+        org_new_db.metadata = metadata;
+        org_new_db
     }
 }
 

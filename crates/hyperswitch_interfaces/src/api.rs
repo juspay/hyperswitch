@@ -17,7 +17,7 @@ pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
 
-use common_enums::enums::{CaptureMethod, PaymentMethodType};
+use common_enums::enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
@@ -396,5 +396,18 @@ pub trait ConnectorValidation: ConnectorCommon {
     /// fn is_webhook_source_verification_mandatory
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
+    }
+}
+
+/// trait ConnectorRedirectResponse
+pub trait ConnectorRedirectResponse {
+    /// fn get_flow_type
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
+        Ok(CallConnectorAction::Avoid)
     }
 }
