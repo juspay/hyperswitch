@@ -6,6 +6,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
+    type_name,
     types::{keymanager::Identifier, MinorUnit},
 };
 use diesel_models::{ephemeral_key, PaymentMethod};
@@ -13,7 +14,7 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
-    type_encryption::decrypt_optional,
+    type_encryption::{crypto_operation, CryptoOperation},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -848,13 +849,15 @@ impl PaymentCreate {
             additional_pm_data = payment_method_info
                 .as_ref()
                 .async_map(|pm_info| async {
-                    decrypt_optional::<serde_json::Value, masking::WithType>(
+                    crypto_operation::<serde_json::Value, masking::WithType>(
                         &state.into(),
-                        pm_info.payment_method_data.clone(),
+                        type_name!(PaymentMethod),
+                        CryptoOperation::DecryptOptional(pm_info.payment_method_data.clone()),
                         Identifier::Merchant(key_store.merchant_id.clone()),
                         key_store.key.get_inner().peek(),
                     )
                     .await
+                    .and_then(|val| val.try_into_optionaloperation())
                     .map_err(|err| logger::error!("Failed to decrypt card details: {:?}", err))
                     .ok()
                     .flatten()

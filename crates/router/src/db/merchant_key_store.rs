@@ -320,7 +320,7 @@ impl MerchantKeyStoreInterface for MockDb {
 mod tests {
     use std::sync::Arc;
 
-    use common_utils::types::keymanager::Identifier;
+    use common_utils::{type_name, types::keymanager::Identifier};
     use time::macros::datetime;
     use tokio::sync::oneshot;
 
@@ -362,13 +362,17 @@ mod tests {
                 key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
-                    key: domain::types::encrypt(
+                    key: domain::types::crypto_operation(
                         key_manager_state,
-                        services::generate_aes256_key().unwrap().to_vec().into(),
+                        type_name!(domain::MerchantKeyStore),
+                        domain::types::CryptoOperation::Encrypt(
+                            services::generate_aes256_key().unwrap().to_vec().into(),
+                        ),
                         identifier.clone(),
                         master_key,
                     )
                     .await
+                    .and_then(|val| val.try_into_operation())
                     .unwrap(),
                     created_at: datetime!(2023-02-01 0:00),
                 },
@@ -394,13 +398,17 @@ mod tests {
                 key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
-                    key: domain::types::encrypt(
+                    key: domain::types::crypto_operation(
                         key_manager_state,
-                        services::generate_aes256_key().unwrap().to_vec().into(),
+                        type_name!(domain::MerchantKeyStore),
+                        domain::types::CryptoOperation::Encrypt(
+                            services::generate_aes256_key().unwrap().to_vec().into(),
+                        ),
                         identifier.clone(),
                         master_key,
                     )
                     .await
+                    .and_then(|val| val.try_into_operation())
                     .unwrap(),
                     created_at: datetime!(2023-02-01 0:00),
                 },

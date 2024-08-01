@@ -9,6 +9,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
+    type_name,
     types::keymanager::Identifier,
 };
 use error_stack::{report, ResultExt};
@@ -39,7 +40,10 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self, types::decrypt_optional},
+        domain::{
+            self,
+            types::{crypto_operation, CryptoOperation},
+        },
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
@@ -1084,13 +1088,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             let key = key_store.key.get_inner().peek();
 
             let card_detail_from_locker: Option<api::CardDetailFromLocker> =
-                decrypt_optional::<serde_json::Value, masking::WithType>(
+                crypto_operation::<serde_json::Value, masking::WithType>(
                     key_manager_state,
-                    pm.payment_method_data.clone(),
+                    type_name!(storage::PaymentMethod),
+                    CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
                     Identifier::Merchant(key_store.merchant_id.clone()),
                     key,
                 )
                 .await
+                .and_then(|val| val.try_into_optionaloperation())
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("unable to decrypt card details")
                 .ok()

@@ -14,7 +14,7 @@ use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
     ext_traits::AsyncExt,
-    generate_id,
+    generate_id, type_name,
     types::{self as util_types, keymanager::Identifier, AmountConvertor},
 };
 use error_stack::ResultExt;
@@ -45,7 +45,7 @@ use crate::{
     services::{pm_auth as pm_auth_services, ApplicationResponse},
     types::{
         self,
-        domain::{self, types::decrypt_optional},
+        domain::{self, types::crypto_operation},
         storage,
         transformers::ForeignTryFrom,
     },
@@ -327,13 +327,15 @@ async fn store_bank_details_in_payment_methods(
 
     for pm in payment_methods {
         if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
-            let bank_details_pm_data = decrypt_optional::<serde_json::Value, masking::WithType>(
+            let bank_details_pm_data = crypto_operation::<serde_json::Value, masking::WithType>(
                 &(&state).into(),
-                pm.payment_method_data.clone(),
+                type_name!(storage::PaymentMethod),
+                domain::types::CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
             .await
+            .and_then(|val| val.try_into_optionaloperation())
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("unable to decrypt bank account details")?
             .map(|x| x.into_inner().expose())

@@ -135,3 +135,13 @@ macro_rules! impl_to_sql_from_sql_json {
         $crate::impl_to_sql_from_sql_json!($type, diesel::sql_types::Jsonb);
     };
 }
+
+#[macro_export]
+macro_rules! type_name {
+    ($type:ty) => {
+        std::any::type_name::<$type>()
+            .rsplit("::")
+            .nth(1)
+            .unwrap_or_default();
+    };
+}

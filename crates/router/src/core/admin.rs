@@ -8,7 +8,7 @@ use base64::Engine;
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
-    id_type, pii,
+    id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState},
 };
 use diesel_models::configs;
@@ -215,13 +215,15 @@ pub async fn create_merchant_account(
 
     let key_store = domain::MerchantKeyStore {
         merchant_id: merchant_id.clone(),
-        key: domain_types::encrypt(
+        key: domain_types::crypto_operation(
             key_manager_state,
-            key.to_vec().into(),
+            type_name!(domain::MerchantKeyStore),
+            domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
             identifier.clone(),
             master_key,
         )
         .await
+        .and_then(|val| val.try_into_operation())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to decrypt data from key store")?,
         created_at: date_time::now(),
@@ -342,23 +344,29 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     merchant_id: self.merchant_id,
                     merchant_name: self
                         .merchant_name
-                        .async_lift(|inner| {
-                            domain_types::encrypt_optional(
+                        .async_lift(|inner| async {
+                            domain_types::crypto_operation(
                                 &key_manager_state,
-                                inner,
+                                type_name!(domain::MerchantAccount),
+                                domain_types::CryptoOperation::EncryptOptional(inner),
                                 km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                                 key.peek(),
                             )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
                     merchant_details: merchant_details
-                        .async_lift(|inner| {
-                            domain_types::encrypt_optional(
+                        .async_lift(|inner| async {
+                            domain_types::crypto_operation(
                                 &key_manager_state,
-                                inner,
+                                type_name!(domain::MerchantAccount),
+                                domain_types::CryptoOperation::EncryptOptional(inner),
                                 km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                                 key.peek(),
                             )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
                     return_url: self.return_url.map(|a| a.to_string()),
@@ -652,23 +660,30 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                 domain::MerchantAccount::from(domain::MerchantAccountSetter {
                     id,
                     merchant_name: Some(
-                        domain_types::encrypt(
+                        domain_types::crypto_operation(
                             &key_manager_state,
-                            self.merchant_name
-                                .map(|merchant_name| merchant_name.into_inner()),
+                            type_name!(domain::MerchantAccount),
+                            domain_types::CryptoOperation::Encrypt(
+                                self.merchant_name
+                                    .map(|merchant_name| merchant_name.into_inner()),
+                            ),
                             identifier.clone(),
                             key.peek(),
                         )
-                        .await?,
+                        .await
+                        .and_then(|val| val.try_into_operation())?,
                     ),
                     merchant_details: merchant_details
-                        .async_lift(|inner| {
-                            domain_types::encrypt_optional(
+                        .async_lift(|inner| async {
+                            domain_types::crypto_operation(
                                 &key_manager_state,
-                                inner,
+                                type_name!(domain::MerchantAccount),
+                                domain_types::CryptoOperation::EncryptOptional(inner),
                                 identifier.clone(),
                                 key.peek(),
                             )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
                     return_url: None,
@@ -1001,8 +1016,16 @@ pub async fn merchant_account_update(
         merchant_name: req
             .merchant_name
             .map(Secret::new)
-            .async_lift(|inner| {
-                domain_types::encrypt_optional(key_manager_state, inner, identifier.clone(), key)
+            .async_lift(|inner| async {
+                domain_types::crypto_operation(
+                    key_manager_state,
+                    type_name!(storage::MerchantAccount),
+                    domain_types::CryptoOperation::EncryptOptional(inner),
+                    identifier.clone(),
+                    key,
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
             })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1016,8 +1039,16 @@ pub async fn merchant_account_update(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to convert merchant_details to a value")?
             .map(Secret::new)
-            .async_lift(|inner| {
-                domain_types::encrypt_optional(key_manager_state, inner, identifier.clone(), key)
+            .async_lift(|inner| async {
+                domain_types::crypto_operation(
+                    key_manager_state,
+                    type_name!(storage::MerchantAccount),
+                    domain_types::CryptoOperation::EncryptOptional(inner),
+                    identifier.clone(),
+                    key,
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
             })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1991,17 +2022,19 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_type: self.connector_type,
             connector_name: self.connector_name.to_string(),
             merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
-            connector_account_details: domain_types::encrypt(
+            connector_account_details: domain_types::crypto_operation(
                 key_manager_state,
-                self.connector_account_details.ok_or(
+                type_name!(domain::MerchantConnectorAccount),
+                domain_types::CryptoOperation::Encrypt(self.connector_account_details.ok_or(
                     errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "connector_account_details",
                     },
-                )?,
+                )?),
                 identifier.clone(),
                 key_store.key.peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt connector account details")?,
             payment_methods_enabled,
@@ -2032,13 +2065,15 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_label: None,
             business_sub_label: None,
             additional_merchant_data: if let Some(mcd) =  merchant_recipient_data {
-                Some(domain_types::encrypt(
+                Some(domain_types::crypto_operation(
                     key_manager_state,
-                    Secret::new(mcd),
+                    type_name!(domain::MerchantConnectorAccount),
+                    domain_types::CryptoOperation::Encrypt(Secret::new(mcd)),
                     identifier,
                     key_store.key.peek(),
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt additional_merchant_data")?)
             } else {
@@ -2159,17 +2194,19 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_type: self.connector_type,
             connector_name: self.connector_name.to_string(),
             merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
-            connector_account_details: domain_types::encrypt(
+            connector_account_details: domain_types::crypto_operation(
                 key_manager_state,
-                self.connector_account_details.ok_or(
+                type_name!(domain::MerchantConnectorAccount),
+                domain_types::CryptoOperation::Encrypt(self.connector_account_details.ok_or(
                     errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "connector_account_details",
                     },
-                )?,
+                )?),
                 identifier.clone(),
                 key_store.key.peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt connector account details")?,
             payment_methods_enabled,
@@ -2200,13 +2237,15 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_label: self.business_label.clone(),
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: if let Some(mcd) =  merchant_recipient_data {
-                Some(domain_types::encrypt(
+                Some(domain_types::crypto_operation(
                     key_manager_state,
-                    Secret::new(mcd),
+                    type_name!(domain::MerchantConnectorAccount),
+                    domain_types::CryptoOperation::Encrypt(Secret::new(mcd)),
                     identifier,
                     key_store.key.peek(),
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt additional_merchant_data")?)
             } else {
@@ -2641,13 +2680,16 @@ pub async fn update_payment_connector(
         connector_label: req.connector_label.clone(),
         connector_account_details: req
             .connector_account_details
-            .async_lift(|inner| {
-                domain_types::encrypt_optional(
+            .async_lift(|inner| async {
+                domain_types::crypto_operation(
                     key_manager_state,
-                    inner,
+                    type_name!(storage::MerchantConnectorAccount),
+                    domain_types::CryptoOperation::EncryptOptional(inner),
                     km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                     key_store.key.get_inner().peek(),
                 )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
             })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

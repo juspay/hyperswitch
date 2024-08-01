@@ -3,7 +3,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    pii,
+    pii, type_name,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
@@ -12,7 +12,7 @@ use masking::{PeekInterface, Secret};
 
 use super::{
     behaviour,
-    types::{decrypt, decrypt_optional, AsyncLift},
+    types::{crypto_operation, AsyncLift, CryptoOperation},
 };
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
@@ -111,13 +111,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         Ok(Self {
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
-            connector_account_details: decrypt(
+            connector_account_details: crypto_operation(
                 state,
-                other.connector_account_details,
+                type_name!(Self::DstType),
+                CryptoOperation::Decrypt(other.connector_account_details),
                 identifier.clone(),
                 key.peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting connector account details".to_string(),
             })?,
@@ -142,18 +144,35 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_lift(|inner| decrypt_optional(state, inner, identifier.clone(), key.peek()))
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),
                 })?,
             additional_merchant_data: if let Some(data) = other.additional_merchant_data {
                 Some(
-                    decrypt(state, data, identifier, key.peek())
-                        .await
-                        .change_context(ValidationError::InvalidValue {
-                            message: "Failed while decrypting additional_merchant_data".to_string(),
-                        })?,
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::Decrypt(data),
+                        identifier,
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_operation())
+                    .change_context(ValidationError::InvalidValue {
+                        message: "Failed while decrypting additional_merchant_data".to_string(),
+                    })?,
                 )
             } else {
                 None
