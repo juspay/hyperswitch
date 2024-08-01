@@ -788,7 +788,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
