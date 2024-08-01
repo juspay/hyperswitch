@@ -951,7 +951,7 @@ pub struct MerchantConnectorResponse {
 
     /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub connector_id: String,
+    pub id: String,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
@@ -1032,7 +1032,7 @@ impl MerchantConnectorResponse {
     pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
-            merchant_connector_id: self.connector_id.clone(),
+            merchant_connector_id: self.id.clone(),
         }
     }
 }
@@ -1162,6 +1162,10 @@ impl MerchantConnectorResponse {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorListResponse {
@@ -1257,11 +1261,105 @@ pub struct MerchantConnectorListResponse {
     pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 impl MerchantConnectorListResponse {
     pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantConnectorListResponse {
+    /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
+    /// Name of the Connector
+    #[schema(value_type = Connector, example = "stripe")]
+    pub connector_name: String,
+
+    /// A unique label to identify the connector account created under a business profile
+    #[schema(example = "stripe_US_travel")]
+    pub connector_label: Option<String>,
+
+    /// Unique ID of the merchant connector account
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub id: String,
+
+    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    #[schema(max_length = 64)]
+    pub profile_id: Option<String>,
+
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
+    #[schema(example = json!([
+        {
+            "payment_method": "wallet",
+            "payment_method_types": [
+                "upi_collect",
+                "upi_intent"
+            ],
+            "payment_method_issuers": [
+                "labore magna ipsum",
+                "aute"
+            ],
+            "payment_schemes": [
+                "Discover",
+                "Discover"
+            ],
+            "accepted_currencies": {
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
+            },
+            "accepted_countries": {
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
+            },
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+        }
+    ]))]
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// identifier for the verified domains of a particular connector account
+    pub applepay_verified_domains: Option<Vec<String>>,
+
+    #[schema(value_type = Option<Object>)]
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: api_enums::ConnectorStatus,
+
+    #[schema(value_type = Option<AdditionalMerchantData>)]
+    pub additional_merchant_data: Option<AdditionalMerchantData>,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+impl MerchantConnectorListResponse {
+    pub fn to_merchant_connector_info(&self, connector_label: &String) -> MerchantConnectorInfo {
+        MerchantConnectorInfo {
+            connector_label: connector_label.to_string(),
+            merchant_connector_id: self.id.clone(),
         }
     }
 }
@@ -1833,7 +1931,7 @@ impl BusinessGenericLinkConfig {
             .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
             .unwrap_or(true);
         if !host_domain_valid {
-            return Err("Invalid host domain name received");
+            return Err("Invalid host domain name received in payout_link_config");
         }
 
         let are_allowed_domains_valid = self
@@ -1842,7 +1940,7 @@ impl BusinessGenericLinkConfig {
             .iter()
             .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
         if !are_allowed_domains_valid {
-            return Err("Invalid allowed domain names received");
+            return Err("Invalid allowed domain names received in payout_link_config");
         }
 
         Ok(())
@@ -1859,6 +1957,37 @@ pub struct BusinessPaymentLinkConfig {
     pub default_config: Option<PaymentLinkConfigRequest>,
     /// list of configs for multi theme setup
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
+    #[schema(value_type = Option<HashSet<String>>)]
+    pub allowed_domains: Option<HashSet<String>>,
+}
+
+impl BusinessPaymentLinkConfig {
+    pub fn validate(&self) -> Result<(), &str> {
+        let host_domain_valid = self
+            .domain_name
+            .clone()
+            .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
+            .unwrap_or(true);
+        if !host_domain_valid {
+            return Err("Invalid host domain name received in payment_link_config");
+        }
+
+        let are_allowed_domains_valid = self
+            .allowed_domains
+            .clone()
+            .map(|allowed_domains| {
+                allowed_domains
+                    .iter()
+                    .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain))
+            })
+            .unwrap_or(true);
+        if !are_allowed_domains_valid {
+            return Err("Invalid allowed domain names received in payment_link_config");
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -1897,6 +2026,8 @@ pub struct PaymentLinkConfig {
     pub display_sdk_only: bool,
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: bool,
+    /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
+    pub allowed_domains: Option<HashSet<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

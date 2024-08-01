@@ -12,6 +12,8 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::types::domain::MerchantConnectorAccount;
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
@@ -19,54 +21,6 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
-
-/// provides the complete merchant routing dictionary that is basically a list of all the routing
-/// configs a merchant configured with an active_id field that specifies the current active routing
-/// config
-// pub async fn get_merchant_routing_dictionary(
-//     db: &dyn StorageInterface,
-//     merchant_id: &str,
-// ) -> RouterResult<routing_types::RoutingDictionary> {
-//     let key = get_routing_dictionary_key(merchant_id);
-//     let maybe_dict = db.find_config_by_key(&key).await;
-
-//     match maybe_dict {
-//         Ok(config) => config
-//             .config
-//             .parse_struct("RoutingDictionary")
-//             .change_context(errors::ApiErrorResponse::InternalServerError)
-//             .attach_printable("Merchant routing dictionary has invalid structure"),
-
-//         Err(e) if e.current_context().is_db_not_found() => {
-//             let new_dictionary = routing_types::RoutingDictionary {
-//                 merchant_id: merchant_id.to_owned(),
-//                 active_id: None,
-//                 records: Vec::new(),
-//             };
-
-//             let serialized = new_dictionary
-//                 .encode_to_string_of_json()
-//                 .change_context(errors::ApiErrorResponse::InternalServerError)
-//                 .attach_printable("Error serializing newly created merchant dictionary")?;
-
-//             let new_config = configs::ConfigNew {
-//                 key,
-//                 config: serialized,
-//             };
-
-//             db.insert_config(new_config)
-//                 .await
-//                 .change_context(errors::ApiErrorResponse::InternalServerError)
-//                 .attach_printable("Error inserting new routing dictionary for merchant")?;
-
-//             Ok(new_dictionary)
-//         }
-
-//         Err(e) => Err(e)
-//             .change_context(errors::ApiErrorResponse::InternalServerError)
-//             .attach_printable("Error fetching routing dictionary for merchant"),
-//     }
-// }
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -163,28 +117,6 @@ pub async fn update_merchant_routing_dictionary(
     Ok(())
 }
 
-pub async fn update_routing_algorithm(
-    db: &dyn StorageInterface,
-    algorithm_id: String,
-    algorithm: routing_types::RoutingAlgorithm,
-) -> RouterResult<()> {
-    let algorithm_str = algorithm
-        .encode_to_string_of_json()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize routing algorithm to string")?;
-
-    let config_update = configs::ConfigUpdate::Update {
-        config: Some(algorithm_str),
-    };
-
-    db.update_config_by_key(&algorithm_id, config_update)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error updating the routing algorithm in DB")?;
-
-    Ok(())
-}
-
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
 pub async fn update_merchant_active_algorithm_ref(
@@ -238,7 +170,7 @@ pub async fn update_merchant_active_algorithm_ref(
 
     Ok(())
 }
-
+// TODO: Move it to business_profile
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
@@ -268,31 +200,9 @@ pub async fn update_business_profile_active_algorithm_ref(
         storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
-    let business_profile_update = BusinessProfileUpdate::Update {
-        profile_name: None,
-        return_url: None,
-        enable_payment_response_hash: None,
-        payment_response_hash_key: None,
-        redirect_to_merchant_with_http_post: None,
-        webhook_details: None,
-        metadata: None,
+    let business_profile_update = BusinessProfileUpdate::RoutingAlgorithmUpdate {
         routing_algorithm,
-        intent_fulfillment_time: None,
-        frm_routing_algorithm: None,
         payout_routing_algorithm,
-        applepay_verified_domains: None,
-        modified_at: None,
-        is_recon_enabled: None,
-        payment_link_config: None,
-        session_expiry: None,
-        authentication_connector_details: None,
-        payout_link_config: None,
-        extended_card_info_config: None,
-        use_billing_as_payment_method_billing: None,
-        collect_shipping_details_from_wallet_connector: None,
-        collect_billing_details_from_wallet_connector: None,
-        is_connector_agnostic_mit_enabled: None,
-        outgoing_webhook_custom_http_headers: None,
     };
 
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
@@ -307,6 +217,157 @@ pub async fn update_business_profile_active_algorithm_ref(
     Ok(())
 }
 
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[derive(Clone, Debug)]
+pub struct RoutingAlgorithmHelpers<'h> {
+    pub name_mca_id_set: ConnectNameAndMCAIdForProfile<'h>,
+    pub name_set: ConnectNameForProfile<'h>,
+    pub routing_algorithm: &'h routing_types::RoutingAlgorithm,
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, &'a String)>);
+#[derive(Clone, Debug)]
+pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[derive(Clone, Debug)]
+pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl MerchantConnectorAccounts {
+    pub async fn get_all_mcas(
+        merchant_id: &common_utils::id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        state: &SessionState,
+    ) -> RouterResult<Self> {
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+        Ok(Self(
+            db.find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                key_manager_state,
+                merchant_id,
+                true,
+                key_store,
+            )
+            .await
+            .change_context(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: merchant_id.get_string_repr().to_owned(),
+                },
+            )?,
+        ))
+    }
+
+    fn filter_and_map<'a, T>(
+        &'a self,
+        filter: impl Fn(&'a MerchantConnectorAccount) -> bool,
+        func: impl Fn(&'a MerchantConnectorAccount) -> T,
+    ) -> FxHashSet<T>
+    where
+        T: std::hash::Hash + Eq,
+    {
+        self.0
+            .iter()
+            .filter(|mca| filter(mca))
+            .map(func)
+            .collect::<FxHashSet<_>>()
+    }
+
+    pub fn filter_by_profile<'a, T>(
+        &'a self,
+        profile_id: &'a str,
+        func: impl Fn(&'a MerchantConnectorAccount) -> T,
+    ) -> FxHashSet<T>
+    where
+        T: std::hash::Hash + Eq,
+    {
+        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl<'h> RoutingAlgorithmHelpers<'h> {
+    fn connector_choice(
+        &self,
+        choice: &routing_types::RoutableConnectorChoice,
+    ) -> RouterResult<()> {
+        if let Some(ref mca_id) = choice.merchant_connector_id {
+            error_stack::ensure!(
+                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id)),
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                            choice.connector,
+                            mca_id,
+                        )
+                    }
+                );
+        } else {
+            error_stack::ensure!(
+                self.name_set.0.contains(&choice.connector.to_string()),
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "connector with name '{}' not found for the given profile",
+                        choice.connector,
+                    )
+                }
+            );
+        };
+        Ok(())
+    }
+
+    pub fn validate_connectors_in_routing_config(&self) -> RouterResult<()> {
+        match self.routing_algorithm {
+            routing_types::RoutingAlgorithm::Single(choice) => {
+                self.connector_choice(choice)?;
+            }
+
+            routing_types::RoutingAlgorithm::Priority(list) => {
+                for choice in list {
+                    self.connector_choice(choice)?;
+                }
+            }
+
+            routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
+                for split in splits {
+                    self.connector_choice(&split.connector)?;
+                }
+            }
+
+            routing_types::RoutingAlgorithm::Advanced(program) => {
+                let check_connector_selection =
+                    |selection: &routing_types::ConnectorSelection| -> RouterResult<()> {
+                        match selection {
+                            routing_types::ConnectorSelection::VolumeSplit(splits) => {
+                                for split in splits {
+                                    self.connector_choice(&split.connector)?;
+                                }
+                            }
+
+                            routing_types::ConnectorSelection::Priority(list) => {
+                                for choice in list {
+                                    self.connector_choice(choice)?;
+                                }
+                            }
+                        }
+
+                        Ok(())
+                    };
+
+                check_connector_selection(&program.default_selection)?;
+
+                for rule in &program.rules {
+                    check_connector_selection(&rule.connector_selection)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -326,11 +387,10 @@ pub async fn validate_connectors_in_routing_config(
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_id.get_string_repr().to_owned(),
         })?;
-
     let name_mca_id_set = all_mcas
         .iter()
         .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
-        .map(|mca| (&mca.connector_name, &mca.merchant_connector_id))
+        .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
@@ -339,10 +399,10 @@ pub async fn validate_connectors_in_routing_config(
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
-    let check_connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
+    let connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id)),
+                name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
@@ -368,18 +428,18 @@ pub async fn validate_connectors_in_routing_config(
 
     match routing_algorithm {
         routing_types::RoutingAlgorithm::Single(choice) => {
-            check_connector_choice(choice)?;
+            connector_choice(choice)?;
         }
 
         routing_types::RoutingAlgorithm::Priority(list) => {
             for choice in list {
-                check_connector_choice(choice)?;
+                connector_choice(choice)?;
             }
         }
 
         routing_types::RoutingAlgorithm::VolumeSplit(splits) => {
             for split in splits {
-                check_connector_choice(&split.connector)?;
+                connector_choice(&split.connector)?;
             }
         }
 
@@ -389,13 +449,13 @@ pub async fn validate_connectors_in_routing_config(
                     match selection {
                         routing_types::ConnectorSelection::VolumeSplit(splits) => {
                             for split in splits {
-                                check_connector_choice(&split.connector)?;
+                                connector_choice(&split.connector)?;
                             }
                         }
 
                         routing_types::ConnectorSelection::Priority(list) => {
                             for choice in list {
-                                check_connector_choice(choice)?;
+                                connector_choice(choice)?;
                             }
                         }
                     }

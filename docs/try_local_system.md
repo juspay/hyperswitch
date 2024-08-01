@@ -378,12 +378,9 @@ You can opt to use your favorite package manager instead.
 1. Install the stable Rust toolchain using `rustup`:
 
    ```shell
-   brew install rustup-init
-   rustup-init
+   brew install rustup
+   rustup default stable
    ```
-
-   When prompted, proceed with the `default` profile, which installs the stable
-   toolchain.
 
    Optionally, verify that the Rust compiler and `cargo` are successfully
    installed:
@@ -491,7 +488,7 @@ Once you're done with setting up the dependencies, proceed with
    Export the `DATABASE_URL` env variable
 
    ```shell
-   export DATABASE_URL=$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   export DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
    ```
 
    Run the migrations
