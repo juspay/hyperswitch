@@ -88,7 +88,7 @@ pub fn get_connector_customer_details_if_present(
                 .get(connector_name)
                 .cloned()
         })
-        .and_then(|connector_customer| serde_json::from_value::<String>(connector_customer).ok())
+        .map(|connector_customer| connector_customer.to_string())
 }
 
 pub fn should_call_connector_create_customer(
@@ -139,9 +139,7 @@ pub async fn update_connector_customer_in_customers(
         .map(serde_json::Value::Object)
         .map(
             |connector_customer_value| storage::CustomerUpdate::ConnectorCustomer {
-                connector_customer: Some(pii::SecretSerdeValue::new(
-                    connector_customer_value.into(),
-                )),
+                connector_customer: Some(pii::SecretSerdeValue::new(connector_customer_value)),
             },
         )
 }

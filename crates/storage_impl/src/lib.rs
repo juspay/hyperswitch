@@ -444,14 +444,7 @@ impl UniqueConstraints for diesel_models::Customer {
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
-        vec![format!(
-            "customer_{}_{}",
-            self.merchant_reference_id
-                .clone()
-                .unwrap_or_default()
-                .get_string_repr(),
-            self.merchant_id
-        )]
+        vec![format!("customer_{}", self.id.clone())]
     }
     fn table_name(&self) -> &str {
         "Customer"
