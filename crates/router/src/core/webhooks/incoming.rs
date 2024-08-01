@@ -1673,6 +1673,10 @@ async fn fetch_optional_mca_and_connector(
 > {
     let db = &state.store;
     if connector_name_or_mca_id.starts_with("mca_") {
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_connector_account_v2")
+        ))]
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &state.into(),
@@ -1687,11 +1691,16 @@ async fn fetch_optional_mca_and_connector(
             .attach_printable(
                 "error while fetching merchant_connector_account from connector_id",
             )?;
-        let (connector, connector_name) = get_connector_by_connector_name(
-            state,
-            &mca.connector_name,
-            Some(mca.merchant_connector_id.clone()),
-        )?;
+        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        let mca: domain::MerchantConnectorAccount = {
+            let _ = merchant_account;
+            let _ = key_store;
+            let _ = db;
+            todo!()
+        };
+
+        let (connector, connector_name) =
+            get_connector_by_connector_name(state, &mca.connector_name, Some(mca.get_id()))?;
 
         Ok((Some(mca), connector, connector_name))
     } else {

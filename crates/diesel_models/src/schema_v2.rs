@@ -681,28 +681,18 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_connector_account (merchant_connector_id) {
-        id -> Int4,
+    merchant_connector_account (id) {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
         connector_name -> Varchar,
         connector_account_details -> Bytea,
-        test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
-        #[max_length = 128]
-        merchant_connector_id -> Varchar,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
         connector_label -> Nullable<Varchar>,
-        business_country -> Nullable<CountryAlpha2>,
-        #[max_length = 255]
-        business_label -> Nullable<Varchar>,
-        #[max_length = 64]
-        business_sub_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
@@ -714,6 +704,8 @@ diesel::table! {
         status -> ConnectorStatus,
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        id -> Varchar,
     }
 }
 
@@ -1194,6 +1186,8 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         last_modified_by -> Varchar,
+        #[max_length = 64]
+        entity_type -> Nullable<Varchar>,
     }
 }
 
