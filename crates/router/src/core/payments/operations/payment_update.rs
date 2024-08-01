@@ -473,6 +473,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
+            is_payment_processor_token_flow: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

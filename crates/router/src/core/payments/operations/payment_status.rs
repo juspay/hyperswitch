@@ -465,6 +465,7 @@ async fn get_tracker_for_sync<
         authentication,
         recurring_details: None,
         poll_config: None,
+        is_payment_processor_token_flow: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

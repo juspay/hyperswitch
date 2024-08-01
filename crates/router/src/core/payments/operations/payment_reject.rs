@@ -178,6 +178,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            is_payment_processor_token_flow: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

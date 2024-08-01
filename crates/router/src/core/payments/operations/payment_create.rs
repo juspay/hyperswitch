@@ -376,6 +376,32 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
+        let mandate_id = if mandate_id.is_none() {
+            request
+                .recurring_details
+                .as_ref()
+                .and_then(|recurring_details| match recurring_details {
+                    RecurringDetails::ProcessorPaymentToken(token) => {
+                        Some(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    api_models::payments::ConnectorMandateReferenceId {
+                                        connector_mandate_id: Some(
+                                            token.processor_payment_token.clone(),
+                                        ),
+                                        payment_method_id: None,
+                                        update_history: None,
+                                    },
+                                ),
+                            ),
+                        })
+                    }
+                    _ => None,
+                })
+        } else {
+            mandate_id
+        };
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
             request.confirm,
@@ -429,7 +455,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             currency,
             amount,
             email: request.email.clone(),
-            mandate_id,
+            mandate_id: mandate_id.clone(),
             mandate_connector,
             setup_mandate,
             customer_acceptance,
@@ -465,6 +491,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
+            is_payment_processor_token_flow: Some(mandate_id.is_some()),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

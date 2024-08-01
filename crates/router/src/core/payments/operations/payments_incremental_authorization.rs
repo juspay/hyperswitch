@@ -156,6 +156,7 @@ impl<F: Send + Clone>
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            is_payment_processor_token_flow: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
