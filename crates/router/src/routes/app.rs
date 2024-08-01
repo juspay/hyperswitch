@@ -573,7 +573,7 @@ pub struct Routing;
 #[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/routing_algorithm")
+        web::scope("/v2/routing_algorithm")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("").route(web::post().to(|state, req, payload| {
@@ -1346,6 +1346,10 @@ impl PaymentLink {
                     .route(web::get().to(initiate_payment_link)),
             )
             .service(
+                web::resource("s/{merchant_id}/{payment_id}")
+                    .route(web::get().to(initiate_secure_payment_link)),
+            )
+            .service(
                 web::resource("status/{merchant_id}/{payment_id}")
                     .route(web::get().to(payment_link_status)),
             )
@@ -1370,7 +1374,7 @@ pub struct BusinessProfile;
 #[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
-        web::scope("profiles")
+        web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
             .service(
                 web::scope("/{profile_id}")

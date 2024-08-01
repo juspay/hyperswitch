@@ -275,7 +275,7 @@ impl MerchantConnectorAccounts {
             .await
             .change_context(
                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_id.to_string(),
+                    id: merchant_id.get_string_repr().to_owned(),
                 },
             )?,
         ))
@@ -309,7 +309,7 @@ impl MerchantConnectorAccounts {
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-impl<'h> RoutingAlgorithmHelpers<'_> {
+impl<'h> RoutingAlgorithmHelpers<'h> {
     fn connector_choice(
         &self,
         choice: &routing_types::RoutableConnectorChoice,
@@ -339,7 +339,7 @@ impl<'h> RoutingAlgorithmHelpers<'_> {
         Ok(())
     }
 
-    pub async fn validate_connectors_in_routing_config(&self) -> RouterResult<()> {
+    pub fn validate_connectors_in_routing_config(&self) -> RouterResult<()> {
         match self.routing_algorithm {
             routing_types::RoutingAlgorithm::Single(choice) => {
                 self.connector_choice(choice)?;

@@ -2014,6 +2014,7 @@ dependencies = [
  "error-stack",
  "fake",
  "futures 0.3.30",
+ "globset",
  "hex",
  "http 0.2.12",
  "masking",
@@ -3836,6 +3837,7 @@ version = "0.1.0"
 dependencies = [
  "api_models",
  "async-trait",
+ "base64 0.22.0",
  "cards",
  "common_enums",
  "common_utils",
@@ -3843,10 +3845,14 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
+ "ring 0.17.8",
  "router_env",
  "serde",
  "serde_json",
  "strum 0.26.2",
+ "time",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -6083,7 +6089,6 @@ dependencies = [
  "events",
  "external_services",
  "futures 0.3.30",
- "globset",
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
