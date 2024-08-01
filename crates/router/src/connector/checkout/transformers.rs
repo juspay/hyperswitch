@@ -133,7 +133,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) 
+            | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -372,7 +372,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)  => {
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 ))

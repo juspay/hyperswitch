@@ -21,7 +21,10 @@ use diesel_models::enums::{self};
 use error_stack::{report, ResultExt};
 use futures::future::Either;
 use hyperswitch_domain_models::{
-    mandates::MandateData, payment_method_data::GetPaymentMethodType, payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent}, router_data::KlarnaSdkResponse
+    mandates::MandateData,
+    payment_method_data::GetPaymentMethodType,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
+    router_data::KlarnaSdkResponse,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
@@ -1756,7 +1759,8 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
             // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
             // from payment_method_data.card_token object
-            let name_on_card = if let Some(name) = card.nick_name.clone() { //todo!
+            let name_on_card = if let Some(name) = card.nick_name.clone() {
+                //todo!
                 if name.clone().expose().is_empty() {
                     card_token_data
                         .and_then(|token_data| {
@@ -1765,7 +1769,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                         })
                         .or(Some(name))
                 } else {
-                    card.nick_name.clone()  //todo!
+                    card.nick_name.clone() //todo!
                 }
             } else {
                 card_token_data.and_then(|token_data| {
@@ -3858,7 +3862,8 @@ pub async fn get_additional_payment_data(
     profile_id: &str,
 ) -> Option<api_models::payments::AdditionalPaymentData> {
     match pm_data {
-        domain::PaymentMethodData::Card(card_data) => { //todo!
+        domain::PaymentMethodData::Card(card_data) => {
+            //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
@@ -3950,33 +3955,32 @@ pub async fn get_additional_payment_data(
                 }))
             }
         }
-        domain::PaymentMethodData::BankRedirect(bank_redirect_data) => {
-            match bank_redirect_data {
-                domain::BankRedirectData::Eps { bank_name, .. } => {
-                    Some(api_models::payments::AdditionalPaymentData::BankRedirect {
-                        bank_name: bank_name.to_owned(),
-                    })
-                }
-                domain::BankRedirectData::Ideal { bank_name, .. } => {
-                    Some(api_models::payments::AdditionalPaymentData::BankRedirect {
-                        bank_name: bank_name.to_owned(),
-                    })
-                }
-                _ => Some(api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None })
+        domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
+            domain::BankRedirectData::Eps { bank_name, .. } => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: bank_name.to_owned(),
+                })
             }
-        }
+            domain::BankRedirectData::Ideal { bank_name, .. } => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: bank_name.to_owned(),
+                })
+            }
+            _ => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None })
+            }
+        },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
                 Some(api_models::payments::AdditionalPaymentData::Wallet {
-                    apple_pay: Some(api_models::payments::ApplepayPaymentMethod{
+                    apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
                         display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
                         network: apple_pay_wallet_data.payment_method.network.clone(),
                         pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
-
-                    })
+                    }),
                 })
             }
-            _ => Some(api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None })
+            _ => Some(api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None }),
         },
         domain::PaymentMethodData::PayLater(_) => {
             Some(api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None })
@@ -4017,7 +4021,7 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::OpenBanking(_) => {
             Some(api_models::payments::AdditionalPaymentData::OpenBanking {})
         }
-        domain::PaymentMethodData::NetworkToken(_) => None
+        domain::PaymentMethodData::NetworkToken(_) => None,
     }
 }
 

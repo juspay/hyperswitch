@@ -1556,7 +1556,7 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::PaymentMethodData::RealTimePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::CardToken(_) 
+                | domain::PaymentMethodData::CardToken(_)
                 | domain::PaymentMethodData::NetworkToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -2559,7 +2559,7 @@ impl<'a>
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_) 
+                    | domain::PaymentMethodData::CardToken(_)
                     | domain::PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),

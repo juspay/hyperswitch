@@ -135,7 +135,6 @@ where
         Some(merchant_connector_account),
     );
 
-
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),

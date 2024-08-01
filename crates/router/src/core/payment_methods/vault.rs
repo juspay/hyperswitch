@@ -56,10 +56,7 @@ impl Vaultable for domain::Card {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            nickname: self
-            .nick_name
-            .as_ref()
-            .map(|name| name.peek().clone()),
+            nickname: self.nick_name.as_ref().map(|name| name.peek().clone()),
             card_last_four: None,
             card_token: None,
         };

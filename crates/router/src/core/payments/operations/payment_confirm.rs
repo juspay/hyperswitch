@@ -458,7 +458,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             async move {
                 Ok(n_request_payment_method_data
                     .async_and_then(|payment_method_data| async move {
-                        helpers::get_additional_payment_data(         
+                        helpers::get_additional_payment_data(
                             &payment_method_data.into(),
                             store.as_ref(),
                             profile_id.as_ref(),
@@ -628,20 +628,23 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .as_ref()
             .map(|payment_method_billing| payment_method_billing.address_id.clone());
 
-            let address = PaymentAddress::new(
-                shipping_address.as_ref().map(From::from),
-                billing_address.as_ref().map(From::from),
-                payment_method_billing.as_ref().map(From::from),
-                business_profile.use_billing_as_payment_method_billing,
-            );
-    
-            let payment_method_data_billing = request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.as_ref())
-                .and_then(|payment_method_data_billing| payment_method_data_billing.get_billing_address());
-    
-            let unified_address = address.unify_with_payment_method_data_billing(payment_method_data_billing);
+        let address = PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing.as_ref().map(From::from),
+            business_profile.use_billing_as_payment_method_billing,
+        );
+
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .and_then(|payment_method_data_billing| {
+                payment_method_data_billing.get_billing_address()
+            });
+
+        let unified_address =
+            address.unify_with_payment_method_data_billing(payment_method_data_billing);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -1130,7 +1133,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         };
 
         let customer_details = payment_data.payment_intent.customer_details.clone();
-        let business_sub_label = payment_data.payment_attempt.clone().business_sub_label.clone();
+        let business_sub_label = payment_data
+            .payment_attempt
+            .clone()
+            .business_sub_label
+            .clone();
         let authentication_type = payment_data.payment_attempt.clone().authentication_type;
 
         let (shipping_address_id, billing_address_id, payment_method_billing_address_id) = (

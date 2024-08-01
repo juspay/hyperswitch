@@ -1334,11 +1334,13 @@ fn create_stripe_payment_method(
         | domain::PaymentMethodData::RealTimePayment(_)
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::OpenBanking(_)
-        | domain::PaymentMethodData::CardToken(_) 
-        | domain::PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-            connector_util::get_unimplemented_payment_method_error_message("stripe"),
-        )
-        .into()),
+        | domain::PaymentMethodData::CardToken(_)
+        | domain::PaymentMethodData::NetworkToken(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
+            .into())
+        }
     }
 }
 
@@ -1712,7 +1714,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         | domain::payments::PaymentMethodData::Voucher(_)
                         | domain::payments::PaymentMethodData::GiftCard(_)
                         | domain::payments::PaymentMethodData::OpenBanking(_)
-                        | domain::payments::PaymentMethodData::CardToken(_) 
+                        | domain::payments::PaymentMethodData::CardToken(_)
                         | domain::PaymentMethodData::NetworkToken(_) => {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
@@ -3755,7 +3757,7 @@ impl
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) 
+            | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),

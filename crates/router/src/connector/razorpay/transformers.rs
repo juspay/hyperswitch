@@ -399,7 +399,7 @@ impl
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) 
+            | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }

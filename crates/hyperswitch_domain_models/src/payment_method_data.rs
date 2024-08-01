@@ -1,9 +1,12 @@
 use api_models::payments::ExtendedCardInfo;
-use common_utils::{pii::{self, Email}, id_type};
+use common_enums::enums as api_enums;
+use common_utils::{
+    id_type,
+    pii::{self, Email},
+};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::Date;
-use common_enums::enums as api_enums;
 
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
@@ -1021,7 +1024,6 @@ pub struct TokenizedCardValue2 {
     pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_id: Option<String>,
 }
-
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue1 {

@@ -11,9 +11,8 @@ use crate::{
         payments::helpers as payments_helpers,
     },
     types::{
-        self, storage,
+        self, domain, storage,
         transformers::{ForeignFrom, ForeignTryFrom},
-        domain,
     },
     utils::ext_traits::OptionExt,
 };

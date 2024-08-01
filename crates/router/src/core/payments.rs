@@ -2196,9 +2196,9 @@ where
         .await?;
 
     match payment_data.payment_method_data.clone() {
-        Some(domain::PaymentMethodData::OpenBanking(
-            domain::OpenBankingData::OpenBankingPIS { .. },
-        )) => {
+        Some(domain::PaymentMethodData::OpenBanking(domain::OpenBankingData::OpenBankingPIS {
+            ..
+        })) => {
             if connector.connector_name == router_types::Connector::Plaid {
                 router_data = router_data.postprocessing_steps(state, connector).await?;
                 let token = if let Ok(ref res) = router_data.response {

@@ -332,9 +332,7 @@ where
         .payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::PaymentMethodData::Card(card) => {
-                Some(card.card_number.get_card_isin())
-            }
+            domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
             _ => None,
         });
 
@@ -451,9 +449,7 @@ pub async fn generate_payment_fingerprint(
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
 
     Ok(
-        if let Some(domain::PaymentMethodData::Card(card)) =
-            payment_method_data.as_ref()
-        {
+        if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
             generate_fingerprint(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
