@@ -315,3 +315,85 @@ where
         })
     }
 }
+
+/// Middleware for Adding Accept-Language header based on query params
+pub struct AddAcceptLanguageHeader;
+
+impl<S: 'static, B> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest>
+    for AddAcceptLanguageHeader
+where
+    S: actix_web::dev::Service<
+        actix_web::dev::ServiceRequest,
+        Response = actix_web::dev::ServiceResponse<B>,
+        Error = actix_web::Error,
+    >,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Transform = AddAcceptLanguageHeaderMiddleware<S>;
+    type InitError = ();
+    type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        std::future::ready(Ok(AddAcceptLanguageHeaderMiddleware {
+            service: std::rc::Rc::new(service),
+        }))
+    }
+}
+
+pub struct AddAcceptLanguageHeaderMiddleware<S> {
+    service: std::rc::Rc<S>,
+}
+
+impl<S, B> actix_web::dev::Service<actix_web::dev::ServiceRequest>
+    for AddAcceptLanguageHeaderMiddleware<S>
+where
+    S: actix_web::dev::Service<
+            actix_web::dev::ServiceRequest,
+            Response = actix_web::dev::ServiceResponse<B>,
+            Error = actix_web::Error,
+        > + 'static,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Future = futures::future::LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    actix_web::dev::forward_ready!(service);
+    fn call(&self, mut req: actix_web::dev::ServiceRequest) -> Self::Future {
+        let svc = self.service.clone();
+        Box::pin(async move {
+            let query_params = req.query_string();
+            let locale_param = query_params
+            .split('&')
+            .find_map(|param| {
+                let mut split = param.split('=');
+                if let (Some(key), Some(value)) = (split.next(), split.next()) {
+                    if key == "locale" {
+                        return Some(value.to_string());
+                    }
+                }
+                None
+            });
+            let accept_language_header = req.headers().get(actix_web::http::header::ACCEPT_LANGUAGE);
+            if let Some(locale) = locale_param {
+                req.headers_mut().insert(
+                    http::header::HeaderName::from_static("accept-language"),
+                    http::HeaderValue::from_str(&locale)?,
+                );
+            } else if accept_language_header.is_none() {
+                req.headers_mut().insert(
+                    http::header::HeaderName::from_static("accept-language"),
+                    http::HeaderValue::from_static("en"),
+                );
+            }
+            let response_fut = svc.call(req);
+            let response = response_fut.await?;
+            Ok(response)
+        })
+    }
+    
+}
