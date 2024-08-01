@@ -9,5 +9,5 @@ pub use hyperswitch_domain_models::payment_method_data::{
     SwishQrData, TouchNGoRedirection, UpiCollectData, UpiData, UpiIntentData, VoucherData,
     WalletData, WeChatPayQr,TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, 
     TokenizedWalletValue2, TokenizedBankTransferValue1, TokenizedBankTransferValue2, TokenizedBankRedirectValue1,
-    TokenizedBankRedirectValue2
+    TokenizedBankRedirectValue2,
 };

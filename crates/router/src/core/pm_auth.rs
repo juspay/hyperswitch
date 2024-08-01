@@ -834,11 +834,11 @@ pub async fn retrieve_payment_method_from_auth_service(
     let payment_method_data = match &bank_account.account_details {
         pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => {
             domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
-                billing_details: Some(billing_details),
+                // billing_details: Some(billing_details),
                 account_number: ach.account_number.clone(),
                 routing_number: ach.routing_number.clone(),
-                card_holder_name: None,
-                bank_account_holder_name: None,
+                // card_holder_name: None,
+                // bank_account_holder_name: None,
                 bank_name: None,
                 bank_type,
                 bank_holder_type: None,
@@ -846,17 +846,17 @@ pub async fn retrieve_payment_method_from_auth_service(
         }
         pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => {
             domain::PaymentMethodData::BankDebit(domain::BankDebitData::BacsBankDebit {
-                billing_details: Some(billing_details),
+                // billing_details: Some(billing_details),
                 account_number: bacs.account_number.clone(),
                 sort_code: bacs.sort_code.clone(),
-                bank_account_holder_name: None,
+                // bank_account_holder_name: None,
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
             domain::PaymentMethodData::BankDebit(domain::BankDebitData::SepaBankDebit {
-                billing_details: Some(billing_details),
+                // billing_details: Some(billing_details),
                 iban: sepa.iban.clone(),
-                bank_account_holder_name: None,
+                // bank_account_holder_name: None,
             })
         }
     };
