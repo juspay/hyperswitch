@@ -37,7 +37,13 @@ v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "stor
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2"]
 merchant_account_v2 = ["api_models/merchant_account_v2", "diesel_models/merchant_account_v2", "hyperswitch_domain_models/merchant_account_v2"]
 payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2"]
+routing_v2 = ["api_models/routing_v2"]
 merchant_connector_account_v2 = ["api_models/merchant_connector_account_v2", "kgraph_utils/merchant_connector_account_v2"]
+
+# Partial Auth
+# The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
+# This is named as partial-auth because the router will still try to authenticate if the `x-merchant-id` header is not present.
+partial-auth = []
 
 [dependencies]
 actix-cors = "0.6.5"
