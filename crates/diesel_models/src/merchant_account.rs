@@ -272,6 +272,7 @@ pub struct MerchantAccountNew {
     pub id: common_utils::id_type::MerchantId,
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
@@ -287,4 +288,38 @@ pub struct MerchantAccountUpdateInternal {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub recon_status: Option<storage_enums::ReconStatus>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[diesel(table_name = merchant_account)]
+pub struct MerchantAccountUpdateInternal {
+    pub merchant_name: Option<Encryption>,
+    pub merchant_details: Option<Encryption>,
+    pub return_url: Option<String>,
+    pub webhook_details: Option<serde_json::Value>,
+    pub sub_merchants_enabled: Option<bool>,
+    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub enable_payment_response_hash: Option<bool>,
+    pub payment_response_hash_key: Option<String>,
+    pub redirect_to_merchant_with_http_post: Option<bool>,
+    pub publishable_key: Option<String>,
+    pub storage_scheme: Option<storage_enums::MerchantStorageScheme>,
+    pub locker_id: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: Option<serde_json::Value>,
+    pub modified_at: Option<time::PrimitiveDateTime>,
+    pub intent_fulfillment_time: Option<i64>,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+    pub payout_routing_algorithm: Option<serde_json::Value>,
+    pub organization_id: Option<common_utils::id_type::OrganizationId>,
+    pub is_recon_enabled: bool,
+    pub default_profile: Option<Option<String>>,
+    pub recon_status: Option<storage_enums::ReconStatus>,
+    pub payment_link_config: Option<serde_json::Value>,
+    pub pm_collect_link_config: Option<serde_json::Value>,
 }

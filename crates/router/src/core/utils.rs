@@ -241,7 +241,7 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_account.get_id(),
         creds_identifier,
         key_store,
-        &profile_id,
+        profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
     )

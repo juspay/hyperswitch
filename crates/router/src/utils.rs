@@ -51,7 +51,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        utils, webhooks as webhooks_core,
+        webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},

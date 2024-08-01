@@ -251,7 +251,8 @@ pub async fn update_merchant_active_algorithm_ref(
     _config_key: cache::CacheKind<'_>,
     _algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
-    return Ok(());
+    // TODO: handle updating the active routing algorithm for v2
+    Ok(())
 }
 
 pub async fn update_business_profile_active_algorithm_ref(

@@ -321,6 +321,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 routing_algorithm,
                 sub_merchants_enabled,
                 parent_merchant_id,
+                return_url,
                 enable_payment_response_hash,
                 payment_response_hash_key,
                 redirect_to_merchant_with_http_post,

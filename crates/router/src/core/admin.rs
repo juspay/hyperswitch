@@ -7,7 +7,7 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     date_time,
-    ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, Encode, ValueExt},
     id_type, pii,
     types::keymanager::{self as km_types, KeyManagerState},
 };
@@ -636,12 +636,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        let primary_business_details = self.get_primary_details_as_value().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
-            },
-        )?;
-
         let organization = CreateOrValidateOrganization::new(self.organization_id.clone())
             .create_or_validate(db)
             .await?;
@@ -848,6 +842,8 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<storage::MerchantAccountUpdate> {
+        use common_utils::ext_traits::ConfigExt;
+
         let key_manager_state = &state.into();
         let key = key_store.key.get_inner().peek();
 
@@ -909,9 +905,9 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
             .clone()
             .async_map(|primary_business_details| async {
                 let _ = create_business_profile_from_business_labels(
-                    &state,
+                    state,
                     db,
-                    &key_store,
+                    key_store,
                     merchant_id,
                     primary_business_details,
                 )
@@ -932,10 +928,10 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
         )?;
 
         let parent_merchant_id = get_parent_merchant(
-            &state,
+            state,
             self.sub_merchants_enabled,
             self.parent_merchant_id.as_ref(),
-            &key_store,
+            key_store,
         )
         .await?;
 
@@ -958,7 +954,7 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
             merchant_details: merchant_details
                 .async_lift(|inner| {
                     domain_types::encrypt_optional(
-                        &key_manager_state,
+                        key_manager_state,
                         inner,
                         km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                         key,
@@ -992,6 +988,7 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2",))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
     async fn get_update_merchant_object(
@@ -1040,7 +1037,7 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
             merchant_details: merchant_details
                 .async_lift(|inner| {
                     domain_types::encrypt_optional(
-                        &key_manager_state,
+                        key_manager_state,
                         inner,
                         km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                         key,

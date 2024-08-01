@@ -22,7 +22,6 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, flows::ConstructFlowSpecificData, operations::BoxedOperation},
-        utils as core_utils,
     },
     db::StorageInterface,
     routes::{app::ReqState, SessionState},

@@ -11,19 +11,16 @@ pub use api_models::{
     },
     organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
-use common_utils::{
-    ext_traits::{AsyncExt, Encode, ValueExt},
-    types::keymanager::Identifier,
-};
+use common_utils::{ext_traits::ValueExt, types::keymanager::Identifier};
 use diesel_models::organization::OrganizationBridge;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    core::{errors, payment_methods::cards::create_encrypted_data},
+    core::errors,
     routes::SessionState,
     types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
 };
@@ -204,6 +201,9 @@ pub async fn create_business_profile(
     storage::business_profile::BusinessProfileNew,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    use crate::core;
+    use common_utils::ext_traits::{AsyncExt, Encode};
+
     // Generate a unique profile id
     let profile_id = common_utils::generate_id_with_default_len("pro");
     let merchant_id = merchant_account.get_id().to_owned();
@@ -239,7 +239,9 @@ pub async fn create_business_profile(
         .transpose()?;
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(state, key_store, headers))
+        .async_map(|headers| {
+            core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
+        })
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -254,9 +256,11 @@ pub async fn create_business_profile(
                     field_name: "payout_link_config",
                 },
             ),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
+            Err(e) => Err(error_stack::report!(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                }
+            )),
         })
         .transpose()?;
 

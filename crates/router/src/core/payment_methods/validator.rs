@@ -1,5 +1,5 @@
 use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
-use common_utils::{ext_traits::ValueExt, link_utils};
+use common_utils::link_utils;
 use diesel_models::generic_link::PaymentMethodCollectLinkData;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -71,9 +71,10 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         .pm_collect_link_config
         .as_ref()
         .map(|config| {
-            config
-                .clone()
-                .parse_value::<admin::BusinessCollectLinkConfig>("BusinessCollectLinkConfig")
+            common_utils::ext_traits::ValueExt::parse_value::<admin::BusinessCollectLinkConfig>(
+                config.clone(),
+                "BusinessCollectLinkConfig",
+            )
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
