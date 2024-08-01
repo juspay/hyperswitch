@@ -2,8 +2,8 @@ pub use api_models::{
     enums as api_enums,
     routing::{
         ConnectorVolumeSplit, RoutableChoiceKind, RoutableConnectorChoice, RoutingAlgorithm,
-        RoutingAlgorithmKind, RoutingAlgorithmRef, RoutingConfigRequest, RoutingDictionary,
-        RoutingDictionaryRecord, StraightThroughAlgorithm,
+        RoutingAlgorithmKind, RoutingAlgorithmRef, RoutingDictionary, RoutingDictionaryRecord,
+        StraightThroughAlgorithm,
     },
 };
 
