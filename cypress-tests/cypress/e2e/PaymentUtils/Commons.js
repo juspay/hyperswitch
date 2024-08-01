@@ -128,6 +128,9 @@ export const getCustomExchange = (overrides) => {
       ...defaultExchange.Response,
       ...(overrides.Response || {}),
     },
+    ...(overrides.ResponseCustom
+      ? { ResponseCustom: overrides.ResponseCustom }
+      : {}),
   };
 };
 
@@ -625,6 +628,17 @@ export const connectorDetails = {
           capture_method: "manual",
         },
       },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot cancel this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
     }),
     Refund: getCustomExchange({
       Request: {
@@ -634,6 +648,16 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
       },
     }),
     PartialRefund: getCustomExchange({
@@ -996,7 +1020,7 @@ export const connectorDetails = {
         },
       },
     },
-    CaptureCapturedAmount: {
+    CaptureCapturedAmount: getCustomExchange({
       Request: {
         Request: {
           payment_method: "card",
@@ -1018,16 +1042,14 @@ export const connectorDetails = {
           },
         },
       },
-    },
-    VoidErrored: getCustomExchange({
-      Response: {
+      ResponseCustom: {
         status: 400,
         body: {
           error: {
             type: "invalid_request",
             message:
-              "You cannot cancel this payment because it has status succeeded",
-            code: "IR_16",
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
           },
         },
       },
