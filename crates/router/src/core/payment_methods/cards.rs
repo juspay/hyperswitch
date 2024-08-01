@@ -2390,7 +2390,7 @@ pub async fn list_payment_methods(
             };
             filter_payment_methods(
                 &graph,
-                mca.merchant_connector_id.clone(),
+                mca.get_id(),
                 payment_methods,
                 &mut req,
                 &mut response,
@@ -2406,10 +2406,7 @@ pub async fn list_payment_methods(
         // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
-            let domain_id = builder.make_domain(
-                mca.merchant_connector_id.clone(),
-                mca.connector_name.as_str(),
-            );
+            let domain_id = builder.make_domain(mca.get_id(), mca.connector_name.as_str());
 
             let Ok(domain_id) = domain_id else {
                 logger::error!("Failed to construct domain for list payment methods");
@@ -2445,7 +2442,7 @@ pub async fn list_payment_methods(
             };
             filter_payment_methods(
                 &graph,
-                mca.merchant_connector_id.clone(),
+                mca.get_id().clone(),
                 payment_methods,
                 &mut req,
                 &mut response,
@@ -2652,8 +2649,7 @@ pub async fn list_payment_methods(
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
             let matched_mca = filtered_mcas.iter().find(|m| {
-                first_routable_connector.merchant_connector_id.as_ref()
-                    == Some(&m.merchant_connector_id)
+                first_routable_connector.merchant_connector_id.as_ref() == Some(&m.get_id())
             });
 
             if let Some(m) = matched_mca {
@@ -3379,7 +3375,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 pub async fn filter_payment_methods(
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
     mca_id: String,
-    payment_methods: &[serde_json::Value],
+    payment_methods: &[Secret<serde_json::Value>],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
@@ -3389,7 +3385,9 @@ pub async fn filter_payment_methods(
     saved_payment_methods: &settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
-        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method.clone());
+        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
+            payment_method.clone().expose().clone(),
+        );
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
 
@@ -4492,7 +4490,7 @@ pub async fn get_mca_status(
             .collect::<Vec<_>>();
 
         for mca in mcas {
-            mca_ids.insert(mca.merchant_connector_id);
+            mca_ids.insert(mca.get_id());
         }
 
         for mca_id in connector_mandate_details.keys() {
