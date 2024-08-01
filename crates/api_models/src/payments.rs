@@ -3005,7 +3005,6 @@ pub enum PaymentMethodDataResponse {
     BankTransfer {},
     Wallet {},
     PayLater(Box<PaylaterResponse>),
-    Paypal {},
     BankRedirect {},
     Crypto {},
     BankDebit {},
