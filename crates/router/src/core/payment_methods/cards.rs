@@ -4078,7 +4078,7 @@ where
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
     let decrypted_data = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
-        type_name!(domain::Address),
+        type_name!(T),
         domain::types::CryptoOperation::DecryptOptional(data),
         identifier,
         key,
