@@ -2871,7 +2871,7 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Vec<String>,
+    _profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
@@ -2944,7 +2944,7 @@ pub async fn list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Vec<String>,
+    _profile_id_list: Option<Vec<String>>,
     merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
@@ -3042,7 +3042,7 @@ pub async fn get_filters_for_payments(
 pub async fn get_payment_filters(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Vec<String>,
+    _profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(state, merchant.get_id().to_owned()).await?

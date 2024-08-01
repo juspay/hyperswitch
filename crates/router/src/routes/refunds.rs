@@ -224,7 +224,7 @@ pub async fn refunds_list(
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req, _| refund_list(state, auth.merchant_account, vec![], req),
+        |state, auth, req, _| refund_list(state, auth.merchant_account, None, req),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundRead),
@@ -295,7 +295,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         state,
         &req,
         (),
-        |state, auth, _, _| get_filters_for_refunds(state, auth.merchant_account, vec![]),
+        |state, auth, _, _| get_filters_for_refunds(state, auth.merchant_account, None),
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth(Permission::RefundRead),

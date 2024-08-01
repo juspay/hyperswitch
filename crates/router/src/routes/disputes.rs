@@ -91,7 +91,7 @@ pub async fn retrieve_disputes_list(
         &req,
         payload,
         |state, auth, req, _| {
-            disputes::retrieve_disputes_list(state, auth.merchant_account, vec![], req)
+            disputes::retrieve_disputes_list(state, auth.merchant_account, None, req)
         },
         auth::auth_type(
             &auth::ApiKeyAuth,

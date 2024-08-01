@@ -44,7 +44,7 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Vec<String>,
+    _profile_id_list: Option<Vec<String>>,
     constraints: api_models::disputes::DisputeListConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
     let disputes = state

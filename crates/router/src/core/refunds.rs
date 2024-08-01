@@ -865,7 +865,7 @@ pub async fn validate_and_create_refund(
 pub async fn refund_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Vec<String>,
+    _profile_id_list: Option<Vec<String>>,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
@@ -987,7 +987,7 @@ pub async fn refund_manual_update(
 pub async fn get_filters_for_refunds(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Vec<String>,
+    _profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(state, merchant_account.get_id().to_owned()).await?

@@ -273,7 +273,7 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_list_core(state, auth.merchant_account, vec![], auth.key_store, req)
+            payouts_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -313,7 +313,7 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_filtered_list_core(state, auth.merchant_account, vec![], auth.key_store, req)
+            payouts_filtered_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
