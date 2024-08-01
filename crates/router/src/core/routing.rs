@@ -319,6 +319,7 @@ pub async fn link_routing_config(
     .unwrap_or_default();
 
     routing_algorithm.update_routing_ref_with_algorithm_id(transaction_type, &mut routing_ref)?;
+
     // TODO move to business profile
     helpers::update_business_profile_active_algorithm_ref(
         db,
@@ -334,7 +335,6 @@ pub async fn link_routing_config(
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
 pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
