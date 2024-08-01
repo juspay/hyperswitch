@@ -38,6 +38,7 @@ mod gocardless;
 mod gpayments;
 mod helcim;
 mod iatapay;
+mod itaubank;
 mod mifinity;
 mod mollie;
 mod multisafepay;
@@ -49,6 +50,7 @@ mod nuvei;
 #[cfg(feature = "dummy_connector")]
 mod opayo;
 mod opennode;
+mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payme;
@@ -56,6 +58,7 @@ mod payone;
 mod paypal;
 mod payu;
 mod placetopay;
+mod plaid;
 mod powertranz;
 #[cfg(feature = "dummy_connector")]
 mod prophetpay;
@@ -69,6 +72,7 @@ mod trustpay;
 mod tsys;
 mod utils;
 mod volt;
+mod wellsfargo;
 #[cfg(feature = "payouts")]
 mod wise;
 mod worldline;

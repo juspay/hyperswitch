@@ -55,7 +55,7 @@ impl PayoutAttempt {
 
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -69,7 +69,7 @@ impl PayoutAttempt {
 
     pub async fn find_by_merchant_id_payout_attempt_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -83,7 +83,7 @@ impl PayoutAttempt {
 
     pub async fn find_by_merchant_id_connector_payout_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_payout_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -97,7 +97,7 @@ impl PayoutAttempt {
 
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
@@ -118,7 +118,7 @@ impl PayoutAttempt {
 
     pub async fn update_by_merchant_id_payout_attempt_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
@@ -140,7 +140,7 @@ impl PayoutAttempt {
     pub async fn get_filters_for_payouts(
         conn: &PgPooledConn,
         payouts: &[Payouts],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<(
         Vec<String>,
         Vec<enums::Currency>,

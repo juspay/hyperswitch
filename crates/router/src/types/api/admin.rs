@@ -1,27 +1,54 @@
 use std::collections::HashMap;
 
-pub use api_models::admin::{
-    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
-    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
-    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
-    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+pub use api_models::{
+    admin::{
+        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
+        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
+        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
+        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
+        MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
+        ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    },
+    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::{
+    ext_traits::{AsyncExt, Encode, ValueExt},
+    types::keymanager::Identifier,
+};
+use diesel_models::organization::OrganizationBridge;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{merchant_key_store::MerchantKeyStore, type_encryption::decrypt};
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
-    types::{domain, storage, transformers::ForeignTryFrom},
+    routes::SessionState,
+    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
 };
 
-#[cfg(not(feature = "v2"))]
+impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
+    fn foreign_from(org: diesel_models::organization::Organization) -> Self {
+        Self {
+            organization_id: org.get_organization_id(),
+            organization_name: org.get_organization_name(),
+            organization_details: org.organization_details,
+            metadata: org.metadata,
+            modified_at: org.modified_at,
+            created_at: org.created_at,
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+        let merchant_id = item.get_id().to_owned();
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
@@ -32,7 +59,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .transpose()?;
 
         Ok(Self {
-            merchant_id: item.merchant_id,
+            merchant_id,
             merchant_name: item.merchant_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -59,11 +86,13 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         use common_utils::ext_traits::OptionExt;
+
+        let id = item.get_id().to_owned();
 
         let merchant_name = item
             .merchant_name
@@ -71,7 +100,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .into_inner();
 
         Ok(Self {
-            id: item.merchant_id,
+            id,
             merchant_name,
             merchant_details: item.merchant_details,
             publishable_key: item.publishable_key,
@@ -84,25 +113,29 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 }
 
 pub async fn business_profile_response(
+    state: &SessionState,
     item: storage::business_profile::BusinessProfile,
     key_store: &MerchantKeyStore,
 ) -> Result<BusinessProfileResponse, error_stack::Report<errors::ParsingError>> {
-    let outgoing_webhook_custom_http_headers = decrypt::<serde_json::Value, masking::WithType>(
-        item.outgoing_webhook_custom_http_headers.clone(),
-        key_store.key.get_inner().peek(),
-    )
-    .await
-    .change_context(errors::ParsingError::StructParseFailure(
-        "Outgoing webhook custom HTTP headers",
-    ))
-    .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
-    .map(|decrypted_value| {
-        decrypted_value
-            .into_inner()
-            .expose()
-            .parse_value::<HashMap<String, String>>("HashMap<String,String>")
-    })
-    .transpose()?;
+    let outgoing_webhook_custom_http_headers =
+        decrypt_optional::<serde_json::Value, masking::WithType>(
+            &state.into(),
+            item.outgoing_webhook_custom_http_headers.clone(),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key_store.key.get_inner().peek(),
+        )
+        .await
+        .change_context(errors::ParsingError::StructParseFailure(
+            "Outgoing webhook custom HTTP headers",
+        ))
+        .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
+        .map(|decrypted_value| {
+            decrypted_value
+                .into_inner()
+                .expose()
+                .parse_value::<HashMap<String, String>>("HashMap<String,String>")
+        })
+        .transpose()?;
 
     Ok(BusinessProfileResponse {
         merchant_id: item.merchant_id,
@@ -146,7 +179,9 @@ pub async fn business_profile_response(
     })
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
 pub async fn create_business_profile(
+    state: &SessionState,
     merchant_account: domain::MerchantAccount,
     request: BusinessProfileCreate,
     key_store: &MerchantKeyStore,
@@ -156,6 +191,7 @@ pub async fn create_business_profile(
 > {
     // Generate a unique profile id
     let profile_id = common_utils::generate_id_with_default_len("pro");
+    let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
 
@@ -188,7 +224,7 @@ pub async fn create_business_profile(
         .transpose()?;
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(key_store, headers))
+        .async_map(|headers| create_encrypted_data(state, key_store, headers))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -211,7 +247,7 @@ pub async fn create_business_profile(
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
-        merchant_id: merchant_account.merchant_id,
+        merchant_id,
         profile_name: request.profile_name.unwrap_or("default".to_string()),
         created_at: current_time,
         modified_at: current_time,

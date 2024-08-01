@@ -17,7 +17,7 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     publishable_key: &String,
     req: GetAuthEventMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {

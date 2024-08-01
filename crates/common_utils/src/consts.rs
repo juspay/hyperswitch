@@ -1,5 +1,7 @@
 //! Commonly used constants
 
+use std::collections::HashSet;
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -81,6 +83,9 @@ pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 
+/// Default allowed domains for payment links
+pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
+
 /// Default ttl for Extended card info  in redis (in seconds)
 pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
 
@@ -99,6 +104,8 @@ pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
 /// Minimum allowed length for MerchantReferenceId
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
 
+/// General purpose base64 engine
+pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 /// Regex for matching a domain
 /// Eg -
 /// http://www.example.com
