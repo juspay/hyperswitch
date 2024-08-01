@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.01.0
+
+### Bug Fixes
+
+- **payment_link:** Move redirection fn to global scope for open links ([#5494](https://github.com/juspay/hyperswitch/pull/5494)) ([`7ddfbf5`](https://github.com/juspay/hyperswitch/commit/7ddfbf51c3c3db99041e3d175a9100a60a339fe8))
+
+### Documentation
+
+- API-Ref changes for Payouts ([#5236](https://github.com/juspay/hyperswitch/pull/5236)) ([`540ef07`](https://github.com/juspay/hyperswitch/commit/540ef071cb238a56d52d06687226aab7fd0dfe68))
+
+**Full Changelog:** [`2024.07.31.0...2024.08.01.0`](https://github.com/juspay/hyperswitch/compare/2024.07.31.0...2024.08.01.0)
+
+- - -
+
 ## 2024.07.31.0
 
 ### Features
