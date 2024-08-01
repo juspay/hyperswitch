@@ -367,9 +367,7 @@ where
         let svc = self.service.clone();
         Box::pin(async move {
             let query_params = req.query_string();
-            let locale_param = query_params
-            .split('&')
-            .find_map(|param| {
+            let locale_param = query_params.split('&').find_map(|param| {
                 let mut split = param.split('=');
                 if let (Some(key), Some(value)) = (split.next(), split.next()) {
                     if key == "locale" {
@@ -378,7 +376,8 @@ where
                 }
                 None
             });
-            let accept_language_header = req.headers().get(actix_web::http::header::ACCEPT_LANGUAGE);
+            let accept_language_header =
+                req.headers().get(actix_web::http::header::ACCEPT_LANGUAGE);
             if let Some(locale) = locale_param {
                 req.headers_mut().insert(
                     http::header::HeaderName::from_static("accept-language"),
@@ -395,5 +394,4 @@ where
             Ok(response)
         })
     }
-    
 }
