@@ -863,6 +863,10 @@ impl Customers {
                         .route(web::post().to(customers_retrieve)),
                 )
         }
+        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
+        }
         route
     }
 }
