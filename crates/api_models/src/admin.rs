@@ -315,7 +315,7 @@ pub struct MerchantAccountUpdate {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -422,7 +422,7 @@ pub struct MerchantAccountUpdate {
     /// Details about the merchant
     pub merchant_details: Option<MerchantDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
@@ -742,7 +742,7 @@ pub struct MerchantConnectorCreate {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -872,7 +872,7 @@ pub struct MerchantConnectorCreate {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1107,7 +1107,7 @@ pub struct MerchantConnectorResponse {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1214,7 +1214,7 @@ pub struct MerchantConnectorResponse {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1326,7 +1326,7 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1435,7 +1435,7 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1526,7 +1526,7 @@ pub struct MerchantConnectorUpdate {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1726,7 +1726,7 @@ pub struct MerchantConnectorDetails {
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: pii::SecretSerdeValue,
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
@@ -1756,7 +1756,7 @@ pub struct BusinessProfileCreate {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1849,7 +1849,7 @@ pub struct BusinessProfileResponse {
     #[schema(value_type = Option<WebhookDetails>)]
     pub webhook_details: Option<pii::SecretSerdeValue>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1937,7 +1937,7 @@ pub struct BusinessProfileUpdate {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 

@@ -846,18 +846,6 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
 
         let db = state.store.as_ref();
 
-        if &self.merchant_id != merchant_id {
-            Err(report!(errors::ValidationError::IncorrectValueProvided {
-                field_name: "parent_merchant_id"
-            })
-            .attach_printable(
-                "If `sub_merchants_enabled` is true, then `parent_merchant_id` is mandatory",
-            )
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "parent_merchant_id",
-            }))?;
-        }
-
         let primary_business_details = self.get_primary_details_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "primary_business_details",
@@ -875,6 +863,26 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
                 field_name: "merchant_details",
             },
         )?;
+
+        self.parse_routing_algorithm().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            },
+        )?;
+
+        let webhook_details = self.get_webhook_details_as_value().change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "webhook_details",
+            },
+        )?;
+
+        let parent_merchant_id = get_parent_merchant(
+            state,
+            self.sub_merchants_enabled,
+            self.parent_merchant_id.as_ref(),
+            key_store,
+        )
+        .await?;
 
         // This supports changing the business profile by passing in the profile_id
         let business_profile_id_update = if let Some(ref profile_id) = self.default_profile {
@@ -912,26 +920,6 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
             })
             .await;
 
-        self.parse_routing_algorithm().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            },
-        )?;
-
-        let webhook_details = self.get_webhook_details_as_value().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "webhook details",
-            },
-        )?;
-
-        let parent_merchant_id = get_parent_merchant(
-            state,
-            self.sub_merchants_enabled,
-            self.parent_merchant_id.as_ref(),
-            key_store,
-        )
-        .await?;
-
         let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
         Ok(storage::MerchantAccountUpdate::Update {
             merchant_name: self
@@ -959,7 +947,7 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt merchant name")?,
+                .attach_printable("Unable to encrypt merchant details")?,
             return_url: self.return_url.map(|a| a.to_string()),
             webhook_details,
             sub_merchants_enabled: self.sub_merchants_enabled,
