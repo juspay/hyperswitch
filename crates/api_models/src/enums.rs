@@ -271,7 +271,6 @@ impl Connector {
             | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
-            | Self::Esnekpos
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi | Self::Cybersource => true,
         }

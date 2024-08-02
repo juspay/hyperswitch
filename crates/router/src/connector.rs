@@ -19,6 +19,7 @@ pub mod dlocal;
 #[cfg(feature = "dummy_connector")]
 pub mod dummyconnector;
 pub mod ebanx;
+pub mod esnekpos;
 pub mod forte;
 pub mod globalpay;
 pub mod globepay;

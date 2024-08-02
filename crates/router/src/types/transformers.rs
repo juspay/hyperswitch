@@ -324,7 +324,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Esnekpos => Self::Esnekpos,
-            api_enums::Connector::Placetopay => todo!(),
         })
     }
 }
