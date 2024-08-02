@@ -562,6 +562,7 @@ mod tests {
                 .find_disputes_by_merchant_id(
                     &merchant_id,
                     DisputeListConstraints {
+                        offset: None,
                         limit: None,
                         dispute_status: None,
                         dispute_stage: None,
