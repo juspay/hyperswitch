@@ -154,6 +154,10 @@ where
                 .attach_printable("profile_id is not set in payment_intent")?
                 .clone();
 
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     &state.into(),
@@ -166,6 +170,16 @@ where
                     id: merchant_account.get_id().get_string_repr().to_owned(),
                 })
                 .ok();
+
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            let merchant_connector_account_from_db_option: Option<
+                domain::MerchantConnectorAccount,
+            > = {
+                let _ = key_store;
+                let _ = frm_routing_algorithm_struct;
+                let _ = profile_id;
+                todo!()
+            };
 
             match merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
