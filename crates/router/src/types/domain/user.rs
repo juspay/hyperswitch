@@ -3,7 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::TokenPurpose;
+use common_enums::{EntityType, TokenPurpose};
 use common_utils::{
     crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
     types::keymanager::Identifier,
@@ -12,7 +12,7 @@ use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
     organization::{self as diesel_org, Organization, OrganizationBridge},
     user as storage_user,
-    user_role::{UserRole, UserRoleNew},
+    user_role::{NewUserRole, UserRole},
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -643,14 +643,15 @@ impl NewUser {
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
+        entity_type: EntityType,
     ) -> UserResult<UserRole> {
         let now = common_utils::date_time::now();
         let user_id = self.get_user_id();
 
         state
             .store
-            .insert_user_role(UserRoleNew {
-                merchant_id: Some(self.get_new_merchant().get_merchant_id()),
+            .insert_user_role(NewUserRole {
+                merchant_id: self.get_new_merchant().get_merchant_id(),
                 status: user_status,
                 created_by: user_id.clone(),
                 last_modified_by: user_id.clone(),
@@ -658,15 +659,11 @@ impl NewUser {
                 role_id,
                 created_at: now,
                 last_modified: now,
-                org_id: Some(
-                    self.get_new_merchant()
-                        .get_new_organization()
-                        .get_organization_id(),
-                ),
-                profile_id: None,
-                entity_id: None,
-                entity_type: None,
-                version: UserRoleVersion::V1,
+                org_id: self
+                    .get_new_merchant()
+                    .get_new_organization()
+                    .get_organization_id(),
+                entity_type,
             })
             .await
             .change_context(UserErrors::InternalServerError)

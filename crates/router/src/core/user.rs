@@ -4,6 +4,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse},
 };
+use common_enums::EntityType;
 use common_utils::types::keymanager::Identifier;
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -11,7 +12,7 @@ use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
-    user_role::UserRoleNew,
+    user_role::NewUserRole,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
@@ -62,6 +63,7 @@ pub async fn signup_with_merchant_id(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await?;
 
@@ -134,6 +136,7 @@ pub async fn signup(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
@@ -165,6 +168,7 @@ pub async fn signup_token_only_flow(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await?;
 
@@ -316,6 +320,7 @@ pub async fn connect_account(
                 state.clone(),
                 consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
+                EntityType::Organization,
             )
             .await?;
 
@@ -734,11 +739,11 @@ async fn handle_existing_user_invitation(
     let now = common_utils::date_time::now();
     state
         .store
-        .insert_user_role(UserRoleNew {
+        .insert_user_role(NewUserRole {
             user_id: invitee_user_from_db.get_user_id().to_owned(),
-            merchant_id: Some(user_from_token.merchant_id.clone()),
+            merchant_id: user_from_token.merchant_id.clone(),
             role_id: request.role_id.clone(),
-            org_id: Some(user_from_token.org_id.clone()),
+            org_id: user_from_token.org_id.clone(),
             status: {
                 if cfg!(feature = "email") {
                     UserStatus::InvitationSent
@@ -750,10 +755,7 @@ async fn handle_existing_user_invitation(
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
             last_modified: now,
-            profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
+            entity_type: EntityType::Merchant,
         })
         .await
         .map_err(|e| {
@@ -826,20 +828,17 @@ async fn handle_new_user_invitation(
     let now = common_utils::date_time::now();
     state
         .store
-        .insert_user_role(UserRoleNew {
+        .insert_user_role(NewUserRole {
             user_id: new_user.get_user_id().to_owned(),
-            merchant_id: Some(user_from_token.merchant_id.clone()),
+            merchant_id: user_from_token.merchant_id.clone(),
             role_id: request.role_id.clone(),
-            org_id: Some(user_from_token.org_id.clone()),
+            org_id: user_from_token.org_id.clone(),
             status: invitation_status,
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
             last_modified: now,
-            profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
+            entity_type: EntityType::Merchant,
         })
         .await
         .map_err(|e| {
@@ -1201,6 +1200,7 @@ pub async fn create_internal_user(
             state,
             consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             UserStatus::Active,
+            EntityType::Internal,
         )
         .await?;
 
@@ -1341,6 +1341,7 @@ pub async fn create_merchant_account(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await;
     if let Err(e) = role_insertion_res {

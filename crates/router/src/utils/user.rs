@@ -371,3 +371,10 @@ pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
         UserAuthType::Password | UserAuthType::MagicLink => false,
     }
 }
+
+// pub fn get_merchant_id_from_user_role(user_role: &UserRole) -> UserResult<id_type::MerchantId> {
+//     let Some(merchant_id) = user_role.merchant_id else {
+//         let org_id = user_role.org_id.ok_or(UserErrors::InternalServerError)?;
+//
+//     }
+// }
