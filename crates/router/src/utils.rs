@@ -581,7 +581,7 @@ pub async fn get_mca_from_object_reference_id(
     let default_profile_id = merchant_account.default_profile.as_ref();
 
     #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let default_profile_id = None;
+    let default_profile_id = Option::<&String>::None;
 
     match default_profile_id {
         Some(profile_id) => {
@@ -605,8 +605,8 @@ pub async fn get_mca_from_object_reference_id(
             }
             #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
             {
-                let _ = db;
-                let _ = profile_id;
+                let _db = db;
+                let _profile_id = profile_id;
                 todo!()
             }
         }

@@ -91,6 +91,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )?;
 
         // If profile id is not passed, get it from the business_country and business_label
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_account_v2")
+        ))]
         let profile_id = core_utils::get_profile_id_from_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -101,6 +105,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
+        // Profile id will be mandatory in v2 in the request / headers
+        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        let profile_id = request
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .attach_printable("Profile id is a mandatory parameter")?;
+
+        // TODO: eliminate a redundant db call to fetch the business profile
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         let business_profile = if let Some(business_profile) =
             core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)

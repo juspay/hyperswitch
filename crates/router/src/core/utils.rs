@@ -1119,34 +1119,6 @@ pub async fn get_profile_id_from_business_details(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-pub async fn get_profile_id_from_business_details(
-    _business_country: Option<api_models::enums::CountryAlpha2>,
-    _business_label: Option<&String>,
-    merchant_account: &domain::MerchantAccount,
-    request_profile_id: Option<&String>,
-    db: &dyn StorageInterface,
-    should_validate: bool,
-) -> RouterResult<String> {
-    match request_profile_id {
-        Some(profile_id) => {
-            // Check whether this business profile belongs to the merchant
-            if should_validate {
-                let _ = validate_and_get_business_profile(
-                    db,
-                    Some(profile_id),
-                    merchant_account.get_id(),
-                )
-                .await?;
-            }
-            Ok(profile_id.clone())
-        }
-        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id"
-        })),
-    }
-}
-
 pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: String) -> String {
     merchant_id.get_poll_id(&unique_id)
 }

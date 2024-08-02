@@ -269,7 +269,7 @@ pub struct MerchantAccountNew {
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
     pub merchant_name: Option<Encryption>,
@@ -278,7 +278,7 @@ pub struct MerchantAccountUpdateInternal {
     pub storage_scheme: Option<storage_enums::MerchantStorageScheme>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
-    pub modified_at: Option<time::PrimitiveDateTime>,
+    pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
@@ -289,7 +289,7 @@ pub struct MerchantAccountUpdateInternal {
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
 ))]
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
     pub merchant_name: Option<Encryption>,
@@ -307,12 +307,12 @@ pub struct MerchantAccountUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: Option<serde_json::Value>,
-    pub modified_at: Option<time::PrimitiveDateTime>,
+    pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
-    pub is_recon_enabled: bool,
+    pub is_recon_enabled: Option<bool>,
     pub default_profile: Option<Option<String>>,
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
