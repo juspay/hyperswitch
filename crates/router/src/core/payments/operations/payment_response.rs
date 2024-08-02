@@ -189,8 +189,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
-                payment_data.payment_attempt.payment_method_id =
-                    Some(pm_info.get_id().clone());
+                payment_data.payment_attempt.payment_method_id = Some(pm_info.get_id().clone());
             };
             Ok(())
         } else {
