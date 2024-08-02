@@ -1132,14 +1132,11 @@ impl PaymentCreate {
         } else {
             None
         };
-        let is_payment_processor_token_flow = request
-            .recurring_details
-            .as_ref()
-            .and_then(|recurring_details|
-            match recurring_details {
+        let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
+            |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),
                 _ => None,
-            }
+            },
         );
 
         // Encrypting our Customer Details to be stored in Payment Intent

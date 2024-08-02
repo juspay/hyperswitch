@@ -417,7 +417,8 @@ impl PaymentIntentUpdate {
             merchant_order_reference_id: merchant_order_reference_id
                 .or(source.merchant_order_reference_id),
             shipping_details: shipping_details.or(source.shipping_details),
-            is_payment_processor_token_flow: is_payment_processor_token_flow.or(source.is_payment_processor_token_flow),
+            is_payment_processor_token_flow: is_payment_processor_token_flow
+                .or(source.is_payment_processor_token_flow),
             ..source
         }
     }
