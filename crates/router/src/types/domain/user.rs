@@ -340,7 +340,7 @@ impl MerchantId {
 impl TryFrom<MerchantId> for id_type::MerchantId {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: MerchantId) -> Result<Self, Self::Error> {
-        Self::from(value.0.into())
+        Self::try_from(std::borrow::Cow::from(value.0))
             .change_context(UserErrors::MerchantIdParsingError)
             .attach_printable("Could not convert user merchant_id to merchant_id type")
     }
@@ -1144,8 +1144,12 @@ impl SignInWithSingleRoleStrategy {
         self,
         state: &SessionState,
     ) -> UserResult<user_api::SignInResponse> {
-        let token =
-            utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
+        let token = utils::user::generate_jwt_auth_token_without_profile(
+            state,
+            &self.user,
+            &self.user_role,
+        )
+        .await?;
         utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
 
         let dashboard_entry_response =

@@ -152,7 +152,7 @@ pub async fn payments_link_list(
         &req,
         payload,
         |state, auth, payload, _| list_payment_link(state, auth.merchant_account, payload),
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
