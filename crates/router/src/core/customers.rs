@@ -618,7 +618,7 @@ pub async fn update_customer(
         id: id.as_ref(),
         merchant_account: &merchant_account,
         key_store: &key_store,
-        key_manager_state: &key_manager_state,
+        key_manager_state,
     };
 
     let customer = verify_id_for_update_customer
@@ -829,7 +829,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         domain_customer: &'a domain::Customer,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let update_address_for_update_customer = AddressStructForDbUpdate {
-            update_customer: &self,
+            update_customer: self,
             merchant_account,
             key_store,
             key_manager_state,
@@ -875,7 +875,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     connector_customer: None,
                     address_id: address.clone().map(|addr| addr.address_id),
                 },
-                &key_store,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
