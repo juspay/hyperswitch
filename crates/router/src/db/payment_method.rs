@@ -25,14 +25,14 @@ pub trait PaymentMethodInterface {
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
         storage_scheme: MerchantStorageScheme,
@@ -41,7 +41,7 @@ pub trait PaymentMethodInterface {
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError>;
 
@@ -60,7 +60,7 @@ pub trait PaymentMethodInterface {
 
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
     ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError>;
 }
@@ -190,7 +190,7 @@ mod storage {
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             status: common_enums::PaymentMethodStatus,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -366,7 +366,7 @@ mod storage {
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -384,7 +384,7 @@ mod storage {
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             status: common_enums::PaymentMethodStatus,
             limit: Option<i64>,
             storage_scheme: MerchantStorageScheme,
@@ -440,7 +440,7 @@ mod storage {
 
         async fn delete_payment_method_by_merchant_id_payment_method_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             payment_method_id: &str,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
@@ -499,7 +499,7 @@ mod storage {
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             status: common_enums::PaymentMethodStatus,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -544,7 +544,7 @@ mod storage {
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -562,7 +562,7 @@ mod storage {
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
             customer_id: &id_type::CustomerId,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             status: common_enums::PaymentMethodStatus,
             limit: Option<i64>,
             _storage_scheme: MerchantStorageScheme,
@@ -581,7 +581,7 @@ mod storage {
 
         async fn delete_payment_method_by_merchant_id_payment_method_id(
             &self,
-            merchant_id: &str,
+            merchant_id: &id_type::MerchantId,
             payment_method_id: &str,
         ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
@@ -641,7 +641,7 @@ impl PaymentMethodInterface for MockDb {
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> CustomResult<i64, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
@@ -649,7 +649,7 @@ impl PaymentMethodInterface for MockDb {
             .iter()
             .filter(|pm| {
                 pm.customer_id == *customer_id
-                    && pm.merchant_id == merchant_id
+                    && pm.merchant_id == *merchant_id
                     && pm.status == status
             })
             .count();
@@ -664,8 +664,6 @@ impl PaymentMethodInterface for MockDb {
         let mut payment_methods = self.payment_methods.lock().await;
 
         let payment_method = storage_types::PaymentMethod {
-            id: i32::try_from(payment_methods.len())
-                .change_context(errors::StorageError::MockDbError)?,
             customer_id: payment_method_new.customer_id,
             merchant_id: payment_method_new.merchant_id,
             payment_method_id: payment_method_new.payment_method_id,
@@ -704,13 +702,13 @@ impl PaymentMethodInterface for MockDb {
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         _limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
             .iter()
-            .filter(|pm| pm.customer_id == *customer_id && pm.merchant_id == merchant_id)
+            .filter(|pm| pm.customer_id == *customer_id && pm.merchant_id == *merchant_id)
             .cloned()
             .collect();
 
@@ -727,7 +725,7 @@ impl PaymentMethodInterface for MockDb {
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
         _limit: Option<i64>,
         _storage_scheme: MerchantStorageScheme,
@@ -737,7 +735,7 @@ impl PaymentMethodInterface for MockDb {
             .iter()
             .filter(|pm| {
                 pm.customer_id == *customer_id
-                    && pm.merchant_id == merchant_id
+                    && pm.merchant_id == *merchant_id
                     && pm.status == status
             })
             .cloned()
@@ -755,12 +753,12 @@ impl PaymentMethodInterface for MockDb {
 
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
     ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
         match payment_methods.iter().position(|pm| {
-            pm.merchant_id == merchant_id && pm.payment_method_id == payment_method_id
+            pm.merchant_id == *merchant_id && pm.payment_method_id == payment_method_id
         }) {
             Some(index) => {
                 let deleted_payment_method = payment_methods.remove(index);
@@ -784,7 +782,7 @@ impl PaymentMethodInterface for MockDb {
             .lock()
             .await
             .iter_mut()
-            .find(|pm| pm.id == payment_method.id)
+            .find(|pm| pm.payment_method_id == payment_method.payment_method_id)
             .map(|pm| {
                 let payment_method_updated =
                     PaymentMethodUpdateInternal::from(payment_method_update)

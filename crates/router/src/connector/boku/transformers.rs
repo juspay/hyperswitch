@@ -92,6 +92,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("boku"),
@@ -456,11 +457,6 @@ pub struct BokuErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct BokuConnMetaData {
-    country: String,
 }
 
 fn get_hosted_data(item: &types::PaymentsAuthorizeRouterData) -> Option<BokuHostedData> {

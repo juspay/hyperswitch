@@ -14,7 +14,7 @@ use crate::{
 pub trait ApiLogsFilterAnalytics: LoadRow<ApiLogsResult> {}
 
 pub async fn get_api_event<T>(
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     query_param: ApiLogsRequest,
     pool: &T,
 ) -> FiltersResult<Vec<ApiLogsResult>>
@@ -102,7 +102,7 @@ where
 }
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ApiLogsResult {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: Option<String>,
     pub refund_id: Option<String>,
     pub payment_method_id: Option<String>,

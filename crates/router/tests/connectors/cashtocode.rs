@@ -1,4 +1,5 @@
 use api_models::payments::{Address, AddressDetails};
+use common_utils::id_type;
 use router::types::{self, domain, storage::enums};
 
 use crate::{
@@ -41,6 +42,7 @@ impl CashtocodeTest {
         payment_method_type: Option<enums::PaymentMethodType>,
         payment_method_data: domain::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
+        let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from("John Doe"));
         Some(types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::EUR,
@@ -66,7 +68,7 @@ impl CashtocodeTest {
             router_return_url: Some(String::from("https://google.com")),
             webhook_url: None,
             complete_authorize_url: None,
-            customer_id: Some("John Doe".to_owned()),
+            customer_id: if let Ok(id) = cust_id { Some(id) } else { None },
             surcharge_details: None,
             request_incremental_authorization: false,
             metadata: None,

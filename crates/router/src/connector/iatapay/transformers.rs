@@ -204,7 +204,8 @@ impl
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::OpenBanking(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("iatapay"),
                     ))?
@@ -580,9 +581,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayErrorResponse {
-    pub status: u16,
+    pub status: Option<u16>,
     pub error: String,
-    pub message: String,
+    pub message: Option<String>,
     pub reason: Option<String>,
 }
 

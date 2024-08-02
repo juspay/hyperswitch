@@ -17,9 +17,6 @@ use crate::file_storage::{FileStorageError, FileStorageInterface};
 /// The file path is generated based on the workspace path and the provided file key.
 fn get_file_path(file_key: impl AsRef<str>) -> PathBuf {
     let mut file_path = PathBuf::new();
-    #[cfg(feature = "logs")]
-    file_path.push(router_env::env::workspace_path());
-    #[cfg(not(feature = "logs"))]
     file_path.push(std::env::current_dir().unwrap_or(".".into()));
 
     file_path.push("files");

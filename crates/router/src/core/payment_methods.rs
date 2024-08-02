@@ -3,7 +3,11 @@ pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
+mod validator;
 pub mod vault;
+
+use std::{borrow::Cow, collections::HashSet};
+
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
@@ -13,7 +17,10 @@ use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
+use hyperswitch_domain_models::{
+    api::{GenericLinks, GenericLinksData},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
+};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -27,13 +34,12 @@ use crate::{
         pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
-    services::{self, GenericLinks},
+    services,
     types::{
         api::{self, payments},
         domain, storage,
     },
 };
-mod validator;
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
@@ -71,6 +77,7 @@ pub async fn retrieve_payment_method(
         pm @ Some(api::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
         pm @ Some(api::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(api::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
         pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
@@ -141,11 +148,10 @@ pub async fn initiate_pm_collect_link(
         req.return_url.clone(),
     )
     .await?;
-    let customer_id = CustomerId::from(pm_collect_link.primary_reference.into()).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
+    let customer_id = CustomerId::try_from(Cow::from(pm_collect_link.primary_reference))
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "customer_id",
-        },
-    )?;
+        })?;
 
     // Return response
     let url = pm_collect_link.url.peek();
@@ -184,7 +190,7 @@ pub async fn create_pm_collect_db_entry(
             .customer_id
             .get_string_repr()
             .to_string(),
-        merchant_id: merchant_account.merchant_id.to_string(),
+        merchant_id: merchant_account.get_id().to_owned(),
         link_type: common_enums::GenericLinkType::PaymentMethodCollect,
         link_data,
         url: pm_collect_link_data.link.clone(),
@@ -245,19 +251,23 @@ pub async fn render_pm_collect_link(
                     theme: link_data.ui_config.theme.unwrap_or(default_ui_config.theme),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::ExpiredLink(expired_link_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+                        data: GenericLinksData::ExpiredLink(expired_link_data),
+                    },
                 )))
 
             // else, send back form link
             } else {
                 let customer_id =
-                    CustomerId::from(pm_collect_link.primary_reference.clone().into())
+                    CustomerId::try_from(Cow::from(pm_collect_link.primary_reference.clone()))
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "customer_id",
                         })?;
                 // Fetch customer
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
+                        &(&state).into(),
                         &customer_id,
                         &req.merchant_id,
                         &key_store,
@@ -303,7 +313,11 @@ pub async fn render_pm_collect_link(
                     html_meta_tags: String::new(),
                 };
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                    GenericLinks::PaymentMethodCollect(generic_form_data),
+                    GenericLinks {
+                        allowed_domains: HashSet::from([]),
+
+                        data: GenericLinksData::PaymentMethodCollect(generic_form_data),
+                    },
                 )))
             }
         }
@@ -344,7 +358,11 @@ pub async fn render_pm_collect_link(
                 css_data: serialized_css_content,
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
-                GenericLinks::PaymentMethodCollectStatus(generic_status_data),
+                GenericLinks {
+                    allowed_domains: HashSet::from([]),
+
+                    data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
+                },
             )))
         }
     }
@@ -363,7 +381,7 @@ pub async fn add_payment_method_status_update_task(
     payment_method: &diesel_models::PaymentMethod,
     prev_status: enums::PaymentMethodStatus,
     curr_status: enums::PaymentMethodStatus,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> Result<(), errors::ProcessTrackerError> {
     let created_at = payment_method.created_at;
     let schedule_time =
@@ -373,7 +391,7 @@ pub async fn add_payment_method_status_update_task(
         payment_method_id: payment_method.payment_method_id.clone(),
         prev_status,
         curr_status,
-        merchant_id: merchant_id.to_string(),
+        merchant_id: merchant_id.to_owned(),
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow;

@@ -4,6 +4,7 @@ use async_trait::async_trait;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
+    connector::utils::RouterData,
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
@@ -12,7 +13,6 @@ use crate::{
     services::{self, api::ConnectorValidation, logger},
     types::{self, api, domain, storage},
 };
-
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for PaymentData<api::PSync>
@@ -25,6 +25,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -39,8 +40,20 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -138,7 +151,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 //validate_psync_reference_id if call_connector_action is trigger
                 if connector
                     .connector
-                    .validate_psync_reference_id(self)
+                    .validate_psync_reference_id(
+                        &self.request,
+                        self.is_three_ds(),
+                        self.status,
+                        self.connector_meta_data.clone(),
+                    )
                     .is_err()
                 {
                     logger::warn!(

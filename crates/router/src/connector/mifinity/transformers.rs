@@ -127,7 +127,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     };
                     let validation_key = format!(
                         "payment_validation_key_{}_{}",
-                        item.router_data.merchant_id,
+                        item.router_data.merchant_id.get_string_repr(),
                         item.router_data.connector_request_reference_id.clone()
                     );
                     let client_reference = item.router_data.customer_id.clone().ok_or(
@@ -196,6 +196,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),

@@ -628,7 +628,8 @@ impl
                         | common_enums::PaymentMethodType::Fps
                         | common_enums::PaymentMethodType::DuitNow
                         | common_enums::PaymentMethodType::PromptPay
-                        | common_enums::PaymentMethodType::VietQr,
+                        | common_enums::PaymentMethodType::VietQr
+                        | common_enums::PaymentMethodType::OpenBankingPIS,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -649,6 +650,7 @@ impl
             | domain::PaymentMethodData::RealTimePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(report!(errors::ConnectorError::NotImplemented(

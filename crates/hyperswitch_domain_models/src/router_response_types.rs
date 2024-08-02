@@ -65,6 +65,9 @@ pub enum PaymentsResponseData {
         error_code: Option<String>,
         error_message: Option<String>,
     },
+    PostProcessingResponse {
+        session_token: Option<api_models::payments::OpenBankingSessionToken>,
+    },
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
