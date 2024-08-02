@@ -345,7 +345,7 @@ describe("Corner cases", () => {
 
     it("Create payment intent and confirm", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
+        "3DSAutoCapture"
       ];
 
       let req_data = data["Request"];
