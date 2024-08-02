@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -12,32 +13,23 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct OpennodeRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for OpennodeRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for OpennodeRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data,
-        })
+        }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct OpennodePaymentsRequest {
-    amount: i64,
+    amount: MinorUnit,
     currency: String,
     description: String,
     auto_settle: bool,
@@ -171,7 +163,7 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct OpennodeRefundRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
 }
 
 impl<F> TryFrom<&OpennodeRouterData<&types::RefundsRouterData<F>>> for OpennodeRefundRequest {
@@ -180,7 +172,7 @@ impl<F> TryFrom<&OpennodeRouterData<&types::RefundsRouterData<F>>> for OpennodeR
         item: &OpennodeRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_amount,
+            amount: item.router_data.request.minor_refund_amount,
         })
     }
 }
