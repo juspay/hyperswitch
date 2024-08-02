@@ -434,7 +434,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         );
       });
 
-      // cybersource connector create with card credit 
+      // cybersource connector create with card credit
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           createConnectorBody,
