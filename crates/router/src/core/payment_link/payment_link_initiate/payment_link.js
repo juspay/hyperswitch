@@ -680,11 +680,13 @@ function renderPaymentDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, paymentMerchantDetails) {
-  for(const key in paymentDetails.merchant_details) {
+  let maxItemsInDetails = 5;
+  for(const [key,value] of Object.entries(paymentDetails.merchant_detail) & maxItemsInDetails>0) {
     var merchantData = document.createElement("div");
     merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
-    merchantData.innerText = key + ": " + paymentDetails.merchant_details[key];
+    merchantData.innerText = key + ": " + value;
     paymentMerchantDetails.append(merchantData);
+    maxItemsInDetails--;
   }
 }
 
