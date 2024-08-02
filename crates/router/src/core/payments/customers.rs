@@ -1,5 +1,5 @@
 use common_utils::pii;
-use masking::{ExposeInterface, ExposeOptionInterface};
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
@@ -81,11 +81,7 @@ pub fn get_connector_customer_details_if_present<'a>(
     customer
         .connector_customer
         .as_ref()
-        .and_then(|connector_customer_value| {
-            connector_customer_value
-                .expose_reference()
-                .get(connector_name)
-        })
+        .and_then(|connector_customer_value| connector_customer_value.peek().get(connector_name))
         .and_then(|connector_customer| connector_customer.as_str())
 }
 

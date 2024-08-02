@@ -239,10 +239,6 @@ impl ExposeInterface<Secret<String, EmailStrategy>> for Email {
     fn expose(self) -> Secret<String, EmailStrategy> {
         self.0
     }
-
-    fn expose_reference(&self) -> &Secret<String, EmailStrategy> {
-        &self.0
-    }
 }
 
 impl TryFrom<String> for Email {
