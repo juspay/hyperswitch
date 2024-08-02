@@ -209,6 +209,7 @@ pub enum RoutableConnectors {
     Datatrans,
     Dlocal,
     Ebanx,
+    Esnekpos,
     Fiserv,
     Forte,
     Globalpay,

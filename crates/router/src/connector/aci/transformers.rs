@@ -33,7 +33,7 @@ impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for AciRou
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        let amount: String = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
