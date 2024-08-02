@@ -1,7 +1,7 @@
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
-use common_utils::{ext_traits::OptionExt, validation::validate_domain_against_allowed_domains};
+use common_utils::{validation::validate_domain_against_allowed_domains};
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
@@ -16,7 +16,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::SessionState,
-    types::{api::payouts, domain, storage, transformers::ForeignInto},
+    types::{api::payouts, domain, storage},
     utils,
 };
 
@@ -63,7 +63,7 @@ pub async fn validate_create_request(
 
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
-            validate_payout_link_request(req.confirm)?;
+            validate_payout_link_request(req)?;
         }
     };
 
@@ -119,7 +119,7 @@ pub async fn validate_create_request(
             helpers::make_payout_method_data(
                 state,
                 req.payout_method_data.as_ref(),
-                Some(&payout_token),
+                Some(payout_token),
                 &customer.customer_id,
                 merchant_account.get_id(),
                 req.payout_type,
@@ -146,16 +146,21 @@ pub async fn validate_create_request(
     Ok((payout_id, payout_method_data, profile_id, customer))
 }
 
-pub fn validate_payout_link_request(confirm: Option<bool>) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(cnf) = confirm {
-        if cnf {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "cannot confirm a payout while creating a payout link".to_string(),
-            });
-        } else {
-            return Ok(());
-        }
+pub fn validate_payout_link_request(
+    req: &payouts::PayoutCreateRequest,
+) -> Result<(), errors::ApiErrorResponse> {
+    if req.confirm.unwrap_or(false) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "cannot confirm a payout while creating a payout link".to_string(),
+        });
     }
+
+    if req.customer_id.is_none() {
+        return Err(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer or customer_id when payout_link is true",
+        });
+    }
+
     Ok(())
 }
 

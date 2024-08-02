@@ -24,8 +24,6 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
-#[cfg(feature = "olap")]
-use hyperswitch_domain_models::errors::StorageError;
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -458,23 +456,25 @@ pub async fn payouts_update_core(
     };
 
     // Update payout method data in temp locker
-    payout_data.payout_method_data = match payout_data.payouts.customer_id.clone() {
-        Some(ref customer_id) => {
-            helpers::make_payout_method_data(
-                &state,
-                req.payout_method_data.as_ref(),
-                payout_attempt.payout_token.as_deref(),
-                customer_id,
-                &payout_attempt.merchant_id,
-                payout_data.payouts.payout_type,
-                &key_store,
-                Some(&mut payout_data),
-                merchant_account.storage_scheme,
-            )
-            .await?
-        }
-        None => None,
-    };
+    if req.payout_method_data.is_some() {
+        let customer_id = payout_data
+            .payouts
+            .customer_id
+            .clone()
+            .get_required_value("customer_id when payout_method_data is provided")?;
+        payout_data.payout_method_data = helpers::make_payout_method_data(
+            &state,
+            req.payout_method_data.as_ref(),
+            payout_attempt.payout_token.as_deref(),
+            &customer_id,
+            &payout_attempt.merchant_id,
+            payout_data.payouts.payout_type,
+            &key_store,
+            Some(&mut payout_data),
+            merchant_account.storage_scheme,
+        )
+        .await?;
+    }
 
     if let Some(true) = payout_data.payouts.confirm {
         payouts_core(
@@ -744,10 +744,7 @@ pub async fn payouts_list_core(
         match db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
-                &utils::get_payment_attempt_id(
-                    payout.payout_id.clone(),
-                    payout.attempt_count.clone(),
-                ),
+                &utils::get_payment_attempt_id(payout.payout_id.clone(), payout.attempt_count),
                 storage_enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
@@ -757,7 +754,7 @@ pub async fn payouts_list_core(
                     match db
                         .find_customer_by_customer_id_merchant_id(
                             &(&state).into(),
-                            &customer_id,
+                            customer_id,
                             merchant_id,
                             &key_store,
                             merchant_account.storage_scheme,
@@ -2034,33 +2031,31 @@ pub async fn fulfill_payout(
                         serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_attempt.error_message.as_ref(), "error_code": payout_data.payout_attempt.error_code.as_ref()})
                     ),
                 }));
-            } else {
-                if payout_data.payouts.recurring
-                    && payout_data.payouts.payout_method_id.clone().is_none()
-                {
-                    let payout_method_data = payout_data
-                        .payout_method_data
-                        .clone()
-                        .get_required_value("payout_method_data")?;
-                    payout_data
-                        .payouts
-                        .customer_id
-                        .clone()
-                        .async_map(|customer_id| async move {
-                            helpers::save_payout_data_to_locker(
-                                state,
-                                payout_data,
-                                &customer_id,
-                                &payout_method_data,
-                                merchant_account,
-                                key_store,
-                            )
-                            .await
-                        })
+            } else if payout_data.payouts.recurring
+                && payout_data.payouts.payout_method_id.clone().is_none()
+            {
+                let payout_method_data = payout_data
+                    .payout_method_data
+                    .clone()
+                    .get_required_value("payout_method_data")?;
+                payout_data
+                    .payouts
+                    .customer_id
+                    .clone()
+                    .async_map(|customer_id| async move {
+                        helpers::save_payout_data_to_locker(
+                            state,
+                            payout_data,
+                            &customer_id,
+                            &payout_method_data,
+                            merchant_account,
+                            key_store,
+                        )
                         .await
-                        .transpose()
-                        .attach_printable("Failed to save payout data to locker")?;
-                }
+                    })
+                    .await
+                    .transpose()
+                    .attach_printable("Failed to save payout data to locker")?;
             }
         }
         Err(err) => {
@@ -2391,7 +2386,7 @@ pub async fn make_payout_data(
         })
         .await
         .transpose()?
-        .map_or(None, |c| c);
+        .and_then(|c| c);
 
     let profile_id = payout_attempt.profile_id.clone();
 

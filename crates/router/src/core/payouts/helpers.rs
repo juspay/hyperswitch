@@ -587,7 +587,7 @@ pub async fn save_payout_data_to_locker(
     };
     payout_data.payouts = db
         .update_payout(
-            &payouts,
+            payouts,
             updated_payout,
             &payout_data.payout_attempt,
             merchant_account.storage_scheme,
@@ -631,7 +631,7 @@ pub async fn get_or_create_customer_details(
         Some(customer) => Ok(Some(customer)),
 
         // Customer not found
-        // create only if atleast one of the fields were provided for customer creation
+        // create only if atleast one of the fields were provided for customer creation or else throw error
         None => {
             if customer_details.name.is_some()
                 || customer_details.email.is_some()
@@ -682,7 +682,9 @@ pub async fn get_or_create_customer_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 ))
             } else {
-                Ok(None)
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("customer for id - {:?} not found", customer_id),
+                }))
             }
         }
     }
