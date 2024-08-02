@@ -137,9 +137,9 @@ pub async fn payments_create(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 req.headers(),
             ),
@@ -200,6 +200,7 @@ pub async fn payments_start(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::operations::PaymentStart,
                 req,
@@ -275,6 +276,7 @@ pub async fn payments_retrieve(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -348,6 +350,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -555,6 +558,7 @@ pub async fn payments_capture(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCapture,
                 payload,
@@ -564,7 +568,7 @@ pub async fn payments_capture(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -624,6 +628,7 @@ pub async fn payments_connector_session(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentSession,
                 payload,
@@ -633,7 +638,7 @@ pub async fn payments_connector_session(
                 header_payload.clone(),
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,
     ))
     .await
@@ -856,6 +861,7 @@ pub async fn payments_complete_authorize(
                 state.clone(),
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::operations::payment_complete_authorize::CompleteAuthorize,
                 payment_confirm_req.clone(),
@@ -915,6 +921,7 @@ pub async fn payments_cancel(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCancel,
                 req,
@@ -924,7 +931,7 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -969,10 +976,10 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+            payments::list_payments(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::PaymentRead),
             req.headers(),
         ),
@@ -995,7 +1002,13 @@ pub async fn payments_list_by_filter(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payments::apply_filters_on_payments(state, auth.merchant_account, auth.key_store, req)
+            payments::apply_filters_on_payments(
+                state,
+                auth.merchant_account,
+                None,
+                auth.key_store,
+                req,
+            )
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
@@ -1038,7 +1051,7 @@ pub async fn get_payment_filters(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(state, auth.merchant_account)
+            payments::get_payment_filters(state, auth.merchant_account, None)
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
@@ -1075,6 +1088,7 @@ pub async fn payments_approve(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentApprove,
                 payment_types::PaymentsCaptureRequest {
@@ -1088,9 +1102,9 @@ pub async fn payments_approve(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 http_req.headers(),
             ),
@@ -1129,6 +1143,7 @@ pub async fn payments_reject(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentReject,
                 payment_types::PaymentsCancelRequest {
@@ -1143,9 +1158,9 @@ pub async fn payments_reject(
             )
         },
         match env::which() {
-            env::Env::Production => &auth::ApiKeyAuth,
+            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
             _ => auth::auth_type(
-                &auth::ApiKeyAuth,
+                &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::PaymentWrite),
                 http_req.headers(),
             ),
@@ -1196,6 +1211,7 @@ where
             state,
             req_state,
             merchant_account,
+            None,
             key_store,
             operation,
             req,
@@ -1216,6 +1232,7 @@ where
                 state,
                 req_state,
                 merchant_account,
+                None,
                 key_store,
                 operation,
                 req,
@@ -1278,6 +1295,7 @@ pub async fn payments_incremental_authorization(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentIncrementalAuthorization,
                 req,
@@ -1287,7 +1305,7 @@ pub async fn payments_incremental_authorization(
                 HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -1339,7 +1357,7 @@ pub async fn payments_external_authentication(
                 req,
             )
         },
-        &auth::PublishableKeyAuth,
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
         locking_action,
     ))
     .await
@@ -1456,7 +1474,7 @@ pub async fn retrieve_extended_card_info(
                 payment_id,
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

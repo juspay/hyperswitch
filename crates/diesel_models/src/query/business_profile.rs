@@ -1,13 +1,18 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
+use crate::schema::business_profile::dsl;
+#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+use crate::schema_v2::business_profile::dsl;
 use crate::{
     business_profile::{
         BusinessProfile, BusinessProfileNew, BusinessProfileUpdate, BusinessProfileUpdateInternal,
     },
-    errors,
-    schema::business_profile::dsl,
-    PgPooledConn, StorageResult,
+    errors, PgPooledConn, StorageResult,
 };
 
 impl BusinessProfileNew {

@@ -24,8 +24,7 @@ pub enum PayoutRequest {
 #[generate_schemas(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateRequest {
-    /// Unique identifier for the payout. This ensures idempotency for multiple payouts
-    /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
+    /// Unique identifier for the payout. This ensures idempotency for multiple payouts that have been done by a single merchant. This field is auto generated and is returned in the API response, **not required to be included in the Payout Create/Update Request.**
     #[schema(
         value_type = Option<String>,
         min_length = 30,
@@ -35,8 +34,7 @@ pub struct PayoutCreateRequest {
     #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
     pub payout_id: Option<String>, // TODO: #1321 https://github.com/juspay/hyperswitch/issues/1321
 
-    /// This is an identifier for the merchant account. This is inferred from the API key
-    /// provided during the request
+    /// This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**
     #[schema(max_length = 255, value_type = Option<String>, example = "merchant_1668273825")]
     #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
     pub merchant_id: Option<id_type::MerchantId>,
@@ -61,16 +59,16 @@ pub struct PayoutCreateRequest {
     }))]
     pub routing: Option<serde_json::Value>,
 
-    /// This allows the merchant to manually select a connector with which the payout can go through
+    /// This field allows the merchant to manually select a connector with which the payout can go through.
     #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
 
-    /// The boolean value to create payout with connector
+    /// This field is used when merchant wants to confirm the payout, thus useful for the payout _Confirm_ request. Ideally merchants should _Create_ a payout, _Update_ it (if required), then _Confirm_ it.
     #[schema(value_type = Option<bool>, example = true, default = false)]
     #[remove_in(PayoutConfirmRequest)]
     pub confirm: Option<bool>,
 
-    /// The payout_type of the payout request can be specified here
+    /// The payout_type of the payout request can be specified here, this is a mandatory field to _Confirm_ the payout, i.e., should be passed in _Create_ request, if not then should be updated in the payout _Update_ request, then only it can be confirmed.
     #[schema(value_type = Option<PayoutType>, example = "card")]
     pub payout_type: Option<api_enums::PayoutType>,
 
@@ -131,7 +129,7 @@ pub struct PayoutCreateRequest {
     #[schema(example = "It's my first payout request", value_type = Option<String>)]
     pub description: Option<String>,
 
-    /// Type of entity to whom the payout is being carried out to
+    /// Type of entity to whom the payout is being carried out to, select from the given list of options
     #[schema(value_type = Option<PayoutEntityType>, example = "Individual")]
     pub entity_type: Option<api_enums::PayoutEntityType>,
 
@@ -143,23 +141,22 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Provide a reference to a stored payout method
+    /// Provide a reference to a stored payout method, used to process the payout.
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432", value_type = Option<String>)]
     pub payout_token: Option<String>,
 
-    /// The business profile to use for this payout, if not passed the default business profile
-    /// associated with the merchant account will be used.
+    /// The business profile to use for this payout, especially if there are multiple business profiles associated with the account, otherwise default business profile associated with the merchant account will be used.
     pub profile_id: Option<String>,
 
-    /// The send method for processing payouts
+    /// The send method which will be required for processing payouts, check options for better understanding.
     #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
 
-    /// Whether to get the payout link (if applicable)
+    /// Whether to get the payout link (if applicable). Merchant need to specify this during the Payout _Create_, this field can not be updated during Payout _Update_.
     #[schema(default = false, example = true, value_type = Option<bool>)]
     pub payout_link: Option<bool>,
 
-    /// custom payout link config for the particular payout
+    /// Custom payout link config for the particular payout, if payout link is to be generated.
     #[schema(value_type = Option<PayoutCreatePayoutLinkConfig>)]
     pub payout_link_config: Option<PayoutCreatePayoutLinkConfig>,
 
@@ -193,6 +190,7 @@ impl PayoutCreateRequest {
     }
 }
 
+/// Custom payout link config for the particular payout, if payout link is to be generated.
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct PayoutCreatePayoutLinkConfig {
     /// The unique identifier for the collect link.
@@ -208,6 +206,7 @@ pub struct PayoutCreatePayoutLinkConfig {
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 }
 
+/// The payout method information required for carrying out a payout
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
@@ -500,7 +499,7 @@ pub struct PayoutCreateResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attempts: Option<Vec<PayoutAttemptResponse>>,
 
-    // If payout link is request, this represents response on
+    /// If payout link was requested, this contains the link's ID and the URL to render the payout widget
     #[schema(value_type = Option<PayoutLinkResponse>)]
     pub payout_link: Option<PayoutLinkResponse>,
 }
