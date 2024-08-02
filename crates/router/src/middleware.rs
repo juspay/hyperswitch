@@ -367,21 +367,19 @@ where
         let svc = self.service.clone();
         Box::pin(async move {
             let query_params = req.query_string();
-            let locale_param = query_params.split('&').find_map(|param| {
-                let mut split = param.split('=');
-                if let (Some(key), Some(value)) = (split.next(), split.next()) {
-                    if key == "locale" {
-                        return Some(value.to_string());
-                    }
-                }
-                None
-            });
+            let locale_param =
+                serde_qs::from_str::<LocaleQueryParam>(query_params).map_err(|error| {
+                    actix_web::error::ErrorBadRequest(format!(
+                        "Could not convert query params to locale query parmas: {:?}",
+                        error
+                    ))
+                })?;
             let accept_language_header =
                 req.headers().get(actix_web::http::header::ACCEPT_LANGUAGE);
-            if let Some(locale) = locale_param {
+            if let Some(locale) = locale_param.locale {
                 req.headers_mut().insert(
                     http::header::HeaderName::from_static("accept-language"),
-                    http::HeaderValue::from_str(&locale)?,
+                    http::HeaderValue::from_str(&locale.to_string())?,
                 );
             } else if accept_language_header.is_none() {
                 req.headers_mut().insert(
@@ -394,4 +392,9 @@ where
             Ok(response)
         })
     }
+}
+
+#[derive(serde::Deserialize)]
+pub struct LocaleQueryParam {
+    locale: Option<String>,
 }
