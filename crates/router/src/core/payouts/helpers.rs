@@ -839,12 +839,12 @@ pub async fn get_default_payout_connector(
     ))
 }
 
-pub fn should_call_payout_connector_create_customer(
-    state: &SessionState,
-    connector: &api::ConnectorData,
-    customer: &Option<domain::Customer>,
-    connector_label: &str,
-) -> (bool, Option<String>) {
+pub fn should_call_payout_connector_create_customer<'a>(
+    state: &'a SessionState,
+    connector: &'a api::ConnectorData,
+    customer: &'a Option<domain::Customer>,
+    connector_label: &'a str,
+) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
     match enums::PayoutConnectors::try_from(connector.connector_name) {
         Ok(connector) => {

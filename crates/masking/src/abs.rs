@@ -20,6 +20,8 @@ pub trait ExposeOptionInterface<S> {
 pub trait ExposeInterface<S> {
     /// Consume the secret and return the inner value
     fn expose(self) -> S;
+    /// Takes the secret as reference and return the inner value as reference
+    fn expose_reference(&self) -> &S;
 }
 
 impl<S, I> ExposeOptionInterface<Option<S>> for Option<Secret<S, I>>
@@ -38,6 +40,10 @@ where
 {
     fn expose(self) -> S {
         self.inner_secret
+    }
+
+    fn expose_reference(&self) -> &S {
+        &self.inner_secret
     }
 }
 

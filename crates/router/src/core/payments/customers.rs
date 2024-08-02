@@ -74,29 +74,27 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     Ok(connector_customer_id)
 }
 
-pub fn get_connector_customer_details_if_present(
-    customer: &domain::Customer,
+pub fn get_connector_customer_details_if_present<'a>(
+    customer: &'a domain::Customer,
     connector_name: &str,
-) -> Option<String> {
+) -> Option<&'a str> {
     customer
         .connector_customer
         .as_ref()
         .and_then(|connector_customer_value| {
             connector_customer_value
-                .clone()
-                .expose()
+                .expose_reference()
                 .get(connector_name)
-                .cloned()
         })
-        .map(|connector_customer| connector_customer.to_string())
+        .and_then(|connector_customer| connector_customer.as_str())
 }
 
-pub fn should_call_connector_create_customer(
+pub fn should_call_connector_create_customer<'a>(
     state: &SessionState,
     connector: &api::ConnectorData,
-    customer: &Option<domain::Customer>,
+    customer: &'a Option<domain::Customer>,
     connector_label: &str,
-) -> (bool, Option<String>) {
+) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
     let connector_needs_customer = state
         .conf
