@@ -667,7 +667,7 @@ pub struct SubmitEvidenceRequestData {
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,
-    //cancellation policy 
+    //cancellation policy
     pub cancellation_policy: Option<Vec<u8>>,
     pub cancellation_policy_type: Option<String>,
     pub cancellation_policy_provider_file_id: Option<String>,
@@ -722,14 +722,6 @@ pub struct SubmitEvidenceRequestData {
     pub uncategorized_file_type: Option<String>,
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
-    pub defense_documents: Option<Vec<DefenseDocuments>>,
-}
-#[derive(Default, Debug, Serialize, Clone)]
-// #[serde(rename_all = "camelCase")]
-pub struct DefenseDocuments {
-    content: String,
-    content_type: String,
-    defense_document_type_code: String,
 }
 #[derive(Clone, Debug)]
 pub struct RetrieveFileRequestData {

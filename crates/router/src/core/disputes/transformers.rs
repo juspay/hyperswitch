@@ -20,7 +20,7 @@ pub async fn get_evidence_request_data(
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
     dispute: &diesel_models::dispute::Dispute,
 ) -> CustomResult<SubmitEvidenceRequestData, errors::ApiErrorResponse> {
-    let (cancellation_policy, cancellation_policy_provider_file_id,cancellation_policy_type) =
+    let (cancellation_policy, cancellation_policy_provider_file_id, cancellation_policy_type) =
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.cancellation_policy,
@@ -29,16 +29,19 @@ pub async fn get_evidence_request_data(
             api::FileDataRequired::NotRequired,
         )
         .await?;
-    let (customer_communication, customer_communication_provider_file_id,customer_communication_type) =
-        retrieve_file_and_provider_file_id_from_file_id(
-            state,
-            evidence_request.customer_communication,
-            merchant_account,
-            key_store,
-            api::FileDataRequired::NotRequired,
-        )
-        .await?;
-    let (customer_signature, customer_signature_provider_file_id,customer_signature_type) =
+    let (
+        customer_communication,
+        customer_communication_provider_file_id,
+        customer_communication_type,
+    ) = retrieve_file_and_provider_file_id_from_file_id(
+        state,
+        evidence_request.customer_communication,
+        merchant_account,
+        key_store,
+        api::FileDataRequired::NotRequired,
+    )
+    .await?;
+    let (customer_signature, customer_signature_provider_file_id, customer_signature_type) =
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.customer_signature,
@@ -47,15 +50,16 @@ pub async fn get_evidence_request_data(
             api::FileDataRequired::NotRequired,
         )
         .await?;
-    let (receipt, receipt_provider_file_id,receipt_type) = retrieve_file_and_provider_file_id_from_file_id(
-        state,
-        evidence_request.receipt,
-        merchant_account,
-        key_store,
-        api::FileDataRequired::NotRequired,
-    )
-    .await?;
-    let (refund_policy, refund_policy_provider_file_id,refund_policy_type) =
+    let (receipt, receipt_provider_file_id, receipt_type) =
+        retrieve_file_and_provider_file_id_from_file_id(
+            state,
+            evidence_request.receipt,
+            merchant_account,
+            key_store,
+            api::FileDataRequired::NotRequired,
+        )
+        .await?;
+    let (refund_policy, refund_policy_provider_file_id, refund_policy_type) =
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.refund_policy,
@@ -64,7 +68,7 @@ pub async fn get_evidence_request_data(
             api::FileDataRequired::NotRequired,
         )
         .await?;
-    let (service_documentation, service_documentation_provider_file_id,service_documentation_type) =
+    let (service_documentation, service_documentation_provider_file_id, service_documentation_type) =
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.service_documentation,
@@ -73,18 +77,22 @@ pub async fn get_evidence_request_data(
             api::FileDataRequired::NotRequired,
         )
         .await?;
-    let (shipping_documentation, shipping_documentation_provider_file_id,shipping_documentation_type) =
-        retrieve_file_and_provider_file_id_from_file_id(
-            state,
-            evidence_request.shipping_documentation,
-            merchant_account,
-            key_store,
-            api::FileDataRequired::NotRequired,
-        )
-        .await?;
+    let (
+        shipping_documentation,
+        shipping_documentation_provider_file_id,
+        shipping_documentation_type,
+    ) = retrieve_file_and_provider_file_id_from_file_id(
+        state,
+        evidence_request.shipping_documentation,
+        merchant_account,
+        key_store,
+        api::FileDataRequired::NotRequired,
+    )
+    .await?;
     let (
         invoice_showing_distinct_transactions,
-        invoice_showing_distinct_transactions_provider_file_id,invoice_showing_distinct_transactions_type,
+        invoice_showing_distinct_transactions_provider_file_id,
+        invoice_showing_distinct_transactions_type,
     ) = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.invoice_showing_distinct_transactions,
@@ -93,16 +101,19 @@ pub async fn get_evidence_request_data(
         api::FileDataRequired::NotRequired,
     )
     .await?;
-    let (recurring_transaction_agreement, recurring_transaction_agreement_provider_file_id,recurring_transaction_agreement_type) =
-        retrieve_file_and_provider_file_id_from_file_id(
-            state,
-            evidence_request.recurring_transaction_agreement,
-            merchant_account,
-            key_store,
-            api::FileDataRequired::NotRequired,
-        )
-        .await?;
-    let (uncategorized_file, uncategorized_file_provider_file_id,uncategorized_file_type) =
+    let (
+        recurring_transaction_agreement,
+        recurring_transaction_agreement_provider_file_id,
+        recurring_transaction_agreement_type,
+    ) = retrieve_file_and_provider_file_id_from_file_id(
+        state,
+        evidence_request.recurring_transaction_agreement,
+        merchant_account,
+        key_store,
+        api::FileDataRequired::NotRequired,
+    )
+    .await?;
+    let (uncategorized_file, uncategorized_file_provider_file_id, uncategorized_file_type) =
         retrieve_file_and_provider_file_id_from_file_id(
             state,
             evidence_request.uncategorized_file,
@@ -150,18 +161,16 @@ pub async fn get_evidence_request_data(
         uncategorized_file,
         uncategorized_file_provider_file_id,
         uncategorized_text: evidence_request.uncategorized_text,
-        defense_documents: None,
-
         cancellation_policy_type,
         customer_communication_type,
-        customer_signature_type, 
-        receipt_type, 
-        refund_policy_type, 
-        service_documentation_type, 
+        customer_signature_type,
+        receipt_type,
+        refund_policy_type,
+        service_documentation_type,
         shipping_documentation_type,
         invoice_showing_distinct_transactions_type,
         recurring_transaction_agreement_type,
-        uncategorized_file_type, 
+        uncategorized_file_type,
     })
 }
 

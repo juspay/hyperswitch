@@ -8,7 +8,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
 
@@ -37,7 +37,6 @@ use crate::{
     },
     utils::{crypto, ByteSliceExt, BytesExt, OptionExt},
 };
-use masking::PeekInterface;
 const ADYEN_API_VERSION: &str = "v68";
 
 #[derive(Clone)]
@@ -52,9 +51,7 @@ impl Adyen {
         }
     }
 }
-fn get_key(
-    auth_type: &types::ConnectorAuthType,
-) -> CustomResult<String, errors::ConnectorError> {
+fn get_key(auth_type: &types::ConnectorAuthType) -> CustomResult<String, errors::ConnectorError> {
     let auth = adyen::AdyenAuthType::try_from(auth_type)
         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
     Ok(auth.api_key.peek().clone())
@@ -1916,7 +1913,6 @@ impl api::IncomingWebhook for Adyen {
 }
 
 impl api::Dispute for Adyen {}
-// impl api::RetrieveFile for Checkout {}
 impl api::DefendDispute for Adyen {}
 impl api::AcceptDispute for Adyen {}
 impl api::SubmitEvidence for Adyen {}
@@ -1978,10 +1974,9 @@ impl
         req: &types::AcceptDisputeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // let key = dklaksdf()
-        let merchant_acount_code = get_key(&req.connector_auth_type)?;
-        let connector_req = adyen::AdyenAcceptDisputeRequest::try_from((req,merchant_acount_code))?;
-        // let connector_req = adyen::AdyenAcceptDisputeRequest::try_from((req,self.get_auth_header(&req.connector_auth_type)?))?;
+        let merchant_account_code = get_key(&req.connector_auth_type)?;
+        let connector_req =
+            adyen::AdyenAcceptDisputeRequest::try_from((req, merchant_account_code))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -2008,127 +2003,6 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
-
-// impl
-//     ConnectorIntegration<api::Retrieve, types::RetrieveFileRequestData, types::RetrieveFileResponse>
-//     for Checkout
-// {
-// }
-
-// #[async_trait::async_trait]
-// impl api::FileUpload for Checkout {
-//     fn validate_file_upload(
-//         &self,
-//         purpose: api::FilePurpose,
-//         file_size: i32,
-//         file_type: mime::Mime,
-//     ) -> CustomResult<(), errors::ConnectorError> {
-//         match purpose {
-//             api::FilePurpose::DisputeEvidence => {
-//                 let supported_file_types =
-//                     ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-//                 // 4 Megabytes (MB)
-//                 if file_size > 4000000 {
-//                     Err(errors::ConnectorError::FileValidationFailed {
-//                         reason: "file_size exceeded the max file size of 4MB".to_owned(),
-//                     })?
-//                 }
-//                 if !supported_file_types.contains(&file_type.to_string().as_str()) {
-//                     Err(errors::ConnectorError::FileValidationFailed {
-//                         reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
-//                     })?
-//                 }
-//             }
-//         }
-//         Ok(())
-//     }
-// }
-
-// impl services::ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>
-//     for Adyen
-// {
-//     fn get_headers(
-//         &self,
-//         req: &types::RouterData<
-//             api::Upload,
-//             types::UploadFileRequestData,
-//             types::UploadFileResponse,
-//         >,
-//         _connectors: &settings::Connectors,
-//     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-//         self.get_auth_header(&req.connector_auth_type)
-//     }
-
-//     fn get_content_type(&self) -> &'static str {
-//         "multipart/form-data"
-//     }
-
-//     fn get_url(
-//         &self,
-//         _req: &types::UploadFileRouterData,
-//         connectors: &settings::Connectors,
-//     ) -> CustomResult<String, errors::ConnectorError> {
-//         Ok(format!("{}{}", self.base_url(connectors), "files"))
-//     }
-
-//     fn get_request_body(
-//         &self,
-//         req: &types::UploadFileRouterData,
-//         _connectors: &settings::Connectors,
-//     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-//         let connector_req = transformers::construct_file_upload_request(req.clone())?;
-//         Ok(RequestContent::FormData(connector_req))
-//     }
-
-//     fn build_request(
-//         &self,
-//         req: &types::UploadFileRouterData,
-//         connectors: &settings::Connectors,
-//     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-//         Ok(Some(
-//             services::RequestBuilder::new()
-//                 .method(services::Method::Post)
-//                 .url(&types::UploadFileType::get_url(self, req, connectors)?)
-//                 .attach_default_headers()
-//                 .headers(types::UploadFileType::get_headers(self, req, connectors)?)
-//                 .set_body(types::UploadFileType::get_request_body(
-//                     self, req, connectors,
-//                 )?)
-//                 .build(),
-//         ))
-//     }
-
-//     fn handle_response(
-//         &self,
-//         data: &types::UploadFileRouterData,
-//         event_builder: Option<&mut ConnectorEvent>,
-//         res: types::Response,
-//     ) -> CustomResult<
-//         types::RouterData<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>,
-//         errors::ConnectorError,
-//     > {
-//         let response: adyen::FileUploadResponse = res
-//             .response
-//             .parse_struct("Checkout FileUploadResponse")
-//             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-//         event_builder.map(|i| i.set_response_body(&response));
-//         router_env::logger::info!(connector_response=?response);
-//         Ok(types::UploadFileRouterData {
-//             response: Ok(types::UploadFileResponse {
-//                 provider_file_id: response.file_id,
-//             }),
-//             ..data.clone()
-//         })
-//     }
-
-//     fn get_error_response(
-//         &self,
-//         res: types::Response,
-//         event_builder: Option<&mut ConnectorEvent>,
-//     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-//         self.build_error_response(res, event_builder)
-//     }
-// }
 
 impl
     services::ConnectorIntegration<
@@ -2188,11 +2062,9 @@ impl
         req: &types::DefendDisputeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        
-
-        let merchant_acount_code = get_key(&req.connector_auth_type)?;
-        let connector_req = adyen::AdyenDefendDisputeRequest::try_from((req,merchant_acount_code))?;
-        // let connector_req = adyen::AdyenDefendDisputeRequest::try_from((req,self.get_auth_header(&req.connector_auth_type)?))?;
+        let merchant_account_code = get_key(&req.connector_auth_type)?;
+        let connector_req =
+            adyen::AdyenDefendDisputeRequest::try_from((req, merchant_account_code))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -2264,8 +2136,8 @@ impl
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let merchant_acount_code = get_key(&req.connector_auth_type)?;
-        let connector_req = adyen::Evidence::try_from((req,merchant_acount_code))?;
+        let merchant_account_code = get_key(&req.connector_auth_type)?;
+        let connector_req = adyen::Evidence::try_from((req, merchant_account_code))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

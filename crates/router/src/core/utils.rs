@@ -575,7 +575,9 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .map(|amt| amt.get_amount_as_i64()),
         minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
-        request: types::AcceptDisputeRequestData {dispute_id:dispute.dispute_id.clone(),connector_dispute_id:dispute.connector_dispute_id.clone()
+        request: types::AcceptDisputeRequestData {
+            dispute_id: dispute.dispute_id.clone(),
+            connector_dispute_id: dispute.connector_dispute_id.clone(),
         },
         response: Err(ErrorResponse::default()),
         access_token: None,
