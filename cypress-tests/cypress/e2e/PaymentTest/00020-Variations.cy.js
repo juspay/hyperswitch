@@ -345,7 +345,7 @@ describe("Corner cases", () => {
 
     it("Create payment intent and confirm", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "3DSAutoCapture"
+        "3DSManualCapture"
       ];
 
       let req_data = data["Request"];
@@ -368,9 +368,18 @@ describe("Corner cases", () => {
       cy.retrievePaymentCallTest(globalState);
     });
 
+    it("Handle redirection", () => {
+      let expected_redirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expected_redirection);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
     it("Capture call", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "CaptureUnverifiedAmount"
+        "CaptureGreaterAmount"
       ];
 
       let req_data = data["Request"];
