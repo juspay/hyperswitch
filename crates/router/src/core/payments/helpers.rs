@@ -2036,15 +2036,15 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             if payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card) {
                 payment_data.token_data =
                     Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
-                        payment_method_id: Some(payment_method_info.payment_method_id.clone()),
+                        payment_method_id: Some(payment_method_info.get_id().clone()),
                         locker_id: payment_method_info
                             .locker_id
                             .clone()
-                            .or(Some(payment_method_info.payment_method_id.clone())),
+                            .or(Some(payment_method_info.get_id().clone())),
                         token: payment_method_info
                             .locker_id
                             .clone()
-                            .unwrap_or(payment_method_info.payment_method_id.clone()),
+                            .unwrap_or(payment_method_info.get_id().clone()),
                     }));
             }
         }

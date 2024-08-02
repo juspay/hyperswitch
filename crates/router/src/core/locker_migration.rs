@@ -92,7 +92,7 @@ pub async fn call_to_locker(
             state,
             customer_id,
             merchant_id,
-            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
+            pm.locker_id.as_ref().unwrap_or(pm.get_id()),
         )
         .await;
 
@@ -116,13 +116,17 @@ pub async fn call_to_locker(
             card_type: None,
         };
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         let pm_create = api::PaymentMethodCreate {
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,
             payment_method_issuer: pm.payment_method_issuer,
             payment_method_issuer_code: pm.payment_method_issuer_code,
-            metadata: pm.metadata,
-            customer_id: Some(pm.customer_id),
+            metadata: pm.metadata.to_owned(),
+            customer_id: Some(pm.customer_id.to_owned()),
             card_network: card.card_brand,
             client_secret: None,
             payment_method_data: Some(api::PaymentMethodCreateData::Card(card_details.clone())),
@@ -134,18 +138,26 @@ pub async fn call_to_locker(
                 not(feature = "payment_methods_v2")
             ))]
             card: Some(card_details.clone()),
-            #[cfg(all(
-                feature = "payouts",
-                any(feature = "v1", feature = "v2"),
-                not(feature = "payment_methods_v2")
-            ))]
+            #[cfg(feature = "payouts")]
             bank_transfer: None,
-            #[cfg(all(
-                feature = "payouts",
-                any(feature = "v1", feature = "v2"),
-                not(feature = "payment_methods_v2")
-            ))]
+            #[cfg(feature = "payouts")]
             wallet: None,
+        };
+
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        let pm_create = api::PaymentMethodCreate {
+            payment_method: pm.payment_method,
+            payment_method_type: pm.payment_method_type,
+            payment_method_issuer: None,
+            payment_method_issuer_code: None,
+            metadata: pm.metadata.to_owned(),
+            customer_id: Some(pm.customer_id.to_owned()),
+            card_network: card.card_brand,
+            client_secret: None,
+            payment_method_data: Some(api::PaymentMethodCreateData::Card(card_details.clone())),
+            billing: None,
+            connector_mandate_details: None,
+            network_transaction_id: None,
         };
 
         let add_card_result = cards::add_card_hs(
@@ -155,14 +167,14 @@ pub async fn call_to_locker(
                 customer_id,
                 merchant_account,
                 api_enums::LockerChoice::HyperswitchCardVault,
-                Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
+                Some(pm.locker_id.as_ref().unwrap_or(pm.get_id())),
 
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "Card migration failed for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
-                pm.payment_method_id
+                pm.get_id()
             ));
 
         let (_add_card_rs_resp, _is_duplicate) = match add_card_result {
@@ -177,7 +189,7 @@ pub async fn call_to_locker(
 
         logger::info!(
                 "Card migrated for merchant_id: {merchant_id:?}, customer_id: {customer_id:?}, payment_method_id: {} ",
-                pm.payment_method_id
+                pm.get_id()
             );
     }
 

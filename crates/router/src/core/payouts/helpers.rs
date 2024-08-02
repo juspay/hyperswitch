@@ -572,7 +572,7 @@ pub async fn save_payout_data_to_locker(
         let card_reference = &existing_pm
             .locker_id
             .clone()
-            .unwrap_or(existing_pm.payment_method_id.clone());
+            .unwrap_or(existing_pm.get_id().clone());
         // Delete from locker
         cards::delete_card_from_hs_locker(
             state,
@@ -602,7 +602,7 @@ pub async fn save_payout_data_to_locker(
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
                 merchant_account.get_id(),
-                &existing_pm.payment_method_id,
+                existing_pm.get_id(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;

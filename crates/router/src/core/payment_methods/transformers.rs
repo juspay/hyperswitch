@@ -592,9 +592,32 @@ pub fn get_card_detail(
     let last4_digits = card_number.clone().get_last4();
     //fetch form card bin
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     let card_detail = api::CardDetailFromLocker {
         scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
+        last4_digits: Some(last4_digits),
+        card_number: Some(card_number),
+        expiry_month: Some(response.card_exp_month),
+        expiry_year: Some(response.card_exp_year),
+        card_token: None,
+        card_fingerprint: None,
+        card_holder_name: response.name_on_card,
+        nick_name: response.nick_name.map(Secret::new),
+        card_isin: None,
+        card_issuer: None,
+        card_network: None,
+        card_type: None,
+        saved_to_locker: true,
+    };
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    let card_detail = api::CardDetailFromLocker {
+        scheme: None,
+        issuer_country: None,
         last4_digits: Some(last4_digits),
         card_number: Some(card_number),
         expiry_month: Some(response.card_exp_month),

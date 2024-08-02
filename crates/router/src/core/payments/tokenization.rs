@@ -264,7 +264,7 @@ where
 
                                         match &existing_pm_by_locker_id {
                                             Ok(pm) => {
-                                                payment_method_id.clone_from(&pm.payment_method_id);
+                                                payment_method_id.clone_from(pm.get_id());
                                             }
                                             Err(_) => {
                                                 payment_method_id =
@@ -398,8 +398,7 @@ where
 
                                             match &existing_pm_by_locker_id {
                                                 Ok(pm) => {
-                                                    payment_method_id
-                                                        .clone_from(&pm.payment_method_id);
+                                                    payment_method_id.clone_from(pm.get_id());
                                                 }
                                                 Err(_) => {
                                                     payment_method_id =
@@ -476,7 +475,7 @@ where
                                     existing_pm
                                         .locker_id
                                         .as_ref()
-                                        .unwrap_or(&existing_pm.payment_method_id),
+                                        .unwrap_or(existing_pm.get_id()),
                                 )
                                 .await?;
 
@@ -491,7 +490,7 @@ where
                                         existing_pm
                                             .locker_id
                                             .as_ref()
-                                            .unwrap_or(&existing_pm.payment_method_id),
+                                            .unwrap_or(existing_pm.get_id()),
                                     ),
                                 )
                                 .await;
@@ -518,8 +517,17 @@ where
                                 )
                                 .await?;
 
+                                #[cfg(all(
+                                    any(feature = "v1", feature = "v2"),
+                                    not(feature = "payment_methods_v2")
+                                ))]
+                                let scheme = existing_pm.scheme.clone();
+
+                                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                                let scheme = None;
+
                                 let updated_card = Some(CardDetailFromLocker {
-                                    scheme: existing_pm.scheme.clone(),
+                                    scheme,
                                     last4_digits: Some(card.card_number.get_last4()),
                                     issuer_country: card
                                         .card_issuing_country
@@ -618,7 +626,7 @@ where
                                 logger::error!("Failed to update last used at: {:?}", e);
                             })
                             .ok();
-                            resp.payment_method_id = customer_saved_pm.payment_method_id;
+                            resp.payment_method_id = customer_saved_pm.get_id().clone();
                         } else {
                             let pm_metadata =
                                 create_payment_method_metadata(None, connector_token)?;

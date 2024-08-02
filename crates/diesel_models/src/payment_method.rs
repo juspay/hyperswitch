@@ -5,8 +5,19 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use crate::{enums as storage_enums, schema::payment_methods};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::{enums as storage_enums, schema_v2::payment_methods};
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
 )]
@@ -46,6 +57,51 @@ pub struct PaymentMethod {
     pub updated_by: Option<String>,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payment_methods, primary_key(id), check_for_backend(diesel::pg::Pg))]
+pub struct PaymentMethod {
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
+    pub payment_method: Option<storage_enums::PaymentMethod>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub payment_method_data: Option<Encryption>,
+    pub locker_id: Option<String>,
+    pub last_used_at: PrimitiveDateTime,
+    pub connector_mandate_details: Option<serde_json::Value>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub status: storage_enums::PaymentMethodStatus,
+    pub network_transaction_id: Option<String>,
+    pub client_secret: Option<String>,
+    pub payment_method_billing_address: Option<Encryption>,
+    pub updated_by: Option<String>,
+    pub id: String,
+}
+
+impl PaymentMethod {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    pub fn get_id(&self) -> &String {
+        &self.payment_method_id
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_id(&self) -> &String {
+        &self.id
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(
     Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -83,6 +139,47 @@ pub struct PaymentMethodNew {
     pub updated_by: Option<String>,
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
+)]
+#[diesel(table_name = payment_methods)]
+pub struct PaymentMethodNew {
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_method: Option<storage_enums::PaymentMethod>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub payment_method_data: Option<Encryption>,
+    pub locker_id: Option<String>,
+    pub last_used_at: PrimitiveDateTime,
+    pub connector_mandate_details: Option<serde_json::Value>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub status: storage_enums::PaymentMethodStatus,
+    pub network_transaction_id: Option<String>,
+    pub client_secret: Option<String>,
+    pub payment_method_billing_address: Option<Encryption>,
+    pub updated_by: Option<String>,
+    pub id: String,
+}
+
+impl PaymentMethodNew {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    pub fn get_id(&self) -> &String {
+        &self.payment_method_id
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_id(&self) -> &String {
+        &self.id
+    }
+}
+
 impl PaymentMethodNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
@@ -95,6 +192,10 @@ pub struct TokenizeCoreWorkflow {
     pub pm: storage_enums::PaymentMethod,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
     MetadataUpdateAndLastUsed {
@@ -131,6 +232,42 @@ pub enum PaymentMethodUpdate {
     },
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Serialize, Deserialize)]
+pub enum PaymentMethodUpdate {
+    MetadataUpdateAndLastUsed {
+        metadata: Option<serde_json::Value>,
+        last_used_at: PrimitiveDateTime,
+    },
+    UpdatePaymentMethodDataAndLastUsed {
+        payment_method_data: Option<Encryption>,
+        last_used_at: PrimitiveDateTime,
+    },
+    PaymentMethodDataUpdate {
+        payment_method_data: Option<Encryption>,
+    },
+    LastUsedUpdate {
+        last_used_at: PrimitiveDateTime,
+    },
+    NetworkTransactionIdAndStatusUpdate {
+        network_transaction_id: Option<String>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+    },
+    StatusUpdate {
+        status: Option<storage_enums::PaymentMethodStatus>,
+    },
+    AdditionalDataUpdate {
+        payment_method_data: Option<Encryption>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+        locker_id: Option<String>,
+        payment_method: Option<storage_enums::PaymentMethod>,
+        payment_method_type: Option<storage_enums::PaymentMethodType>,
+    },
+    ConnectorMandateDetailsUpdate {
+        connector_mandate_details: Option<serde_json::Value>,
+    },
+}
+
 impl PaymentMethodUpdate {
     pub fn convert_to_payment_method_update(
         self,
@@ -142,6 +279,28 @@ impl PaymentMethodUpdate {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(
+    Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize,
+)]
+#[diesel(table_name = payment_methods)]
+pub struct PaymentMethodUpdateInternal {
+    metadata: Option<serde_json::Value>,
+    payment_method_data: Option<Encryption>,
+    last_used_at: Option<PrimitiveDateTime>,
+    network_transaction_id: Option<String>,
+    status: Option<storage_enums::PaymentMethodStatus>,
+    locker_id: Option<String>,
+    payment_method: Option<storage_enums::PaymentMethod>,
+    connector_mandate_details: Option<serde_json::Value>,
+    updated_by: Option<String>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(
     Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -194,6 +353,10 @@ impl PaymentMethodUpdateInternal {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
         match payment_method_update {
@@ -325,6 +488,133 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
+    fn from(payment_method_update: PaymentMethodUpdate) -> Self {
+        match payment_method_update {
+            PaymentMethodUpdate::MetadataUpdateAndLastUsed {
+                metadata,
+                last_used_at,
+            } => Self {
+                metadata,
+                payment_method_data: None,
+                last_used_at: Some(last_used_at),
+                network_transaction_id: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_type: None,
+            },
+            PaymentMethodUpdate::PaymentMethodDataUpdate {
+                payment_method_data,
+            } => Self {
+                metadata: None,
+                payment_method_data,
+                last_used_at: None,
+                network_transaction_id: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_type: None,
+            },
+            PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: Some(last_used_at),
+                network_transaction_id: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_type: None,
+            },
+            PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
+                payment_method_data,
+                last_used_at,
+            } => Self {
+                metadata: None,
+                payment_method_data,
+                last_used_at: Some(last_used_at),
+                network_transaction_id: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_type: None,
+            },
+            PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                network_transaction_id,
+                status,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_type: None,
+            },
+            PaymentMethodUpdate::StatusUpdate { status } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                network_transaction_id: None,
+                status,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_type: None,
+            },
+            PaymentMethodUpdate::AdditionalDataUpdate {
+                payment_method_data,
+                status,
+                locker_id,
+                payment_method,
+                payment_method_type,
+            } => Self {
+                metadata: None,
+                payment_method_data,
+                last_used_at: None,
+                network_transaction_id: None,
+                status,
+                locker_id,
+                payment_method,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_type,
+            },
+            PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                connector_mandate_details,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details,
+                network_transaction_id: None,
+                updated_by: None,
+                payment_method_type: None,
+            },
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<&PaymentMethodNew> for PaymentMethod {
     fn from(payment_method_new: &PaymentMethodNew) -> Self {
         Self {
@@ -360,6 +650,34 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_billing_address: payment_method_new
                 .payment_method_billing_address
                 .clone(),
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<&PaymentMethodNew> for PaymentMethod {
+    fn from(payment_method_new: &PaymentMethodNew) -> Self {
+        Self {
+            customer_id: payment_method_new.customer_id.clone(),
+            merchant_id: payment_method_new.merchant_id.clone(),
+            locker_id: payment_method_new.locker_id.clone(),
+            created_at: payment_method_new.created_at,
+            last_modified: payment_method_new.last_modified,
+            payment_method: payment_method_new.payment_method,
+            payment_method_type: payment_method_new.payment_method_type,
+            metadata: payment_method_new.metadata.clone(),
+            payment_method_data: payment_method_new.payment_method_data.clone(),
+            last_used_at: payment_method_new.last_used_at,
+            connector_mandate_details: payment_method_new.connector_mandate_details.clone(),
+            customer_acceptance: payment_method_new.customer_acceptance.clone(),
+            status: payment_method_new.status,
+            network_transaction_id: payment_method_new.network_transaction_id.clone(),
+            client_secret: payment_method_new.client_secret.clone(),
+            updated_by: payment_method_new.updated_by.clone(),
+            payment_method_billing_address: payment_method_new
+                .payment_method_billing_address
+                .clone(),
+            id: payment_method_new.id.clone(),
         }
     }
 }

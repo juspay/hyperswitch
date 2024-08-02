@@ -234,8 +234,7 @@ mod storage {
                         customer_id: customer_id.get_string_repr(),
                     };
                     let key_str = key.to_string();
-                    let field =
-                        format!("payment_method_id_{}", payment_method_new.payment_method_id);
+                    let field = format!("payment_method_id_{}", payment_method_new.get_id());
 
                     let reverse_lookup_entry = |v: String| diesel_models::ReverseLookupNew {
                         sk_id: field.clone(),
@@ -245,8 +244,7 @@ mod storage {
                         updated_by: storage_scheme.to_string(),
                     };
 
-                    let lookup_id1 =
-                        format!("payment_method_{}", &payment_method_new.payment_method_id);
+                    let lookup_id1 = format!("payment_method_{}", &payment_method_new.get_id());
                     let mut reverse_lookups = vec![lookup_id1];
                     if let Some(locker_id) = &payment_method_new.locker_id {
                         reverse_lookups.push(format!("payment_method_locker_{}", locker_id))
@@ -281,7 +279,7 @@ mod storage {
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "payment_method",
-                            key: Some(storage_payment_method.payment_method_id),
+                            key: Some(storage_payment_method.get_id().clone()),
                         }
                         .into()),
                         Ok(HsetnxReply::KeySet) => Ok(storage_payment_method),
@@ -304,7 +302,7 @@ mod storage {
                 merchant_id: &merchant_id,
                 customer_id: customer_id.get_string_repr(),
             };
-            let field = format!("payment_method_id_{}", payment_method.payment_method_id);
+            let field = format!("payment_method_id_{}", payment_method.get_id());
             let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
                 self,
                 storage_scheme,
@@ -606,7 +604,7 @@ impl PaymentMethodInterface for MockDb {
         let payment_methods = self.payment_methods.lock().await;
         let payment_method = payment_methods
             .iter()
-            .find(|pm| pm.payment_method_id == payment_method_id)
+            .find(|pm| pm.get_id() == payment_method_id)
             .cloned();
 
         match payment_method {
@@ -663,10 +661,14 @@ impl PaymentMethodInterface for MockDb {
     ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         let payment_method = storage_types::PaymentMethod {
-            customer_id: payment_method_new.customer_id,
-            merchant_id: payment_method_new.merchant_id,
-            payment_method_id: payment_method_new.payment_method_id,
+            customer_id: payment_method_new.customer_id.to_owned(),
+            merchant_id: payment_method_new.merchant_id.to_owned(),
+            payment_method_id: payment_method_new.get_id(),
             locker_id: payment_method_new.locker_id,
             accepted_currency: payment_method_new.accepted_currency,
             scheme: payment_method_new.scheme,
@@ -684,6 +686,27 @@ impl PaymentMethodInterface for MockDb {
             payment_method_type: payment_method_new.payment_method_type,
             payment_method_issuer: payment_method_new.payment_method_issuer,
             payment_method_issuer_code: payment_method_new.payment_method_issuer_code,
+            metadata: payment_method_new.metadata,
+            payment_method_data: payment_method_new.payment_method_data,
+            last_used_at: payment_method_new.last_used_at,
+            connector_mandate_details: payment_method_new.connector_mandate_details,
+            customer_acceptance: payment_method_new.customer_acceptance,
+            status: payment_method_new.status,
+            client_secret: payment_method_new.client_secret,
+            network_transaction_id: payment_method_new.network_transaction_id,
+            updated_by: payment_method_new.updated_by,
+            payment_method_billing_address: payment_method_new.payment_method_billing_address,
+        };
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        let payment_method = storage_types::PaymentMethod {
+            customer_id: payment_method_new.customer_id.to_owned(),
+            merchant_id: payment_method_new.merchant_id.to_owned(),
+            id: payment_method_new.get_id().clone(),
+            locker_id: payment_method_new.locker_id,
+            created_at: payment_method_new.created_at,
+            last_modified: payment_method_new.last_modified,
+            payment_method: payment_method_new.payment_method,
+            payment_method_type: payment_method_new.payment_method_type,
             metadata: payment_method_new.metadata,
             payment_method_data: payment_method_new.payment_method_data,
             last_used_at: payment_method_new.last_used_at,
@@ -757,9 +780,10 @@ impl PaymentMethodInterface for MockDb {
         payment_method_id: &str,
     ) -> CustomResult<storage_types::PaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
-        match payment_methods.iter().position(|pm| {
-            pm.merchant_id == *merchant_id && pm.payment_method_id == payment_method_id
-        }) {
+        match payment_methods
+            .iter()
+            .position(|pm| pm.merchant_id == *merchant_id && pm.get_id() == payment_method_id)
+        {
             Some(index) => {
                 let deleted_payment_method = payment_methods.remove(index);
                 Ok(deleted_payment_method)
@@ -782,7 +806,7 @@ impl PaymentMethodInterface for MockDb {
             .lock()
             .await
             .iter_mut()
-            .find(|pm| pm.payment_method_id == payment_method.payment_method_id)
+            .find(|pm| pm.get_id() == payment_method.get_id())
             .map(|pm| {
                 let payment_method_updated =
                     PaymentMethodUpdateInternal::from(payment_method_update)
