@@ -342,7 +342,7 @@ client_secret = ""
 partner_id = ""
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [multitenancy]
 enabled = false

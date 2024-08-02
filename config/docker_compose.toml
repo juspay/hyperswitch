@@ -504,7 +504,7 @@ source = "logs"
 file_storage_backend = "file_system"
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [opensearch]
 host = "https://opensearch:9200"
