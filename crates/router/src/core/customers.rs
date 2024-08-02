@@ -1,9 +1,9 @@
 use api_models::customers::CustomerRequestWithEmail;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{crypto::Encryptable, ext_traits::OptionExt, types::Description};
+use common_utils::{crypto::Encryptable, types::Description};
 use common_utils::{
     errors::ReportSwitchExt,
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, OptionExt},
     id_type,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
@@ -805,6 +805,7 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
             .find_customer_by_id(
                 self.key_manager_state,
                 id,
+                &self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )
@@ -949,6 +950,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 key_manager_state,
                 domain_customer.id.to_owned(),
                 domain_customer.to_owned(),
+                merchant_account.get_id(),
                 storage::CustomerUpdate::Update {
                     name: encryptable_customer.name,
                     email: encryptable_customer.email,

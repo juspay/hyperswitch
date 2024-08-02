@@ -36,16 +36,6 @@ impl ApiEventMetric for CustomerId {
     }
 }
 
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// impl ApiEventMetric for CustomerUpdateRequest {
-//     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-//         self.id
-//             .clone()
-//             .map(|id| ApiEventsType::Customer { id })
-//     }
-// }
-
-// #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl ApiEventMetric for CustomerUpdateRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         self.get_merchant_reference_id()

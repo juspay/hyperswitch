@@ -1321,17 +1321,20 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .in_current_span(),
         );
 
-        let customer_fut =
-            if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
-                let m_customer_customer_id = customer.get_customer_id().to_owned();
-                let m_customer_merchant_id = customer.merchant_id.to_owned();
-                let m_key_store = key_store.clone();
-                let m_updated_customer = updated_customer.clone();
-                let session_state = state.clone();
-                let m_db = session_state.store.clone();
-                let key_manager_state = state.into();
-                tokio::spawn(
-                    async move {
+        let customer_fut = if let Some((updated_customer, customer)) =
+            updated_customer.zip(customer)
+        {
+            let m_customer_merchant_id = customer.merchant_id.to_owned();
+            let m_key_store = key_store.clone();
+            let m_updated_customer = updated_customer.clone();
+            let session_state = state.clone();
+            let m_db = session_state.store.clone();
+            let key_manager_state = state.into();
+            tokio::spawn(
+                async move {
+                    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+                    {
+                        let m_customer_customer_id = customer.get_customer_id().to_owned();
                         m_db.update_customer_by_customer_id_merchant_id(
                             &key_manager_state,
                             m_customer_customer_id,
@@ -1347,14 +1350,34 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
                         Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
                     }
+                    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                    {
+                        let global_id = "temp_id".to_string();
+                        let _ = customer_id;
+                        m_db.update_customer_by_id(
+                            &key_manager_state,
+                            global_id,
+                            customer,
+                            &m_customer_merchant_id,
+                            m_updated_customer,
+                            &m_key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to update CustomerConnector in customer")?;
+
+                        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
+                    }
+                }
+                .in_current_span(),
+            )
+        } else {
+            tokio::spawn(
+                async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) }
                     .in_current_span(),
-                )
-            } else {
-                tokio::spawn(
-                    async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) }
-                        .in_current_span(),
-                )
-            };
+            )
+        };
 
         let (payment_intent, payment_attempt, _) = tokio::try_join!(
             utils::flatten_join_error(payment_intent_fut),

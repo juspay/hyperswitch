@@ -1,5 +1,6 @@
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
 use common_utils::id_type;
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use diesel::BoolExpressionMethods;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use diesel::BoolExpressionMethods;
 use diesel::{associations::HasTable, ExpressionMethods};
@@ -22,8 +23,9 @@ impl CustomerNew {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+// #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn update_by_id(
         conn: &PgPooledConn,
         id: String,
@@ -46,14 +48,17 @@ impl Customer {
         }
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn find_by_id_merchant_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn find_by_id(conn: &PgPooledConn, id: &String) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
@@ -68,26 +73,39 @@ impl Customer {
         .await
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn find_optional_by_customer_id_merchant_id(
-        _conn: &PgPooledConn,
-        _customer_id: &id_type::CustomerId,
-        _merchant_id: &id_type::MerchantId,
+        conn: &PgPooledConn,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
-        // generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
-        //     conn,
-        //     (customer_id.to_owned(), merchant_id.to_owned()),
-        // )
-        // .await
-        todo!()
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::merchant_reference_id.eq(customer_id.to_owned())),
+        )
+        .await
     }
-}
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl Customer {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    pub async fn find_optional_by_customer_id_merchant_id(
+        conn: &PgPooledConn,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            (customer_id.to_owned(), merchant_id.to_owned()),
+        )
+        .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     pub async fn update_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: common_utils::id_type::CustomerId,
-        merchant_id: common_utils::id_type::MerchantId,
+        customer_id: id_type::CustomerId,
+        merchant_id: id_type::MerchantId,
         customer: CustomerUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -111,10 +129,11 @@ impl Customer {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     pub async fn delete_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &common_utils::id_type::CustomerId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -125,38 +144,28 @@ impl Customer {
         .await
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn find_by_customer_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &common_utils::id_type::CustomerId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::merchant_reference_id.eq(customer_id.to_owned())),
+        )
+        .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    pub async fn find_by_customer_id_merchant_id(
+        conn: &PgPooledConn,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
-            conn,
-            (customer_id.to_owned(), merchant_id.to_owned()),
-        )
-        .await
-    }
-
-    pub async fn list_by_merchant_id(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-            None,
-            None,
-            Some(dsl::created_at),
-        )
-        .await
-    }
-
-    pub async fn find_optional_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
-        customer_id: &common_utils::id_type::CustomerId,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> StorageResult<Option<Self>> {
-        generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             (customer_id.to_owned(), merchant_id.to_owned()),
         )

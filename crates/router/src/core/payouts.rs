@@ -1085,8 +1085,6 @@ pub async fn create_recipient(
             Ok(recipient_create_data) => {
                 let db = &*state.store;
                 if let Some(customer) = customer_details {
-                    let customer_id = customer.get_customer_id().to_owned();
-                    let merchant_id = merchant_account.get_id().to_owned();
                     if let Some(updated_customer) =
                         customers::update_connector_customer_in_customers(
                             &connector_label,
@@ -1095,20 +1093,46 @@ pub async fn create_recipient(
                         )
                         .await
                     {
-                        payout_data.customer_details = Some(
-                            db.update_customer_by_customer_id_merchant_id(
-                                &state.into(),
-                                customer_id,
-                                merchant_id,
-                                customer,
-                                updated_customer,
-                                key_store,
-                                merchant_account.storage_scheme,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error updating customers in db")?,
-                        )
+                        #[cfg(all(
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "customer_v2")
+                        ))]
+                        {
+                            let customer_id = customer.get_customer_id().to_owned();
+                            payout_data.customer_details = Some(
+                                db.update_customer_by_customer_id_merchant_id(
+                                    &state.into(),
+                                    customer_id,
+                                    merchant_account.get_id().to_owned(),
+                                    customer,
+                                    updated_customer,
+                                    key_store,
+                                    merchant_account.storage_scheme,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Error updating customers in db")?,
+                            );
+                        }
+
+                        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                        {
+                            let global_id = "temp_id".to_string();
+                            payout_data.customer_details = Some(
+                                db.update_customer_by_id(
+                                    &state.into(),
+                                    global_id,
+                                    customer,
+                                    &merchant_account.get_id(),
+                                    updated_customer,
+                                    key_store,
+                                    merchant_account.storage_scheme,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Error updating customers in db")?,
+                            );
+                        }
                     }
                 }
 
@@ -2381,6 +2405,37 @@ pub async fn make_payout_data(
         .await
         .map_or(None, |c| c);
 
+    // let customer_details = match () {
+    //     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))] () => {
+    //         db.find_customer_optional_by_customer_id_merchant_id(
+    //             &state.into(),
+    //             &payouts.customer_id.to_owned(),
+    //             merchant_id,
+    //             key_store,
+    //             merchant_account.storage_scheme,
+    //         )
+    //         .await
+    //         .map_or(None, |c| Some(c))
+    //     },
+
+    //     #[cfg(all(feature = "v2", feature = "customer_v2"))] () => {
+    //         let global_id = "temp_id".to_string();
+    //         let db_customer_details = db
+    //             .find_customer_by_id(
+    //                 &state.into(),
+    //                 &global_id,
+    //                 merchant_id,
+    //                 key_store,
+    //                 merchant_account.storage_scheme,
+    //             )
+    //             .await;
+    //         match db_customer_details {
+    //             Ok(cust) => Some(cust),
+    //             _ => None,
+    //         }
+    //     },
+    // };
+
     let profile_id = payout_attempt.profile_id.clone();
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
@@ -2393,7 +2448,7 @@ pub async fn make_payout_data(
                 Some(payout_token) => {
                     let customer_id = customer_details
                         .as_ref()
-                        .map(|cd| cd.get_customer_id().to_owned())
+                        .map(|cust_d| cust_d.get_customer_id().to_owned())
                         .get_required_value("customer")?;
                     helpers::make_payout_method_data(
                         state,
