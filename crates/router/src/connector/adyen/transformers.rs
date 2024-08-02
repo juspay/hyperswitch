@@ -4873,7 +4873,7 @@ impl TryFrom<(&types::AcceptDisputeRouterData, String)> for AdyenAcceptDisputeRe
         let (item, merchant_account_code) = data;
         Ok(Self {
             dispute_psp_reference: item.clone().request.connector_dispute_id,
-            merchant_account_code: merchant_account_code,
+            merchant_account_code,
         })
     }
 }
@@ -4892,7 +4892,7 @@ impl TryFrom<(&types::DefendDisputeRouterData, String)> for AdyenDefendDisputeRe
         let (item, merchant_account_code) = data.clone();
         Ok(Self {
             dispute_psp_reference: item.request.connector_dispute_id.clone(),
-            merchant_account_code: merchant_account_code,
+            merchant_account_code,
             defense_reason_code: "SupplyDefenseMaterial".into(),
         })
     }
