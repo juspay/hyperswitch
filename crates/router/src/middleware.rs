@@ -382,7 +382,7 @@ where
             if let Some(locale) = locale_param.locale {
                 req.headers_mut().insert(
                     http::header::ACCEPT_LANGUAGE,
-                    http::HeaderValue::from_str(&locale.to_string())?,
+                    http::HeaderValue::from_str(&locale)?,
                 );
             } else if accept_language_header.is_none() {
                 req.headers_mut().insert(
