@@ -634,6 +634,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .as_ref()
             .and_then(|recurring_details| match recurring_details {
                 api_models::mandates::RecurringDetails::ProcessorPaymentToken(token) => {
+                    payment_intent.is_payment_processor_token_flow = Some(true);
                     Some(api_models::payments::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: Some(
@@ -659,7 +660,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             currency,
             amount,
             email: request.email.clone(),
-            mandate_id,
+            mandate_id: mandate_id.clone(),
             mandate_connector,
             setup_mandate,
             customer_acceptance: customer_acceptance.map(From::from),
@@ -1304,6 +1305,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
         let key_manager_state = state.into();
+        let is_payment_processor_token_flow = payment_data.is_payment_processor_token_flow.clone();
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -1336,6 +1338,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         merchant_order_reference_id: None,
                         billing_details,
                         shipping_details,
+                        is_payment_processor_token_flow,
                     })),
                     &m_key_store,
                     storage_scheme,

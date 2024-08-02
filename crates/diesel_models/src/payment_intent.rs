@@ -128,6 +128,7 @@ pub struct PaymentIntent {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(
@@ -187,6 +188,7 @@ pub struct PaymentIntentNew {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -291,6 +293,7 @@ pub struct PaymentIntentUpdateFields {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -331,6 +334,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 impl PaymentIntentUpdate {
@@ -370,6 +374,7 @@ impl PaymentIntentUpdate {
             billing_details,
             merchant_order_reference_id,
             shipping_details,
+            is_payment_processor_token_flow,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -412,6 +417,7 @@ impl PaymentIntentUpdate {
             merchant_order_reference_id: merchant_order_reference_id
                 .or(source.merchant_order_reference_id),
             shipping_details: shipping_details.or(source.shipping_details),
+            is_payment_processor_token_flow: is_payment_processor_token_flow.or(source.is_payment_processor_token_flow),
             ..source
         }
     }
@@ -458,6 +464,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -495,6 +502,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 surcharge_applicable: None,
                 incremental_authorization_allowed: None,
                 authorization_count: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -539,6 +547,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -579,6 +588,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -620,6 +630,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -669,6 +680,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -709,6 +721,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -750,6 +763,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -790,6 +804,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -830,6 +845,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -869,6 +885,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -905,6 +922,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -943,6 +961,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -981,6 +1000,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1017,6 +1037,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
         }
     }

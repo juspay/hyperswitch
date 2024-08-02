@@ -1132,6 +1132,15 @@ impl PaymentCreate {
         } else {
             None
         };
+        let is_payment_processor_token_flow = request
+            .recurring_details
+            .as_ref()
+            .and_then(|recurring_details|
+            match recurring_details {
+                RecurringDetails::ProcessorPaymentToken(_) => Some(true),
+                _ => None,
+            }
+        );
 
         // Encrypting our Customer Details to be stored in Payment Intent
         let customer_details = raw_customer_details
@@ -1192,6 +1201,7 @@ impl PaymentCreate {
             customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
             shipping_details,
+            is_payment_processor_token_flow,
         })
     }
 

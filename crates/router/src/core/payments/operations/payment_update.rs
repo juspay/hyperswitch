@@ -773,6 +773,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     merchant_order_reference_id,
                     billing_details,
                     shipping_details,
+                    is_payment_processor_token_flow: None,
                 })),
                 key_store,
                 storage_scheme,

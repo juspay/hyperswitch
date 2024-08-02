@@ -229,6 +229,7 @@ pub async fn generate_sample_data(
             billing_details: None,
             merchant_order_reference_id: Default::default(),
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
