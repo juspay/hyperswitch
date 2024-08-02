@@ -1042,7 +1042,19 @@ export const connectorDetails = {
           },
         },
       },
-      ResponseCustom: {
+    }),
+    CaptureUnverifiedAmount: getCustomExchange({
+      Request: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          currency: "USD",
+          customer_acceptance: null,
+        },
+      },
+      Response: {
         status: 400,
         body: {
           error: {

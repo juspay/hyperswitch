@@ -370,11 +370,11 @@ describe("Corner cases", () => {
 
     it("Capture call", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "CaptureCapturedAmount"
+        "CaptureUnverifiedAmount"
       ];
 
       let req_data = data["Request"];
-      let res_data = data["ResponseCustom"];
+      let res_data = data["Response"];
 
       cy.captureCallTest(
         fixtures.captureBody,
@@ -451,4 +451,141 @@ describe("Corner cases", () => {
         should_continue = utils.should_continue_further(res_data);
     });
   });
+
+  context("[Payment] Refund unsuccessful payment", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("Create payment intent and confirm", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
+
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentCreateConfirmBody,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Refund call", () => {
+      // `commons` here is intentionally used as we need to pass `ResponseCustom`
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "Refund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["ResponseCustom"];
+      cy.refundCallTest(
+        fixtures.refundBody,
+        req_data,
+        res_data,
+        65000,
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+  });
+
+  context.only(
+    "[Payment] Recurring mandate with greater mandate amount",
+    () => {
+      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+      before("seed global state", () => {
+        cy.task("getGlobalState").then((state) => {
+          globalState = new State(state);
+        });
+      });
+
+      after("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
+      beforeEach(function () {
+        if (!should_continue) {
+          this.skip();
+        }
+      });
+
+      it("No 3DS CIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateSingleUseNo3DSManualCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          req_data,
+          res_data,
+          6500,
+          true,
+          "manual",
+          "new_mandate",
+          globalState
+        );
+        if (should_continue)
+          should_continue = utils.should_continue_further(res_data);
+      });
+
+      it("cit-capture-call-test", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
+        cy.captureCallTest(
+          fixtures.captureBody,
+          req_data,
+          res_data,
+          6500,
+          globalState
+        );
+        if (should_continue)
+          should_continue = utils.should_continue_further(res_data);
+      });
+
+      it("Retrieve payment", () => {
+        cy.retrievePaymentCallTest(globalState);
+      });
+
+      it("Confirm No 3DS MIT", () => {
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          65000,
+          true,
+          "manual",
+          globalState
+        );
+      });
+    }
+  );
 });
