@@ -374,7 +374,7 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2",), not(feature = "customer_v2")))]
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
@@ -384,6 +384,7 @@ pub async fn retrieve_customer(
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+
     let response = db
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
@@ -404,6 +405,33 @@ pub async fn retrieve_customer(
     };
     Ok(services::ApplicationResponse::Json(
         customers::CustomerResponse::foreign_from((response, address)),
+    ))
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip(state))]
+pub async fn retrieve_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: customers::GlobalId,
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let response = db
+        .find_customer_by_id(
+            key_manager_state,
+            &req.id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::foreign_from(response),
     ))
 }
 

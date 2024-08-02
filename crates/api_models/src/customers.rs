@@ -282,6 +282,8 @@ pub struct CustomerResponse {
     /// The identifier for the default payment method.
     #[schema(max_length = 64, example = "pm_djh2837dwduh890123")]
     pub default_payment_method_id: Option<String>,
+    /// Global id
+    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -305,6 +307,19 @@ impl CustomerId {
 
     pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
         Self { customer_id: cust }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GlobalId {
+    pub id: String,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl GlobalId {
+    pub fn new_global_id_struct(id: String) -> Self {
+        Self { id }
     }
 }
 
