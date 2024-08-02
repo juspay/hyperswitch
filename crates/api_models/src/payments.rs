@@ -2978,7 +2978,6 @@ where
                 | PaymentMethodDataResponse::MandatePayment {}
                 | PaymentMethodDataResponse::GiftCard {}
                 | PaymentMethodDataResponse::PayLater(_)
-                | PaymentMethodDataResponse::Paypal {}
                 | PaymentMethodDataResponse::RealTimePayment {}
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
