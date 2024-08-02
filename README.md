@@ -72,7 +72,7 @@ Congratulations🎉 on making your first payment with Hyperswitch.
   
   Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our offerings**][Website-link]. 
 
-- ### [For Contributers][Contributing-guidelines]
+- ### [For Contributors][Contributing-guidelines]
   Hyperswitch is an open-source project that aims to make digital payments accessible to people across the globe like a basic utility. With the vision of developing Hyperswitch as the **Linux of Payments**, we seek support from developers worldwide.
 
   Utilise the following resources to quickstart your journey with Hyperswitch -
