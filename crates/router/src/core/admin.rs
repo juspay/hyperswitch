@@ -3272,7 +3272,6 @@ pub async fn update_business_profile(
 
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
-        modified_at: Some(date_time::now()),
         return_url: request.return_url.map(|return_url| return_url.to_string()),
         enable_payment_response_hash: request.enable_payment_response_hash,
         payment_response_hash_key: request.payment_response_hash_key,
