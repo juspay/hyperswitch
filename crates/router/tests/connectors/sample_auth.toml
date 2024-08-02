@@ -257,3 +257,7 @@ api_secret = "Secret key"
 
 [paybox]
 api_key="API Key"
+
+[esnekpos]
+api_key="Merchant Key"
+key1="Merchant"

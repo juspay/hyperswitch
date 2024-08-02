@@ -200,6 +200,7 @@ default_imp_for_complete_authorize!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globepay,
     connector::Gocardless,
@@ -283,6 +284,7 @@ default_imp_for_webhook_source_verification!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -358,6 +360,7 @@ impl<const T: u8>
 
 default_imp_for_create_customer!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -452,6 +455,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 
 default_imp_for_connector_redirect_response!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Bamboraapac,
@@ -515,6 +519,7 @@ impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {
 
 default_imp_for_connector_request_id!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Zsl,
     connector::Aci,
     connector::Adyen,
@@ -615,6 +620,7 @@ impl<const T: u8>
 
 default_imp_for_accept_dispute!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -730,6 +736,7 @@ impl<const T: u8>
 
 default_imp_for_file_upload!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -822,6 +829,7 @@ impl<const T: u8>
 
 default_imp_for_submit_evidence!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -914,6 +922,7 @@ impl<const T: u8>
 
 default_imp_for_defend_dispute!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1022,6 +1031,7 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Authorizedotnet,
     connector::Bamboraapac,
@@ -1166,6 +1176,7 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
+    connector::Esnekpos,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1537,6 +1548,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connector::Esnekpos,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1997,6 +2009,7 @@ impl<const T: u8>
 
 default_imp_for_approve!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2091,6 +2104,7 @@ impl<const T: u8>
 
 default_imp_for_reject!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2169,6 +2183,7 @@ impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2268,6 +2283,7 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2362,6 +2378,7 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2456,6 +2473,7 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2550,6 +2568,7 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2644,6 +2663,7 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2736,6 +2756,7 @@ impl<const T: u8>
 
 default_imp_for_incremental_authorization!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2827,6 +2848,7 @@ impl<const T: u8>
 }
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2978,6 +3000,7 @@ impl<const T: u8>
 }
 default_imp_for_connector_authentication!(
     connector::Adyenplatform,
+    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

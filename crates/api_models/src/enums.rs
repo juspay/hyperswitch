@@ -95,6 +95,7 @@ pub enum Connector {
     Datatrans,
     Dlocal,
     Ebanx,
+    Esnekpos,
     Fiserv,
     Forte,
     Globalpay,
@@ -224,6 +225,7 @@ impl Connector {
             | Self::Cryptopay
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Esnekpos
             | Self::Fiserv
             | Self::Forte
             | Self::Globalpay
@@ -269,6 +271,7 @@ impl Connector {
             | Self::Datatrans
             | Self::Netcetera
             | Self::Noon
+            | Self::Esnekpos
             | Self::Stripe => false,
             Self::Checkout | Self::Nmi | Self::Cybersource => true,
         }

@@ -30,6 +30,7 @@ mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
 mod ebanx;
+mod esnekpos;
 mod fiserv;
 mod forte;
 mod globalpay;
