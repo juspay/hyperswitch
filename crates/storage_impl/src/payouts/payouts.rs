@@ -1,9 +1,10 @@
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
-use diesel::NullableExpressionMethods;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+use diesel::{
+    associations::HasTable, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl,
+};
 #[cfg(feature = "olap")]
 use diesel_models::{
     customers::Customer as DieselCustomer,
@@ -35,15 +36,17 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
-use crate::connection;
 use crate::{
-    diesel_error_to_data_error,
-    errors::RedisErrorExt,
-    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+    connection,
     store::schema::{
         customers::all_columns as cust_all_columns, payout_attempt::all_columns as poa_all_columns,
         payouts::all_columns as po_all_columns,
     },
+};
+use crate::{
+    diesel_error_to_data_error,
+    errors::RedisErrorExt,
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
