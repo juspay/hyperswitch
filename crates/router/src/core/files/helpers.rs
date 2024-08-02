@@ -175,9 +175,9 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     is_connector_file_data_required: api::FileDataRequired,
-) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
+) -> CustomResult<(Option<Vec<u8>>, Option<String>,Option<String>), errors::ApiErrorResponse> {
     match file_id {
-        None => Ok((None, None)),
+        None => Ok((None, None,None)),
         Some(file_key) => {
             let file_metadata_object = state
                 .store
@@ -203,13 +203,14 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                     ),
                     Some(provider_file_id),
+                    Some(file_metadata_object.file_type)
                 )),
                 _ => {
                     let connector_file_data = match is_connector_file_data_required {
                         api::FileDataRequired::Required => Some(
                             retrieve_file_from_connector(
                                 state,
-                                file_metadata_object,
+                                file_metadata_object.clone(),
                                 merchant_account,
                                 key_store,
                             )
@@ -217,7 +218,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                         ),
                         api::FileDataRequired::NotRequired => None,
                     };
-                    Ok((connector_file_data, Some(provider_file_id)))
+                    Ok((connector_file_data, Some(provider_file_id),Some(file_metadata_object.file_type)))
                 }
             }
         }

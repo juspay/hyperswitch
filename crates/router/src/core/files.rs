@@ -110,7 +110,7 @@ pub async fn files_retrieve_core(
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)
         .attach_printable("Unable to retrieve file_metadata")?;
-    let (received_data, _provider_file_id) =
+    let (received_data, _provider_file_id,_conetent_type) =
         helpers::retrieve_file_and_provider_file_id_from_file_id(
             &state,
             Some(req.file_id),

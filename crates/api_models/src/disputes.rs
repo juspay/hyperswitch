@@ -195,6 +195,27 @@ pub struct SubmitEvidenceRequest {
     pub uncategorized_file: Option<String>,
     /// Any additional evidence statements
     pub uncategorized_text: Option<String>,
+
+    // pub cancellation_policy_type: Option<String>,
+
+    // pub customer_communication_type: Option<String>,
+
+    // pub customer_signature_type: Option<String>,
+
+    // pub receipt_type: Option<String>,
+
+    // pub refund_policy_type: Option<String>,
+
+    // pub service_documentation_type: Option<String>,
+
+    // pub shipping_documentation_type: Option<String>,
+
+    // pub invoice_showing_distinct_transactions_type: Option<String>,
+
+    // pub recurring_transaction_agreement_type: Option<String>,
+
+    // pub uncategorized_file_type: Option<String>,
+
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]

@@ -4853,3 +4853,95 @@ impl From<AdyenStatus> for storage_enums::PayoutStatus {
         }
     }
 }
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenAcceptDisputeRequest {
+    dispute_psp_reference: String,
+    merchant_account_code: String,
+}
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenMetaData {
+    merchant_account_code: String,
+}
+
+impl TryFrom<(&types::AcceptDisputeRouterData,String)> for AdyenAcceptDisputeRequest {
+    type Error = Error;
+        // let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+    fn try_from(data:(&types::AcceptDisputeRouterData,String)
+) -> Result<Self, Self::Error> {
+        // let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        // let connector_merchant_id = if item.request.connector_metadata.is_some() {
+        //     let adyen_metadata: AdyenMetaData =
+        //         utils::to_connector_meta(item.request.connector_metadata.clone())?;
+        //     adyen_metadata.merchant_account_code
+        // } else {
+        //     //
+        //     "kiran".into()
+        // };
+        let (item,merchant_acount_code)= data;
+        // let (_,k) = mca.get(0).unwrap();
+        Ok(Self {
+            dispute_psp_reference: item.clone().request.connector_dispute_id,
+            merchant_account_code: merchant_acount_code,
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenDefendDisputeRequest {
+    dispute_psp_reference: String,
+    merchant_account_code: String,
+    defense_reason_code: String,
+}
+
+impl TryFrom<(&types::DefendDisputeRouterData,String)> for AdyenDefendDisputeRequest {
+    type Error = Error;
+    fn try_from(data: (&types::DefendDisputeRouterData,String)) -> Result<Self, Self::Error> {
+        // let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let (item,merchant_acount_code)= data.clone();
+        // let (_,k) = mca.get(0).unwrap();
+        Ok(Self {
+            dispute_psp_reference: item.request.connector_dispute_id.clone(),
+            merchant_account_code:merchant_acount_code,
+            defense_reason_code: "SupplyDefenseMaterial".into(),
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct Evidence {
+    defense_documents: Option<Vec<DefenseDocuments>>,
+    merchant_account_code: String,
+    dispute_psp_reference: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct DefenseDocuments {
+    content: String,
+    content_type: String,
+    defense_document_type_code: String,
+}
+
+impl TryFrom<(&types::SubmitEvidenceRouterData,String)> for Evidence {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(data:(&types::SubmitEvidenceRouterData,String)) -> Result<Self, Self::Error> {
+        let (item,merchant_acount_code)= data;
+        
+        let _submit_evidence_request_data = item.request.clone();
+        // let (_,k) = mca.get(0).unwrap();
+        Ok(Self {
+            defense_documents:None,
+            merchant_account_code:merchant_acount_code,
+            dispute_psp_reference: item.request.connector_dispute_id.clone(),
+        })
+    }
+}
+
+// fn get_defence_documents(item:SubmitEvidenceRequestData)
