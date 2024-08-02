@@ -3,7 +3,7 @@ use common_utils::{
     encryption::Encryption,
     id_type,
     pii::{self, EmailStrategy},
-    types::keymanager::ToEncryptable,
+    types::{keymanager::ToEncryptable, Description},
 };
 use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
@@ -33,8 +33,8 @@ pub struct CustomerRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
@@ -82,8 +82,8 @@ pub struct CustomerRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
@@ -217,8 +217,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The address for the customer
     #[schema(value_type = Option<AddressDetails>)]
     pub address: Option<payments::AddressDetails>,
@@ -262,8 +262,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The default billing address for the customer
     #[schema(value_type = Option<AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
@@ -363,8 +363,8 @@ pub struct CustomerUpdateRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer"), value_type = Option<String>]
+    pub description: Option<Description>,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
@@ -411,8 +411,8 @@ pub struct CustomerUpdateRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,

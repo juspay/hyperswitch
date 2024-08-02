@@ -1,4 +1,5 @@
 pub mod types;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -69,6 +70,7 @@ pub async fn payment_intents_create(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCreate,
                 req,
@@ -78,7 +80,7 @@ pub async fn payment_intents_create(
                 api_types::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -131,6 +133,7 @@ pub async fn payment_intents_retrieve(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentStatus,
                 payload,
@@ -203,6 +206,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -271,6 +275,7 @@ pub async fn payment_intents_update(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentUpdate,
                 req,
@@ -345,6 +350,7 @@ pub async fn payment_intents_confirm(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentConfirm,
                 req,
@@ -408,6 +414,7 @@ pub async fn payment_intents_capture(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCapture,
                 payload,
@@ -417,7 +424,7 @@ pub async fn payment_intents_capture(
                 api_types::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         locking_action,
     ))
     .await
@@ -475,6 +482,7 @@ pub async fn payment_intents_cancel(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCancel,
                 req,
@@ -517,9 +525,9 @@ pub async fn payment_intent_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payments::list_payments(state, auth.merchant_account, auth.key_store, req)
+            payments::list_payments(state, auth.merchant_account, None, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

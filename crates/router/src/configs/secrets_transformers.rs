@@ -114,10 +114,24 @@ impl SecretsHandler for settings::ApiKeys {
         #[cfg(feature = "email")]
         let expiry_reminder_days = api_keys.expiry_reminder_days.clone();
 
+        #[cfg(feature = "partial-auth")]
+        let checksum_auth_context = secret_management_client
+            .get_secret(api_keys.checksum_auth_context.clone())
+            .await?;
+        #[cfg(feature = "partial-auth")]
+        let checksum_auth_key = secret_management_client
+            .get_secret(api_keys.checksum_auth_key.clone())
+            .await?;
+
         Ok(value.transition_state(|_| Self {
             hash_key,
             #[cfg(feature = "email")]
             expiry_reminder_days,
+
+            #[cfg(feature = "partial-auth")]
+            checksum_auth_key,
+            #[cfg(feature = "partial-auth")]
+            checksum_auth_context,
         }))
     }
 }

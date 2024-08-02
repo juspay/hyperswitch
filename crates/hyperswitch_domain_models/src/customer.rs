@@ -7,7 +7,10 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type, pii,
-    types::keymanager::{self, KeyManagerState, ToEncryptable},
+    types::{
+        keymanager::{self, KeyManagerState, ToEncryptable},
+        Description,
+    },
 };
 use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
@@ -25,11 +28,11 @@ pub struct Customer {
     pub email: crypto::OptionalEncryptableEmail,
     pub phone: crypto::OptionalEncryptablePhone,
     pub phone_country_code: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
@@ -44,15 +47,15 @@ pub struct Customer {
     pub email: crypto::OptionalEncryptableEmail,
     pub phone: crypto::OptionalEncryptablePhone,
     pub phone_country_code: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_customer: Option<serde_json::Value>,
+    pub connector_customer: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
     pub version: ApiVersion,
-    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
+    pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
@@ -174,7 +177,7 @@ impl super::behaviour::Conversion for Customer {
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
             id: self.id,
-            merchant_customer_reference_id: self.merchant_customer_reference_id,
+            merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
             name: self.name.map(|value| value.into()),
             email: self.email.map(|value| value.into()),
@@ -224,7 +227,7 @@ impl super::behaviour::Conversion for Customer {
 
         Ok(Self {
             id: item.id,
-            merchant_customer_reference_id: item.merchant_customer_reference_id,
+            merchant_reference_id: item.merchant_reference_id,
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email,
@@ -248,7 +251,7 @@ impl super::behaviour::Conversion for Customer {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
             id: self.id,
-            merchant_customer_reference_id: self.merchant_customer_reference_id,
+            merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
             email: self.email.map(Encryption::from),
@@ -276,16 +279,16 @@ pub enum CustomerUpdate {
         name: crypto::OptionalEncryptableName,
         email: crypto::OptionalEncryptableEmail,
         phone: Box<crypto::OptionalEncryptablePhone>,
-        description: Option<String>,
+        description: Option<Description>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
-        connector_customer: Option<serde_json::Value>,
+        connector_customer: Option<pii::SecretSerdeValue>,
         default_billing_address: Option<Encryption>,
         default_shipping_address: Option<Encryption>,
         default_payment_method_id: Option<Option<String>>,
     },
     ConnectorCustomer {
-        connector_customer: Option<serde_json::Value>,
+        connector_customer: Option<pii::SecretSerdeValue>,
     },
     UpdateDefaultPaymentMethod {
         default_payment_method_id: Option<Option<String>>,
@@ -344,14 +347,14 @@ pub enum CustomerUpdate {
         name: crypto::OptionalEncryptableName,
         email: crypto::OptionalEncryptableEmail,
         phone: Box<crypto::OptionalEncryptablePhone>,
-        description: Option<String>,
+        description: Option<Description>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
-        connector_customer: Option<serde_json::Value>,
+        connector_customer: Option<pii::SecretSerdeValue>,
         address_id: Option<String>,
     },
     ConnectorCustomer {
-        connector_customer: Option<serde_json::Value>,
+        connector_customer: Option<pii::SecretSerdeValue>,
     },
     UpdateDefaultPaymentMethod {
         default_payment_method_id: Option<Option<String>>,

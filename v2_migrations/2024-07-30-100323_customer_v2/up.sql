@@ -1,5 +1,5 @@
 -- Your SQL goes here
-ALTER TABLE customers ADD COLUMN merchant_customer_reference_id VARCHAR(64);
+ALTER TABLE customers ADD COLUMN merchant_reference_id VARCHAR(64);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS default_billing_address BYTEA DEFAULT NULL;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS default_shipping_address BYTEA DEFAULT NULL;
 

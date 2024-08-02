@@ -481,7 +481,9 @@ pub trait ConnectorActions: Connector {
         req: Req,
         info: Option<PaymentInfo>,
     ) -> RouterData<Flow, Req, Res> {
-        let merchant_id = common_utils::id_type::MerchantId::from(self.get_name().into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(self.get_name()))
+                .unwrap();
 
         RouterData {
             flow: PhantomData,

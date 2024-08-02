@@ -24,6 +24,7 @@ pub struct PaymentLink {
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
     pub profile_id: Option<String>,
+    pub secure_link: Option<String>,
 }
 
 #[derive(
@@ -54,4 +55,5 @@ pub struct PaymentLinkNew {
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
     pub profile_id: Option<String>,
+    pub secure_link: Option<String>,
 }

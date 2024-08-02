@@ -22,7 +22,7 @@ customer_v2 =["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitc
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-diesel_models = { version = "0.1.0", path = "../diesel_models" }
+diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }

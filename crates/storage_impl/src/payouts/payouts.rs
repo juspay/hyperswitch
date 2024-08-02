@@ -530,8 +530,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(feature = "olap")]
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        feature = "olap",
+        not(feature = "customer_v2")
+    ))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,

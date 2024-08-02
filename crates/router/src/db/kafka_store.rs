@@ -1054,6 +1054,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .update_multiple_merchant_connector_accounts(merchant_connector_accounts)
             .await
     }
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
@@ -1071,6 +1075,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1088,6 +1096,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1116,6 +1128,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
@@ -1130,6 +1146,18 @@ impl MerchantConnectorAccountInterface for KafkaStore {
                 merchant_connector_id,
                 key_store,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    async fn find_by_merchant_connector_account_id(
+        &self,
+        state: &KeyManagerState,
+        id: &str,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
+        self.diesel_store
+            .find_by_merchant_connector_account_id(state, id, key_store)
             .await
     }
 
@@ -1162,6 +1190,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1172,6 +1204,16 @@ impl MerchantConnectorAccountInterface for KafkaStore {
                 merchant_id,
                 merchant_connector_id,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    async fn delete_merchant_connector_account_by_id(
+        &self,
+        id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_merchant_connector_account_by_id(id)
             .await
     }
 }
