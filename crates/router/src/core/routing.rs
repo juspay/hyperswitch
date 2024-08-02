@@ -298,11 +298,13 @@ pub async fn link_routing_config(
     let routing_algorithm =
         RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
             .await?;
+
     utils::when(routing_algorithm.0.profile_id != profile_id, || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "Profile Id is invalid for the routing config".to_string(),
         })
     })?;
+
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         Some(&profile_id),
@@ -320,55 +322,6 @@ pub async fn link_routing_config(
 
     routing_algorithm.update_routing_ref_with_algorithm_id(transaction_type, &mut routing_ref)?;
 
-    // TODO move to business profile
-    helpers::update_business_profile_active_algorithm_ref(
-        db,
-        business_profile,
-        routing_ref,
-        transaction_type,
-    )
-    .await?;
-    metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
-    Ok(service_api::ApplicationResponse::Json(
-        routing_algorithm.0.foreign_into(),
-    ))
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-pub async fn link_routing_config(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    profile_id: String,
-    algorithm_id: String,
-    transaction_type: &enums::TransactionType,
-) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
-    let db = state.store.as_ref();
-
-    let routing_algorithm =
-        RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
-            .await?;
-    utils::when(routing_algorithm.0.profile_id != profile_id, || {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Profile Id is invalid for the routing config".to_string(),
-        })
-    })?;
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        Some(&profile_id),
-        merchant_account.get_id(),
-    )
-    .await?
-    .get_required_value("BusinessProfile")?;
-
-    let mut routing_ref = routing_types::RoutingAlgorithmRef::parse_routing_algorithm(
-        business_profile.routing_algorithm.clone().map(Secret::new),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-    .unwrap_or_default();
-
-    routing_algorithm.update_routing_ref_with_algorithm_id(transaction_type, &mut routing_ref)?;
     // TODO move to business profile
     helpers::update_business_profile_active_algorithm_ref(
         db,
