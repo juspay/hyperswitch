@@ -13973,6 +13973,10 @@
             "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
             "uniqueItems": true,
             "nullable": true
+          },
+          "merchant_details": {
+            "type": "object",
+            "description": "Dynamic details related to merchant to be rendered in payment link"
           }
         }
       },

@@ -2033,6 +2033,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
+    #[schema(value_type = Object)]
     pub merchant_details: IndexMap<String, String>,
 }
 
