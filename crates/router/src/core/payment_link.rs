@@ -221,31 +221,35 @@ pub async fn form_payment_link_data(
 
         return Ok((
             payment_link,
-            PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+            PaymentLinkData::PaymentLinkStatusDetails(Box::new(payment_details)),
             payment_link_config,
         ));
     };
 
-    let payment_link_details =
-        PaymentLinkData::PaymentLinkDetails(api_models::payments::PaymentLinkDetails {
-            amount,
-            currency,
-            payment_id: payment_intent.payment_id,
-            merchant_name,
-            order_details,
-            return_url,
-            session_expiry,
-            pub_key: merchant_account.publishable_key,
-            client_secret,
-            merchant_logo: payment_link_config.logo.clone(),
-            max_items_visible_after_collapse: 3,
-            theme: payment_link_config.theme.clone(),
-            merchant_description: payment_intent.description,
-            sdk_layout: payment_link_config.sdk_layout.clone(),
-            display_sdk_only: payment_link_config.display_sdk_only,
-        });
+    let payment_link_details = api_models::payments::PaymentLinkDetails {
+        amount,
+        currency,
+        payment_id: payment_intent.payment_id,
+        merchant_name,
+        order_details,
+        return_url,
+        session_expiry,
+        pub_key: merchant_account.publishable_key,
+        client_secret,
+        merchant_logo: payment_link_config.logo.clone(),
+        max_items_visible_after_collapse: 3,
+        theme: payment_link_config.theme.clone(),
+        merchant_description: payment_intent.description,
+        sdk_layout: payment_link_config.sdk_layout.clone(),
+        display_sdk_only: payment_link_config.display_sdk_only,
+        merchant_details: payment_link_config.merchant_details.clone(),
+    };
 
-    Ok((payment_link, payment_link_details, payment_link_config))
+    Ok((
+        payment_link,
+        PaymentLinkData::PaymentLinkDetails(Box::new(payment_link_details)),
+        payment_link_config,
+    ))
 }
 
 pub async fn initiate_secure_payment_link_flow(
@@ -286,7 +290,7 @@ pub async fn initiate_secure_payment_link_flow(
         PaymentLinkData::PaymentLinkDetails(link_details) => {
             let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
                 enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
-                payment_link_details: link_details.to_owned(),
+                payment_link_details: *link_details.to_owned(),
             };
             let js_script = format!(
                 "window.__PAYMENT_DETAILS = {}",
@@ -742,9 +746,9 @@ pub async fn get_payment_link_status(
         return_url,
         merchant_details: payment_link_config.merchant_details,
     };
-    let js_script = get_js_script(
-        &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(Box::new(payment_details)),
-    )?;
+    let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
+        payment_details,
+    )))?;
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,
         css_script,

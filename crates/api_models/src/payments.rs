@@ -5384,8 +5384,8 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum PaymentLinkData<'a> {
-    PaymentLinkDetails(Box<&'a PaymentLinkDetails>),
+pub enum PaymentLinkData {
+    PaymentLinkDetails(Box<PaymentLinkDetails>),
     PaymentLinkStatusDetails(Box<PaymentLinkStatusDetails>),
 }
 
