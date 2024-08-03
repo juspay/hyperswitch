@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
+    payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -422,6 +423,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let amount = payment_attempt.get_total_amount().into();
 
+        let address = PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing_address.as_ref().map(From::from),
+            business_profile.use_billing_as_payment_method_billing,
+        );
+
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .and_then(|payment_method_data_billing| {
+                payment_method_data_billing.get_billing_address()
+            });
+
+        let unified_address =
+            address.unify_with_payment_method_data_billing(payment_method_data_billing);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -434,15 +453,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             setup_mandate,
             customer_acceptance,
             token,
-            address: PaymentAddress::new(
-                shipping_address.as_ref().map(From::from),
-                billing_address.as_ref().map(From::from),
-                payment_method_billing_address.as_ref().map(From::from),
-                business_profile.use_billing_as_payment_method_billing,
-            ),
+            address: unified_address,
             token_data: None,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
             payment_method_info,
             refunds: vec![],
             disputes: vec![],
@@ -519,7 +533,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         helpers::make_pm_data(
@@ -829,13 +843,11 @@ impl PaymentCreate {
 
         let mut additional_pm_data = request
             .payment_method_data
-            .as_ref()
-            .and_then(|payment_method_data_request| {
-                payment_method_data_request.payment_method_data.as_ref()
-            })
-            .async_map(|payment_method_data| async {
+            .clone()
+            .and_then(|payment_method_data_request| payment_method_data_request.payment_method_data)
+            .async_and_then(|payment_method_data| async {
                 helpers::get_additional_payment_data(
-                    payment_method_data,
+                    &payment_method_data.into(),
                     &*state.store,
                     &profile_id,
                 )
@@ -847,7 +859,7 @@ impl PaymentCreate {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
             additional_pm_data = payment_method_info
                 .as_ref()
-                .async_map(|pm_info| async {
+                .async_and_then(|pm_info| async {
                     decrypt_optional::<serde_json::Value, masking::WithType>(
                         &state.into(),
                         pm_info.payment_method_data.clone(),
@@ -875,10 +887,9 @@ impl PaymentCreate {
                     })
                 })
                 .await
-                .flatten()
                 .map(|card| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(card.into()))
-                })
+                });
         };
 
         let additional_pm_data_value = additional_pm_data

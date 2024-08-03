@@ -195,7 +195,7 @@ where
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                api::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::Card(card) => card.card_network.clone(),
 
                 _ => None,
             }),
@@ -207,7 +207,7 @@ where
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                api::PaymentMethodData::Card(card) => {
+                domain::PaymentMethodData::Card(card) => {
                     Some(card.card_number.peek().chars().take(6).collect())
                 }
                 _ => None,
