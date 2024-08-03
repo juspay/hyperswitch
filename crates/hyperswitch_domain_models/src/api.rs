@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    impl_misc_api_event_type,
+    impl_api_event_type,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -28,7 +28,7 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     }
 }
 
-impl_misc_api_event_type!(PaymentLinkFormData, GenericLinkFormData);
+impl_api_event_type!(Miscellaneous, (PaymentLinkFormData, GenericLinkFormData));
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RedirectionFormData {
@@ -71,6 +71,7 @@ pub enum GenericLinksData {
     PayoutLink(GenericLinkFormData),
     PayoutLinkStatus(GenericLinkStatusData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
+    SecurePaymentLink(PaymentLinkFormData),
 }
 
 impl Display for GenericLinksData {
@@ -84,6 +85,7 @@ impl Display for GenericLinksData {
                 Self::PayoutLink(_) => "PayoutLink",
                 Self::PayoutLinkStatus(_) => "PayoutLinkStatus",
                 Self::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+                Self::SecurePaymentLink(_) => "SecurePaymentLink",
             }
         )
     }

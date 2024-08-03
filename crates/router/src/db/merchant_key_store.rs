@@ -28,20 +28,20 @@ pub trait MerchantKeyStoreInterface {
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError>;
 
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn list_multiple_key_stores(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
 
@@ -49,6 +49,8 @@ pub trait MerchantKeyStoreInterface {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError>;
 }
 
@@ -70,7 +72,7 @@ impl MerchantKeyStoreInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(state, key, merchant_id)
+            .convert(state, key, merchant_id.into())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -79,7 +81,7 @@ impl MerchantKeyStoreInterface for Store {
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
         let fetch_func = || async {
@@ -97,14 +99,15 @@ impl MerchantKeyStoreInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(state, key, merchant_id.to_string())
+                .convert(state, key, merchant_id.clone().into())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
 
         #[cfg(feature = "accounts_cache")]
         {
-            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            let key_store_cache_key =
+                format!("merchant_key_store_{}", merchant_id.get_string_repr());
             cache::get_or_populate_in_memory(
                 self,
                 &key_store_cache_key,
@@ -112,7 +115,7 @@ impl MerchantKeyStoreInterface for Store {
                 &ACCOUNTS_CACHE,
             )
             .await?
-            .convert(state, key, merchant_id.to_string())
+            .convert(state, key, merchant_id.clone().into())
             .await
             .change_context(errors::StorageError::DecryptionError)
         }
@@ -121,7 +124,7 @@ impl MerchantKeyStoreInterface for Store {
     #[instrument(skip_all)]
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let delete_func = || async {
             let conn = connection::pg_connection_write(self).await?;
@@ -140,7 +143,8 @@ impl MerchantKeyStoreInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            let key_store_cache_key =
+                format!("merchant_key_store_{}", merchant_id.get_string_repr());
             cache::publish_and_redact(
                 self,
                 CacheKind::Accounts(key_store_cache_key.into()),
@@ -155,7 +159,7 @@ impl MerchantKeyStoreInterface for Store {
     async fn list_multiple_key_stores(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let fetch_func = || async {
@@ -172,7 +176,7 @@ impl MerchantKeyStoreInterface for Store {
         futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
             let merchant_id = key_store.merchant_id.clone();
             key_store
-                .convert(state, key, merchant_id)
+                .convert(state, key, merchant_id.into())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -183,18 +187,20 @@ impl MerchantKeyStoreInterface for Store {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        from: u32,
+        to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let fetch_func = || async {
-            diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(&conn)
-                .await
-                .map_err(|err| report!(errors::StorageError::from(err)))
-        };
+        let stores = diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(
+            &conn, from, to,
+        )
+        .await
+        .map_err(|err| report!(errors::StorageError::from(err)))?;
 
-        futures::future::try_join_all(fetch_func().await?.into_iter().map(|key_store| async {
+        futures::future::try_join_all(stores.into_iter().map(|key_store| async {
             let merchant_id = key_store.merchant_id.clone();
             key_store
-                .convert(state, key, merchant_id)
+                .convert(state, key, merchant_id.into())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -218,7 +224,7 @@ impl MerchantKeyStoreInterface for MockDb {
         {
             Err(errors::StorageError::DuplicateValue {
                 entity: "merchant_key_store",
-                key: Some(merchant_key_store.merchant_id.clone()),
+                key: Some(merchant_key_store.merchant_id.get_string_repr().to_owned()),
             })?;
         }
 
@@ -228,7 +234,7 @@ impl MerchantKeyStoreInterface for MockDb {
         locked_merchant_key_store.push(merchant_key.clone());
         let merchant_id = merchant_key.merchant_id.clone();
         merchant_key
-            .convert(state, key, merchant_id)
+            .convert(state, key, merchant_id.into())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -236,33 +242,33 @@ impl MerchantKeyStoreInterface for MockDb {
     async fn get_merchant_key_store_by_merchant_id(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError> {
         self.merchant_key_store
             .lock()
             .await
             .iter()
-            .find(|merchant_key| merchant_key.merchant_id == merchant_id)
+            .find(|merchant_key| merchant_key.merchant_id == *merchant_id)
             .cloned()
             .ok_or(errors::StorageError::ValueNotFound(String::from(
                 "merchant_key_store",
             )))?
-            .convert(state, key, merchant_id.to_string())
+            .convert(state, key, merchant_id.clone().into())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn delete_merchant_key_store_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut merchant_key_stores = self.merchant_key_store.lock().await;
         let index = merchant_key_stores
             .iter()
-            .position(|mks| mks.merchant_id == merchant_id)
+            .position(|mks| mks.merchant_id == *merchant_id)
             .ok_or(errors::StorageError::ValueNotFound(format!(
-                "No merchant key store found for merchant_id = {}",
+                "No merchant key store found for merchant_id = {:?}",
                 merchant_id
             )))?;
         merchant_key_stores.remove(index);
@@ -273,7 +279,7 @@ impl MerchantKeyStoreInterface for MockDb {
     async fn list_multiple_key_stores(
         &self,
         state: &KeyManagerState,
-        merchant_ids: Vec<String>,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let merchant_key_stores = self.merchant_key_store.lock().await;
@@ -284,7 +290,7 @@ impl MerchantKeyStoreInterface for MockDb {
                 .map(|merchant_key| async {
                     merchant_key
                         .to_owned()
-                        .convert(state, key, merchant_key.merchant_id.clone())
+                        .convert(state, key, merchant_key.merchant_id.clone().into())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }),
@@ -295,13 +301,15 @@ impl MerchantKeyStoreInterface for MockDb {
         &self,
         state: &KeyManagerState,
         key: &Secret<Vec<u8>>,
+        _from: u32,
+        _to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, errors::StorageError> {
         let merchant_key_stores = self.merchant_key_store.lock().await;
 
         futures::future::try_join_all(merchant_key_stores.iter().map(|merchant_key| async {
             merchant_key
                 .to_owned()
-                .convert(state, key, merchant_key.merchant_id.clone())
+                .convert(state, key, merchant_key.merchant_id.clone().into())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }))
@@ -311,7 +319,7 @@ impl MerchantKeyStoreInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{borrow::Cow, sync::Arc};
 
     use common_utils::types::keymanager::Identifier;
     use time::macros::datetime;
@@ -347,14 +355,15 @@ mod tests {
             .await
             .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
-        let merchant_id = "merchant1";
-        let identifier = Identifier::Merchant(merchant_id.to_string());
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(Cow::from("merchant1")).unwrap();
+        let identifier = Identifier::Merchant(merchant_id.clone());
         let key_manager_state = &state.into();
         let merchant_key1 = mock_db
             .insert_merchant_key_store(
                 key_manager_state,
                 domain::MerchantKeyStore {
-                    merchant_id: merchant_id.into(),
+                    merchant_id: merchant_id.clone(),
                     key: domain::types::encrypt(
                         key_manager_state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
@@ -373,7 +382,7 @@ mod tests {
         let found_merchant_key1 = mock_db
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                merchant_id,
+                &merchant_id,
                 &master_key.to_vec().into(),
             )
             .await
@@ -386,7 +395,7 @@ mod tests {
             .insert_merchant_key_store(
                 key_manager_state,
                 domain::MerchantKeyStore {
-                    merchant_id: merchant_id.into(),
+                    merchant_id: merchant_id.clone(),
                     key: domain::types::encrypt(
                         key_manager_state,
                         services::generate_aes256_key().unwrap().to_vec().into(),
@@ -402,10 +411,13 @@ mod tests {
             .await;
         assert!(insert_duplicate_merchant_key1_result.is_err());
 
+        let non_existent_merchant_id =
+            common_utils::id_type::MerchantId::try_from(Cow::from("non_existent")).unwrap();
+
         let find_non_existent_merchant_key_result = mock_db
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                "non_existent",
+                &non_existent_merchant_id,
                 &master_key.to_vec().into(),
             )
             .await;
@@ -414,7 +426,7 @@ mod tests {
         let find_merchant_key_with_incorrect_master_key_result = mock_db
             .get_merchant_key_store_by_merchant_id(
                 key_manager_state,
-                merchant_id,
+                &merchant_id,
                 &vec![0; 32].into(),
             )
             .await;

@@ -1,6 +1,6 @@
 use actix_web::HttpRequest;
 pub use common_utils::events::{ApiEventMetric, ApiEventsType};
-use common_utils::impl_misc_api_event_type;
+use common_utils::impl_api_event_type;
 use router_env::{tracing_actix_web::RequestId, types::FlowMetric};
 use serde::Serialize;
 use time::OffsetDateTime;
@@ -24,7 +24,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
-    merchant_id: Option<String>,
+    merchant_id: Option<common_utils::id_type::MerchantId>,
     api_flow: String,
     created_at_timestamp: i128,
     request_id: String,
@@ -47,7 +47,7 @@ pub struct ApiEvent {
 impl ApiEvent {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        merchant_id: Option<String>,
+        merchant_id: Option<common_utils::id_type::MerchantId>,
         api_flow: &impl FlowMetric,
         request_id: &RequestId,
         latency: u128,
@@ -98,24 +98,30 @@ impl KafkaMessage for ApiEvent {
     }
 }
 
-impl_misc_api_event_type!(
-    Config,
-    CreateFileRequest,
-    FileId,
-    AttachEvidenceRequest,
-    ConfigUpdate
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        Config,
+        CreateFileRequest,
+        FileId,
+        AttachEvidenceRequest,
+        ConfigUpdate
+    )
 );
 
 #[cfg(feature = "dummy_connector")]
-impl_misc_api_event_type!(
-    DummyConnectorPaymentCompleteRequest,
-    DummyConnectorPaymentRequest,
-    DummyConnectorPaymentResponse,
-    DummyConnectorPaymentRetrieveRequest,
-    DummyConnectorPaymentConfirmRequest,
-    DummyConnectorRefundRetrieveRequest,
-    DummyConnectorRefundResponse,
-    DummyConnectorRefundRequest
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        DummyConnectorPaymentCompleteRequest,
+        DummyConnectorPaymentRequest,
+        DummyConnectorPaymentResponse,
+        DummyConnectorPaymentRetrieveRequest,
+        DummyConnectorPaymentConfirmRequest,
+        DummyConnectorRefundRetrieveRequest,
+        DummyConnectorRefundResponse,
+        DummyConnectorRefundRequest
+    )
 );
 
 impl ApiEventMetric for PaymentsRedirectResponseData {

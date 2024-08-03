@@ -37,7 +37,7 @@ pub async fn list_initial_delivery_attempts(
             match account {
                 MerchantAccountOrBusinessProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_primary_object_id(key_manager_state,
-                    &merchant_account.merchant_id,
+                   merchant_account.get_id(),
                     &object_id,
                     &key_store,
                 )
@@ -74,7 +74,7 @@ pub async fn list_initial_delivery_attempts(
             match account {
                 MerchantAccountOrBusinessProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_constraints(key_manager_state,
-                    &merchant_account.merchant_id,
+                   merchant_account.get_id(),
                     created_after,
                     created_before,
                     limit,
@@ -122,7 +122,7 @@ pub async fn list_delivery_attempts(
             store
                 .list_events_by_merchant_id_initial_attempt_id(
                     key_manager_state,
-                    &merchant_account.merchant_id,
+                    merchant_account.get_id(),
                     &initial_attempt_id,
                     &key_store,
                 )
@@ -272,10 +272,16 @@ async fn determine_identifier_and_get_key_store(
 ) -> errors::RouterResult<(MerchantAccountOrBusinessProfile, domain::MerchantKeyStore)> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
+    let merchant_id = common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(
+        merchant_id_or_profile_id.clone(),
+    ))
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "merchant_id",
+    })?;
     match store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
-            &merchant_id_or_profile_id,
+            &merchant_id,
             &store.get_master_key().to_vec().into(),
         )
         .await
@@ -285,11 +291,7 @@ async fn determine_identifier_and_get_key_store(
         // Find a merchant account having `merchant_id` = `merchant_id_or_profile_id`.
         Ok(key_store) => {
             let merchant_account = store
-                .find_merchant_account_by_merchant_id(
-                    key_manager_state,
-                    &merchant_id_or_profile_id,
-                    &key_store,
-                )
+                .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

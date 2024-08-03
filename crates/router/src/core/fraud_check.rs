@@ -156,6 +156,10 @@ where
             .await
             .attach_printable("Could not find profile id from business details")?;
 
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     &state.into(),
@@ -165,9 +169,19 @@ where
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.merchant_id.clone(),
+                    id: merchant_account.get_id().get_string_repr().to_owned(),
                 })
                 .ok();
+
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            let merchant_connector_account_from_db_option: Option<
+                domain::MerchantConnectorAccount,
+            > = {
+                let _ = key_store;
+                let _ = frm_routing_algorithm_struct;
+                let _ = profile_id;
+                todo!()
+            };
 
             match merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
@@ -658,7 +672,7 @@ pub async fn frm_fulfillment_core(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &req.payment_id.clone(),
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -672,7 +686,7 @@ pub async fn frm_fulfillment_core(
             let existing_fraud_check = db
                 .find_fraud_check_by_payment_id_if_present(
                     req.payment_id.clone(),
-                    merchant_account.merchant_id.clone(),
+                    merchant_account.get_id().clone(),
                 )
                 .await
                 .change_context(invalid_request_error.to_owned())?;
@@ -720,7 +734,7 @@ pub async fn make_fulfillment_api_call(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             merchant_account.storage_scheme,
         )
         .await

@@ -10,15 +10,11 @@ fmt *FLAGS:
 
 check_flags := '--all-targets'
 
-# Check compilation of Rust code
-check *FLAGS:
-    cargo check {{ check_flags }} {{ FLAGS }}
-
 alias c := check
 
 # Check compilation of Rust code and catch common mistakes
 # We cannot run --all-features because v1 and v2 are mutually exclusive features
-# Create a list of features by excluding certain features 
+# Create a list of features by excluding certain features
 clippy *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
@@ -27,7 +23,7 @@ clippy *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v2", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
@@ -59,7 +55,23 @@ check_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v1", "merchant_account_v2", "payment_v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( any( . ; . == ("v1", "merchant_account_v2", "payment_v2","routing_v2") ) ) ) # Exclude some features from features list
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    set +x
+
+check *FLAGS:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+        jq -r '
+            [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
+            | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
+            | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
@@ -108,10 +120,10 @@ euclid-wasm features='dummy_connector':
 precommit: fmt clippy
 
 # Check compilation of v2 feature on base dependencies
-v2_intermediate_features := "merchant_account_v2,payment_v2"
+v2_intermediate_features := "merchant_account_v2,payment_v2,customer_v2,business_profile_v2"
 hack_v2:
-    cargo hack check  --feature-powerset --ignore-unknown-features --at-least-one-of "v2 " --include-features "v2" --include-features {{ v2_intermediate_features }} --package "hyperswitch_domain_models" --package "diesel_models" --package "api_models"
-    cargo hack check --features "v2,payment_v2" -p storage_impl
+    cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of "v2 " --include-features "v2" --include-features {{ v2_intermediate_features }} --package "hyperswitch_domain_models" --package "diesel_models" --package "api_models"
+    cargo hack clippy --features "v2,payment_v2" -p storage_impl
 
 # Use the env variables if present, or fallback to default values
 
@@ -162,7 +174,7 @@ migrate_v2 operation=default_operation *args='':
     set -euo pipefail
 
     EXIT_CODE=0
-    just copy_migrations 
+    just copy_migrations
     just run_migration {{ operation }} {{ resultant_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
     just delete_dir_if_exists
     exit $EXIT_CODE
@@ -174,5 +186,3 @@ resurrect:
 
 ci_hack:
     scripts/ci-checks.sh
-
-

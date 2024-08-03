@@ -26,11 +26,12 @@ use crate::{
 pub async fn retrieve_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     req: disputes::DisputeId,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
@@ -43,11 +44,12 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id_list: Option<Vec<String>>,
     constraints: api_models::disputes::DisputeListConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
     let disputes = state
         .store
-        .find_disputes_by_merchant_id(&merchant_account.merchant_id, constraints)
+        .find_disputes_by_merchant_id(merchant_account.get_id(), constraints)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve disputes")?;
@@ -62,13 +64,14 @@ pub async fn retrieve_disputes_list(
 pub async fn accept_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
@@ -91,7 +94,7 @@ pub async fn accept_dispute(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &dispute.payment_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -100,7 +103,7 @@ pub async fn accept_dispute(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             merchant_account.storage_scheme,
         )
         .await
@@ -164,13 +167,14 @@ pub async fn accept_dispute(
 pub async fn submit_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id.clone(),
@@ -205,7 +209,7 @@ pub async fn submit_evidence(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &dispute.payment_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -214,7 +218,7 @@ pub async fn submit_evidence(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             merchant_account.storage_scheme,
         )
         .await
@@ -329,6 +333,7 @@ pub async fn submit_evidence(
 pub async fn attach_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
@@ -339,7 +344,7 @@ pub async fn attach_evidence(
         .clone()
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),
@@ -406,11 +411,12 @@ pub async fn attach_evidence(
 pub async fn retrieve_dispute_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     req: disputes::DisputeId,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
@@ -434,7 +440,7 @@ pub async fn delete_evidence(
     let dispute_id = delete_evidence_request.dispute_id.clone();
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),

@@ -238,6 +238,43 @@ impl VerifySignature for HmacSha512 {
     }
 }
 
+///
+/// Blake3
+#[derive(Debug)]
+pub struct Blake3(String);
+
+impl Blake3 {
+    /// Create a new instance of Blake3 with a key
+    pub fn new(key: impl Into<String>) -> Self {
+        Self(key.into())
+    }
+}
+
+impl SignMessage for Blake3 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let key = blake3::derive_key(&self.0, secret);
+        let output = blake3::keyed_hash(&key, msg).as_bytes().to_vec();
+        Ok(output)
+    }
+}
+
+impl VerifySignature for Blake3 {
+    fn verify_signature(
+        &self,
+        secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let key = blake3::derive_key(&self.0, secret);
+        let output = blake3::keyed_hash(&key, msg);
+        Ok(output.as_bytes() == signature)
+    }
+}
+
 /// Represents the GCM-AES-256 algorithm
 #[derive(Debug)]
 pub struct GcmAes256;
@@ -490,6 +527,10 @@ pub type OptionalEncryptablePhone = Option<Encryptable<Secret<String>>>;
 pub type OptionalEncryptableValue = Option<Encryptable<Secret<serde_json::Value>>>;
 /// Type alias for `Option<Secret<serde_json::Value>>`
 pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
+/// Type alias for `Encryptable<Secret<String>>` used for `name` field
+pub type EncryptableName = Encryptable<Secret<String>>;
+/// Type alias for `Encryptable<Secret<String>>` used for `email` field
+pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
 
 #[cfg(test)]
 mod crypto_tests {

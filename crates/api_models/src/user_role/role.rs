@@ -1,4 +1,4 @@
-use common_enums::{PermissionGroup, RoleScope};
+use common_enums::{EntityType, PermissionGroup, RoleScope};
 
 use super::Permission;
 
@@ -7,6 +7,7 @@ pub struct CreateRoleRequest {
     pub role_name: String,
     pub groups: Vec<PermissionGroup>,
     pub role_scope: RoleScope,
+    pub entity_type: Option<EntityType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

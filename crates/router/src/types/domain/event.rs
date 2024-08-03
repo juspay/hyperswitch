@@ -1,6 +1,6 @@
 use common_utils::{
     crypto::OptionalEncryptableSecretString,
-    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
+    types::keymanager::{KeyManagerState, ToEncryptable},
 };
 use diesel_models::{
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
@@ -24,7 +24,7 @@ pub struct Event {
     pub primary_object_id: String,
     pub primary_object_type: EventObjectType,
     pub created_at: time::PrimitiveDateTime,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub business_profile_id: Option<String>,
     pub primary_object_created_at: Option<time::PrimitiveDateTime>,
     pub idempotent_event_id: Option<String>,
@@ -87,7 +87,7 @@ impl super::behaviour::Conversion for Event {
         state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
-        key_store_ref_id: String,
+        key_manager_identifier: common_utils::types::keymanager::Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -98,7 +98,7 @@ impl super::behaviour::Conversion for Event {
                 request: item.request.clone(),
                 response: item.response.clone(),
             }),
-            Identifier::Merchant(key_store_ref_id.clone()),
+            key_manager_identifier,
             key.peek(),
         )
         .await

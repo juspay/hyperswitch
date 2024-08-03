@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_account_details": {
         "auth_type": "BodyKey",
         "api_key": "{{connector_api_key}}",
@@ -49,7 +49,7 @@
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors/:connector_id",
     "host": ["{{baseUrl}}"],
-    "path": ["account", ":account_id", "connectors",":connector_id"],
+    "path": ["account", ":account_id", "connectors", ":connector_id"],
     "variable": [
       {
         "key": "account_id",
@@ -61,7 +61,6 @@
         "value": "{{merchant_connector_id}}",
         "description": "(Required) The unique identifier for the merchant connector account"
       }
-
     ]
   },
   "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."

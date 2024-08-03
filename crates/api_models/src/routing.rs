@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_utils::errors::ParsingError;
+use common_utils::{errors::ParsingError, ext_traits::ValueExt, pii};
 pub use euclid::{
     dssa::types::EuclidAnalysable,
     frontend::{
@@ -427,6 +427,14 @@ impl RoutingAlgorithmRef {
         self.surcharge_config_algo_id = Some(ids);
         self.timestamp = common_utils::date_time::now_unix_timestamp();
     }
+
+    pub fn parse_routing_algorithm(
+        value: Option<pii::SecretSerdeValue>,
+    ) -> Result<Option<Self>, error_stack::Report<ParsingError>> {
+        value
+            .map(|val| val.parse_value::<Self>("RoutingAlgorithmRef"))
+            .transpose()
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -445,7 +453,8 @@ pub struct RoutingDictionaryRecord {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingDictionary {
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub active_id: Option<String>,
     pub records: Vec<RoutingDictionaryRecord>,
 }
@@ -458,6 +467,12 @@ pub enum RoutingKind {
 }
 
 #[repr(transparent)]
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct RoutingAlgorithmId(pub String);
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingLinkWrapper {
+    pub profile_id: String,
+    pub algorithm_id: RoutingAlgorithmId,
+}

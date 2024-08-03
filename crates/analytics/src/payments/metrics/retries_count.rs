@@ -36,7 +36,7 @@ where
     async fn load_metrics(
         &self,
         _dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         _filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,

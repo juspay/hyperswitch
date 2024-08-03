@@ -1,13 +1,11 @@
-use std::collections::HashSet;
-
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
+use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
-use globset::Glob;
 pub use hyperswitch_domain_models::errors::StorageError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use url::Url;
 
 use super::helpers;
@@ -26,7 +24,7 @@ use crate::{
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
@@ -56,7 +54,7 @@ pub async fn validate_create_request(
     req: &payouts::PayoutCreateRequest,
     merchant_key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(String, Option<payouts::PayoutMethodData>, String)> {
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = merchant_account.get_id();
 
     if let Some(payout_link) = &req.payout_link {
         if *payout_link {
@@ -86,7 +84,7 @@ pub async fn validate_create_request(
     .await
     .attach_printable_lazy(|| {
         format!(
-            "Unique violation while checking payout_id: {} against merchant_id: {}",
+            "Unique violation while checking payout_id: {} against merchant_id: {:?}",
             payout_id.to_owned(),
             merchant_id
         )
@@ -109,7 +107,7 @@ pub async fn validate_create_request(
                 req.payout_method_data.as_ref(),
                 Some(&payout_token),
                 &customer_id,
-                &merchant_account.merchant_id,
+                merchant_account.get_id(),
                 req.payout_type,
                 merchant_key_store,
                 None,
@@ -255,7 +253,7 @@ pub fn validate_payout_link_render_request(
             })?
     };
 
-    if is_domain_allowed(&domain_in_req, link_data.allowed_domains) {
+    if validate_domain_against_allowed_domains(&domain_in_req, link_data.allowed_domains) {
         Ok(())
     } else {
         Err(report!(errors::ApiErrorResponse::AccessForbidden {
@@ -268,13 +266,4 @@ pub fn validate_payout_link_render_request(
             )
         })
     }
-}
-
-fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
-    allowed_domains.iter().any(|allowed_domain| {
-        Glob::new(allowed_domain)
-            .map(|glob| glob.compile_matcher().is_match(domain))
-            .map_err(|err| logger::error!("Invalid glob pattern! - {:?}", err))
-            .unwrap_or(false)
-    })
 }
