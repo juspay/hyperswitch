@@ -1632,6 +1632,31 @@ pub async fn delete_card_from_locker(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn delete_card_from_locker_by_global_id(
+    state: &routes::SessionState,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &str,
+) -> errors::RouterResult<payment_methods::DeleteCardResp> {
+    metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+
+    common_utils::metrics::utils::record_operation_time(
+        async move {
+            delete_card_from_hs_locker_by_global_id(state, id, merchant_id, card_reference)
+                .await
+                .map_err(|error| {
+                    metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                    error
+                })
+        },
+        &metrics::CARD_DELETE_TIME,
+        &metrics::CONTEXT,
+        &[],
+    )
+    .await
+}
+
 #[instrument(skip_all)]
 pub async fn add_card_hs(
     state: &routes::SessionState,
@@ -1933,6 +1958,56 @@ pub async fn delete_card_from_hs_locker<'a>(
         jwekey,
         locker,
         customer_id,
+        merchant_id,
+        card_reference,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Making delete card request failed")?;
+
+    if !locker.mock_locker {
+        let response = services::call_connector_api(state, request, "delete_card_from_locker")
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while executing call_connector_api for delete card");
+        let jwe_body: services::JweBody = response.get_response_inner("JweBody")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            Some(api_enums::LockerChoice::HyperswitchCardVault),
+            locker.decryption_scheme.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting decrypted response payload for delete card")?;
+        let delete_card_resp: payment_methods::DeleteCardResp = decrypted_payload
+            .parse_struct("DeleteCardResp")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        Ok(delete_card_resp)
+    } else {
+        Ok(mock_delete_card_hs(&*state.store, card_reference)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("card_delete_failure_message")?)
+    }
+}
+
+// Need to fix this function while completing v2
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+pub async fn delete_card_from_hs_locker_by_global_id<'a>(
+    state: &routes::SessionState,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &'a str,
+) -> errors::RouterResult<payment_methods::DeleteCardResp> {
+    let locker = &state.conf.locker;
+    let jwekey = &state.conf.jwekey.get_inner();
+
+    let request = payment_methods::mk_delete_card_request_hs_by_id(
+        jwekey,
+        locker,
+        id,
         merchant_id,
         card_reference,
     )

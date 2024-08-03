@@ -16,3 +16,5 @@ ALTER TABLE customers DROP COLUMN customer_id;
 
 -- Run this query only when V1 is deprecated
 ALTER TABLE customers DROP COLUMN address_id;
+
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS status "DeleteStatus" NOT NULL DEFAULT 'active';

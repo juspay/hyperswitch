@@ -313,6 +313,7 @@ diesel::table! {
         default_shipping_address -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
+        status -> DeleteStatus,
     }
 }
 

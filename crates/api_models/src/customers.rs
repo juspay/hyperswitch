@@ -342,6 +342,7 @@ impl CustomerId {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct CustomerDeleteResponse {
     /// The identifier for the customer object
@@ -356,6 +357,25 @@ pub struct CustomerDeleteResponse {
     /// Whether payment methods deleted or not
     #[schema(example = false)]
     pub payment_methods_deleted: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+pub struct CustomerDeleteResponse {
+    /// The identifier for the customer object
+    #[schema(value_type = String, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_reference_id: Option<id_type::CustomerId>,
+    /// Whether customer was deleted or not
+    #[schema(example = false)]
+    pub customer_deleted: bool,
+    /// Whether address was deleted or not
+    #[schema(example = false)]
+    pub address_deleted: bool,
+    /// Whether payment methods deleted or not
+    #[schema(example = false)]
+    pub payment_methods_deleted: bool,
+    /// Global id
+    pub id: String,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
