@@ -82,6 +82,14 @@ pub struct CardReqBody {
     pub card_reference: String,
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardReqBodyV2 {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: String, // Not changing this as it might lead to api contract failure
+    pub card_reference: String,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RetrieveCardResp {
     pub status: String,
@@ -467,6 +475,42 @@ pub async fn mk_delete_card_request_hs(
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
+        merchant_id: merchant_id.to_owned(),
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let payload = card_req_body
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
+
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/delete");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+    Ok(request)
+}
+
+// Need to fix this once we start moving to v2 completion
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn mk_delete_card_request_hs_by_id(
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &str,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let merchant_customer_id = id.to_owned();
+    let card_req_body = CardReqBodyV2 {
         merchant_id: merchant_id.to_owned(),
         merchant_customer_id,
         card_reference: card_reference.to_owned(),

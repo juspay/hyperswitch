@@ -1,10 +1,10 @@
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// use crate::enums::SoftDeleteStatus;
 use common_enums::ApiVersion;
 use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use crate::enums::DeleteStatus;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::schema::customers;
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -100,8 +100,8 @@ pub struct CustomerNew {
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    // pub status: Option<SoftDeleteStatus>,
     pub id: String,
+    pub status: DeleteStatus,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -131,8 +131,8 @@ impl From<CustomerNew> for Customer {
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
             id: customer_new.id,
-            // status: customer_new.status,
             version: customer_new.version,
+            status: customer_new.status,
         }
     }
 }
@@ -182,8 +182,8 @@ pub struct Customer {
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    // pub status: Option<SoftDeleteStatus>,
     pub id: String,
+    pub status: DeleteStatus,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -269,6 +269,7 @@ pub struct CustomerUpdateInternal {
     pub updated_by: Option<String>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
+    pub status: Option<DeleteStatus>,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -282,10 +283,10 @@ impl CustomerUpdateInternal {
             phone_country_code,
             metadata,
             connector_customer,
-            // address_id,
             default_payment_method_id,
             default_billing_address,
             default_shipping_address,
+            status,
             ..
         } = self;
 
@@ -306,6 +307,7 @@ impl CustomerUpdateInternal {
                 .map_or(source.default_billing_address, Some),
             default_shipping_address: default_shipping_address
                 .map_or(source.default_shipping_address, Some),
+            status: status.unwrap_or(source.status),
             ..source
         }
     }

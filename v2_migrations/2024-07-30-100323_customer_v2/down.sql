@@ -13,3 +13,5 @@ ALTER TABLE customers ADD COLUMN customer_id VARCHAR(64) NOT NULL;
 ALTER TABLE customers ADD PRIMARY KEY (merchant_id, customer_id);
 
 ALTER TABLE customers ADD COLUMN address_id VARCHAR(64);
+
+ALTER TABLE customers DROP COLUMN status;

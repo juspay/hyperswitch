@@ -59,6 +59,7 @@ use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
     files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
+#[cfg(feature = "oltp")]
 use super::{cache::*, health::*, webhooks::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
@@ -860,7 +861,8 @@ impl Customers {
                 .service(
                     web::resource("/{id}")
                         .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve)),
+                        .route(web::post().to(customers_retrieve))
+                        .route(web::delete().to(customers_delete)),
                 )
         }
         #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
