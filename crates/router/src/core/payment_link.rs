@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use api_models::{admin as admin_types, payments::PaymentLinkStatusWrap};
 use common_utils::{
     consts::{
@@ -11,6 +9,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use futures::future;
+use indexmap::IndexMap;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
@@ -96,7 +95,7 @@ pub async fn initiate_payment_link_flow(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-            merchant_details: serde_json::Value::default(),
+            merchant_details: IndexMap::new(),
         }
     };
 
@@ -469,7 +468,7 @@ pub fn get_payment_link_config_based_on_priority(
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         ),
-        (merchant_details, serde_json::Value::default())
+        (merchant_details, IndexMap::new())
     );
 
     let payment_link_config = admin_types::PaymentLinkConfig {
@@ -561,7 +560,7 @@ pub async fn get_payment_link_status(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-            merchant_details: serde_json::Value::default(),
+            merchant_details: IndexMap::new(),
         }
     };
 

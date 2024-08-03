@@ -663,7 +663,7 @@ function renderPaymentDetails(paymentDetails) {
   if (paymentMerchantDetails instanceof HTMLDivElement) {
     paymentMerchantDetails.append(merchantNameNode);
     paymentMerchantDetails.append(paymentIdNode);
-    // Append merchant details if available
+    // add dynamic merchant details in the payment details section if present
     appendMerchantDetails(paymentDetails, paymentMerchantDetails);
     
   }
@@ -680,13 +680,30 @@ function renderPaymentDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, paymentMerchantDetails) {
+  if (Object.keys(paymentDetails.merchant_details).length === 0) {
+    return;
+  }
+
+  // render a horizontal line above dynamic merchant details
+  let horizontalLine = document.createElement("hr");
+  paymentMerchantDetails.append(horizontalLine);
+
+  // max number of items to show in the merchant details
   let maxItemsInDetails = 5;
-  for(const [key,value] of Object.entries(paymentDetails.merchant_detail) & maxItemsInDetails>0) {
+  for(const key in paymentDetails.merchant_details) {
+    // format of elements in merchant details is (index, key+value)
+    // the key is the index number of the field to preserve the order
+    // merchant details are stored in the format "key+value" in the value of the element
+    // split the value to get the key and value
+    let field_data = paymentDetails.merchant_details[key].split("+");
     var merchantData = document.createElement("div");
     merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
-    merchantData.innerText = key + ": " + value;
+    merchantData.innerHTML = field_data[0] + ": "+field_data[1].bold();
+
     paymentMerchantDetails.append(merchantData);
-    maxItemsInDetails--;
+    if(--maxItemsInDetails === 0) {
+      break;
+    }
   }
 }
 

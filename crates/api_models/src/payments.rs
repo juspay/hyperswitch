@@ -16,6 +16,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
+use indexmap::IndexMap;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
 use serde::{
@@ -5400,7 +5401,7 @@ pub struct PaymentLinkDetails {
     pub sdk_layout: String,
     pub display_sdk_only: bool,
     pub enabled_saved_payment_method: bool,
-    pub merchant_details: serde_json::Value,
+    pub merchant_details: IndexMap<String, String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -5418,7 +5419,7 @@ pub struct PaymentLinkStatusDetails {
     pub redirect: bool,
     pub theme: String,
     pub return_url: String,
-    pub merchant_details: serde_json::Value,
+    pub merchant_details: IndexMap<String, String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
