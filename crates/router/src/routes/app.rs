@@ -853,7 +853,7 @@ impl Customers {
         {
             route = route
                 .service(web::resource("").route(web::post().to(customers_create)))
-                .service(web::resource("/{id}").route(web::post().to(customers_update)))
+                .service(web::resource("/{id}").route(web::put().to(customers_update)))
         }
         route
     }
