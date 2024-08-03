@@ -8,12 +8,14 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "v1"] 
+default = ["kv_store", "v1"]
 kv_store = []
-v1 = []
+v1 =[]
 v2 = []
+business_profile_v2 = []
 customer_v2 = []
 merchant_account_v2 = []
+merchant_connector_account_v2 = []
 payment_v2 = []
 
 [dependencies]
@@ -26,6 +28,7 @@ serde_json = "1.0.115"
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
+
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }

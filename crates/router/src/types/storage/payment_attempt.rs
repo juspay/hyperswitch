@@ -195,7 +195,9 @@ mod tests {
     async fn test_payment_attempt_mandate_field() {
         let state = create_single_connection_test_transaction_pool().await;
         let uuid = Uuid::new_v4().to_string();
-        let merchant_id = common_utils::id_type::MerchantId::from("merchant1".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant1"))
+                .unwrap();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 

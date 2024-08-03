@@ -371,6 +371,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     state,
                     req_state,
                     merchant_account,
+                    None,
                     key_store,
                     PaymentStatus,
                     request,
@@ -417,6 +418,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let refund = Box::pin(refund_retrieve_core(
                 state,
                 merchant_account,
+                None,
                 key_store,
                 request,
             ))
@@ -436,7 +438,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = DisputeId { dispute_id };
 
             let dispute_response =
-                match retrieve_dispute(state, merchant_account, request).await? {
+                match retrieve_dispute(state, merchant_account, None, request).await? {
                     ApplicationResponse::Json(dispute_response)
                     | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
                         Ok(dispute_response)
