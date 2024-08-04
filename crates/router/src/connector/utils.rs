@@ -2974,3 +2974,12 @@ pub fn get_refund_integrity_object<T>(
         refund_amount: refund_amount_in_minor_unit,
     })
 }
+pub trait NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
+}
+
+impl NetworkTokenData for domain::NetworkTokenData {
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.token_number.peek())
+    }
+}

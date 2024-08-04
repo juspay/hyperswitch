@@ -28,6 +28,9 @@ use strum::IntoEnumIterator;
 use cards::CardNumber;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
+use hyperswitch_domain_models::{
+    payment_method_data::NetworkTokenData,
+};
 
 #[cfg(feature = "payouts")]
 use crate::{
@@ -242,8 +245,8 @@ pub struct GetCardToken {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthenticationDetails {
-    cryptogram: String,
-    token: Secret<String>,
+    cryptogram: Secret<String>,
+    token: CardNumber,
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenResponse {
@@ -255,7 +258,7 @@ pub async fn get_token_from_tokenization_service(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     pm_id: String, //to fetch from pm table
-) -> errors::RouterResult<Card> {
+) -> errors::RouterResult<NetworkTokenData> {
     let db = state.store.as_ref();
     let key = key_store.key.get_inner().peek();
     let pm_data = db
@@ -316,26 +319,25 @@ pub async fn get_token_from_tokenization_service(
         _ => None,
     });
     println!("card_decrypted: {:?}", card_decrypted);
-    let card_data = Card {
-        card_number: card_decrypted
-            .clone()
-            .unwrap()
-            .card_number
-            .unwrap_or_default(),
-        name_on_card: card_decrypted.clone().unwrap().card_holder_name,
-        card_exp_month: card_decrypted
+    let card_data = NetworkTokenData {
+        token_number: res.authentication_details.token,
+        token_cryptogram:res.authentication_details.cryptogram,
+        token_exp_month: card_decrypted
             .clone()
             .unwrap()
             .expiry_month
             .unwrap_or_default(),
-        card_exp_year: card_decrypted
+        token_exp_year: card_decrypted
             .clone()
             .unwrap()
             .expiry_year
             .unwrap_or_default(),
-        card_brand: Some("Visa".to_string()),
-        card_isin: card_decrypted.clone().unwrap().card_isin,
-        nick_name: None,
+        nick_name: card_decrypted.clone().unwrap().card_holder_name,
+        card_issuer: None,
+        card_network: Some(common_enums::CardNetwork::Visa),
+        card_type: None,
+        card_issuing_country: None,
+        bank_code: None,
     };
     Ok(card_data)
 }

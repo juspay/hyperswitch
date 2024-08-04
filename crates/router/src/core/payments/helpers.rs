@@ -22,7 +22,7 @@ use error_stack::{report, ResultExt};
 use futures::future::Either;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payment_method_data::GetPaymentMethodType,
+    payment_method_data::{GetPaymentMethodType,NetworkTokenData},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
@@ -1853,56 +1853,60 @@ pub async fn retrieve_card_with_permanent_token(
     //         .change_context(errors::ApiErrorResponse::InternalServerError)
     //         .attach_printable("failed to fetch card information from the permanent locker")?;
 
+    // let name_on_card = if let Some(name) = card.name_on_card.clone() {
+    //     if name.clone().expose().is_empty() {
+    //         card_token_data
+    //             .and_then(|token_data| token_data.card_holder_name.clone())
+    //             .or(Some(name))
+    //     } else {
+    //         card.clone().name_on_card
+    //     }
+    // } else {
+    //     card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
+    // };
+
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
     let merchant_account = db.find_merchant_account_by_merchant_id(key_manager_state, &payment_intent.merchant_id, merchant_key_store).await.change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let card = if merchant_account.is_network_tokenization_enabled{
-        network_tokenization::get_token_from_tokenization_service(state, &merchant_account, merchant_key_store, payment_method_id.to_string()).await.change_context(errors::ApiErrorResponse::InternalServerError)?
+    if merchant_account.is_network_tokenization_enabled{
+        let network_token_data = network_tokenization::get_token_from_tokenization_service(state, &merchant_account, merchant_key_store, payment_method_id.to_string()).await.change_context(errors::ApiErrorResponse::InternalServerError)?;
+        Ok(domain::PaymentMethodData::NetworkToken(network_token_data))
     }
     else{
-        cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, locker_id)
+        let card = cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, locker_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to fetch card information from the permanent locker")?
+            .attach_printable("failed to fetch card information from the permanent locker")?;
+        let api_card = api::Card {
+            card_number: card.card_number,
+            card_holder_name: None,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_cvc: card_token_data
+                .cloned()
+                .unwrap_or_default()
+                .card_cvc
+                .unwrap_or_default(),
+            card_issuer: None,
+            nick_name: card.nick_name.map(masking::Secret::new),
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+        };
+    
+        Ok(domain::PaymentMethodData::Card(api_card.into()))
 
-    };
+    }
     // let key = merchant_key_store.key.get_inner().peek();
     // let card = network_tokenization::get_token_from_tokenization_service(state, &merchant_account, merchant_key_store, payment_method_id.to_string()).await.change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
     // from payment_method_data.card_token object
-    let name_on_card = if let Some(name) = card.name_on_card.clone() {
-        if name.clone().expose().is_empty() {
-            card_token_data
-                .and_then(|token_data| token_data.card_holder_name.clone())
-                .or(Some(name))
-        } else {
-            card.clone().name_on_card
-        }
-    } else {
-        card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
-    };
-    println!("carddd: {:?}", card.clone());
+    
+    // println!("carddd: {:?}", card.clone());
 
-    let api_card = api::Card {
-        card_number: card.card_number,
-        card_holder_name: name_on_card,
-        card_exp_month: card.card_exp_month,
-        card_exp_year: card.card_exp_year,
-        card_cvc: card_token_data
-            .cloned()
-            .unwrap_or_default()
-            .card_cvc
-            .unwrap_or_default(),
-        card_issuer: None,
-        nick_name: card.nick_name.map(masking::Secret::new),
-        card_network: None,
-        card_type: None,
-        card_issuing_country: None,
-        bank_code: None,
-    };
-
-    Ok(domain::PaymentMethodData::Card(api_card.into()))
+    
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
