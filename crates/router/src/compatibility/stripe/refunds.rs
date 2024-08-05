@@ -50,7 +50,7 @@ pub async fn refund_create(
         &req,
         create_refund_req,
         |state, auth, req, _| {
-            refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
+            refunds::refund_create_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -97,6 +97,7 @@ pub async fn refund_retrieve_with_gateway_creds(
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 refund_request,
                 refunds::refund_retrieve_core,
@@ -139,6 +140,7 @@ pub async fn refund_retrieve(
             refunds::refund_response_wrapper(
                 state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 refund_request,
                 refunds::refund_retrieve_core,
