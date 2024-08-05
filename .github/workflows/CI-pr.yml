@@ -333,6 +333,12 @@ jobs:
           tool: cargo-nextest
           checksum: true
 
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
       - name: Install Diesel CLI
         uses: baptiste0928/cargo-install@v3.1.1
         with:
@@ -344,7 +350,7 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
-        run: make migrate locked-schema=yes
+        run: just migrate run --locked-schema
 
       - name: Run unit and documentation tests
         shell: bash
