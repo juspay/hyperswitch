@@ -802,7 +802,7 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
 
         let _merchant_reference_id = self.merchant_reference_id;
         let customer = db
-            .find_customer_by_id(
+            .find_customer_by_global_id(
                 self.key_manager_state,
                 id,
                 &self.merchant_account.get_id(),
@@ -932,8 +932,8 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let encrypted_data = types::batch_encrypt(
             key_manager_state,
             CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                name: Some(self.name.clone()),
-                email: Some(self.email.clone()),
+                name: self.name.clone(),
+                email: self.email.clone(),
                 phone: self.phone.clone(),
             }),
             Identifier::Merchant(key_store.merchant_id.clone()),
@@ -946,7 +946,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         let response = db
-            .update_customer_by_id(
+            .update_customer_by_global_id(
                 key_manager_state,
                 domain_customer.id.to_owned(),
                 domain_customer.to_owned(),

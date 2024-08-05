@@ -390,9 +390,6 @@ impl CustomerUpdateRequest {
     pub fn get_address(&self) -> Option<payments::AddressDetails> {
         self.address.clone()
     }
-    pub fn get_optional_email(&self) -> Option<pii::Email> {
-        self.email.clone()
-    }
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -403,10 +400,10 @@ pub struct CustomerUpdateRequest {
     pub merchant_reference_id: Option<id_type::CustomerId>,
     /// The customer's name
     #[schema(max_length = 255, value_type = String, example = "Jon Test")]
-    pub name: Secret<String>,
+    pub name: Option<Secret<String>>,
     /// The customer's email address
     #[schema(value_type = String, max_length = 255, example = "JonTest@test.com")]
-    pub email: pii::Email,
+    pub email: Option<pii::Email>,
     /// The customer's phone number
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
@@ -444,9 +441,5 @@ impl CustomerUpdateRequest {
 
     pub fn get_default_customer_shipping_address(&self) -> Option<payments::AddressDetails> {
         self.default_shipping_address.clone()
-    }
-
-    pub fn get_optional_email(&self) -> Option<pii::Email> {
-        Some(self.email.clone())
     }
 }

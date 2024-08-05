@@ -1119,7 +1119,7 @@ pub async fn create_recipient(
                         {
                             let global_id = "temp_id".to_string();
                             payout_data.customer_details = Some(
-                                db.update_customer_by_id(
+                                db.update_customer_by_global_id(
                                     &state.into(),
                                     global_id,
                                     customer,
@@ -2394,6 +2394,7 @@ pub async fn make_payout_data(
     )
     .await?;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer_details = db
         .find_customer_optional_by_customer_id_merchant_id(
             &state.into(),
@@ -2405,36 +2406,17 @@ pub async fn make_payout_data(
         .await
         .map_or(None, |c| c);
 
-    // let customer_details = match () {
-    //     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))] () => {
-    //         db.find_customer_optional_by_customer_id_merchant_id(
-    //             &state.into(),
-    //             &payouts.customer_id.to_owned(),
-    //             merchant_id,
-    //             key_store,
-    //             merchant_account.storage_scheme,
-    //         )
-    //         .await
-    //         .map_or(None, |c| Some(c))
-    //     },
-
-    //     #[cfg(all(feature = "v2", feature = "customer_v2"))] () => {
-    //         let global_id = "temp_id".to_string();
-    //         let db_customer_details = db
-    //             .find_customer_by_id(
-    //                 &state.into(),
-    //                 &global_id,
-    //                 merchant_id,
-    //                 key_store,
-    //                 merchant_account.storage_scheme,
-    //             )
-    //             .await;
-    //         match db_customer_details {
-    //             Ok(cust) => Some(cust),
-    //             _ => None,
-    //         }
-    //     },
-    // };
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customer_details = db
+        .find_optional_by_merchant_id_merchant_reference_id(
+            &state.into(),
+            &payouts.customer_id.to_owned(),
+            merchant_id,
+            key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .map_or(None, |c| c);
 
     let profile_id = payout_attempt.profile_id.clone();
 

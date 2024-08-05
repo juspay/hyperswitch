@@ -358,6 +358,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn find_customer_optional_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -368,6 +369,26 @@ impl CustomerInterface for KafkaStore {
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         self.diesel_store
             .find_customer_optional_by_customer_id_merchant_id(
+                state,
+                customer_id,
+                merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_optional_by_merchant_id_merchant_reference_id(
+        &self,
+        state: &KeyManagerState,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+        self.diesel_store
+            .find_optional_by_merchant_id_merchant_reference_id(
                 state,
                 customer_id,
                 merchant_id,
@@ -402,7 +423,7 @@ impl CustomerInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn update_customer_by_id(
+    async fn update_customer_by_global_id(
         &self,
         state: &KeyManagerState,
         id: String,
@@ -413,7 +434,7 @@ impl CustomerInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .update_customer_by_id(
+            .update_customer_by_global_id(
                 state,
                 id,
                 customer,
@@ -458,7 +479,7 @@ impl CustomerInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_customer_by_id(
+    async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
         id: &String,
@@ -467,7 +488,7 @@ impl CustomerInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
-            .find_customer_by_id(state, id, merchant_id, key_store, storage_scheme)
+            .find_customer_by_global_id(state, id, merchant_id, key_store, storage_scheme)
             .await
     }
 

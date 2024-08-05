@@ -32,6 +32,7 @@ use common_utils::{
     },
 };
 use diesel_models::{business_profile::BusinessProfile, payment_method};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
 use euclid::{
@@ -50,6 +51,8 @@ use super::surcharge_decision_configs::{
 };
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::utils::{self};
 use crate::{
     configs::settings,
     core::{
@@ -75,7 +78,7 @@ use crate::{
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::{self, ConnectorResponseExt, OptionExt},
+    utils::{ConnectorResponseExt, OptionExt},
 };
 
 #[instrument(skip_all)]
@@ -4294,6 +4297,20 @@ async fn get_bank_account_connector_details(
         None => Ok(None),
     }
 }
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn set_default_payment_method(
+    _state: &routes::SessionState,
+    _merchant_id: &id_type::MerchantId,
+    _key_store: domain::MerchantKeyStore,
+    _customer_id: &id_type::CustomerId,
+    _payment_method_id: String,
+    _storage_scheme: MerchantStorageScheme,
+) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn set_default_payment_method(
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
@@ -4345,43 +4362,24 @@ pub async fn set_default_payment_method(
 
     let customer_id = customer.get_customer_id().clone();
 
-    // update the db with the default payment method id
-    let updated_customer_details = match () {
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-        () => {
-            let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
-                default_payment_method_id: Some(Some(payment_method_id.to_owned())),
-            };
-            db.update_customer_by_customer_id_merchant_id(
-                key_manager_state,
-                customer_id.to_owned(),
-                merchant_id.to_owned(),
-                customer,
-                customer_update,
-                &key_store,
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update the default payment method id for the customer")?
-        }
-
-        #[cfg(all(feature = "v2", feature = "customer_v2"))]
-        () => {
-            let global_id = "temp_global_id".to_string();
-            let _ = customer_id;
-            db.find_customer_by_id(
-                key_manager_state,
-                &global_id,
-                merchant_id,
-                &key_store,
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update the default payment method id for the customer")?
-        }
+    let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
+        default_payment_method_id: Some(Some(payment_method_id.to_owned())),
     };
+    // update the db with the default payment method id
+
+    let updated_customer_details = db
+        .update_customer_by_customer_id_merchant_id(
+            key_manager_state,
+            customer_id.to_owned(),
+            merchant_id.to_owned(),
+            customer,
+            customer_update,
+            &key_store,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update the default payment method id for the customer")?;
 
     let resp = CustomerDefaultPaymentMethodResponse {
         default_payment_method_id: updated_customer_details.default_payment_method_id,
@@ -4602,6 +4600,18 @@ pub async fn retrieve_payment_method(
 }
 
 #[instrument(skip_all)]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn delete_payment_method(
+    _state: routes::SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _pm_id: api::PaymentMethodId,
+    _key_store: domain::MerchantKeyStore,
+) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[instrument(skip_all)]
 pub async fn delete_payment_method(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -4658,39 +4668,18 @@ pub async fn delete_payment_method(
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(None),
         };
-
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-        {
-            db.update_customer_by_customer_id_merchant_id(
-                key_manager_state,
-                key.customer_id,
-                key.merchant_id,
-                customer,
-                customer_update,
-                &key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update the default payment method id for the customer")?;
-        }
-
-        #[cfg(all(feature = "v2", feature = "customer_v2"))]
-        {
-            let global_id = "temp_id".to_string();
-            db.update_customer_by_id(
-                key_manager_state,
-                global_id,
-                customer,
-                &key.merchant_id,
-                customer_update,
-                &key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update the default payment method id for the customer")?;
-        }
+        db.update_customer_by_customer_id_merchant_id(
+            key_manager_state,
+            key.customer_id,
+            key.merchant_id,
+            customer,
+            customer_update,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update the default payment method id for the customer")?;
     };
 
     Ok(services::ApplicationResponse::Json(
