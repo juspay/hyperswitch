@@ -81,7 +81,7 @@ impl UserFromToken {
     }
 }
 
-pub async fn generate_jwt_auth_token(
+pub async fn generate_jwt_auth_token_without_profile(
     state: &SessionState,
     user: &UserFromStorage,
     user_role: &UserRole,
@@ -102,6 +102,7 @@ pub async fn generate_jwt_auth_token(
             .ok_or(report!(UserErrors::InternalServerError))
             .attach_printable("org_id not found for user_role")?
             .clone(),
+        None,
     )
     .await?;
     Ok(Secret::new(token))
@@ -113,6 +114,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
+    profile_id: Option<String>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
@@ -120,6 +122,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
         role_id,
         &state.conf,
         org_id,
+        profile_id,
     )
     .await?;
     Ok(Secret::new(token))
