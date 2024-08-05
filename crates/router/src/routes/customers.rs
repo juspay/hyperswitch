@@ -79,8 +79,7 @@ pub async fn customers_retrieve(
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
 
-    let payload =
-        web::Json(customers::GlobalId::new_global_id_struct(path.into_inner())).into_inner();
+    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth(Permission::CustomerRead))
