@@ -124,7 +124,7 @@ pub enum RecurringDetails {
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ProcessorPaymentToken {
     pub processor_payment_token: String,
     pub connector: api_enums::Connector,
