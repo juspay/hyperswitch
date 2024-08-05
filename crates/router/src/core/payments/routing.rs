@@ -944,10 +944,19 @@ async fn perform_session_routing_for_pm_type(
                 match cached_algorithm.as_ref() {
                     CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
                     CachedAlgorithm::Priority(plist) => plist.clone(),
-                    CachedAlgorithm::VolumeSplit(splits) => {
-                        perform_volume_split(splits.to_vec(), Some(session_pm_input.attempt_id))
-                            .change_context(errors::RoutingError::ConnectorSelectionFailed)?
-                    }
+                    CachedAlgorithm::VolumeSplit(splits) => perform_volume_split(
+                        splits.to_vec(),
+                        Some(&format!(
+                            "{}{:?}{:?}",
+                            session_pm_input.attempt_id,
+                            session_pm_input.backend_input.payment_method.payment_method,
+                            session_pm_input
+                                .backend_input
+                                .payment_method
+                                .payment_method_type
+                        )),
+                    )
+                    .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
                     CachedAlgorithm::Advanced(interpreter) => execute_dsl_and_get_connector_v1(
                         session_pm_input.backend_input.clone(),
                         interpreter,
