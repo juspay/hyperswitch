@@ -483,7 +483,9 @@ async fn raise_webhooks_analytics_event(
             merchant_key_store,
         )
         .await
-        .change_context_lazy(|| errors::StorageError::ValueNotFound(format!("event not found for id: {}", &event_id)))
+        .change_context_lazy(|| {
+            errors::StorageError::ValueNotFound(format!("event not found for id: {}", &event_id))
+        })
         .attach_printable_lazy(|| format!("event not found for id: {}", &event_id))
         .map_err(|e| logger::error!("{:?}", e))
         .ok();
