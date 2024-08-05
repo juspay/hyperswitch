@@ -983,6 +983,134 @@ export const connectorDetails = {
         },
       },
     },
+    InvalidCurrency: {
+      Request: {
+        currency: "United",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error:
+            "Json deserialize error: unknown variant `United`, expected one of `AED`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BWP`, `BYN`, `BZD`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SZL`, `THB`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`",
+        },
+      },
+    },
+    InvalidCaptureMethod: {
+      Request: {
+        currency: "USD",
+        capture_method: "auto",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error:
+            "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+        },
+      },
+    },
+    InvalidPaymentMethod: {
+      Request: {
+        currency: "USD",
+        payment_method: "this_supposed_to_be_a_card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error:
+            "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`",
+        },
+      },
+    },
+    InvalidAmountToCapture: {
+      Request: {
+        currency: "USD",
+        amount_to_capture: 10000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2026",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "amount_to_capture contains invalid data. Expected format is amount_to_capture lesser than amount",
+            code: "IR_05",
+          },
+        },
+      },
+    },
+    MissingRequiredParam: {
+      Request: {
+        currency: "USD",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2026",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: payment_method",
+            code: "IR_04",
+          },
+        },
+      },
+    },
     PaymentIntentErrored: {
       Request: {
         currency: "USD",
@@ -1039,6 +1167,27 @@ export const connectorDetails = {
             message:
               "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
+          },
+        },
+      },
+    }),
+    ConfirmSuccessfulPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot confirm this payment because it has status succeeded",
+            code: "IR_16",
           },
         },
       },

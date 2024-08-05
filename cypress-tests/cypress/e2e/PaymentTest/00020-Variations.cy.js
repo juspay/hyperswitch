@@ -15,7 +15,7 @@ describe("Corner cases", () => {
     );
   });
 
-  context("[Payment] Invalid Card Info", () => {
+  context("[Payment] Invalid Info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -80,6 +80,91 @@ describe("Corner cases", () => {
     it("[Payment] Invalid card CVV", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidCardCvv"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid currency", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidCurrency"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid capture method", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidCaptureMethod"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid payment method", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidPaymentMethod"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid `amount_to_capture`", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidAmountToCapture"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Missing required params", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "MissingRequiredParam"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -258,6 +343,70 @@ describe("Corner cases", () => {
         req_data,
         res_data,
         65000,
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+  });
+
+  context("[Payment] Confirm successful payment", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("Create payment intent and confirm", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
+
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentCreateConfirmBody,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Confirm call", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "ConfirmSuccessfulPayment"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.confirmCallTest(
+        fixtures.confirmBody,
+        req_data,
+        res_data,
+        true,
         globalState
       );
 
