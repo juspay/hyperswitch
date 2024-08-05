@@ -44,3 +44,6 @@ ADD COLUMN is_recon_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE merchant_account
 ADD COLUMN webhook_details JSONB NULL;
+
+ALTER TABLE merchant_account
+ADD COLUMN routing_algorithm JSON;

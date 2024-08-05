@@ -491,6 +491,7 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
+                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -752,8 +753,8 @@ pub fn get_connector_data(
 #[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
-    business_profile: &domain::BusinessProfile,
+    _merchant_account: &domain::MerchantAccount,
+    _business_profile: &diesel_models::business_profile::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -779,7 +780,12 @@ where
             .iter()
             .map(|session_connector_data| session_connector_data.payment_method_type)
             .collect();
-        let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
+
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_account_v2")
+        ))]
+        let algorithm_ref: api::routing::RoutingAlgorithmRef = _merchant_account
             .routing_algorithm
             .clone()
             .map(|val| val.parse_value("routing algorithm"))
@@ -787,6 +793,17 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not decode the routing algorithm")?
             .unwrap_or_default();
+
+        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        let algorithm_ref: api::routing::RoutingAlgorithmRef = _business_profile
+            .routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("routing algorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not decode the routing algorithm")?
+            .unwrap_or_default();
+
         let surcharge_results =
             surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(
                 state,

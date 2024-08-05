@@ -1,3 +1,4 @@
+#![allow(unused_imports)] // TODO: fix this when implementing the functions for v2
 use api_models::{
     conditional_configs::{DecisionManager, DecisionManagerRecord, DecisionManagerResponse},
     routing,
@@ -17,6 +18,25 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn upsert_conditional_config(
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+    _request: DecisionManager,
+) -> RouterResponse<DecisionManagerRecord> {
+    // TODO: Implement for v2
+    Err(errors::ApiErrorResponse::NotImplemented {
+        message:
+            hyperswitch_domain_models::errors::api_error_response::NotImplementedMessage::Default,
+    }
+    .into())
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn upsert_conditional_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
@@ -149,6 +169,24 @@ pub async fn upsert_conditional_config(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn delete_conditional_config(
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+) -> RouterResponse<()> {
+    // TODO: Implement for v2
+    Err(errors::ApiErrorResponse::NotImplemented {
+        message:
+            hyperswitch_domain_models::errors::api_error_response::NotImplementedMessage::Default,
+    }
+    .into())
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn delete_conditional_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,

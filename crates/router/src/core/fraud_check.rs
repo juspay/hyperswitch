@@ -136,7 +136,6 @@ where
 {
     match merchant_account.frm_routing_algorithm.clone() {
         Some(frm_routing_algorithm_value) => {
-            let db = &*state.store;
             let frm_routing_algorithm_struct: FrmRoutingAlgorithm = frm_routing_algorithm_value
                 .clone()
                 .parse_value("FrmRoutingAlgorithm")
