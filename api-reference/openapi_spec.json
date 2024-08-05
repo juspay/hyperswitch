@@ -19392,6 +19392,24 @@
                 "type": "string"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "processor_payment_token"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProcessorPaymentToken"
+              }
+            }
           }
         ],
         "description": "Details required for recurring payment",
