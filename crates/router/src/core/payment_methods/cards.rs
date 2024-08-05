@@ -2663,7 +2663,7 @@ pub async fn list_payment_methods(
                     for inner_config in config.enabled_payment_methods.iter() {
                         let is_active_mca = all_mcas
                             .iter()
-                            .any(|mca| mca.merchant_connector_id == inner_config.mca_id);
+                            .any(|mca| mca.get_id() == inner_config.mca_id);
 
                         if inner_config.payment_method_type == *payment_method_type && is_active_mca
                         {
