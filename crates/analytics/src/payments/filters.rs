@@ -16,7 +16,7 @@ pub trait PaymentFilterAnalytics: LoadRow<FilterRow> {}
 
 pub async fn get_payment_filter_for_dimension<T>(
     dimension: PaymentDimensions,
-    merchant: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<FilterRow>>
@@ -37,7 +37,7 @@ where
         .switch()?;
 
     query_builder
-        .add_filter_clause("merchant_id", merchant)
+        .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
 
     query_builder.set_distinct();

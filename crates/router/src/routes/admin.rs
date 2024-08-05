@@ -9,6 +9,71 @@ use crate::{
 };
 
 #[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationCreate))]
+pub async fn organization_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::OrganizationRequest>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| create_organization(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationUpdate))]
+pub async fn organization_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<common_utils::id_type::OrganizationId>,
+    json_payload: web::Json<admin::OrganizationRequest>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationUpdate;
+    let organization_id = org_id.into_inner();
+    let org_id = admin::OrganizationId { organization_id };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| update_organization(state, org_id.clone(), req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::OrganizationRetrieve))]
+pub async fn organization_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    org_id: web::Path<common_utils::id_type::OrganizationId>,
+) -> HttpResponse {
+    let flow = Flow::OrganizationRetrieve;
+    let organization_id = org_id.into_inner();
+    let payload = admin::OrganizationId { organization_id };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| get_organization(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -47,15 +112,13 @@ pub async fn merchant_account_create(
 pub async fn retrieve_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
-    mid: web::Path<String>,
+    mid: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountRetrieve;
     let merchant_id = mid.into_inner();
-    let payload = web::Json(admin::MerchantId {
-        merchant_id: merchant_id.to_owned(),
-    })
-    .into_inner();
-
+    let payload = admin::MerchantId {
+        merchant_id: merchant_id.clone(),
+    };
     api::server_wrap(
         flow,
         state,
@@ -116,7 +179,7 @@ pub async fn merchant_account_list(
 pub async fn update_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
-    mid: web::Path<String>,
+    mid: web::Path<common_utils::id_type::MerchantId>,
     json_payload: web::Json<admin::MerchantAccountUpdate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountUpdate;
@@ -160,7 +223,7 @@ pub async fn update_merchant_account(
 pub async fn delete_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
-    mid: web::Path<String>,
+    mid: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountDelete;
     let mid = mid.into_inner();
@@ -180,6 +243,10 @@ pub async fn delete_merchant_account(
 /// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors",
@@ -196,16 +263,60 @@ pub async fn delete_merchant_account(
 pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
     json_payload: web::Json<admin::MerchantConnectorCreate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsCreate;
+    let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
+        |state, _, req, _| create_payment_connector(state, req, &merchant_id),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantConnectorAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+/// Merchant Connector - Create
+///
+/// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[utoipa::path(
+    post,
+    path = "/connector_accounts",
+    request_body = MerchantConnectorCreate,
+    responses(
+        (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
+        (status = 400, description = "Missing Mandatory fields"),
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "Create a Merchant Connector",
+    security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
+pub async fn payment_connector_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::MerchantConnectorCreate>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsCreate;
+    let payload = json_payload.into_inner();
+    let merchant_id = payload.merchant_id.clone();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
         |state, _, req, _| create_payment_connector(state, req, &merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
@@ -242,7 +353,7 @@ pub async fn payment_connector_create(
 pub async fn payment_connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsRetrieve;
     let (merchant_id, merchant_connector_id) = path.into_inner();
@@ -294,7 +405,7 @@ pub async fn payment_connector_retrieve(
 pub async fn payment_connector_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsList;
     let merchant_id = path.into_inner();
@@ -320,6 +431,10 @@ pub async fn payment_connector_list(
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -341,7 +456,7 @@ pub async fn payment_connector_list(
 pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
     json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsUpdate;
@@ -355,6 +470,57 @@ pub async fn payment_connector_update(
         |state, _, req, _| {
             update_payment_connector(state, &merchant_id, &merchant_connector_id, req)
         },
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantConnectorAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Merchant Connector - Update
+///
+/// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[utoipa::path(
+    post,
+    path = "/connector_accounts/{id}",
+    request_body = MerchantConnectorUpdate,
+    params(
+        ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
+    ),
+    responses(
+        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
+        (status = 404, description = "Merchant Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    ),
+   tag = "Merchant Connector Account",
+   operation_id = "Update a Merchant Connector",
+   security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
+pub async fn payment_connector_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsUpdate;
+    let id = path.into_inner();
+    let payload = json_payload.into_inner();
+    let merchant_id = payload.merchant_id.clone();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| update_payment_connector(state, &merchant_id, &id, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -390,7 +556,7 @@ pub async fn payment_connector_update(
 pub async fn payment_connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsDelete;
     let (merchant_id, merchant_connector_id) = path.into_inner();
@@ -427,7 +593,7 @@ pub async fn payment_connector_delete(
 pub async fn merchant_account_toggle_kv(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
     json_payload: web::Json<admin::ToggleKVRequest>,
 ) -> HttpResponse {
     let flow = Flow::ConfigKeyUpdate;
@@ -446,16 +612,16 @@ pub async fn merchant_account_toggle_kv(
     .await
 }
 
-/// Merchant Account - Toggle KV
+/// Merchant Account - Transfer Keys
 ///
-/// Toggle KV mode for all Merchant Accounts
+/// Transfer Merchant Encryption key to keymanager
 #[instrument(skip_all)]
 pub async fn merchant_account_toggle_all_kv(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<admin::ToggleAllKVRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ConfigKeyUpdate;
+    let flow = Flow::MerchantTransferKey;
     let payload = json_payload.into_inner();
 
     api::server_wrap(
@@ -475,7 +641,7 @@ pub async fn business_profile_create(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<admin::BusinessProfileCreate>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileCreate;
     let payload = json_payload.into_inner();
@@ -503,34 +669,34 @@ pub async fn business_profile_create(
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileRetrieve;
     let (merchant_id, profile_id) = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         profile_id,
-        |state, _, profile_id, _| retrieve_business_profile(state, profile_id),
+        |state, _, profile_id, _| retrieve_business_profile(state, profile_id, merchant_id.clone()),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
+                merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountRead,
             },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
     json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileUpdate;
@@ -558,7 +724,7 @@ pub async fn business_profile_update(
 pub async fn business_profile_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileDelete;
     let (merchant_id, profile_id) = path.into_inner();
@@ -578,12 +744,12 @@ pub async fn business_profile_delete(
 pub async fn business_profiles_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileList;
     let merchant_id = path.into_inner();
 
-    api::server_wrap(
+    Box::pin(api::server_wrap(
         flow,
         state,
         &req,
@@ -598,7 +764,7 @@ pub async fn business_profiles_list(
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
-    )
+    ))
     .await
 }
 
@@ -606,7 +772,7 @@ pub async fn business_profiles_list(
 pub async fn toggle_connector_agnostic_mit(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
     json_payload: web::Json<api_models::admin::ConnectorAgnosticMitChoice>,
 ) -> HttpResponse {
     let flow = Flow::ToggleConnectorAgnosticMit;
@@ -619,7 +785,7 @@ pub async fn toggle_connector_agnostic_mit(
         json_payload.into_inner(),
         |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -634,7 +800,7 @@ pub async fn toggle_connector_agnostic_mit(
 pub async fn merchant_account_kv_status(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> HttpResponse {
     let flow = Flow::ConfigKeyFetch;
     let merchant_id = path.into_inner();
@@ -648,6 +814,28 @@ pub async fn merchant_account_kv_status(
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )
+    .await
+}
+
+/// Merchant Account - KV Status
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_transfer_keys(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::admin::MerchantKeyTransferRequest>,
+) -> HttpResponse {
+    let flow = Flow::ConfigKeyFetch;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.into_inner(),
+        |state, _, req, _| transfer_key_store_to_key_manager(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
 

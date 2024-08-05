@@ -105,12 +105,19 @@ jobs:
           features: postgres
           args: --no-default-features
 
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        if: ${{ env.RUN_TESTS == 'true' }}
+        with:
+          tool: just
+          checksum: true
+
       - name: Run database migrations
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
-        run: make migrate locked-schema=yes
+        run: just migrate run --locked-schema
 
       - name: Install newman from fork
         if: ${{ env.RUN_TESTS == 'true' }}

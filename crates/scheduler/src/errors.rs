@@ -101,7 +101,7 @@ impl<T: PTError + std::fmt::Debug + std::fmt::Display> From<error_stack::Report<
     for ProcessTrackerError
 {
     fn from(error: error_stack::Report<T>) -> Self {
-        logger::error!(error=%error.current_context());
+        logger::error!(?error);
         error.current_context().to_pt_error()
     }
 }

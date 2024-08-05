@@ -108,6 +108,7 @@ fn fetch_payment_instrument(
         | domain::PaymentMethodData::Voucher(_)
         | domain::PaymentMethodData::CardRedirect(_)
         | domain::PaymentMethodData::GiftCard(_)
+        | domain::PaymentMethodData::OpenBanking(_)
         | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("worldpay"),
         )
@@ -144,7 +145,11 @@ impl
                     currency: item.router_data.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.router_data.merchant_id.clone().replace('_', "-"),
+                    line1: item
+                        .router_data
+                        .merchant_id
+                        .get_string_repr()
+                        .replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(

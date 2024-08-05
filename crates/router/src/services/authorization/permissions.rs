@@ -34,6 +34,7 @@ pub enum Permission {
     WebhookEventWrite,
     PayoutRead,
     PayoutWrite,
+    GenerateReport,
 }
 
 impl Permission {
@@ -75,6 +76,7 @@ impl Permission {
             Self::WebhookEventWrite => "Trigger retries for webhook events",
             Self::PayoutRead => "View all payouts",
             Self::PayoutWrite => "Create payout, download payout data",
+            Self::GenerateReport => "Generate reports for payments, refunds and disputes",
         }
     }
 }

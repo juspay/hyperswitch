@@ -1,14 +1,16 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 
 use crate::schema::authentication;
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = authentication,  primary_key(authentication_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = authentication,  primary_key(authentication_id), check_for_backend(diesel::pg::Pg))]
 pub struct Authentication {
     pub authentication_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub authentication_connector: String,
     pub connector_authentication_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
@@ -59,7 +61,7 @@ impl Authentication {
 #[diesel(table_name = authentication)]
 pub struct AuthenticationNew {
     pub authentication_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub authentication_connector: String,
     pub connector_authentication_id: Option<String>,
     // pub authentication_data: Option<serde_json::Value>,

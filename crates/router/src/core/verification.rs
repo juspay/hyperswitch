@@ -11,7 +11,7 @@ const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 pub async fn verify_merchant_creds_for_applepay(
     state: SessionState,
     body: verifications::ApplepayMerchantVerificationRequest,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<ApplepayMerchantResponse>, errors::ApiErrorResponse>
 {
     let applepay_merchant_configs = state.conf.applepay_merchant_configs.get_inner();
@@ -84,21 +84,31 @@ pub async fn verify_merchant_creds_for_applepay(
 
 pub async fn get_verified_apple_domains_with_mid_mca_id(
     state: SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     merchant_connector_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<verifications::ApplepayVerifiedDomainsResponse>,
     errors::ApiErrorResponse,
 > {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
         .await
         .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let verified_domains = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id.as_str(),
+            key_manager_state,
+            &merchant_id,
             merchant_connector_id.as_str(),
             &key_store,
         )
@@ -106,6 +116,13 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?
         .applepay_verified_domains
         .unwrap_or_default();
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let verified_domains = {
+        let _ = merchant_connector_id;
+        let _ = key_store;
+        todo!()
+    };
 
     Ok(services::api::ApplicationResponse::Json(
         verifications::ApplepayVerifiedDomainsResponse { verified_domains },

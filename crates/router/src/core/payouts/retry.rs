@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, str::FromStr, vec::IntoIter};
 
+use common_enums::PayoutRetryType;
 use error_stack::{report, ResultExt};
 use router_env::{
     logger,
@@ -17,13 +18,6 @@ use crate::{
     types::{api, domain, storage},
     utils,
 };
-
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PayoutRetryType {
-    SingleConnector,
-    MultiConnector,
-}
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -49,7 +43,7 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    &merchant_account.merchant_id,
+                    merchant_account.get_id(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -121,7 +115,7 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    &merchant_account.merchant_id,
+                    merchant_account.get_id(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -160,20 +154,13 @@ pub async fn do_gsm_single_connector_actions(
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
         None => {
-            let key = match retry_type {
-                PayoutRetryType::SingleConnector => {
-                    format!("max_auto_single_connector_payout_retries_enabled_{merchant_id}")
-                }
-                PayoutRetryType::MultiConnector => {
-                    format!("max_auto_multiple_connector_payout_retries_enabled_{merchant_id}")
-                }
-            };
+            let key = merchant_id.get_max_auto_single_connector_payout_retries_enabled(retry_type);
             let db = &*state.store;
             db.find_config_by_key(key.as_str())
                 .await
@@ -318,24 +305,17 @@ pub async fn modify_trackers(
 
 pub async fn config_should_call_gsm_payout(
     db: &dyn StorageInterface,
-    merchant_id: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> bool {
-    let key = match retry_type {
-        PayoutRetryType::SingleConnector => {
-            format!("should_call_gsm_single_connector_payout_{}", merchant_id)
-        }
-        PayoutRetryType::MultiConnector => {
-            format!("should_call_gsm_multiple_connector_payout_{}", merchant_id)
-        }
-    };
+    let key = merchant_id.get_should_call_gsm_payout_key(retry_type);
     let config = db
         .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
         .await;
     match config {
         Ok(conf) => conf.config == "true",
-        Err(err) => {
-            logger::error!("{err}");
+        Err(error) => {
+            logger::error!(?error);
             false
         }
     }

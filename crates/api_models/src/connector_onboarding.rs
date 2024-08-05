@@ -45,7 +45,7 @@ pub enum PayPalOnboardingStatus {
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct PayPalOnboardingDone {
-    pub payer_id: String,
+    pub payer_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

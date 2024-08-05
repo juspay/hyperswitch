@@ -6,6 +6,7 @@ pub enum ApiIdentifier {
     Payments,
     Refunds,
     Webhooks,
+    Organization,
     MerchantAccount,
     MerchantConnector,
     Configs,
@@ -45,7 +46,12 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
+            | Flow::MerchantTransferKey
             | Flow::MerchantAccountList => Self::MerchantAccount,
+
+            Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
+                Self::Organization
+            }
 
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
@@ -182,6 +188,7 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::PaymentLinkRetrieve
             | Flow::PaymentLinkInitiate
+            | Flow::PaymentSecureLinkInitiate
             | Flow::PaymentLinkList
             | Flow::PaymentLinkStatus => Self::PaymentLink,
 
@@ -233,6 +240,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateUserAuthenticationMethod
             | Flow::UpdateUserAuthenticationMethod
             | Flow::ListUserAuthenticationMethods
+            | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
             | Flow::AuthSelect => Self::User,

@@ -8,6 +8,7 @@ use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+use error_stack::ResultExt;
 #[cfg(feature = "email")]
 use external_services::email::EmailSettings;
 use external_services::{
@@ -33,7 +34,7 @@ use storage_impl::config::QueueStrategy;
 use crate::analytics::AnalyticsConfig;
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
-    env::{self, logger, Env},
+    env::{self, Env},
     events::EventsConfig,
 };
 
@@ -44,16 +45,6 @@ pub struct CmdLineConf {
     /// Application will look for "config/config.toml" if this option isn't specified.
     #[arg(short = 'f', long, value_name = "FILE")]
     pub config_path: Option<PathBuf>,
-
-    #[command(subcommand)]
-    pub subcommand: Option<Subcommand>,
-}
-
-#[derive(clap::Parser)]
-pub enum Subcommand {
-    #[cfg(feature = "openapi")]
-    /// Generate the OpenAPI specification file from code.
-    GenerateOpenapiSpec,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -69,6 +60,7 @@ pub struct Settings<S: SecretState> {
     pub log: Log,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub locker: Locker,
+    pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
@@ -101,6 +93,7 @@ pub struct Settings<S: SecretState> {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub payout_method_filters: ConnectorFilters,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
@@ -126,6 +119,7 @@ pub struct Settings<S: SecretState> {
     pub saved_payment_methods: EligiblePaymentMethods,
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
+    pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -172,9 +166,6 @@ impl storage_impl::config::TenantConfig for Tenant {
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
     }
-}
-
-impl storage_impl::config::ClickHouseConfig for Tenant {
     fn get_clickhouse_database(&self) -> &str {
         self.clickhouse_database.as_str()
     }
@@ -184,6 +175,7 @@ impl storage_impl::config::ClickHouseConfig for Tenant {
 pub struct GlobalTenant {
     pub schema: String,
     pub redis_key_prefix: String,
+    pub clickhouse_database: String,
 }
 
 impl storage_impl::config::TenantConfig for GlobalTenant {
@@ -192,6 +184,9 @@ impl storage_impl::config::TenantConfig for GlobalTenant {
     }
     fn get_redis_key_prefix(&self) -> &str {
         self.redis_key_prefix.as_str()
+    }
+    fn get_clickhouse_database(&self) -> &str {
+        self.clickhouse_database.as_str()
     }
 }
 
@@ -211,6 +206,16 @@ pub struct Frm {
 pub struct KvConfig {
     pub ttl: u32,
     pub soft_kill: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KeyManagerConfig {
+    pub enabled: Option<bool>,
+    pub url: String,
+    #[cfg(feature = "keymanager_mtls")]
+    pub cert: Secret<String>,
+    #[cfg(feature = "keymanager_mtls")]
+    pub ca: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -570,6 +575,7 @@ pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub idle_pool_connection_timeout: Option<u64>,
+    pub bypass_proxy_urls: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -657,6 +663,12 @@ pub struct ApiKeys {
     // Specifies the number of days before API key expiry when email reminders should be sent
     #[cfg(feature = "email")]
     pub expiry_reminder_days: Vec<u8>,
+
+    #[cfg(feature = "partial-auth")]
+    pub checksum_auth_context: Secret<String>,
+
+    #[cfg(feature = "partial-auth")]
+    pub checksum_auth_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -680,8 +692,16 @@ pub struct ApplePayDecryptConifg {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct LockerBasedRecipientConnectorList {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
-    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
+    pub merchant_ids_send_payment_id_as_connector_request_id:
+        HashSet<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -711,7 +731,8 @@ impl Settings<SecuredSecret> {
         let environment = env::which();
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
-        let config = router_env::Config::builder(&environment.to_string())?
+        let config = router_env::Config::builder(&environment.to_string())
+            .change_context(ApplicationError::ConfigurationError)?
             .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("ROUTER")
@@ -721,17 +742,17 @@ impl Settings<SecuredSecret> {
                     .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("events.kafka.brokers")
+                    .with_list_parse_key("proxy.bypass_proxy_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
 
             )
-            .build()?;
+            .build()
+            .change_context(ApplicationError::ConfigurationError)?;
 
-        serde_path_to_error::deserialize(config).map_err(|error| {
-            logger::error!(%error, "Unable to deserialize application configuration");
-            eprintln!("Unable to deserialize application configuration: {error}");
-            ApplicationError::from(error.into_inner())
-        })
+        serde_path_to_error::deserialize(config)
+            .attach_printable("Unable to deserialize application configuration")
+            .change_context(ApplicationError::ConfigurationError)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {
@@ -745,14 +766,18 @@ impl Settings<SecuredSecret> {
         })?;
         if self.log.file.enabled {
             if self.log.file.file_name.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log file name must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log file name must not be empty".into(),
+                    ),
                 ));
             }
 
             if self.log.file.path.is_default_or_empty() {
-                return Err(ApplicationError::InvalidConfigurationValueError(
-                    "log directory path must not be empty".into(),
+                return Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "log directory path must not be empty".into(),
+                    ),
                 ));
             }
         }

@@ -84,8 +84,6 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         .map(|mca| {
             Ok::<_, strum::ParseError>(ast::ConnectorChoice {
                 connector: RoutableConnectors::from_str(&mca.connector_name)?,
-                #[cfg(not(feature = "connector_choice_mca_id"))]
-                sub_label: mca.business_sub_label.clone(),
             })
         })
         .collect::<Result<_, _>>()
@@ -263,6 +261,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
         dir::DirKeyKind::VoucherType => dir_enums::VoucherType::VARIANTS,
         dir::DirKeyKind::BankDebitType => dir_enums::BankDebitType::VARIANTS,
         dir::DirKeyKind::RealTimePaymentType => dir_enums::RealTimePaymentType::VARIANTS,
+        dir::DirKeyKind::OpenBankingType => dir_enums::OpenBankingType::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector

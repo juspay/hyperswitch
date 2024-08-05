@@ -93,6 +93,16 @@ jobs:
           tool: cargo-hack
           checksum: true
 
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
       - name: Deny warnings
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
@@ -100,7 +110,7 @@ jobs:
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --workspace --each-feature --all-targets
+        run: just ci_hack
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
@@ -160,6 +170,16 @@ jobs:
           tool: cargo-hack
           checksum: true
 
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
       - uses: Swatinem/rust-cache@v2.7.3
         with:
           save-if: ${{ github.event_name == 'push' }}
@@ -176,12 +196,12 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: cargo clippy --all-features --all-targets
+        run: just clippy
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
-        run: cargo hack check --workspace --each-feature --all-targets
+        run: just ci_hack
 
       - name: Cargo build release
         if: ${{ github.event_name == 'merge_group' }}
