@@ -2790,7 +2790,7 @@ pub async fn retrieve_payment_connector(
         })?;
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    let _mca: domain::MerchantConnectorAccount = {
+    let mca: domain::MerchantConnectorAccount = {
         let _ = &merchant_connector_id;
         todo!()
     };

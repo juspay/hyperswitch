@@ -1,9 +1,5 @@
-use api_models::{
-    routing,
-    surcharge_decision_configs::{
-        SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord,
-        SurchargeDecisionManagerResponse,
-    },
+use api_models::surcharge_decision_configs::{
+    SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord, SurchargeDecisionManagerResponse,
 };
 use common_utils::ext_traits::{Encode, StringExt, ValueExt};
 use diesel_models::configs;
@@ -43,7 +39,7 @@ pub async fn upsert_surcharge_decision_config(
     let merchant_surcharge_configs = request.merchant_surcharge_configs;
 
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -171,7 +167,7 @@ pub async fn delete_surcharge_decision_config(
     let key = merchant_account
         .get_id()
         .get_payment_method_surcharge_routing_id();
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|value| value.parse_value("routing algorithm"))
@@ -193,11 +189,13 @@ pub async fn delete_surcharge_decision_config(
     Ok(service_api::ApplicationResponse::StatusOk)
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 pub async fn delete_surcharge_decision_config(
     _state: SessionState,
     _key_store: domain::MerchantKeyStore,
     _merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
+    // TODO: Implement this function for v2
     Err(errors::ApiErrorResponse::NotImplemented {
         message: errors::NotImplementedMessage::Default,
     }

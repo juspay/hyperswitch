@@ -134,6 +134,7 @@ pub async fn should_call_frm<F>(
 where
     F: Send + Clone,
 {
+    let db = &*state.store;
     match merchant_account.frm_routing_algorithm.clone() {
         Some(frm_routing_algorithm_value) => {
             let frm_routing_algorithm_struct: FrmRoutingAlgorithm = frm_routing_algorithm_value
