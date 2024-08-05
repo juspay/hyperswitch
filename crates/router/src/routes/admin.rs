@@ -596,7 +596,7 @@ pub async fn payment_connector_update(
         state,
         &req,
         payload,
-        |state, _, req, _| update_payment_connector(state, &merchant_id, &id, req),
+        |state, _, req, _| update_payment_connector(state, &merchant_id, None, &id, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
