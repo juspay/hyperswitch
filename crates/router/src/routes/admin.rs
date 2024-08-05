@@ -124,7 +124,7 @@ pub async fn retrieve_merchant_account(
         state,
         &req,
         payload,
-        |state, _, req, _| get_merchant_account(state, req),
+        |state, _, req, _| get_merchant_account(state, req, None),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -189,7 +189,7 @@ pub async fn update_merchant_account(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| merchant_account_update(state, &merchant_id, req),
+        |state, _, req, _| merchant_account_update(state, &merchant_id, None, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -369,7 +369,7 @@ pub async fn payment_connector_retrieve(
         &req,
         payload,
         |state, _, req, _| {
-            retrieve_payment_connector(state, req.merchant_id, req.merchant_connector_id)
+            retrieve_payment_connector(state, req.merchant_id, None, req.merchant_connector_id)
         },
         auth::auth_type(
             &auth::AdminApiAuth,
@@ -415,7 +415,7 @@ pub async fn payment_connector_list(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, _, merchant_id, _| list_payment_connectors(state, merchant_id),
+        |state, _, merchant_id, _| list_payment_connectors(state, merchant_id, None),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -468,7 +468,7 @@ pub async fn payment_connector_update(
         &req,
         json_payload.into_inner(),
         |state, _, req, _| {
-            update_payment_connector(state, &merchant_id, &merchant_connector_id, req)
+            update_payment_connector(state, &merchant_id, None, &merchant_connector_id, req)
         },
         auth::auth_type(
             &auth::AdminApiAuth,
