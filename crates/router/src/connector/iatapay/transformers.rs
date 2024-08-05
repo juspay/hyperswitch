@@ -581,9 +581,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayErrorResponse {
-    pub status: u16,
+    pub status: Option<u16>,
     pub error: String,
-    pub message: String,
+    pub message: Option<String>,
     pub reason: Option<String>,
 }
 

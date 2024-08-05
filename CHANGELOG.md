@@ -4,6 +4,52 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.05.0
+
+### Bug Fixes
+
+- **pm_auth:** Added mca status check in pml ([#5421](https://github.com/juspay/hyperswitch/pull/5421)) ([`e9bd345`](https://github.com/juspay/hyperswitch/commit/e9bd345464f28133aeaab638c33b77f31dd1fcb5))
+- **router:** [Iatapay] make error status and error message optional ([#5382](https://github.com/juspay/hyperswitch/pull/5382)) ([`37e34e3`](https://github.com/juspay/hyperswitch/commit/37e34e3bfde9281b3a69b0769c901a887dcf400f))
+
+### Refactors
+
+- **payment_methods:** List the Payment Methods for Merchant , based on the connector type ([#4909](https://github.com/juspay/hyperswitch/pull/4909)) ([`f3677f2`](https://github.com/juspay/hyperswitch/commit/f3677f268ca18879bc8a9e4c7ab8c96011eb56c3))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`1737d74`](https://github.com/juspay/hyperswitch/commit/1737d74183a77910ea764c8cf2cdb148ba77ab74))
+
+**Full Changelog:** [`2024.08.02.0...2024.08.05.0`](https://github.com/juspay/hyperswitch/compare/2024.08.02.0...2024.08.05.0)
+
+- - -
+
+## 2024.08.02.0
+
+### Features
+
+- **auth:**
+  - Add support for partial-auth, by facilitating injection of authentication parameters in headers ([#4802](https://github.com/juspay/hyperswitch/pull/4802)) ([`1d4c87a`](https://github.com/juspay/hyperswitch/commit/1d4c87a9e37ab1fc05754208ba4fbbcf15ad895a))
+  - Add `profile_id` in `AuthenticationData` ([#5492](https://github.com/juspay/hyperswitch/pull/5492)) ([`b4eb601`](https://github.com/juspay/hyperswitch/commit/b4eb6016a4e696acf155732592a6571363c24e64))
+- **business_profile:** Introduce domain models for business profile v1 and v2 APIs ([#5497](https://github.com/juspay/hyperswitch/pull/5497)) ([`537630f`](https://github.com/juspay/hyperswitch/commit/537630f00482939d4c0b49c643dee3763fe0e046))
+- **connector:** [Paybox] add connector template code ([#5485](https://github.com/juspay/hyperswitch/pull/5485)) ([`5e1eb4a`](https://github.com/juspay/hyperswitch/commit/5e1eb4af863265c94299189de983e02a255e7e62))
+- **core:** Accept business profile in core functions for payments, refund, payout and disputes ([#5498](https://github.com/juspay/hyperswitch/pull/5498)) ([`fb32b61`](https://github.com/juspay/hyperswitch/commit/fb32b61edfa2b4190a5717850aeca6b3b0d7db54))
+- **cypress:** Add corner cases ([#5481](https://github.com/juspay/hyperswitch/pull/5481)) ([`c0f4577`](https://github.com/juspay/hyperswitch/commit/c0f45771b0b4d7d60918ae03aca9f14162ff3218))
+- **opensearch:** Updated status filter field name to match index and added time-range based search ([#5468](https://github.com/juspay/hyperswitch/pull/5468)) ([`625f5ae`](https://github.com/juspay/hyperswitch/commit/625f5ae289ca93a1a6d469d6a0f71d7492f22bc5))
+
+### Bug Fixes
+
+- **open_payment_links:** Send displaySavedPaymentMethods as false explicitly for open payment links ([#5501](https://github.com/juspay/hyperswitch/pull/5501)) ([`b4e7717`](https://github.com/juspay/hyperswitch/commit/b4e77170559d5912758f18d2db46bf25eb5277b2))
+
+### Refactors
+
+- **role:** Determine level of role entity ([#5488](https://github.com/juspay/hyperswitch/pull/5488)) ([`c036fd7`](https://github.com/juspay/hyperswitch/commit/c036fd7f41a21eb481859671db672b0bcebdca97))
+- **router:** Domain and diesel model changes for merchant_connector_account create v2 flow ([#5462](https://github.com/juspay/hyperswitch/pull/5462)) ([`85209d1`](https://github.com/juspay/hyperswitch/commit/85209d12ae3439b555983d62b2cc3bf764c1b441))
+- **routing:** Api v2 for routing create and activate endpoints ([#5423](https://github.com/juspay/hyperswitch/pull/5423)) ([`6140cfe`](https://github.com/juspay/hyperswitch/commit/6140cfe04ea7b3f895f8989dbf2803a06b1a6dd2))
+
+**Full Changelog:** [`2024.08.01.0...2024.08.02.0`](https://github.com/juspay/hyperswitch/compare/2024.08.01.0...2024.08.02.0)
+
+- - -
+
 ## 2024.08.01.0
 
 ### Bug Fixes
