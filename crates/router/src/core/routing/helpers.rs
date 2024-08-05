@@ -200,31 +200,9 @@ pub async fn update_business_profile_active_algorithm_ref(
         storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
-    let business_profile_update = BusinessProfileUpdate::Update {
-        profile_name: None,
-        return_url: None,
-        enable_payment_response_hash: None,
-        payment_response_hash_key: None,
-        redirect_to_merchant_with_http_post: None,
-        webhook_details: None,
-        metadata: None,
+    let business_profile_update = BusinessProfileUpdate::RoutingAlgorithmUpdate {
         routing_algorithm,
-        intent_fulfillment_time: None,
-        frm_routing_algorithm: None,
         payout_routing_algorithm,
-        applepay_verified_domains: None,
-        modified_at: None,
-        is_recon_enabled: None,
-        payment_link_config: None,
-        session_expiry: None,
-        authentication_connector_details: None,
-        payout_link_config: None,
-        extended_card_info_config: None,
-        use_billing_as_payment_method_billing: None,
-        collect_shipping_details_from_wallet_connector: None,
-        collect_billing_details_from_wallet_connector: None,
-        is_connector_agnostic_mit_enabled: None,
-        outgoing_webhook_custom_http_headers: None,
     };
 
     db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
@@ -412,7 +390,7 @@ pub async fn validate_connectors_in_routing_config(
     let name_mca_id_set = all_mcas
         .iter()
         .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
-        .map(|mca| (&mca.connector_name, &mca.merchant_connector_id))
+        .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
@@ -424,7 +402,7 @@ pub async fn validate_connectors_in_routing_config(
     let connector_choice = |choice: &routing_types::RoutableConnectorChoice| {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id)),
+                name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
                         "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
