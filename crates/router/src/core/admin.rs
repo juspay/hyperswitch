@@ -3161,6 +3161,10 @@ pub async fn delete_business_profile(
     Ok(service_api::ApplicationResponse::Json(delete_result))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 pub async fn update_business_profile(
     state: SessionState,
     profile_id: &str,
@@ -3297,6 +3301,176 @@ pub async fn update_business_profile(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "authentication_connector_details",
             })?,
+        payout_link_config,
+        extended_card_info_config,
+        use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
+        collect_shipping_details_from_wallet_connector: request
+            .collect_shipping_details_from_wallet_connector,
+        collect_billing_details_from_wallet_connector: request
+            .collect_billing_details_from_wallet_connector,
+        is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
+        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
+    };
+
+    let updated_business_profile = db
+        .update_business_profile_by_profile_id(business_profile, business_profile_update)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        admin::business_profile_response(&state, updated_business_profile, &key_store)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse business profile details")
+            .await?,
+    ))
+}
+#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+pub async fn update_business_profile(
+    state: SessionState,
+    profile_id: &str,
+    merchant_id: &id_type::MerchantId,
+    request: api::BusinessProfileUpdate,
+) -> RouterResponse<api::BusinessProfileResponse> {
+    let db = state.store.as_ref();
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &(&state).into(),
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    if business_profile.merchant_id != *merchant_id {
+        Err(errors::ApiErrorResponse::AccessForbidden {
+            resource: profile_id.to_string(),
+        })?
+    }
+
+    if let Some(session_expiry) = &request.session_expiry {
+        helpers::validate_session_expiry(session_expiry.to_owned())?;
+    }
+
+    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
+        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+    }
+
+    let webhook_details = request
+        .webhook_details
+        .as_ref()
+        .map(|webhook_details| {
+            webhook_details.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?
+        .map(Secret::new);
+
+    if let Some(ref routing_algorithm) = request.routing_algorithm {
+        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
+    let payment_link_config = request
+        .payment_link_config
+        .as_ref()
+        .map(|payment_link_conf| match payment_link_conf.validate() {
+            Ok(_) => payment_link_conf.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                },
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
+        })
+        .transpose()?
+        .map(Secret::new);
+
+    let extended_card_info_config = request
+        .extended_card_info_config
+        .as_ref()
+        .map(|config| {
+            config
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "extended_card_info_config",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
+    let outgoing_webhook_custom_http_headers = request
+        .outgoing_webhook_custom_http_headers
+        .async_map(|headers| create_encrypted_data(&state, &key_store, headers))
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+    let payout_link_config = request
+        .payout_link_config
+        .as_ref()
+        .map(|payout_conf| match payout_conf.config.validate() {
+            Ok(_) => payout_conf.encode_to_value().change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payout_link_config",
+                },
+            ),
+            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: e.to_string()
+            })),
+        })
+        .transpose()?
+        .map(Secret::new);
+
+    let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
+        profile_name: request.profile_name,
+        return_url: request.return_url.map(|return_url| return_url.to_string()),
+        enable_payment_response_hash: request.enable_payment_response_hash,
+        payment_response_hash_key: request.payment_response_hash_key,
+        redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
+        webhook_details,
+        metadata: request.metadata,
+        routing_algorithm_id: None,
+        intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
+        frm_routing_algorithm: request.frm_routing_algorithm,
+        // #[cfg(feature = "payouts")]
+        // payout_routing_algorithm: request.payout_routing_algorithm,
+        // #[cfg(not(feature = "payouts"))]
+        // payout_routing_algorithm: None,
+        #[cfg(feature = "payouts")]
+        payout_routing_algorithm_id: todo!(),
+        #[cfg(not(feature = "payouts"))]
+        payout_routing_algorithm_id: None,
+        is_recon_enabled: None,
+        applepay_verified_domains: request.applepay_verified_domains,
+        payment_link_config,
+        session_expiry: request.session_expiry.map(i64::from),
+        authentication_connector_details: request
+            .authentication_connector_details
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "authentication_connector_details",
+            })?
+            .map(Secret::new),
         payout_link_config,
         extended_card_info_config,
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,

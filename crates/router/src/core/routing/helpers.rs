@@ -19,7 +19,7 @@ use crate::{
     db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},
-    utils::StringExt,
+    utils::{self, StringExt},
 };
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
@@ -171,6 +171,10 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 // TODO: Move it to business_profile
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,
@@ -217,6 +221,59 @@ pub async fn update_business_profile_active_algorithm_ref(
     Ok(())
 }
 
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+pub async fn update_business_profile_active_algorithm_ref(
+    db: &dyn StorageInterface,
+    current_business_profile: BusinessProfile,
+    algorithm_id: String,
+    transaction_type: &storage::enums::TransactionType,
+) -> RouterResult<()> {
+    let merchant_id = current_business_profile.merchant_id.clone();
+
+    let profile_id = current_business_profile.profile_id.clone();
+
+    let routing_cache_key = cache::CacheKind::Routing(
+        format!(
+            "routing_config_{}_{profile_id}",
+            merchant_id.get_string_repr()
+        )
+        .into(),
+    );
+    utils::when(
+        current_business_profile.routing_algorithm_id == Some(algorithm_id.clone())
+            || current_business_profile.payout_routing_algorithm_id == Some(algorithm_id.clone()),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Algorithm is already active".to_string(),
+            })
+        },
+    )?;
+    let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
+        storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
+        #[cfg(feature = "payouts")]
+        storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
+    };
+
+    let business_profile_update = BusinessProfileUpdate::RoutingAlgorithmUpdate {
+        routing_algorithm_id,
+        payout_routing_algorithm_id,
+    };
+
+    db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+
+    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate routing cache")?;
+    Ok(())
+}
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 #[derive(Clone, Debug)]
 pub struct RoutingAlgorithmHelpers<'h> {
