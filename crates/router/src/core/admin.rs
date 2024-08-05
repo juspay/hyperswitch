@@ -818,7 +818,7 @@ pub async fn create_business_profile_from_business_labels(
 
 #[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
-trait MerchantConnectorAccountUpdateBridge {
+trait MerchantAccountUpdateBridge {
     async fn get_update_merchant_object(
         self,
         state: &SessionState,
@@ -832,7 +832,7 @@ trait MerchantConnectorAccountUpdateBridge {
     not(feature = "merchant_account_v2")
 ))]
 #[async_trait::async_trait]
-impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
+impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     async fn get_update_merchant_object(
         self,
         state: &SessionState,
@@ -975,7 +975,7 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2",))]
 #[async_trait::async_trait]
-impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
+impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     async fn get_update_merchant_object(
         self,
         state: &SessionState,
