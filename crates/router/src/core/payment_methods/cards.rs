@@ -2817,6 +2817,8 @@ pub async fn list_payment_methods(
                                 }
 
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
+                                    &payment_method,
+                                    element.payment_experience.as_ref(),
                                     business_profile.as_ref(),
                                     required_fields_hs.clone(),
                                 );
@@ -3231,26 +3233,34 @@ pub async fn list_payment_methods(
 }
 
 fn should_collect_shipping_or_billing_details_from_wallet_connector(
+    payment_method: &api_enums::PaymentMethod,
+    payment_experience_optional: Option<&api_enums::PaymentExperience>,
     business_profile: Option<&BusinessProfile>,
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
 ) -> HashMap<String, RequiredFieldInfo> {
-    let always_send_billing_details = business_profile.and_then(|business_profile| {
-        business_profile.always_collect_billing_details_from_wallet_connector
-    });
+    match (payment_method, payment_experience_optional) {
+        (api_enums::PaymentMethod::Wallet, Some(api_enums::PaymentExperience::InvokeSdkClient)) => {
+            let always_send_billing_details = business_profile.and_then(|business_profile| {
+                business_profile.always_collect_billing_details_from_wallet_connector
+            });
 
-    let always_send_shipping_details = business_profile.and_then(|business_profile| {
-        business_profile.always_collect_shipping_details_from_wallet_connector
-    });
+            let always_send_shipping_details = business_profile.and_then(|business_profile| {
+                business_profile.always_collect_shipping_details_from_wallet_connector
+            });
 
-    if always_send_billing_details == Some(true) {
-        let billing_details = crate::configs::defaults::get_billing_required_fields();
-        required_fields_hs.extend(billing_details)
-    };
-    if always_send_shipping_details == Some(true) {
-        let shipping_details = crate::configs::defaults::get_shipping_required_fields();
-        required_fields_hs.extend(shipping_details)
-    };
-    required_fields_hs
+            if always_send_billing_details == Some(true) {
+                let billing_details = crate::configs::defaults::get_billing_required_fields();
+                required_fields_hs.extend(billing_details)
+            };
+            if always_send_shipping_details == Some(true) {
+                let shipping_details = crate::configs::defaults::get_shipping_required_fields();
+                required_fields_hs.extend(shipping_details)
+            };
+
+            required_fields_hs
+        }
+        _ => required_fields_hs,
+    }
 }
 
 async fn validate_payment_method_and_client_secret(
