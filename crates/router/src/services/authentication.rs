@@ -1459,6 +1459,19 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .transpose()
 }
 
+pub fn get_mandatory_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult<&str> {
+    headers
+        .get(&key)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!("Failed to find header key: {}", key))?
+        .to_str()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "Failed to convert header value to string for header key: {}",
+            key
+        ))
+}
+
 pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(crate::headers::AUTHORIZATION)

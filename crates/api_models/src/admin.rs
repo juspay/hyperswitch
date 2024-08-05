@@ -567,11 +567,20 @@ pub struct MerchantId {
     pub merchant_id: id_type::MerchantId,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     pub merchant_connector_id: String,
+}
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
+pub struct MerchantConnectorId {
+    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -1530,6 +1539,10 @@ pub enum AcceptedCountries {
     AllAccepted,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorDeleteResponse {
     /// The identifier for the Merchant Account
@@ -1538,6 +1551,20 @@ pub struct MerchantConnectorDeleteResponse {
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: String,
+    /// If the connector is deleted or not
+    #[schema(example = false)]
+    pub deleted: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MerchantConnectorDeleteResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// Unique ID of the connector
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub id: String,
     /// If the connector is deleted or not
     #[schema(example = false)]
     pub deleted: bool,

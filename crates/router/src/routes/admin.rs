@@ -1,7 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+use crate::headers;
 use crate::{
     core::{admin::*, api_locking},
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -333,6 +337,10 @@ pub async fn payment_connector_create(
 /// Merchant Connector - Retrieve
 ///
 /// Retrieve Merchant Connector Details
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[utoipa::path(
     get,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -375,6 +383,74 @@ pub async fn payment_connector_retrieve(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
+                required_permission: Permission::MerchantConnectorAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+/// Merchant Connector - Retrieve
+///
+/// Retrieve Merchant Connector Details
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[utoipa::path(
+    get,
+    path = "/connector_accounts/{id}",
+    params(
+        ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
+    ),
+    responses(
+        (status = 200, description = "Merchant Connector retrieved successfully", body = MerchantConnectorResponse),
+        (status = 404, description = "Merchant Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "Retrieve a Merchant Connector",
+    security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
+pub async fn payment_connector_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsRetrieve;
+    let id = path.into_inner();
+    let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
+
+    let x_merchant_id =
+        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
+        {
+            Ok(val) => val.to_owned(),
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        };
+
+    let merchant_id =
+        match common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(x_merchant_id)) {
+            Ok(val) => val,
+            Err(err) => {
+                return api::log_and_return_error_response(
+                    err.change_context(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Error while converting MerchantId from x_merchant_id string header",
+                        ),
+                );
+            }
+        };
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| retrieve_payment_connector(state, merchant_id.clone(), req.id.clone()),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountRead,
             },
             req.headers(),
@@ -481,6 +557,10 @@ pub async fn payment_connector_update(
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[utoipa::path(
     delete,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -523,6 +603,74 @@ pub async fn payment_connector_delete(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
+                required_permission: Permission::MerchantConnectorAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+/// Merchant Connector - Delete
+///
+/// Delete or Detach a Merchant Connector from Merchant Account
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[utoipa::path(
+    delete,
+    path = "/connector_accounts/{id}",
+    params(
+        ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
+    ),
+    responses(
+        (status = 200, description = "Merchant Connector Deleted", body = MerchantConnectorDeleteResponse),
+        (status = 404, description = "Merchant Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "Delete a Merchant Connector",
+    security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
+pub async fn payment_connector_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsDelete;
+    let id = path.into_inner();
+
+    let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
+    let x_merchant_id =
+        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
+        {
+            Ok(val) => val.to_owned(),
+            Err(err) => {
+                return api::log_and_return_error_response(err);
+            }
+        };
+
+    let merchant_id =
+        match common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(x_merchant_id)) {
+            Ok(val) => val,
+            Err(err) => {
+                return api::log_and_return_error_response(
+                    err.change_context(ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Error while converting MerchantId from x_merchant_id string header",
+                        ),
+                );
+            }
+        };
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| delete_payment_connector(state, merchant_id.clone(), req.id),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
             },
             req.headers(),
