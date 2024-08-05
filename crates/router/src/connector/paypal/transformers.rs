@@ -4,6 +4,7 @@ use base64::Engine;
 use common_utils::pii::Email;
 use common_utils::{errors::CustomResult, types::StringMajorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_response_types::MandateReference;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -11,8 +12,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
-        PaymentsAuthorizeRequestData, RouterData,
+        self, missing_field_err, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
+        CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -136,7 +137,7 @@ impl From<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for ItemDetail
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize, Eq, PartialEq, Deserialize)]
 pub struct Address {
     address_line_1: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
@@ -175,18 +176,30 @@ pub struct ShippingName {
 }
 
 #[derive(Debug, Serialize)]
-pub struct CardRequest {
+pub struct CardRequestStruct {
     billing_address: Option<Address>,
     expiry: Option<Secret<String>>,
     name: Secret<String>,
     number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
-    attributes: Option<ThreeDsSetting>,
+    attributes: Option<CardRequestAttributes>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CardVaultStruct {
+    vault_id: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ThreeDsSetting {
-    verification: ThreeDsMethod,
+#[serde(untagged)]
+pub enum CardRequest {
+    CardRequestStruct(CardRequestStruct),
+    CardVaultStruct(CardVaultStruct),
+}
+#[derive(Debug, Serialize)]
+pub struct CardRequestAttributes {
+    vault: Option<PaypalVault>,
+    verification: Option<ThreeDsMethod>,
 }
 
 #[derive(Debug, Serialize)]
@@ -230,8 +243,59 @@ pub enum ShippingPreference {
 }
 
 #[derive(Debug, Serialize)]
-pub struct PaypalRedirectionRequest {
+#[serde(untagged)]
+pub enum PaypalRedirectionRequest {
+    PaypalRedirectionStruct(PaypalRedirectionStruct),
+    PaypalVaultStruct(PaypalVaultStruct),
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaypalVaultStruct {
+    vault_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalRedirectionStruct {
     experience_context: ContextStruct,
+    attributes: Option<Attributes>,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Attributes {
+    vault: PaypalVault,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PaypalRedirectionResponse {
+    attributes: AttributeResponse,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AttributeResponse {
+    vault: PaypalVaultResponse,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PaypalVault {
+    store_in_vault: StoreInVault,
+    usage_type: UsageType,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PaypalVaultResponse {
+    id: String,
+    status: String,
+    customer: CustomerId,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CustomerId {
+    id: String,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum StoreInVault {
+    OnSuccess,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UsageType {
+    Merchant,
 }
 
 #[derive(Debug, Serialize)]
@@ -243,6 +307,16 @@ pub enum PaymentSourceItem {
     Eps(RedirectRequest),
     Giropay(RedirectRequest),
     Sofort(RedirectRequest),
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CardVaultResponse {
+    attributes: AttributeResponse,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentSourceItemResponse {
+    Card(CardVaultResponse),
+    Paypal(PaypalRedirectionResponse),
 }
 
 #[derive(Debug, Serialize)]
@@ -410,26 +484,39 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let card = item.router_data.request.get_card()?;
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
-                let attributes = match item.router_data.auth_type {
-                    enums::AuthenticationType::ThreeDs => Some(ThreeDsSetting {
-                        verification: ThreeDsMethod {
-                            method: ThreeDsType::ScaAlways,
-                        },
+                let verification = match item.router_data.auth_type {
+                    enums::AuthenticationType::ThreeDs => Some(ThreeDsMethod {
+                        method: ThreeDsType::ScaAlways,
                     }),
                     enums::AuthenticationType::NoThreeDs => None,
                 };
 
-                let payment_source = Some(PaymentSourceItem::Card(CardRequest {
-                    billing_address: get_address_info(item.router_data.get_optional_billing())?,
-                    expiry,
-                    name: item
-                        .router_data
-                        .get_optional_billing_full_name()
-                        .unwrap_or(Secret::new("".to_string())),
-                    number: Some(ccard.card_number.clone()),
-                    security_code: Some(ccard.card_cvc.clone()),
-                    attributes,
-                }));
+                let payment_source = Some(PaymentSourceItem::Card(CardRequest::CardRequestStruct(
+                    CardRequestStruct {
+                        billing_address: get_address_info(item.router_data.get_optional_billing())?,
+                        expiry,
+                        name: item
+                            .router_data
+                            .get_optional_billing_full_name()
+                            .unwrap_or(Secret::new("".to_string())),
+                        number: Some(ccard.card_number.clone()),
+                        security_code: Some(ccard.card_cvc.clone()),
+                        attributes: Some(CardRequestAttributes {
+                            vault: match item.router_data.request.setup_future_usage {
+                                Some(setup_future_usage) => match setup_future_usage {
+                                    enums::FutureUsage::OffSession => Some(PaypalVault {
+                                        store_in_vault: StoreInVault::OnSuccess,
+                                        usage_type: UsageType::Merchant,
+                                    }),
+
+                                    enums::FutureUsage::OnSession => None,
+                                },
+                                None => None,
+                            },
+                            verification,
+                        }),
+                    },
+                )));
 
                 Ok(Self {
                     intent,
@@ -439,23 +526,46 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             }
             domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 domain::WalletData::PaypalRedirect(_) => {
-                    let payment_source =
-                        Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
-                            experience_context: ContextStruct {
-                                return_url: item.router_data.request.complete_authorize_url.clone(),
-                                cancel_url: item.router_data.request.complete_authorize_url.clone(),
-                                shipping_preference: if item
-                                    .router_data
-                                    .get_optional_shipping()
-                                    .is_some()
-                                {
-                                    ShippingPreference::SetProvidedAddress
-                                } else {
-                                    ShippingPreference::GetFromFile
+                    let payment_source = Some(PaymentSourceItem::Paypal(
+                        PaypalRedirectionRequest::PaypalRedirectionStruct(
+                            PaypalRedirectionStruct {
+                                experience_context: ContextStruct {
+                                    return_url: item
+                                        .router_data
+                                        .request
+                                        .complete_authorize_url
+                                        .clone(),
+                                    cancel_url: item
+                                        .router_data
+                                        .request
+                                        .complete_authorize_url
+                                        .clone(),
+                                    shipping_preference: if item
+                                        .router_data
+                                        .get_optional_shipping()
+                                        .is_some()
+                                    {
+                                        ShippingPreference::SetProvidedAddress
+                                    } else {
+                                        ShippingPreference::GetFromFile
+                                    },
+                                    user_action: Some(UserAction::PayNow),
                                 },
-                                user_action: Some(UserAction::PayNow),
+                                attributes: match item.router_data.request.setup_future_usage {
+                                    Some(setup_future_usage) => match setup_future_usage {
+                                        enums::FutureUsage::OffSession => Some(Attributes {
+                                            vault: PaypalVault {
+                                                store_in_vault: StoreInVault::OnSuccess,
+                                                usage_type: UsageType::Merchant,
+                                            },
+                                        }),
+                                        enums::FutureUsage::OnSession => None,
+                                    },
+                                    None => None,
+                                },
                             },
-                        }));
+                        ),
+                    ));
 
                     Ok(Self {
                         intent,
@@ -464,15 +574,30 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     })
                 }
                 domain::WalletData::PaypalSdk(_) => {
-                    let payment_source =
-                        Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
-                            experience_context: ContextStruct {
-                                return_url: None,
-                                cancel_url: None,
-                                shipping_preference: ShippingPreference::GetFromFile,
-                                user_action: Some(UserAction::PayNow),
+                    let payment_source = Some(PaymentSourceItem::Paypal(
+                        PaypalRedirectionRequest::PaypalRedirectionStruct(
+                            PaypalRedirectionStruct {
+                                experience_context: ContextStruct {
+                                    return_url: None,
+                                    cancel_url: None,
+                                    shipping_preference: ShippingPreference::GetFromFile,
+                                    user_action: Some(UserAction::PayNow),
+                                },
+                                attributes: match item.router_data.request.setup_future_usage {
+                                    Some(setup_future_usage) => match setup_future_usage {
+                                        enums::FutureUsage::OffSession => Some(Attributes {
+                                            vault: PaypalVault {
+                                                store_in_vault: StoreInVault::OnSuccess,
+                                                usage_type: UsageType::Merchant,
+                                            },
+                                        }),
+                                        enums::FutureUsage::OnSession => None,
+                                    },
+                                    None => None,
+                                },
                             },
-                        }));
+                        ),
+                    ));
 
                     Ok(Self {
                         intent,
@@ -542,10 +667,132 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 Self::try_from(giftcard_data.as_ref())
             }
             domain::PaymentMethodData::MandatePayment => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
+                let payment_method_type = item
+                    .router_data
+                    .get_recurring_mandate_payment_data()?
+                    .payment_method_type
+                    .clone()
+                    .ok_or_else(missing_field_err("mandate_id"))?;
+
+                let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+
+                let payment_source = match payment_method_type {
+                    enums::PaymentMethodType::Credit => Ok(Some(PaymentSourceItem::Card(
+                        CardRequest::CardVaultStruct(CardVaultStruct {
+                            vault_id: connector_mandate_id.clone(),
+                        }),
+                    ))),
+                    enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
+                        PaypalRedirectionRequest::PaypalVaultStruct(PaypalVaultStruct {
+                            vault_id: connector_mandate_id.clone(),
+                        }),
+                    ))),
+                    enums::PaymentMethodType::Ach
+                    | enums::PaymentMethodType::Affirm
+                    | enums::PaymentMethodType::AfterpayClearpay
+                    | enums::PaymentMethodType::Alfamart
+                    | enums::PaymentMethodType::AliPay
+                    | enums::PaymentMethodType::AliPayHk
+                    | enums::PaymentMethodType::Alma
+                    | enums::PaymentMethodType::ApplePay
+                    | enums::PaymentMethodType::Atome
+                    | enums::PaymentMethodType::Bacs
+                    | enums::PaymentMethodType::BancontactCard
+                    | enums::PaymentMethodType::Becs
+                    | enums::PaymentMethodType::Benefit
+                    | enums::PaymentMethodType::Bizum
+                    | enums::PaymentMethodType::Blik
+                    | enums::PaymentMethodType::Boleto
+                    | enums::PaymentMethodType::BcaBankTransfer
+                    | enums::PaymentMethodType::BniVa
+                    | enums::PaymentMethodType::BriVa
+                    | enums::PaymentMethodType::CardRedirect
+                    | enums::PaymentMethodType::CimbVa
+                    | enums::PaymentMethodType::ClassicReward
+                    | enums::PaymentMethodType::CryptoCurrency
+                    | enums::PaymentMethodType::Cashapp
+                    | enums::PaymentMethodType::Dana
+                    | enums::PaymentMethodType::DanamonVa
+                    | enums::PaymentMethodType::Debit
+                    | enums::PaymentMethodType::DuitNow
+                    | enums::PaymentMethodType::Efecty
+                    | enums::PaymentMethodType::Eps
+                    | enums::PaymentMethodType::Fps
+                    | enums::PaymentMethodType::Evoucher
+                    | enums::PaymentMethodType::Giropay
+                    | enums::PaymentMethodType::Givex
+                    | enums::PaymentMethodType::GooglePay
+                    | enums::PaymentMethodType::GoPay
+                    | enums::PaymentMethodType::Gcash
+                    | enums::PaymentMethodType::Ideal
+                    | enums::PaymentMethodType::Interac
+                    | enums::PaymentMethodType::Indomaret
+                    | enums::PaymentMethodType::Klarna
+                    | enums::PaymentMethodType::KakaoPay
+                    | enums::PaymentMethodType::LocalBankRedirect
+                    | enums::PaymentMethodType::MandiriVa
+                    | enums::PaymentMethodType::Knet
+                    | enums::PaymentMethodType::MbWay
+                    | enums::PaymentMethodType::MobilePay
+                    | enums::PaymentMethodType::Momo
+                    | enums::PaymentMethodType::MomoAtm
+                    | enums::PaymentMethodType::Multibanco
+                    | enums::PaymentMethodType::OnlineBankingThailand
+                    | enums::PaymentMethodType::OnlineBankingCzechRepublic
+                    | enums::PaymentMethodType::OnlineBankingFinland
+                    | enums::PaymentMethodType::OnlineBankingFpx
+                    | enums::PaymentMethodType::OnlineBankingPoland
+                    | enums::PaymentMethodType::OnlineBankingSlovakia
+                    | enums::PaymentMethodType::OpenBankingPIS
+                    | enums::PaymentMethodType::Oxxo
+                    | enums::PaymentMethodType::PagoEfectivo
+                    | enums::PaymentMethodType::PermataBankTransfer
+                    | enums::PaymentMethodType::OpenBankingUk
+                    | enums::PaymentMethodType::PayBright
+                    | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PaySafeCard
+                    | enums::PaymentMethodType::Przelewy24
+                    | enums::PaymentMethodType::PromptPay
+                    | enums::PaymentMethodType::Pse
+                    | enums::PaymentMethodType::RedCompra
+                    | enums::PaymentMethodType::RedPagos
+                    | enums::PaymentMethodType::SamsungPay
+                    | enums::PaymentMethodType::Sepa
+                    | enums::PaymentMethodType::Sofort
+                    | enums::PaymentMethodType::Swish
+                    | enums::PaymentMethodType::TouchNGo
+                    | enums::PaymentMethodType::Trustly
+                    | enums::PaymentMethodType::Twint
+                    | enums::PaymentMethodType::UpiCollect
+                    | enums::PaymentMethodType::UpiIntent
+                    | enums::PaymentMethodType::Vipps
+                    | enums::PaymentMethodType::VietQr
+                    | enums::PaymentMethodType::Venmo
+                    | enums::PaymentMethodType::Walley
+                    | enums::PaymentMethodType::WeChatPay
+                    | enums::PaymentMethodType::SevenEleven
+                    | enums::PaymentMethodType::Lawson
+                    | enums::PaymentMethodType::MiniStop
+                    | enums::PaymentMethodType::FamilyMart
+                    | enums::PaymentMethodType::Seicomart
+                    | enums::PaymentMethodType::PayEasy
+                    | enums::PaymentMethodType::LocalBankTransfer
+                    | enums::PaymentMethodType::Mifinity => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("paypal"),
+                        ))
+                    }
+                };
+
+                Ok(Self {
+                    intent,
+                    purchase_units,
+                    payment_source: payment_source?,
+                })
             }
             domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
@@ -969,6 +1216,7 @@ pub struct PaypalOrdersResponse {
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
     purchase_units: Vec<PurchaseUnitItem>,
+    payment_source: Option<PaymentSourceItemResponse>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -989,6 +1237,7 @@ pub struct PaypalRedirectResponse {
     status: PaypalOrderStatus,
     purchase_units: Vec<RedirectPurchaseUnitItem>,
     links: Vec<PaypalLinks>,
+    payment_source: Option<PaymentSourceItemResponse>,
 }
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
@@ -1140,7 +1389,27 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: order_id,
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Some(MandateReference {
+                    connector_mandate_id: match item.response.payment_source.clone() {
+                        Some(paypal_source) => match paypal_source {
+                            PaymentSourceItemResponse::Paypal(paypal_source) => {
+                                Some(paypal_source.attributes.vault.id)
+                            }
+                            PaymentSourceItemResponse::Card(card) => Some(card.attributes.vault.id),
+                        },
+                        None => None,
+                    },
+                    payment_method_id: None,
+                    connector_customer_id: match item.response.payment_source {
+                        Some(paypal_source) => match paypal_source {
+                            PaymentSourceItemResponse::Paypal(paypal_source) => {
+                                Some(paypal_source.attributes.vault.id)
+                            }
+                            PaymentSourceItemResponse::Card(card) => Some(card.attributes.vault.id),
+                        },
+                        None => None,
+                    },
+                }),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: purchase_units
@@ -1411,10 +1680,13 @@ impl<F>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: Some(paypal_threeds_link((
+                redirection_data: match paypal_threeds_link((
                     link,
                     item.data.request.complete_authorize_url.clone(),
-                ))?),
+                )) {
+                    Ok(url) => Some(url),
+                    Err(_) => None,
+                },
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
@@ -1751,6 +2023,7 @@ pub struct PaypalCaptureResponse {
     amount: Option<OrderAmount>,
     invoice_id: Option<String>,
     final_capture: bool,
+    payment_source: Option<PaymentSourceItemResponse>,
 }
 
 impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
@@ -2303,6 +2576,7 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrders
             intent: webhook_body.intent,
             status: PaypalOrderStatus::try_from(webhook_event)?,
             purchase_units: webhook_body.purchase_units,
+            payment_source: None,
         })
     }
 }

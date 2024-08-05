@@ -358,6 +358,7 @@ impl<F, T>
             .map(|id| types::MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
+                connector_customer_id: None,
             });
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
