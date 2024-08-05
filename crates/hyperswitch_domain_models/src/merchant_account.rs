@@ -416,7 +416,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 pm_collect_link_config: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
-                modified_at: date_time::now(),
+                modified_at: now,
                 merchant_name: None,
                 merchant_details: None,
                 return_url: None,
@@ -500,7 +500,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 organization_id: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
-                modified_at: date_time::now(),
+                modified_at: now,
                 merchant_name: None,
                 merchant_details: None,
                 publishable_key: None,
