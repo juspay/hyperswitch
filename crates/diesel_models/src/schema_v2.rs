@@ -640,7 +640,6 @@ diesel::table! {
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
         metadata -> Nullable<Jsonb>,
-        routing_algorithm -> Nullable<Json>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         frm_routing_algorithm -> Nullable<Jsonb>,

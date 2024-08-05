@@ -20,6 +20,10 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn upsert_surcharge_decision_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
@@ -141,6 +145,23 @@ pub async fn upsert_surcharge_decision_config(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn upsert_surcharge_decision_config(
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+    _request: SurchargeDecisionConfigReq,
+) -> RouterResponse<SurchargeDecisionManagerRecord> {
+    Err(errors::ApiErrorResponse::NotImplemented {
+        message: errors::NotImplementedMessage::Default,
+    }
+    .into())
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn delete_surcharge_decision_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
@@ -170,6 +191,17 @@ pub async fn delete_surcharge_decision_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete routing config from DB")?;
     Ok(service_api::ApplicationResponse::StatusOk)
+}
+
+pub async fn delete_surcharge_decision_config(
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+) -> RouterResponse<()> {
+    Err(errors::ApiErrorResponse::NotImplemented {
+        message: errors::NotImplementedMessage::Default,
+    }
+    .into())
 }
 
 pub async fn retrieve_surcharge_decision_config(

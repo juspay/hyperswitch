@@ -669,10 +669,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                             )
                         })
                         .await?,
-                    routing_algorithm: Some(serde_json::json!({
-                        "algorithm_id": null,
-                        "timestamp": 0
-                    })),
                     publishable_key,
                     metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
@@ -1029,7 +1025,6 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
             publishable_key: None,
             frm_routing_algorithm: None,
             payout_routing_algorithm: None,
-            routing_algorithm: None,
         })
     }
 }
