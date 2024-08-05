@@ -1977,6 +1977,7 @@ impl
         let merchant_account_code = get_key(&req.connector_auth_type)?;
         let connector_req =
             adyen::AdyenAcceptDisputeRequest::try_from((req, merchant_account_code))?;
+        println!("audit {:?}", connector_req);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

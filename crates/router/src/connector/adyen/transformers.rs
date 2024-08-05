@@ -4911,7 +4911,7 @@ pub struct Evidence {
 #[serde(rename_all = "camelCase")]
 
 pub struct DefenseDocuments {
-    content: String,
+    content: Option<String>,
     content_type: Option<String>,
     defense_document_type_code: String,
 }
@@ -4936,82 +4936,73 @@ impl TryFrom<(&types::SubmitEvidenceRouterData, String)> for Evidence {
 
 fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseDocuments>> {
     let mut defense_documents: Vec<DefenseDocuments> = Vec::new();
-    if let Some(shipping_documentation_provider_file_id) =
-        item.shipping_documentation_provider_file_id
-    {
+    if let Some(shipping_documentation) = item.shipping_documentation {
         defense_documents.push(DefenseDocuments {
-            content: shipping_documentation_provider_file_id,
+            content: get_content(shipping_documentation),
             content_type: item.receipt_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(receipt_provider_file_id) = item.receipt_provider_file_id {
+    if let Some(receipt) = item.receipt {
         defense_documents.push(DefenseDocuments {
-            content: receipt_provider_file_id,
+            content: get_content(receipt),
             content_type: item.shipping_documentation_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(invoice_showing_distinct_transactions_provider_file_id) =
-        item.invoice_showing_distinct_transactions_provider_file_id
+    if let Some(invoice_showing_distinct_transactions) = item.invoice_showing_distinct_transactions
     {
         defense_documents.push(DefenseDocuments {
-            content: invoice_showing_distinct_transactions_provider_file_id,
+            content: get_content(invoice_showing_distinct_transactions),
             content_type: item.invoice_showing_distinct_transactions_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(customer_communication_provider_file_id) =
-        item.customer_communication_provider_file_id
-    {
+    if let Some(customer_communication) = item.customer_communication {
         defense_documents.push(DefenseDocuments {
-            content: customer_communication_provider_file_id,
+            content: get_content(customer_communication),
             content_type: item.customer_communication_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(refund_policy_provider_file_id) = item.refund_policy_provider_file_id {
+    if let Some(refund_policy) = item.refund_policy {
         defense_documents.push(DefenseDocuments {
-            content: refund_policy_provider_file_id,
+            content: get_content(refund_policy),
             content_type: item.refund_policy_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(recurring_transaction_agreement_provider_file_id) =
-        item.recurring_transaction_agreement_provider_file_id
-    {
+    if let Some(recurring_transaction_agreement) = item.recurring_transaction_agreement {
         defense_documents.push(DefenseDocuments {
-            content: recurring_transaction_agreement_provider_file_id,
+            content: get_content(recurring_transaction_agreement),
             content_type: item.recurring_transaction_agreement_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(uncategorized_file_provider_file_id) = item.uncategorized_file_provider_file_id {
+    if let Some(uncategorized_file) = item.uncategorized_file {
         defense_documents.push(DefenseDocuments {
-            content: uncategorized_file_provider_file_id,
+            content: get_content(uncategorized_file),
             content_type: item.uncategorized_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(cancellation_policy_provider_file_id) = item.cancellation_policy_provider_file_id {
+    if let Some(cancellation_policy) = item.cancellation_policy {
         defense_documents.push(DefenseDocuments {
-            content: cancellation_policy_provider_file_id,
+            content: get_content(cancellation_policy),
             content_type: item.cancellation_policy_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(customer_signature_provider_file_id) = item.customer_signature_provider_file_id {
+    if let Some(customer_signature) = item.customer_signature {
         defense_documents.push(DefenseDocuments {
-            content: customer_signature_provider_file_id,
+            content: get_content(customer_signature),
             content_type: item.customer_signature_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
-    if let Some(service_documentation_provider_file_id) =
-        item.service_documentation_provider_file_id
-    {
+    if let Some(service_documentation) = item.service_documentation {
         defense_documents.push(DefenseDocuments {
-            content: service_documentation_provider_file_id,
+            content: get_content(service_documentation),
             content_type: item.service_documentation_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
@@ -5022,4 +5013,9 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     } else {
         Some(defense_documents)
     }
+}
+
+fn get_content(item: Vec<u8>) -> Option<String> {
+    let content = String::from_utf8(item).ok();
+    content
 }
