@@ -364,7 +364,7 @@ async fn trigger_webhook_to_merchant(
                         delivery_attempt,
                         ScheduleWebhookRetry::WithProcessTracker(process_tracker),
                     )
-                    .await?
+                    .await?;
                 }
                 Ok(response) => {
                     let status_code = response.status();
@@ -448,9 +448,9 @@ async fn raise_webhooks_analytics_event(
     trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
     content: Option<api::OutgoingWebhookContent>,
     merchant_id: common_utils::id_type::MerchantId,
-    mut event: domain::Event,
+    event: domain::Event,
     merchant_key_store: &domain::MerchantKeyStore,
-) -> CustomResult<(), errors::StorageError> {
+) {
     let key_manager_state: &KeyManagerState = &(&state).into();
     let event_id = event.event_id;
 
@@ -474,8 +474,7 @@ async fn raise_webhooks_analytics_event(
         .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
 
     // Fetch updated_event from db
-    let debug = format!("event not found for id: {}", &event_id);
-    event = state
+    let updated_event = state
         .store
         .find_event_by_merchant_id_event_id(
             key_manager_state,
@@ -484,15 +483,28 @@ async fn raise_webhooks_analytics_event(
             merchant_key_store,
         )
         .await
-        .change_context(errors::StorageError::ValueNotFound(debug.clone()))
-        .attach_printable(debug)?;
+        .change_context_lazy(|| errors::StorageError::ValueNotFound(format!("event not found for id: {}", &event_id)))
+        .attach_printable_lazy(|| format!("event not found for id: {}", &event_id))
+        .map_err(|e| logger::error!("{:?}", e))
+        .ok();
 
     // Get status_code from webhook response
-    let webhook_response: Option<OutgoingWebhookResponseContent> = event
-        .response
-        .map(|res| res.peek().to_owned())
-        .and_then(|res| res.parse_struct("OutgoingWebhookResponseContent").ok());
-    let status_code = webhook_response.and_then(|res| res.status_code);
+    let status_code = if let Some(updated_event) = updated_event {
+        let webhook_response: Option<OutgoingWebhookResponseContent> = updated_event
+            .response
+            .map(|res| res.peek().to_owned())
+            .and_then(|res| {
+                res.parse_struct("OutgoingWebhookResponseContent")
+                    .map_err(|e| {
+                        logger::error!("Error deserializing webhook response: {:?}", e);
+                        e
+                    })
+                    .ok()
+            });
+        webhook_response.and_then(|res| res.status_code)
+    } else {
+        None
+    };
 
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
@@ -505,8 +517,6 @@ async fn raise_webhooks_analytics_event(
         event.delivery_attempt,
     );
     state.event_handler().log_event(&webhook_event);
-
-    Ok(())
 }
 
 pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
