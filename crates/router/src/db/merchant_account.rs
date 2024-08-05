@@ -273,6 +273,7 @@ impl MerchantAccountInterface for Store {
                 .change_context(errors::StorageError::DecryptionError)?,
 
             key_store,
+            profile_id: None,
         })
     }
 

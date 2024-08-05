@@ -80,7 +80,13 @@ pub async fn payouts_retrieve(
         &req,
         payout_retrieve_request,
         |state, auth, req, _| {
-            payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req)
+            payouts_retrieve_core(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -272,7 +278,9 @@ pub async fn payouts_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| payouts_list_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            payouts_list_core(state, auth.merchant_account, None, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::PayoutRead),
@@ -311,7 +319,7 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_filtered_list_core(state, auth.merchant_account, auth.key_store, req)
+            payouts_filtered_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
