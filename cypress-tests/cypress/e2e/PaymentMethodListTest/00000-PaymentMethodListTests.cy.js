@@ -44,6 +44,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           bank_redirect_ideal_enabled,
           globalState,
@@ -54,6 +55,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // cybersource connector create with card credit enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled,
           globalState,
@@ -120,6 +122,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           bank_redirect_ideal_enabled,
           globalState,
@@ -130,6 +133,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // cybersource connector create with card credit enabled in USD
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled_in_USD,
           globalState,
@@ -196,6 +200,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // stripe connector create with credit enabled for US
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled_in_US,
           globalState,
@@ -206,6 +211,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // cybersource connector create with card credit enabled in US
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled_in_US,
           globalState,
@@ -272,6 +278,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           bank_redirect_ideal_enabled,
           globalState,
@@ -282,6 +289,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // cybersource connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           bank_redirect_ideal_enabled,
           globalState,
@@ -350,6 +358,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // stripe connector create with card credit enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled,
           globalState,
@@ -360,6 +369,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // cybersource connector create with card credit and ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           bank_redirect_ideal_and_credit_enabled,
           globalState,
@@ -427,6 +437,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // stripe connector create with card credit enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled,
           globalState,
@@ -434,9 +445,10 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         );
       });
 
-      // cybersource connector create with card credit 
+      // cybersource connector create with card credit
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled,
           globalState,
@@ -503,6 +515,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           bank_redirect_ideal_enabled,
           globalState,
@@ -513,6 +526,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // cybersource connector create with card credit enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
+          "payment_processor",
           createConnectorBody,
           card_credit_enabled,
           globalState,
