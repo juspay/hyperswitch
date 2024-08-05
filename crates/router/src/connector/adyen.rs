@@ -54,7 +54,7 @@ impl Adyen {
 fn get_key(auth_type: &types::ConnectorAuthType) -> CustomResult<String, errors::ConnectorError> {
     let auth = adyen::AdyenAuthType::try_from(auth_type)
         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-    Ok(auth.api_key.peek().clone())
+    Ok(auth.merchant_account.peek().clone())
 }
 impl ConnectorCommon for Adyen {
     fn id(&self) -> &'static str {
@@ -1946,11 +1946,16 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            self.base_url(connectors),
+            connectors
+                .adyen
+                .third_base_url
+                .clone()
+                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+                .as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}{}/acceptDispute", endpoint, ADYEN_API_VERSION))
+        Ok(format!("{}acceptDispute", endpoint))
     }
 
     fn build_request(
@@ -1964,6 +1969,9 @@ impl
                 .url(&types::AcceptDisputeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::AcceptDisputeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::AcceptDisputeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -2034,11 +2042,16 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            self.base_url(connectors),
+            connectors
+                .adyen
+                .third_base_url
+                .clone()
+                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+                .as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}{}/defendDispute", endpoint, ADYEN_API_VERSION))
+        Ok(format!("{}defendDispute", endpoint))
     }
 
     fn build_request(
@@ -2052,6 +2065,9 @@ impl
                 .url(&types::DefendDisputeType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::DefendDisputeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(types::DefendDisputeType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -2122,14 +2138,16 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            self.base_url(connectors),
+            connectors
+                .adyen
+                .third_base_url
+                .clone()
+                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
+                .as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!(
-            "{}{}/supplyDefenceDocument",
-            endpoint, ADYEN_API_VERSION
-        ))
+        Ok(format!("{}supplyDefenseDocument", endpoint))
     }
 
     fn get_request_body(

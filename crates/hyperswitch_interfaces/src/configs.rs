@@ -11,7 +11,7 @@ use serde::Deserialize;
 pub struct Connectors {
     pub aci: ConnectorParams,
     #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
+    pub adyen: ConnectorParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
     #[cfg(not(feature = "payouts"))]
     pub adyen: ConnectorParams,
@@ -23,7 +23,7 @@ pub struct Connectors {
     pub bankofamerica: ConnectorParams,
     pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
+    pub bluesnap: ConnectorParamsWithThreeBaseUrls,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
@@ -142,9 +142,11 @@ pub struct ConnectorParamsWithFileUploadUrl {
 /// struct ConnectorParamsWithSecondaryBaseUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
-pub struct ConnectorParamsWithSecondaryBaseUrl {
+pub struct ConnectorParamsWithThreeBaseUrls {
     /// base url
     pub base_url: String,
     /// secondary base url
     pub secondary_base_url: String,
+    /// third base url
+    pub third_base_url: Option<String>,
 }
