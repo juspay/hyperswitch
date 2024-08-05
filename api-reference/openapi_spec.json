@@ -7265,6 +7265,7 @@
             "nullable": true
           },
           "payment_link_config": {
+            "type": "object",
             "description": "Default Payment Link config for all payment links created under this business profile",
             "nullable": true
           },

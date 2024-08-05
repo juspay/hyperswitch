@@ -1874,6 +1874,7 @@ pub struct BusinessProfileResponse {
     pub session_expiry: Option<i64>,
 
     /// Default Payment Link config for all payment links created under this business profile
+    #[schema(value_type = Option<Object>)]
     pub payment_link_config: Option<Secret<serde_json::Value>>,
 
     /// External 3DS authentication details
