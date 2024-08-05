@@ -1904,6 +1904,289 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
 
 #[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
+trait MerchantConnectorAccountUpdateBridge {
+    async fn get_merchant_connector_account_from_id(
+        self,
+        db: &dyn StorageInterface,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &str,
+        key_store: &domain::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> RouterResult<domain::MerchantConnectorAccount>;
+
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key_store: domain::MerchantKeyStore,
+        mca: &domain::MerchantConnectorAccount,
+        key_manager_state: &KeyManagerState,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<domain::MerchantConnectorAccountUpdate>;
+}
+
+#[cfg(all(
+    feature = "v2",
+    feature = "merchant_connector_account_v2",
+    feature = "olap"
+))]
+#[async_trait::async_trait]
+impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
+    async fn get_merchant_connector_account_from_id(
+        self,
+        db: &dyn StorageInterface,
+        _merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &str,
+        key_store: &domain::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> RouterResult<domain::MerchantConnectorAccount> {
+        db.find_by_merchant_connector_account_id(
+            key_manager_state,
+            merchant_connector_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+    }
+
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key_store: domain::MerchantKeyStore,
+        mca: &domain::MerchantConnectorAccount,
+        key_manager_state: &KeyManagerState,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
+        let payment_methods_enabled = PaymentMethodsEnabled {
+            payment_methods_enabled: &self.payment_methods_enabled,
+        };
+        let payment_methods_enabled = payment_methods_enabled.get_payment_methods_enabled()?;
+
+        let frm_configs = self.get_frm_config_as_secret();
+
+        let auth = types::ConnectorAuthType::from_secret_value(
+            self.connector_account_details
+                .clone()
+                .unwrap_or(mca.connector_account_details.clone().into_inner()),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_account_details".to_string(),
+            expected_format: "auth_type and api_key".to_string(),
+        })?;
+
+        let metadata = self.metadata.clone().or(mca.metadata.clone());
+
+        let connector_name = mca.connector_name.as_ref();
+        let connector_enum = api_models::enums::Connector::from_str(connector_name)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+        let connector_auth_type_and_metadata_validation = ConnectorAuthTypeAndMetadataValidation {
+            connector_name: &connector_enum,
+            auth_type: &auth,
+            connector_meta_data: &metadata,
+        };
+        connector_auth_type_and_metadata_validation.validate_auth_and_metadata_type()?;
+        let connector_status_and_disabled_validation = ConnectorStatusAndDisabledValidation {
+            status: &self.status,
+            disabled: &self.disabled,
+            auth: &auth,
+            current_status: &mca.status,
+        };
+        let (connector_status, disabled) =
+            connector_status_and_disabled_validation.validate_status_and_disabled()?;
+
+        let pm_auth_config_validation = PMAuthConfigValidation {
+            connector_type: &self.connector_type,
+            pm_auth_config: &self.pm_auth_config,
+            db: state.store.as_ref(),
+            merchant_id: merchant_account.get_id(),
+            profile_id: &mca.profile_id.clone(),
+            key_store: &key_store,
+            key_manager_state,
+        };
+
+        pm_auth_config_validation.validate_pm_auth_config().await?;
+
+        Ok(storage::MerchantConnectorAccountUpdate::Update {
+            connector_type: Some(self.connector_type),
+            connector_label: self.connector_label.clone(),
+            connector_account_details: self
+                .connector_account_details
+                .async_lift(|inner| {
+                    domain_types::encrypt_optional(
+                        key_manager_state,
+                        inner,
+                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        key_store.key.get_inner().peek(),
+                    )
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting data")?,
+            disabled,
+            payment_methods_enabled,
+            metadata: self.metadata,
+            frm_configs,
+            connector_webhook_details: match &self.connector_webhook_details {
+                Some(connector_webhook_details) => connector_webhook_details
+                    .encode_to_value()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map(Some)?
+                    .map(Secret::new),
+                None => None,
+            },
+            applepay_verified_domains: None,
+            pm_auth_config: self.pm_auth_config,
+            status: Some(connector_status),
+            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
+                state, &key_store, &metadata,
+            )
+            .await?,
+        })
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap"),
+    not(feature = "merchant_connector_account_v2")
+))]
+#[async_trait::async_trait]
+impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
+    async fn get_merchant_connector_account_from_id(
+        self,
+        db: &dyn StorageInterface,
+        merchant_id: &id_type::MerchantId,
+        merchant_connector_id: &str,
+        key_store: &domain::MerchantKeyStore,
+        key_manager_state: &KeyManagerState,
+    ) -> RouterResult<domain::MerchantConnectorAccount> {
+        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            key_manager_state,
+            merchant_id,
+            merchant_connector_id,
+            key_store,
+        )
+        .await
+        .to_not_found_response(
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.to_string(),
+            },
+        )
+    }
+
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key_store: domain::MerchantKeyStore,
+        mca: &domain::MerchantConnectorAccount,
+        key_manager_state: &KeyManagerState,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
+        let payment_methods_enabled = self.payment_methods_enabled.map(|pm_enabled| {
+            pm_enabled
+                .iter()
+                .flat_map(Encode::encode_to_value)
+                .map(Secret::new)
+                .collect::<Vec<pii::SecretSerdeValue>>()
+        });
+
+        let frm_configs = get_frm_config_as_secret(self.frm_configs);
+
+        let auth: types::ConnectorAuthType = self
+            .connector_account_details
+            .clone()
+            .unwrap_or(mca.connector_account_details.clone().into_inner())
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "connector_account_details".to_string(),
+                expected_format: "auth_type and api_key".to_string(),
+            })?;
+        let metadata = self.metadata.clone().or(mca.metadata.clone());
+
+        let connector_name = mca.connector_name.as_ref();
+        let connector_enum = api_models::enums::Connector::from_str(connector_name)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+        let connector_auth_type_and_metadata_validation = ConnectorAuthTypeAndMetadataValidation {
+            connector_name: &connector_enum,
+            auth_type: &auth,
+            connector_meta_data: &metadata,
+        };
+        connector_auth_type_and_metadata_validation.validate_auth_and_metadata_type()?;
+        let connector_status_and_disabled_validation = ConnectorStatusAndDisabledValidation {
+            status: &self.status,
+            disabled: &self.disabled,
+            auth: &auth,
+            current_status: &mca.status,
+        };
+        let (connector_status, disabled) =
+            connector_status_and_disabled_validation.validate_status_and_disabled()?;
+
+        if self.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
+            if let Some(val) = self.pm_auth_config.clone() {
+                validate_pm_auth(
+                    val,
+                    state,
+                    merchant_account.get_id(),
+                    &key_store,
+                    merchant_account.clone(),
+                    &mca.profile_id,
+                )
+                .await?;
+            }
+        }
+
+        Ok(storage::MerchantConnectorAccountUpdate::Update {
+            connector_type: Some(self.connector_type),
+            connector_name: None,
+            merchant_connector_id: None,
+            connector_label: self.connector_label.clone(),
+            connector_account_details: self
+                .connector_account_details
+                .async_lift(|inner| {
+                    domain_types::encrypt_optional(
+                        key_manager_state,
+                        inner,
+                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        key_store.key.get_inner().peek(),
+                    )
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting data")?,
+            test_mode: self.test_mode,
+            disabled,
+            payment_methods_enabled,
+            metadata: self.metadata,
+            frm_configs,
+            connector_webhook_details: match &self.connector_webhook_details {
+                Some(connector_webhook_details) => connector_webhook_details
+                    .encode_to_value()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .map(Some)?
+                    .map(Secret::new),
+                None => None,
+            },
+            applepay_verified_domains: None,
+            pm_auth_config: self.pm_auth_config,
+            status: Some(connector_status),
+            connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
+                state, &key_store, &metadata,
+            )
+            .await?,
+        })
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
+#[async_trait::async_trait]
 trait MerchantConnectorAccountCreateBridge {
     async fn create_domain_model_from_request(
         self,
@@ -2421,6 +2704,10 @@ pub async fn create_payment_connector(
     Ok(service_api::ApplicationResponse::Json(mca_response))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 async fn validate_pm_auth(
     val: pii::SecretSerdeValue,
     state: &SessionState,
@@ -2579,164 +2866,27 @@ pub async fn update_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
-    let mca = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            key_manager_state,
+    let mca = req
+        .clone()
+        .get_merchant_connector_account_from_id(
+            db,
             merchant_id,
             merchant_connector_id,
             &key_store,
+            key_manager_state,
         )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_connector_id.to_string(),
-        })?;
+        .await?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    let mca: domain::MerchantConnectorAccount = {
-        let _ = &merchant_connector_id;
-        let _ = &req;
-        let _ = &merchant_account;
-        todo!()
-    };
-    let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
-        pm_enabled
-            .iter()
-            .flat_map(Encode::encode_to_value)
-            .map(Secret::new)
-            .collect::<Vec<Secret<serde_json::Value>>>()
-    });
-
-    let frm_configs = get_frm_config_as_secret(req.frm_configs);
-
-    let auth: types::ConnectorAuthType = req
-        .connector_account_details
+    let payment_connector = req
         .clone()
-        .unwrap_or(mca.connector_account_details.clone().into_inner())
-        .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
-            expected_format: "auth_type and api_key".to_string(),
-        })?;
-    let metadata = req.metadata.clone().or(mca.metadata.clone());
-
-    let connector_name = mca.connector_name.as_ref();
-    let connector_enum = api_models::enums::Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
-        })
-        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
-    let connector_auth_type_and_metadata_validation = ConnectorAuthTypeAndMetadataValidation {
-        connector_name: &connector_enum,
-        auth_type: &auth,
-        connector_meta_data: &metadata,
-    };
-    connector_auth_type_and_metadata_validation.validate_auth_and_metadata_type()?;
-    let connector_status_and_disabled_validation = ConnectorStatusAndDisabledValidation {
-        status: &req.status,
-        disabled: &req.disabled,
-        auth: &auth,
-        current_status: &mca.status,
-    };
-    let (connector_status, disabled) =
-        connector_status_and_disabled_validation.validate_status_and_disabled()?;
-
-    if req.connector_type != api_enums::ConnectorType::PaymentMethodAuth {
-        if let Some(val) = req.pm_auth_config.clone() {
-            validate_pm_auth(
-                val,
-                &state,
-                merchant_id,
-                &key_store,
-                merchant_account,
-                &mca.profile_id,
-            )
-            .await?;
-        }
-    }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
-    let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
-        connector_type: Some(req.connector_type),
-        connector_name: None,
-        merchant_connector_id: None,
-        connector_label: req.connector_label.clone(),
-        connector_account_details: req
-            .connector_account_details
-            .async_lift(|inner| {
-                domain_types::encrypt_optional(
-                    key_manager_state,
-                    inner,
-                    km_types::Identifier::Merchant(key_store.merchant_id.clone()),
-                    key_store.key.get_inner().peek(),
-                )
-            })
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while encrypting data")?,
-        test_mode: req.test_mode,
-        disabled,
-        payment_methods_enabled,
-        metadata: req.metadata,
-        frm_configs,
-        connector_webhook_details: match &req.connector_webhook_details {
-            Some(connector_webhook_details) => connector_webhook_details
-                .encode_to_value()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .map(Some)?
-                .map(Secret::new),
-            None => None,
-        },
-        applepay_verified_domains: None,
-        pm_auth_config: req.pm_auth_config,
-        status: Some(connector_status),
-        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
-            &state, &key_store, &metadata,
+        .create_domain_model_from_request(
+            &state,
+            key_store.clone(),
+            &mca,
+            key_manager_state,
+            &merchant_account,
         )
-        .await?,
-    };
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
-        connector_type: Some(req.connector_type),
-        connector_label: req.connector_label.clone(),
-        connector_account_details: req
-            .connector_account_details
-            .async_lift(|inner| {
-                domain_types::encrypt_optional(
-                    key_manager_state,
-                    inner,
-                    km_types::Identifier::Merchant(key_store.merchant_id.clone()),
-                    key_store.key.get_inner().peek(),
-                )
-            })
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while encrypting data")?,
-        disabled,
-        payment_methods_enabled,
-        metadata: req.metadata,
-        frm_configs,
-        connector_webhook_details: match &req.connector_webhook_details {
-            Some(connector_webhook_details) => connector_webhook_details
-                .encode_to_value()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .map(Some)?
-                .map(Secret::new),
-            None => None,
-        },
-        applepay_verified_domains: None,
-        pm_auth_config: req.pm_auth_config,
-        status: Some(connector_status),
-        connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
-            &state, &key_store, &metadata,
-        )
-        .await?,
-    };
+        .await?;
 
     // Profile id should always be present
     let profile_id = mca
