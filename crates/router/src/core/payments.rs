@@ -1505,7 +1505,7 @@ where
     .await?;
 
     let merchant_recipient_data =
-        if let Some(true) = payment_data.is_payment_processor_token_flow.clone() {
+        if let Some(true) = payment_data.is_payment_processor_token_flow {
             None
         } else {
             payment_data
