@@ -17,6 +17,7 @@ use router_env::{instrument, tracing};
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use crate::core::payment_methods::cards::create_encrypted_data;
 use crate::{
+    consts::API_VERSION,
     core::errors::{self, StorageErrorExt},
     db::StorageInterface,
     pii::PeekInterface,
@@ -178,7 +179,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-            version: common_enums::ApiVersion::V1,
+            version: API_VERSION,
         })
     }
 
@@ -261,7 +262,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             default_billing_address: encrypted_customer_billing_address.map(Into::into),
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
             // status: Some(customer_domain::SoftDeleteStatus::Active)
-            version: common_enums::ApiVersion::V2,
+            version: API_VERSION,
         })
     }
 
