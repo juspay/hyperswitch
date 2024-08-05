@@ -1504,20 +1504,19 @@ where
     )
     .await?;
 
-    let merchant_recipient_data =
-        if let Some(true) = payment_data.is_payment_processor_token_flow {
-            None
-        } else {
-            payment_data
-                .get_merchant_recipient_data(
-                    state,
-                    merchant_account,
-                    key_store,
-                    &merchant_connector_account,
-                    &connector,
-                )
-                .await?
-        };
+    let merchant_recipient_data = if let Some(true) = payment_data.is_payment_processor_token_flow {
+        None
+    } else {
+        payment_data
+            .get_merchant_recipient_data(
+                state,
+                merchant_account,
+                key_store,
+                &merchant_connector_account,
+                &connector,
+            )
+            .await?
+    };
 
     let mut router_data = payment_data
         .construct_router_data(
