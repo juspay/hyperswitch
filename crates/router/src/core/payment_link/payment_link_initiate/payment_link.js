@@ -610,15 +610,15 @@ function appendMerchantDetails(paymentDetails, paymentMerchantDetails) {
 
   // max number of items to show in the merchant details
   let maxItemsInDetails = 5;
-  for(const key in paymentDetails.merchant_details) {
+  let merchantDetailsObject = JSON.parse(paymentDetails.merchant_details);
+  for(const key in merchantDetailsObject) {
     // format of elements in merchant details is (index, key+value)
     // the key is the index number of the field to preserve the order
     // merchant details are stored in the format "key+value" in the value of the element
     // split the value to get the key and value
-    let field_data = paymentDetails.merchant_details[key].split("+");
     var merchantData = document.createElement("div");
     merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
-    merchantData.innerHTML = field_data[0] + ": "+field_data[1].bold();
+    merchantData.innerHTML = key+": "+merchantDetailsObject[key].bold();
 
     paymentMerchantDetails.append(merchantData);
     if(--maxItemsInDetails === 0) {

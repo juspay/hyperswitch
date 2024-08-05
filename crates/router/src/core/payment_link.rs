@@ -7,8 +7,8 @@ use api_models::{
 use common_utils::{
     consts::{
         DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
-        DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_MERCHANT_DETAILS, DEFAULT_MERCHANT_LOGO,
+        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
     types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
@@ -106,7 +106,7 @@ pub async fn form_payment_link_data(
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-                merchant_details: IndexMap::new(),
+                merchant_details: DEFAULT_MERCHANT_DETAILS.to_string(),
             }
         };
 
@@ -602,7 +602,11 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         allowed_domains,
-        merchant_details,
+        merchant_details: serde_json::to_string(&merchant_details).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_details",
+            },
+        )?,
     };
 
     Ok((payment_link_config, domain_name))
@@ -685,7 +689,7 @@ pub async fn get_payment_link_status(
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-            merchant_details: IndexMap::new(),
+            merchant_details: DEFAULT_MERCHANT_DETAILS.to_string(),
         }
     };
 

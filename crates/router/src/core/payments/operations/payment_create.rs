@@ -1206,7 +1206,7 @@ pub fn payments_create_request_validation(
 #[allow(clippy::too_many_arguments)]
 async fn create_payment_link(
     request: &api::PaymentsRequest,
-    mut payment_link_config: api_models::admin::PaymentLinkConfig,
+    payment_link_config: api_models::admin::PaymentLinkConfig,
     merchant_id: &common_utils::id_type::MerchantId,
     payment_id: String,
     db: &dyn StorageInterface,
@@ -1233,10 +1233,6 @@ async fn create_payment_link(
             payment_id.clone()
         )
     });
-
-    // indexing the fields of merchant details to preserve the order after insertion in db
-    // (key, value) is converted to (index, key+value)
-    create_index_for_merchant_details(&mut payment_link_config);
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
@@ -1272,16 +1268,4 @@ async fn create_payment_link(
         secure_link: payment_link_db.secure_link,
         payment_link_id: payment_link_db.payment_link_id,
     }))
-}
-
-fn create_index_for_merchant_details(
-    payment_link_config: &mut api_models::admin::PaymentLinkConfig,
-) {
-    payment_link_config.merchant_details = payment_link_config
-        .merchant_details
-        .clone()
-        .into_iter()
-        .enumerate()
-        .map(|(index, (key, value))| (index.to_string(), format!("{}+{}", key, value)))
-        .collect();
 }
