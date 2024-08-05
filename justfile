@@ -120,7 +120,6 @@ euclid-wasm features='dummy_connector':
 precommit: fmt clippy
 
 # Check compilation of v2 feature on base dependencies
-v2_intermediate_features := "merchant_account_v2,payment_v2,customer_v2,business_profile_v2"
 hack_v2:
     scripts/ci-checks-v2.sh
 

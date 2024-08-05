@@ -1,11 +1,13 @@
 #! /usr/bin/env bash
 set -euo pipefail
 
-workspace_members=\
+crates_to_check=\
 'api_models
 diesel_models
 hyperswitch_domain_models
 storage_impl'
+
+v2_feature_set='v2,merchant_account_v2,payment_v2,customer_v2,routing_v2,business_profile_v2'
 
 PACKAGES_CHECKED=()
 PACKAGES_SKIPPED=()
@@ -32,7 +34,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
       if [[ "${package_name}" == "storage_impl" ]]; then
         all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
       else
-        all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2,routing_v2,business_profile_v2' --package '${package_name}'")
+        all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${v2_feature_set}' --package '${package_name}'")
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
       PACKAGES_CHECKED+=("${package_name}")
@@ -40,13 +42,21 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
       printf '::debug::Skipping `%s` since it was not modified: %s\n' "${package_name}"
       PACKAGES_SKIPPED+=("${package_name}")
     fi
-  done <<< "${workspace_members}"
+  done <<< "${crates_to_check}"
   printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
 
 else
   # If we are doing this locally or on merge queue, then check for all the V2 crates
   all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
-  all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features 'v2,merchant_account_v2,payment_v2,customer_v2,routing_v2,business_profile_v2' --package 'hyperswitch_domain_models' --package 'diesel_models' --package 'api_models'")
+
+  COMMON_COMMAND="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${v2_feature_set}'"
+  CRATES_TO_INCLUDE=""
+  while IFS= read -r crate; do
+    if [[ "${crate}" != "storage_impl" ]]; then
+      CRATES_TO_INCLUDE+="--package '$crate' "
+    fi
+  done <<< "${crates_to_check}"
+  all_commands+=("$COMMON_COMMAND $CRATES_TO_INCLUDE")
 fi
 
 if ((${#all_commands[@]} == 0)); then
