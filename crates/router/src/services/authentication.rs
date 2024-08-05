@@ -1004,7 +1004,7 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let merchant = state
@@ -1015,7 +1015,8 @@ where
                 &key_store,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1026,7 +1027,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJwt {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                user_id: None,
+                user_id: Some(payload.user_id),
             },
         ))
     }
@@ -1138,7 +1139,7 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let merchant = state
@@ -1149,7 +1150,8 @@ where
                 &key_store,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1160,7 +1162,7 @@ where
             auth.clone(),
             AuthenticationType::MerchantJwt {
                 merchant_id: auth.merchant_account.get_id().clone(),
-                user_id: None,
+                user_id: Some(payload.user_id),
             },
         ))
     }
