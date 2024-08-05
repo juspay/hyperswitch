@@ -79,6 +79,7 @@ export const connectorDetails = {
             },
             Response: {
                 status: 200,
+                trigger_skip: true,
                 body: {
                     status: "requires_capture",
                 },
@@ -96,6 +97,8 @@ export const connectorDetails = {
             },
             Response: {
                 status: 200,
+                trigger_skip: true,
+
                 body: {
                     status: "requires_customer_action",
                 },
@@ -234,6 +237,8 @@ export const connectorDetails = {
             },
             Response: {
                 status: 200,
+                trigger_skip: true,
+
                 body: {
                     status: "succeeded",
                 },
@@ -250,6 +255,8 @@ export const connectorDetails = {
             },
             Response: {
                 status: 200,
+                trigger_skip: true,
+
                 body: {
                     status: "requires_customer_action",
                 },
@@ -330,6 +337,8 @@ export const connectorDetails = {
             },
             Response: {
                 status: 200,
+                trigger_skip: true,
+
                 body: {
                     status: "requires_capture",
                 },
@@ -346,6 +355,8 @@ export const connectorDetails = {
             },
             Response: {
                 status: 200,
+                trigger_skip: true,
+
                 body: {
                     status: "requires_capture",
                 },
@@ -483,6 +494,7 @@ export const connectorDetails = {
             },
             Response: {
                 status: 200,
+                trigger_skip: true,
                 body: {
                     status: "requires_customer_action",
                 },
