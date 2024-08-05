@@ -211,6 +211,20 @@ pub struct SessionConnectorData {
     pub business_sub_label: Option<String>,
 }
 
+impl SessionConnectorData {
+    pub fn new(
+        payment_method_type: api_enums::PaymentMethodType,
+        connector: ConnectorData,
+        business_sub_label: Option<String>,
+    ) -> Self {
+        Self {
+            payment_method_type,
+            connector,
+            business_sub_label,
+        }
+    }
+}
+
 /// Session Surcharge type
 pub enum SessionSurchargeDetails {
     /// Surcharge is calculated by hyperswitch
@@ -399,6 +413,7 @@ impl ConnectorData {
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))
                 }
+                // enums::Connector::Paybox => Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new()))), // added for future use
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))

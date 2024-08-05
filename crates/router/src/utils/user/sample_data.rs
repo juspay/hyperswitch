@@ -145,8 +145,9 @@ pub async fn generate_sample_data(
     }
 
     // This has to be an internal server error because, this function failing means that the intended functionality is not working as expected
-    let dashboard_customer_id = id_type::CustomerId::from("hs-dashboard-user".into())
-        .change_context(SampleDataError::InternalServerError)?;
+    let dashboard_customer_id =
+        id_type::CustomerId::try_from(std::borrow::Cow::from("hs-dashboard-user"))
+            .change_context(SampleDataError::InternalServerError)?;
 
     for num in 1..=sample_data_size {
         let payment_id = common_utils::generate_id_with_default_len("test");

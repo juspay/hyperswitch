@@ -112,7 +112,10 @@ impl AppClient<Admin> {
         B: MessageBody,
     {
         let request = TestRequest::post()
-            .uri(&format!("/account/{merchant_id}/connectors"))
+            .uri(&format!(
+                "/account/{}/connectors",
+                merchant_id.get_string_repr()
+            ))
             .append_header(("api-key".to_owned(), self.state.authkey.clone()))
             .set_json(mk_connector(connector_name, api_key))
             .to_request();

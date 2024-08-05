@@ -2356,7 +2356,8 @@ pub async fn list_payment_methods(
     .await?;
 
     // filter out connectors based on the business country
-    let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id.clone());
+    let filtered_mcas =
+        helpers::filter_mca_based_on_business_profile(all_mcas.clone(), profile_id.clone());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -2371,7 +2372,7 @@ pub async fn list_payment_methods(
             })?;
         format!(
             "pm_filters_cgraph_{}_{}",
-            merchant_account.get_id(),
+            merchant_account.get_id().get_string_repr(),
             profile_id
         )
     };
@@ -2385,7 +2386,7 @@ pub async fn list_payment_methods(
             };
             filter_payment_methods(
                 &graph,
-                mca.merchant_connector_id.clone(),
+                mca.get_id(),
                 payment_methods,
                 &mut req,
                 &mut response,
@@ -2401,10 +2402,7 @@ pub async fn list_payment_methods(
         // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
-            let domain_id = builder.make_domain(
-                mca.merchant_connector_id.clone(),
-                mca.connector_name.as_str(),
-            );
+            let domain_id = builder.make_domain(mca.get_id(), mca.connector_name.as_str());
 
             let Ok(domain_id) = domain_id else {
                 logger::error!("Failed to construct domain for list payment methods");
@@ -2440,7 +2438,7 @@ pub async fn list_payment_methods(
             };
             filter_payment_methods(
                 &graph,
-                mca.merchant_connector_id.clone(),
+                mca.get_id().clone(),
                 payment_methods,
                 &mut req,
                 &mut response,
@@ -2647,8 +2645,7 @@ pub async fn list_payment_methods(
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
             let matched_mca = filtered_mcas.iter().find(|m| {
-                first_routable_connector.merchant_connector_id.as_ref()
-                    == Some(&m.merchant_connector_id)
+                first_routable_connector.merchant_connector_id.as_ref() == Some(&m.get_id())
             });
 
             if let Some(m) = matched_mca {
@@ -2667,33 +2664,34 @@ pub async fn list_payment_methods(
                     });
 
                 if let Some(config) = pm_auth_config {
-                    config
-                        .enabled_payment_methods
-                        .iter()
-                        .for_each(|inner_config| {
-                            if inner_config.payment_method_type == *payment_method_type {
-                                let pm = pmt_to_auth_connector
-                                    .get(&inner_config.payment_method)
-                                    .cloned();
+                    for inner_config in config.enabled_payment_methods.iter() {
+                        let is_active_mca = all_mcas
+                            .iter()
+                            .any(|mca| mca.merchant_connector_id == inner_config.mca_id);
 
-                                let inner_map = if let Some(mut inner_map) = pm {
-                                    inner_map.insert(
-                                        *payment_method_type,
-                                        inner_config.connector_name.clone(),
-                                    );
-                                    inner_map
-                                } else {
-                                    HashMap::from([(
-                                        *payment_method_type,
-                                        inner_config.connector_name.clone(),
-                                    )])
-                                };
+                        if inner_config.payment_method_type == *payment_method_type && is_active_mca
+                        {
+                            let pm = pmt_to_auth_connector
+                                .get(&inner_config.payment_method)
+                                .cloned();
 
-                                pmt_to_auth_connector
-                                    .insert(inner_config.payment_method, inner_map);
-                                val.push(inner_config.clone());
-                            }
-                        });
+                            let inner_map = if let Some(mut inner_map) = pm {
+                                inner_map.insert(
+                                    *payment_method_type,
+                                    inner_config.connector_name.clone(),
+                                );
+                                inner_map
+                            } else {
+                                HashMap::from([(
+                                    *payment_method_type,
+                                    inner_config.connector_name.clone(),
+                                )])
+                            };
+
+                            pmt_to_auth_connector.insert(inner_config.payment_method, inner_map);
+                            val.push(inner_config.clone());
+                        }
+                    }
                 };
             }
         }
@@ -3374,7 +3372,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 pub async fn filter_payment_methods(
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
     mca_id: String,
-    payment_methods: &[serde_json::Value],
+    payment_methods: &[Secret<serde_json::Value>],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
@@ -3384,7 +3382,9 @@ pub async fn filter_payment_methods(
     saved_payment_methods: &settings::EligiblePaymentMethods,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
-        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method.clone());
+        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
+            payment_method.clone().expose().clone(),
+        );
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
 
@@ -4043,7 +4043,7 @@ pub async fn get_mca_status(
             .collect::<Vec<_>>();
 
         for mca in mcas {
-            mca_ids.insert(mca.merchant_connector_id);
+            mca_ids.insert(mca.get_id());
         }
 
         for mca_id in connector_mandate_details.keys() {
