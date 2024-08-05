@@ -268,7 +268,6 @@ pub enum MerchantAccountUpdate {
     ReconUpdate {
         recon_status: diesel_models::enums::ReconStatus,
     },
-    UnsetDefaultProfile,
     ModifiedAtUpdate,
 }
 
@@ -412,7 +411,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 pm_collect_link_config: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
-                modified_at: date_time::now(),
+                modified_at: now,
                 merchant_name: None,
                 merchant_details: None,
                 return_url: None,
@@ -491,21 +490,8 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 payout_routing_algorithm: None,
                 organization_id: None,
             },
-            // TODO: this will be removed during business profile refactoring
-            MerchantAccountUpdate::UnsetDefaultProfile => Self {
-                modified_at: now,
-                merchant_name: None,
-                merchant_details: None,
-                publishable_key: None,
-                storage_scheme: None,
-                metadata: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
-                organization_id: None,
-                recon_status: None,
-            },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
-                modified_at: date_time::now(),
+                modified_at: now,
                 merchant_name: None,
                 merchant_details: None,
                 publishable_key: None,
