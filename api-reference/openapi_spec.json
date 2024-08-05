@@ -13975,7 +13975,7 @@
             "nullable": true
           },
           "merchant_details": {
-            "type": "object",
+            "type": "string",
             "description": "Dynamic details related to merchant to be rendered in payment link"
           }
         }
