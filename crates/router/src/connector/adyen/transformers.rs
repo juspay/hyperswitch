@@ -5016,6 +5016,5 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
 }
 
 fn get_content(item: Vec<u8>) -> Option<String> {
-    let content = String::from_utf8(item).ok();
-    content
+    String::from_utf8(item).ok()
 }
