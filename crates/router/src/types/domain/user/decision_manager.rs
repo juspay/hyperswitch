@@ -101,7 +101,7 @@ impl JWTFlow {
         Ok(true)
     }
 
-    pub async fn generate_jwt(
+    pub async fn generate_jwt_without_profile(
         self,
         state: &SessionState,
         next_flow: &NextFlow,
@@ -119,6 +119,7 @@ impl JWTFlow {
                 .org_id
                 .clone()
                 .ok_or(report!(UserErrors::InternalServerError))?,
+            None,
         )
         .await
         .map(|token| token.into())
@@ -293,7 +294,9 @@ impl NextFlow {
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
                     .await;
 
-                jwt_flow.generate_jwt(state, self, &user_role).await
+                jwt_flow
+                    .generate_jwt_without_profile(state, self, &user_role)
+                    .await
             }
         }
     }
@@ -313,7 +316,9 @@ impl NextFlow {
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, user_role)
                     .await;
 
-                jwt_flow.generate_jwt(state, self, user_role).await
+                jwt_flow
+                    .generate_jwt_without_profile(state, self, user_role)
+                    .await
             }
         }
     }
