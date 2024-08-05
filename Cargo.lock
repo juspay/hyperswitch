@@ -2014,6 +2014,7 @@ dependencies = [
  "error-stack",
  "fake",
  "futures 0.3.30",
+ "globset",
  "hex",
  "http 0.2.12",
  "masking",
@@ -3850,6 +3851,7 @@ dependencies = [
  "serde_json",
  "strum 0.26.2",
  "time",
+ "url",
  "uuid",
 ]
 
@@ -6087,7 +6089,6 @@ dependencies = [
  "events",
  "external_services",
  "futures 0.3.30",
- "globset",
  "hex",
  "http 0.2.12",
  "hyper 0.14.28",
@@ -6372,7 +6373,7 @@ dependencies = [
  "log",
  "ring 0.17.8",
  "rustls-pki-types",
- "rustls-webpki 0.102.3",
+ "rustls-webpki 0.102.5",
  "subtle",
  "zeroize",
 ]
@@ -6410,9 +6411,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.5.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "beb461507cee2c2ff151784c52762cf4d9ff6a61f3e80968600ed24fa837fa54"
+checksum = "976295e77ce332211c0d24d92c0e83e50f5c5f046d11082cea19f3df13a3562d"
 
 [[package]]
 name = "rustls-webpki"
@@ -6426,9 +6427,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.102.3"
+version = "0.102.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3bce581c0dd41bce533ce695a1437fa16a7ab5ac3ccfa99fe1a620a7885eabf"
+checksum = "f9a6fccd794a42c2c105b513a2f62bc3fd8f3ba57a4593677ceb0bd035164d78"
 dependencies = [
  "ring 0.17.8",
  "rustls-pki-types",

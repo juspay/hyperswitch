@@ -138,7 +138,9 @@ pub async fn signup(
         .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    let token =
+        utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
+            .await?;
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
 
@@ -894,6 +896,7 @@ async fn handle_new_user_invitation(
             merchant_id: user_from_token.merchant_id.clone(),
             org_id: user_from_token.org_id.clone(),
             role_id: request.role_id.clone(),
+            profile_id: None,
         };
 
         let set_metadata_request = SetMetaDataRequest::IsChangePasswordRequired;
@@ -949,7 +952,7 @@ pub async fn resend_invite(
             if e.current_context().is_db_not_found() {
                 e.change_context(UserErrors::InvalidRoleOperation)
                     .attach_printable(format!(
-                        "User role with user_id = {} and merchant_id = {} is not found",
+                        "User role with user_id = {} and merchant_id = {:?} is not found",
                         user.get_user_id(),
                         user_from_token.merchant_id
                     ))
@@ -1036,8 +1039,12 @@ pub async fn accept_invite_from_email(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let token =
-        utils::user::generate_jwt_auth_token(&state, &user_from_db, &update_status_result).await?;
+    let token = utils::user::generate_jwt_auth_token_without_profile(
+        &state,
+        &user_from_db,
+        &update_status_result,
+    )
+    .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &update_status_result)
         .await;
 
@@ -1263,6 +1270,7 @@ pub async fn switch_merchant_id(
             request.merchant_id.clone(),
             org_id.clone(),
             user_from_token.role_id.clone(),
+            None,
         )
         .await?;
 
@@ -1295,7 +1303,8 @@ pub async fn switch_merchant_id(
             .ok_or(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User doesn't have access to switch")?;
 
-        let token = utils::user::generate_jwt_auth_token(&state, &user, user_role).await?;
+        let token =
+            utils::user::generate_jwt_auth_token_without_profile(&state, &user, user_role).await?;
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, user_role).await;
 
         (token, user_role.role_id.clone())

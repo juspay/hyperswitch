@@ -293,7 +293,7 @@ pub async fn payment_connector_create(
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 #[utoipa::path(
     post,
-    path = "/accounts/{account_id}/connectors",
+    path = "/connector_accounts",
     request_body = MerchantConnectorCreate,
     responses(
         (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
@@ -431,6 +431,10 @@ pub async fn payment_connector_list(
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -466,6 +470,57 @@ pub async fn payment_connector_update(
         |state, _, req, _| {
             update_payment_connector(state, &merchant_id, &merchant_connector_id, req)
         },
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantConnectorAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Merchant Connector - Update
+///
+/// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[utoipa::path(
+    post,
+    path = "/connector_accounts/{id}",
+    request_body = MerchantConnectorUpdate,
+    params(
+        ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
+    ),
+    responses(
+        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
+        (status = 404, description = "Merchant Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    ),
+   tag = "Merchant Connector Account",
+   operation_id = "Update a Merchant Connector",
+   security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
+pub async fn payment_connector_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsUpdate;
+    let id = path.into_inner();
+    let payload = json_payload.into_inner();
+    let merchant_id = payload.merchant_id.clone();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| update_payment_connector(state, &merchant_id, &id, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -730,7 +785,7 @@ pub async fn toggle_connector_agnostic_mit(
         json_payload.into_inner(),
         |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),

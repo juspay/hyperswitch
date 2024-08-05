@@ -70,6 +70,7 @@ noon.key_mode = "Live"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-live.sagepay.com/"
 opennode.base_url = "https://api.opennode.com"
+paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 payeezy.base_url = "https://api.payeezy.com/"
 payme.base_url = "https://live.payme.io/"
 payone.base_url = "https://payment.payone.com/"
@@ -369,7 +370,7 @@ outgoing_enabled = true
 connectors_with_webhook_source_verification_call = "paypal"     # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
