@@ -169,10 +169,10 @@ impl MerchantAccountCreate {
 
     pub fn get_webhook_details_as_value(
         &self,
-    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
         self.webhook_details
             .as_ref()
-            .map(|webhook_details| webhook_details.encode_to_value())
+            .map(|webhook_details| webhook_details.encode_to_value().map(Secret::new))
             .transpose()
     }
 
@@ -375,7 +375,7 @@ pub struct MerchantAccountResponse {
 
     /// Webhook related details
     #[schema(value_type = Option<WebhookDetails>)]
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<Secret<serde_json::Value>>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[serde(skip)]
@@ -1874,7 +1874,7 @@ pub struct BusinessProfileResponse {
     pub session_expiry: Option<i64>,
 
     /// Default Payment Link config for all payment links created under this business profile
-    pub payment_link_config: Option<serde_json::Value>,
+    pub payment_link_config: Option<Secret<serde_json::Value>>,
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,

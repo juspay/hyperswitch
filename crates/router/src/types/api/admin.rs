@@ -145,7 +145,7 @@ pub async fn business_profile_response(
         enable_payment_response_hash: item.enable_payment_response_hash,
         payment_response_hash_key: item.payment_response_hash_key,
         redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-        webhook_details: item.webhook_details.map(Secret::new),
+        webhook_details: item.webhook_details,
         metadata: item.metadata,
         routing_algorithm: item.routing_algorithm,
         intent_fulfillment_time: item.intent_fulfillment_time,
@@ -205,7 +205,8 @@ pub async fn create_business_profile(
                 },
             )
         })
-        .transpose()?;
+        .transpose()?
+        .map(Secret::new);
 
     let payment_response_hash_key = request
         .payment_response_hash_key
@@ -221,7 +222,8 @@ pub async fn create_business_profile(
                     field_name: "payment_link_config_value",
                 })
         })
-        .transpose()?;
+        .transpose()?
+        .map(Secret::new);
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| create_encrypted_data(state, key_store, headers))
@@ -243,7 +245,8 @@ pub async fn create_business_profile(
                 message: e.to_string()
             })),
         })
-        .transpose()?;
+        .transpose()?
+        .map(Secret::new);
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,

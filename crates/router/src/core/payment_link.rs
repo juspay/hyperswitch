@@ -526,7 +526,7 @@ pub fn extract_payment_link_config(
 
 pub fn get_payment_link_config_based_on_priority(
     payment_create_link_config: Option<api_models::payments::PaymentCreatePaymentLinkConfig>,
-    business_link_config: Option<serde_json::Value>,
+    business_link_config: Option<Secret<serde_json::Value>>,
     merchant_name: String,
     default_domain_name: String,
     payment_link_config_id: Option<String>,

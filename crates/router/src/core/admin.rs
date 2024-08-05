@@ -1034,7 +1034,8 @@ pub async fn merchant_account_update(
             .as_ref()
             .map(Encode::encode_to_value)
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(Secret::new),
 
         routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
@@ -3363,7 +3364,8 @@ pub async fn update_business_profile(
                 },
             )
         })
-        .transpose()?;
+        .transpose()?
+        .map(Secret::new);
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
         let _: api_models::routing::RoutingAlgorithm = routing_algorithm
@@ -3388,7 +3390,8 @@ pub async fn update_business_profile(
                 message: e.to_string()
             })),
         })
-        .transpose()?;
+        .transpose()?
+        .map(Secret::new);
 
     let extended_card_info_config = request
         .extended_card_info_config
@@ -3423,7 +3426,8 @@ pub async fn update_business_profile(
                 message: e.to_string()
             })),
         })
-        .transpose()?;
+        .transpose()?
+        .map(Secret::new);
 
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
