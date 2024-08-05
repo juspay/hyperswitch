@@ -118,19 +118,12 @@ pub fn create_certificate(
 
 pub fn filter_mca_based_on_business_profile(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<String>,
+    profile_id: &String,
 ) -> Vec<domain::MerchantConnectorAccount> {
-    if let Some(profile_id) = profile_id {
-        merchant_connector_accounts
-            .into_iter()
-            .filter(|mca| {
-                mca.profile_id.as_ref() == Some(&profile_id)
-                    && mca.connector_type == ConnectorType::PaymentProcessor
-            })
-            .collect::<Vec<_>>()
-    } else {
-        merchant_connector_accounts
-    }
+    merchant_connector_accounts
+        .into_iter()
+        .filter(|mca| mca.profile_id.as_ref() == Some(profile_id))
+        .collect::<Vec<_>>()
 }
 
 pub fn filter_mca_based_on_connector_type(
@@ -141,6 +134,27 @@ pub fn filter_mca_based_on_connector_type(
         .into_iter()
         .filter(|mca| mca.connector_type == connector_type)
         .collect::<Vec<_>>()
+}
+
+pub fn filter_mca_based_on_profile_and_connector_type(
+    merchant_connector_accounts: &Vec<domain::MerchantConnectorAccount>,
+    profile_id: Option<&String>,
+    connector_type: Option<&ConnectorType>,
+) -> Vec<domain::MerchantConnectorAccount> {
+    profile_id
+        // Filter on profile_id
+        .map(|profile_id| {
+            filter_mca_based_on_business_profile(merchant_connector_accounts.to_owned(), profile_id)
+        })
+        // Filter on connector_type
+        .map(|filtered_mcas| {
+            connector_type
+                .map(|connector_type| {
+                    filter_mca_based_on_connector_type(filtered_mcas.clone(), *connector_type)
+                })
+                .unwrap_or(filtered_mcas)
+        })
+        .unwrap_or(merchant_connector_accounts.to_owned())
 }
 
 #[instrument(skip_all)]
@@ -4293,10 +4307,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
-            merchant_connector_account_list,
-            Some(profile_id.to_string()),
-        );
+        let profile_specific_merchant_connector_account_list =
+            filter_mca_based_on_profile_and_connector_type(
+                &merchant_connector_account_list,
+                Some(profile_id),
+                Some(&ConnectorType::PaymentProcessor),
+            );
 
         let mut connector_data_list = vec![pre_decided_connector_data_first.clone()];
 

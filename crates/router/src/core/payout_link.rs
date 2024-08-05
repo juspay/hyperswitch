@@ -278,13 +278,11 @@ pub async fn filter_payout_methods(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    // fetch all mca based on profile id
-    let filtered_mca_on_profile =
-        helpers::filter_mca_based_on_business_profile(all_mcas, Some(payout.profile_id.clone()));
-    //Since we just need payout connectors here, filter mca based on connector type.
-    let filtered_mca = helpers::filter_mca_based_on_connector_type(
-        filtered_mca_on_profile.clone(),
-        common_enums::ConnectorType::PayoutProcessor,
+    // Filter MCAs based on profile_id and connector_type
+    let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
+        &all_mcas,
+        Some(&payout.profile_id),
+        Some(&common_enums::ConnectorType::PayoutProcessor),
     );
     let address = db
         .find_address_by_address_id(key_manager_state, &payout.address_id.clone(), key_store)
@@ -306,7 +304,7 @@ pub async fn filter_payout_methods(
     let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let payout_filter_config = &state.conf.payout_method_filters.clone();
-    for mca in &filtered_mca {
+    for mca in &filtered_mcas {
         let payout_methods = match &mca.payment_methods_enabled {
             Some(pm) => pm,
             None => continue,
