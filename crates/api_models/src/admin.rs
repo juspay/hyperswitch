@@ -1374,6 +1374,10 @@ impl MerchantConnectorListResponse {
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorUpdate {
@@ -1451,6 +1455,104 @@ pub struct MerchantConnectorUpdate {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
+}
+
+/// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantConnectorUpdate {
+    /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
+
+    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`
+    #[schema(example = "stripe_US_travel")]
+    pub connector_label: Option<String>,
+
+    /// An object containing the required details/credentials for a Connector account.
+    #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    pub connector_account_details: Option<pii::SecretSerdeValue>,
+
+    /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
+    #[schema(example = json!([
+        {
+            "payment_method": "wallet",
+            "payment_method_types": [
+                "upi_collect",
+                "upi_intent"
+            ],
+            "payment_method_issuers": [
+                "labore magna ipsum",
+                "aute"
+            ],
+            "payment_schemes": [
+                "Discover",
+                "Discover"
+            ],
+            "accepted_currencies": {
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
+            },
+            "accepted_countries": {
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
+            },
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+        }
+    ]))]
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+
+    /// Webhook details of this merchant connector
+    #[schema(example = json!({
+        "connector_webhook_details": {
+            "merchant_secret": "1234567890987654321"
+        }
+    }))]
+    pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Contains the frm configs for the merchant connector
+    #[schema(example = json!(consts::FRM_CONFIGS_EG))]
+    pub frm_configs: Option<Vec<FrmConfigs>>,
+
+    /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
+    #[schema(value_type = Option<Object>)]
+    pub pm_auth_config: Option<pii::SecretSerdeValue>,
+
+    #[schema(value_type = ConnectorStatus, example = "inactive")]
+    pub status: Option<api_enums::ConnectorStatus>,
+
+    /// The identifier for the Merchant Account
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: id_type::MerchantId,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+impl MerchantConnectorUpdate {
+    pub fn get_frm_config_as_secret(&self) -> Option<Vec<Secret<serde_json::Value>>> {
+        match self.frm_configs.as_ref() {
+            Some(frm_value) => {
+                let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
+                    .iter()
+                    .map(|config| config.encode_to_value().map(Secret::new))
+                    .collect::<Result<Vec<_>, _>>()
+                    .ok()?;
+                Some(configs_for_frm_value)
+            }
+            None => None,
+        }
+    }
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
