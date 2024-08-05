@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use api_models::enums::PayoutConnectors;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
 use diesel_models::{
@@ -1911,6 +1912,26 @@ impl PayoutsInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::Payouts>, errors::DataStorageError> {
         self.diesel_store
             .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        connector: Option<Vec<PayoutConnectors>>,
+        currency: Option<Vec<enums::Currency>>,
+        status: Option<Vec<enums::PayoutStatus>>,
+        payout_method: Option<Vec<enums::PayoutType>>,
+    ) -> CustomResult<i64, errors::DataStorageError> {
+        self.diesel_store
+            .get_total_count_of_filtered_payouts(
+                merchant_id,
+                connector,
+                currency,
+                status,
+                payout_method,
+            )
             .await
     }
 }

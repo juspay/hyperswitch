@@ -1,13 +1,19 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use async_bb8_diesel::AsyncRunQueryDsl;
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+    JoinOnDsl, QueryDsl,
+};
 use error_stack::report;
 
 use super::generics;
 use crate::{
-    errors,
+    enums, errors,
     payouts::{Payouts, PayoutsNew, PayoutsUpdate, PayoutsUpdateInternal},
-    schema::payouts::dsl,
+    query::generics::db_metrics,
+    schema::{payout_attempt, payouts::dsl},
     PgPooledConn, StorageResult,
 };
+use error_stack::ResultExt;
 
 impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
@@ -86,5 +92,43 @@ impl Payouts {
                 .and(dsl::payout_id.eq(payout_id.to_owned())),
         )
         .await
+    }
+
+    pub async fn get_total_count_of_payouts(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: Option<Vec<String>>,
+        currency: Option<Vec<enums::Currency>>,
+        status: Option<Vec<enums::PayoutStatus>>,
+        payout_type: Option<Vec<enums::PayoutType>>,
+    ) -> StorageResult<i64> {
+        let mut filter = <Self as HasTable>::table()
+            .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
+            .count()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        if let Some(connector) = connector {
+            filter = filter.filter(payout_attempt::dsl::connector.eq_any(connector));
+        }
+
+        if let Some(currency) = currency {
+            filter = filter.filter(dsl::destination_currency.eq_any(currency));
+        }
+        if let Some(status) = status {
+            filter = filter.filter(dsl::status.eq_any(status));
+        }
+        if let Some(payout_type) = payout_type {
+            filter = filter.filter(dsl::payout_type.eq_any(payout_type));
+        }
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering count of payouts")
     }
 }

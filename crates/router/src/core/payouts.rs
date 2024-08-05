@@ -853,6 +853,19 @@ pub async fn payouts_filtered_list_core(
     .map(ForeignFrom::foreign_from)
     .collect();
 
+    let total_count = db
+        .get_total_count_of_filtered_payouts(
+            merchant_account.get_id(),
+            filters.connector,
+            filters.currency,
+            filters.status,
+            filters.payout_method,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    logger::warn!("[DEBUGG] {}", total_count);
+
     Ok(services::ApplicationResponse::Json(
         api::PayoutListResponse {
             size: data.len(),
