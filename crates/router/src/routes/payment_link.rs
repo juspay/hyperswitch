@@ -58,9 +58,15 @@ pub async fn initiate_payment_link(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
+    let locale = req
+        .headers()
+        .get(actix_web::http::header::ACCEPT_LANGUAGE)
+        .and_then(|header_value| header_value.to_str().ok())
+        .map(|str| str.to_owned());
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
+        locale,
     };
     Box::pin(api::server_wrap(
         flow,
@@ -74,6 +80,7 @@ pub async fn initiate_payment_link(
                 auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
+                payload.locale.clone(),
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
@@ -132,9 +139,15 @@ pub async fn payment_link_status(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkStatus;
     let (merchant_id, payment_id) = path.into_inner();
+    let locale = req
+        .headers()
+        .get(actix_web::http::header::ACCEPT_LANGUAGE)
+        .and_then(|header_value| header_value.to_str().ok())
+        .map(|str| str.to_owned());
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
+        locale,
     };
     Box::pin(api::server_wrap(
         flow,
@@ -148,6 +161,7 @@ pub async fn payment_link_status(
                 auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
+                payload.locale.clone(),
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),

@@ -55,6 +55,7 @@ pub async fn initiate_payment_link_flow(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
+    locale: Option<String>,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
     let payment_intent = db
@@ -203,6 +204,7 @@ pub async fn initiate_payment_link_flow(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
+            locale: locale.clone(),
         };
 
         logger::info!(
@@ -210,7 +212,7 @@ pub async fn initiate_payment_link_flow(
             payment_details
         );
         let js_script = get_js_script(
-            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+            &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(Box::new(payment_details)),
         )?;
         let payment_link_error_data = services::PaymentLinkStatusData {
             js_script,
@@ -238,6 +240,7 @@ pub async fn initiate_payment_link_flow(
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
         enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
+        locale,
     };
 
     let js_script = get_js_script(&api_models::payments::PaymentLinkData::PaymentLinkDetails(
@@ -494,6 +497,7 @@ pub async fn get_payment_link_status(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
+    locale: Option<String>,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
     let payment_intent = db
@@ -602,9 +606,10 @@ pub async fn get_payment_link_status(
         redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
+        locale,
     };
     let js_script = get_js_script(
-        &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(payment_details),
+        &api_models::payments::PaymentLinkData::PaymentLinkStatusDetails(Box::new(payment_details)),
     )?;
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,

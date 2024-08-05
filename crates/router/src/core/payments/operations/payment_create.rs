@@ -66,7 +66,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
@@ -244,6 +244,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     profile_id.clone(),
                     domain_name,
                     session_expiry,
+                    header_payload.locale.clone(),
                 )
                 .await?
             }
@@ -1215,14 +1216,17 @@ async fn create_payment_link(
     profile_id: String,
     domain_name: String,
     session_expiry: PrimitiveDateTime,
+    locale: Option<String>,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
+    let locale_str = locale.unwrap_or("en".to_owned());
     let payment_link = format!(
-        "{}/payment_link/{}/{}",
+        "{}/payment_link/{}/{}?locale={}",
         domain_name,
         merchant_id.get_string_repr(),
-        payment_id.clone()
+        payment_id.clone(),
+        locale_str
     );
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(

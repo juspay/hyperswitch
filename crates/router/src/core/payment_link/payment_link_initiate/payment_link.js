@@ -179,6 +179,185 @@ var unifiedCheckout = null;
 var pub_key = window.__PAYMENT_DETAILS.pub_key;
 var hyper = null;
 
+const locales = {
+  en: {
+    expiresOn: "Link expires on: ",
+    refId: "Ref Id: ",
+    requestedBy: "Requested by ",
+    payNow: "Pay now",
+    yourCart: "Your Cart",
+    quantity: "Quantity",
+    showLess: "Show Less",
+    showMore: "Show More",
+    miscellaneousCharges: "Miscellaneous charges",
+    miscellaneousChargesDetail: "(includes taxes, shipping, discounts, offers etc.)",
+    paymentTakingLonger: "Sorry! Your payment is taking longer than expected. Please check back again in sometime.",
+    paymentLinkExpired: "Payment Link Expired",
+    paymentReceived: "We have successfully received your payment",
+    paymentLinkExpiredMessage: "Sorry, this payment link has expired. Please use below reference for further investigation.",
+    paidSuccessfully: "Paid successfully",
+    paymentPending: "Payment Pending",
+    paymentFailed: "Payment Failed!",
+    paymentCancelled: "Payment Cancelled",
+    paymentUnderReview: "Payment under review",
+    paymentSuccess: "Payment Success",
+    partialPaymentCaptured: "Partial payment was captured.",
+    somethingWentWrong: "Something went wrong",
+    redirecting: "Redirecting ...",
+    redirectingIn: "Redirecting in ",
+    seconds: " seconds ...",
+    unexpectedError: "An unexpected error occurred."
+  },
+  de: {
+    expiresOn: "Link läuft ab am: ",
+    refId: "Referenz-ID: ",
+    requestedBy: "Angefordert von ",
+    payNow: "Jetzt bezahlen",
+    yourCart: "Ihr Warenkorb",
+    quantity: "Menge",
+    showLess: "Weniger anzeigen",
+    showMore: "Mehr anzeigen",
+    miscellaneousCharges: "Sonstige Gebühren",
+    miscellaneousChargesDetail: "(einschließlich Steuern, Versand, Rabatte, Angebote usw.)",
+    paymentTakingLonger: "Entschuldigung! Ihre Zahlung dauert länger als erwartet. Bitte prüfen Sie später erneut.",
+    paymentLinkExpired: "Zahlungslink abgelaufen",
+    paymentReceived: "Wir haben Ihre Zahlung erfolgreich erhalten",
+    paymentLinkExpiredMessage: "Entschuldigung, dieser Zahlungslink ist abgelaufen. Bitte verwenden Sie die folgende Referenz für weitere Untersuchungen.",
+    paidSuccessfully: "Erfolgreich bezahlt",
+    paymentPending: "Zahlung ausstehend",
+    paymentFailed: "Zahlung fehlgeschlagen!",
+    paymentCancelled: "Zahlung storniert",
+    paymentUnderReview: "Zahlung wird überprüft",
+    paymentSuccess: "Zahlung erfolgreich",
+    partialPaymentCaptured: "Teilzahlung wurde erfasst.",
+    somethingWentWrong: "Etwas ist schiefgelaufen",
+    redirecting: "Weiterleiten ...",
+    redirectingIn: "Weiterleiten in ",
+    seconds: " Sekunden ...",
+    unexpectedError: "Ein unerwarteter Fehler ist aufgetreten."
+  },
+  pt: {
+    expiresOn: "Link expira em: ",
+    refId: "ID de referência: ",
+    requestedBy: "Solicitado por ",
+    payNow: "Pagar agora",
+    yourCart: "Seu Carrinho",
+    quantity: "Quantidade",
+    showLess: "Mostrar menos",
+    showMore: "Mostrar mais",
+    miscellaneousCharges: "Encargos diversos",
+    miscellaneousChargesDetail: "(inclui impostos, frete, descontos, ofertas, etc.)",
+    paymentTakingLonger: "Desculpe! Seu pagamento está demorando mais do que o esperado. Por favor, verifique novamente em algum tempo.",
+    paymentLinkExpired: "Link de Pagamento Expirado",
+    paymentReceived: "Recebemos seu pagamento com sucesso",
+    paymentLinkExpiredMessage: "Desculpe, este link de pagamento expirou. Por favor, use a referência abaixo para investigação adicional.",
+    paidSuccessfully: "Pago com sucesso",
+    paymentPending: "Pagamento Pendente",
+    paymentFailed: "Pagamento Falhou!",
+    paymentCancelled: "Pagamento Cancelado",
+    paymentUnderReview: "Pagamento em análise",
+    paymentSuccess: "Sucesso no pagamento",
+    partialPaymentCaptured: "Pagamento parcial capturado.",
+    somethingWentWrong: "Algo deu errado",
+    redirecting: "Redirecionando ...",
+    redirectingIn: "Redirecionando em ",
+    seconds: " segundos ...",
+    unexpectedError: "Ocorreu um erro inesperado."
+  },
+  it: {
+    expiresOn: "Link scade il: ",
+    refId: "ID di riferimento: ",
+    requestedBy: "Richiesto da ",
+    payNow: "Paga ora",
+    yourCart: "Il tuo carrello",
+    quantity: "Quantità",
+    showLess: "Mostra meno",
+    showMore: "Mostra di più",
+    miscellaneousCharges: "Spese varie",
+    miscellaneousChargesDetail: "(inclusi tasse, spedizione, sconti, offerte, ecc.)",
+    paymentTakingLonger: "Spiacenti! Il tuo pagamento sta impiegando più tempo del previsto. Controlla di nuovo tra un po'.",
+    paymentLinkExpired: "Link di pagamento scaduto",
+    paymentReceived: "Abbiamo ricevuto il tuo pagamento con successo",
+    paymentLinkExpiredMessage: "Spiacenti, questo link di pagamento è scaduto. Utilizza il riferimento sottostante per ulteriori indagini.",
+    paidSuccessfully: "Pagato con successo",
+    paymentPending: "Pagamento in sospeso",
+    paymentFailed: "Pagamento fallito!",
+    paymentCancelled: "Pagamento annullato",
+    paymentUnderReview: "Pagamento in revisione",
+    paymentSuccess: "Pagamento riuscito",
+    partialPaymentCaptured: "Pagamento parziale catturato.",
+    somethingWentWrong: "Qualcosa è andato storto",
+    redirecting: "Reindirizzando ...",
+    redirectingIn: "Reindirizzando in ",
+    seconds: " secondi ...",
+    unexpectedError: "Si è verificato un errore imprevisto."
+  },
+  zh: {
+    expiresOn: "链接到期日期：",
+    refId: "参考编号：",
+    requestedBy: "请求者：",
+    payNow: "立即支付",
+    yourCart: "你的购物车",
+    quantity: "数量",
+    showLess: "显示更少",
+    showMore: "显示更多",
+    miscellaneousCharges: "其他费用",
+    miscellaneousChargesDetail: "(包括税费、运费、折扣、优惠等)",
+    paymentTakingLonger: "对不起！您的付款花费的时间比预期的要长。请稍后再检查。",
+    paymentLinkExpired: "支付链接已过期",
+    paymentReceived: "我们已经成功收到您的付款",
+    paymentLinkExpiredMessage: "对不起，这个支付链接已经过期。请使用下面的参考信息进行进一步调查。",
+    paidSuccessfully: "支付成功",
+    paymentPending: "付款待处理",
+    paymentFailed: "支付失败！",
+    paymentCancelled: "支付已取消",
+    paymentUnderReview: "支付正在审查",
+    paymentSuccess: "支付成功",
+    partialPaymentCaptured: "部分付款已捕获。",
+    somethingWentWrong: "出了点问题",
+    redirecting: "正在重定向 ...",
+    redirectingIn: "在 ",
+    seconds: " 秒内重定向 ...",
+    unexpectedError: "发生了意外错误。"
+  },
+  es: {
+    expiresOn: "El enlace expira el: ",
+    refId: "ID de referencia: ",
+    requestedBy: "Solicitado por ",
+    payNow: "Pagar ahora",
+    yourCart: "Tu carrito",
+    quantity: "Cantidad",
+    showLess: "Mostrar menos",
+    showMore: "Mostrar más",
+    miscellaneousCharges: "Cargos varios",
+    miscellaneousChargesDetail: "(incluye impuestos, envío, descuentos, ofertas, etc.)",
+    paymentTakingLonger: "¡Lo siento! Tu pago está tardando más de lo esperado. Por favor, vuelve a verificarlo más tarde.",
+    paymentLinkExpired: "Enlace de pago expirado",
+    paymentReceived: "Hemos recibido tu pago con éxito",
+    paymentLinkExpiredMessage: "Lo siento, este enlace de pago ha expirado. Por favor, usa la referencia a continuación para una investigación adicional.",
+    paidSuccessfully: "Pagado exitosamente",
+    paymentPending: "Pago Pendiente",
+    paymentFailed: "¡Pago Fallido!",
+    paymentCancelled: "Pago Cancelado",
+    paymentUnderReview: "Pago en revisión",
+    paymentSuccess: "Éxito en el pago",
+    partialPaymentCaptured: "Pago parcial capturado.",
+    somethingWentWrong: "Algo salió mal",
+    redirecting: "Redirigiendo ...",
+    redirectingIn: "Redirigiendo en ",
+    seconds: " segundos ...",
+    unexpectedError: "Ocurrió un error inesperado."
+  }
+};
+
+
+function getTranslations() {
+  var locale = window.__PAYMENT_DETAILS.locale || 'en'; // defaults if locale is not present in payment details.
+  return locales[locale] || locales['en']; // defaults if locale is not implemented in locales.
+}
+
+const translations = getTranslations();
+
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
@@ -211,8 +390,8 @@ function boot() {
       orderDetails.push({
         "amount": (paymentDetails.amount - charges).toFixed(2),
         "product_img_link": "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png",
-        "product_name": "Miscellaneous charges\n" +
-                        "(includes taxes, shipping, discounts, offers etc.)",
+        "product_name": translations.miscellaneousCharges+"\n" +
+                        translations.miscellaneousChargesDetail,
         "quantity": null
       });
     }
@@ -291,6 +470,13 @@ function initializeEventListeners(paymentDetails) {
   if (submitButtonLoaderNode instanceof HTMLSpanElement) {
     submitButtonLoaderNode.style.borderBottomColor = contrastingTone;
   }
+
+   // Get locale for pay now
+   var payNowButtonText = document.createElement("div");
+   var payNowButtonText = document.getElementById('submit-button-text');
+   if (payNowButtonText) {
+     payNowButtonText.textContent = translations.payNow;
+   }
 
   if (submitButtonNode instanceof HTMLButtonElement) {
     submitButtonNode.style.color = contrastBWColor;
@@ -390,6 +576,7 @@ function initializeSDK() {
   // @ts-ignore
   var paymentDetails = window.__PAYMENT_DETAILS;
   var client_secret = paymentDetails.client_secret;
+  var locale = paymentDetails.locale;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -401,7 +588,7 @@ function initializeSDK() {
       colorTextPlaceholder: "#33415550",
       borderColor: "#33415550",
       colorBackground: "rgb(255, 255, 255)",
-    },
+    }
   };
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
@@ -410,6 +597,7 @@ function initializeSDK() {
   widgets = hyper.widgets({
     appearance: appearance,
     clientSecret: client_secret,
+    locale: locale,
   });
   var type =
     paymentDetails.sdk_layout === "spaced_accordion" ||
@@ -494,7 +682,7 @@ function handleSubmit(e) {
         if (error.type === "validation_error") {
           showMessage(error.message);
         } else {
-          showMessage("An unexpected error occurred.");
+          showMessage(translations.unexpectedError);
         }
       } else {
         redirectToStatus();
@@ -529,11 +717,12 @@ function showMessage(msg) {
  * Use - redirect to /payment_link/status
  */
 function redirectToStatus() {
+  var locale = window.__PAYMENT_DETAILS.locale || "en";
   var arr = window.location.pathname.split("/");
   arr.splice(0, 2);
   arr.unshift("status");
   arr.unshift("payment_link");
-  window.location.href = window.location.origin + "/" + arr.join("/");
+  window.location.href = window.location.origin + "/" + arr.join("/") + "?locale=" + locale;
 }
 
 function addText(id, msg) {
@@ -630,12 +819,12 @@ function renderPaymentDetails(paymentDetails) {
   // Create merchant name's node
   var merchantNameNode = document.createElement("div");
   merchantNameNode.className = "hyper-checkout-payment-merchant-name";
-  merchantNameNode.innerText = "Requested by " + paymentDetails.merchant_name;
+  merchantNameNode.innerText = translations.requestedBy + paymentDetails.merchant_name;
 
   // Create payment ID node
   var paymentIdNode = document.createElement("div");
   paymentIdNode.className = "hyper-checkout-payment-ref";
-  paymentIdNode.innerText = "Ref Id: " + paymentDetails.payment_id;
+  paymentIdNode.innerText = translations.refId + paymentDetails.payment_id;
 
   // Create merchant logo's node
   var merchantLogoNode = document.createElement("img");
@@ -648,7 +837,7 @@ function renderPaymentDetails(paymentDetails) {
   paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
   var expiryDate = new Date(paymentDetails.session_expiry);
   var formattedDate = formatDate(expiryDate);
-  paymentExpiryNode.innerText = "Link expires on: " + formattedDate;
+  paymentExpiryNode.innerText = translations.expiresOn + formattedDate;
 
   // Append information to DOM
   var paymentContextNode = document.getElementById(
@@ -692,6 +881,11 @@ function renderCart(paymentDetails) {
     var cartItemsNode = document.getElementById("hyper-checkout-cart-items");
     var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
       paymentDetails.max_items_visible_after_collapse;
+    var yourCartText = document.createElement("span");
+    var yourCartText = document.getElementById('your-cart-text');
+    if (yourCartText) {
+      yourCartText.textContent = translations.yourCart;
+    }
 
     orderDetails.map(function (item, index) {
       if (index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
@@ -723,7 +917,7 @@ function renderCart(paymentDetails) {
       buttonTextNode.id = "hyper-checkout-cart-button-text";
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-      buttonTextNode.innerText = "Show More (" + hiddenItemsCount + ")";
+      buttonTextNode.innerText = translations.showMore+" (" + hiddenItemsCount + ")";
       expandButtonNode.append(buttonTextNode, buttonImageNode);
       if (cartNode instanceof HTMLDivElement) {
         cartNode.insertBefore(expandButtonNode, cartNode.lastElementChild);
@@ -787,7 +981,7 @@ function renderCartItem(
   if (item.quantity !== null) {
     var quantityNode = document.createElement("div");
     quantityNode.className = "hyper-checkout-card-item-quantity";
-    quantityNode.innerText = "Qty: " + item.quantity;
+    quantityNode.innerText = translations.quantity+": " + item.quantity;
   }  
   // Product price
   var priceNode = document.createElement("div");
@@ -862,7 +1056,7 @@ function handleCartView(paymentDetails) {
     }
 
     if (cartButtonTextNode instanceof HTMLSpanElement) {
-      cartButtonTextNode.innerText = "Show Less";
+      cartButtonTextNode.innerText = translations.showLess;
     }
 
     var arrowUpImage = document.getElementById("arrow-up");
@@ -900,7 +1094,7 @@ function handleCartView(paymentDetails) {
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
       if (cartButtonTextNode instanceof HTMLSpanElement) {
-        cartButtonTextNode.innerText = "Show More (" + hiddenItemsCount + ")";
+        cartButtonTextNode.innerText = translations.showMore+" (" + hiddenItemsCount + ")";
       }
       var arrowDownImage = document.getElementById("arrow-down");
       if (
