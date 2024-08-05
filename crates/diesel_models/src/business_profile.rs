@@ -1,5 +1,5 @@
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-use common_enums::OrderFulfillmentTimeOrigin;
+// #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+// use common_enums::OrderFulfillmentTimeOrigin;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
@@ -484,6 +484,9 @@ pub struct BusinessProfile {
     pub redirect_to_merchant_with_http_post: bool,
     pub webhook_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub intent_fulfillment_time: Option<i64>,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -499,11 +502,11 @@ pub struct BusinessProfile {
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub routing_algorithm_id: Option<String>,
-    pub order_fulfillment_time: Option<i64>,
-    pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
-    pub frm_routing_algorithm_id: Option<String>,
+    // pub order_fulfillment_time: Option<i64>,
+    // pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    // pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    // pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -521,6 +524,9 @@ pub struct BusinessProfileNew {
     pub redirect_to_merchant_with_http_post: bool,
     pub webhook_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub intent_fulfillment_time: Option<i64>,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -536,11 +542,11 @@ pub struct BusinessProfileNew {
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub routing_algorithm_id: Option<String>,
-    pub order_fulfillment_time: Option<i64>,
-    pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
-    pub frm_routing_algorithm_id: Option<String>,
+    // pub order_fulfillment_time: Option<i64>,
+    // pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    // pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    // pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -555,6 +561,8 @@ pub struct BusinessProfileUpdateInternal {
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub webhook_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub intent_fulfillment_time: Option<i64>,
+    pub frm_routing_algorithm: Option<serde_json::Value>,
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -570,11 +578,11 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub routing_algorithm_id: Option<String>,
-    pub order_fulfillment_time: Option<i64>,
-    pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
-    pub frm_routing_algorithm_id: Option<String>,
+    // pub order_fulfillment_time: Option<i64>,
+    // pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    // pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    // pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -588,6 +596,8 @@ pub enum BusinessProfileUpdate {
         redirect_to_merchant_with_http_post: Option<bool>,
         webhook_details: Option<pii::SecretSerdeValue>,
         metadata: Option<pii::SecretSerdeValue>,
+        intent_fulfillment_time: Option<i64>,
+        frm_routing_algorithm: Option<serde_json::Value>,
         is_recon_enabled: Option<bool>,
         applepay_verified_domains: Option<Vec<String>>,
         payment_link_config: Option<pii::SecretSerdeValue>,
@@ -601,11 +611,11 @@ pub enum BusinessProfileUpdate {
         is_connector_agnostic_mit_enabled: Option<bool>,
         outgoing_webhook_custom_http_headers: Option<Encryption>,
         routing_algorithm_id: Option<String>,
-        order_fulfillment_time: Option<i64>,
-        order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
-        frm_routing_algorithm_id: Option<String>,
+        // order_fulfillment_time: Option<i64>,
+        // order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+        // frm_routing_algorithm_id: Option<String>,
         payout_routing_algorithm_id: Option<String>,
-        default_fallback_routing: Option<pii::SecretSerdeValue>,
+        // default_fallback_routing: Option<pii::SecretSerdeValue>,
     },
     RoutingAlgorithmUpdate {
         routing_algorithm_id: Option<String>,
@@ -646,11 +656,13 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers,
                 routing_algorithm_id,
-                order_fulfillment_time,
-                order_fulfillment_time_origin,
-                frm_routing_algorithm_id,
+                intent_fulfillment_time,
+                frm_routing_algorithm,
+                // order_fulfillment_time,
+                // order_fulfillment_time_origin,
+                // frm_routing_algorithm_id,
                 payout_routing_algorithm_id,
-                default_fallback_routing,
+                // default_fallback_routing,
             } => Self {
                 profile_name,
                 modified_at: now,
@@ -674,11 +686,13 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers,
                 routing_algorithm_id,
-                order_fulfillment_time,
-                order_fulfillment_time_origin,
-                frm_routing_algorithm_id,
+                intent_fulfillment_time,
+                frm_routing_algorithm,
+                // order_fulfillment_time,
+                // order_fulfillment_time_origin,
+                // frm_routing_algorithm_id,
                 payout_routing_algorithm_id,
-                default_fallback_routing,
+                // default_fallback_routing,
             },
             BusinessProfileUpdate::RoutingAlgorithmUpdate {
                 routing_algorithm_id,
@@ -706,11 +720,13 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
                 routing_algorithm_id,
-                order_fulfillment_time: None,
-                order_fulfillment_time_origin: None,
-                frm_routing_algorithm_id: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                // order_fulfillment_time: None,
+                // order_fulfillment_time_origin: None,
+                // frm_routing_algorithm_id: None,
                 payout_routing_algorithm_id,
-                default_fallback_routing: None,
+                // default_fallback_routing: None,
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -737,11 +753,13 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
                 routing_algorithm_id: None,
-                order_fulfillment_time: None,
-                order_fulfillment_time_origin: None,
-                frm_routing_algorithm_id: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                // order_fulfillment_time: None,
+                // order_fulfillment_time_origin: None,
+                // frm_routing_algorithm_id: None,
                 payout_routing_algorithm_id: None,
-                default_fallback_routing: None,
+                // default_fallback_routing: None,
             },
             BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -768,11 +786,13 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
                 routing_algorithm_id: None,
-                order_fulfillment_time: None,
-                order_fulfillment_time_origin: None,
-                frm_routing_algorithm_id: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                // order_fulfillment_time: None,
+                // order_fulfillment_time_origin: None,
+                // frm_routing_algorithm_id: None,
                 payout_routing_algorithm_id: None,
-                default_fallback_routing: None,
+                // default_fallback_routing: None,
             },
         }
     }
@@ -804,11 +824,13 @@ impl BusinessProfileUpdate {
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
             routing_algorithm_id,
-            order_fulfillment_time,
-            order_fulfillment_time_origin,
-            frm_routing_algorithm_id,
+            intent_fulfillment_time,
+            frm_routing_algorithm,
+            // order_fulfillment_time,
+            // order_fulfillment_time_origin,
+            // frm_routing_algorithm_id,
             payout_routing_algorithm_id,
-            default_fallback_routing,
+            // default_fallback_routing,
         } = self.into();
         BusinessProfile {
             profile_id: source.profile_id,
@@ -850,13 +872,14 @@ impl BusinessProfileUpdate {
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
             routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
-            order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
-            order_fulfillment_time_origin: order_fulfillment_time_origin
-                .or(source.order_fulfillment_time_origin),
-            frm_routing_algorithm_id: frm_routing_algorithm_id.or(source.frm_routing_algorithm_id),
-            payout_routing_algorithm_id: payout_routing_algorithm_id
-                .or(source.payout_routing_algorithm_id),
-            default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
+            intent_fulfillment_time: intent_fulfillment_time.or(source.intent_fulfillment_time),
+            frm_routing_algorithm: frm_routing_algorithm.or(source.frm_routing_algorithm),
+            // order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
+            // order_fulfillment_time_origin: order_fulfillment_time_origin
+            //     .or(source.order_fulfillment_time_origin),
+            // frm_routing_algorithm_id: frm_routing_algorithm_id.or(source.frm_routing_algorithm_id),
+            payout_routing_algorithm_id: payout_routing_algorithm_id, //     .or(source.payout_routing_algorithm_id),
+                                                                      // default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
         }
     }
 }
@@ -895,11 +918,13 @@ impl From<BusinessProfileNew> for BusinessProfile {
                 .collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
             routing_algorithm_id: new.routing_algorithm_id,
-            order_fulfillment_time: new.order_fulfillment_time,
-            order_fulfillment_time_origin: new.order_fulfillment_time_origin,
-            frm_routing_algorithm_id: new.frm_routing_algorithm_id,
+            intent_fulfillment_time: new.intent_fulfillment_time,
+            frm_routing_algorithm: new.frm_routing_algorithm,
+            // order_fulfillment_time: new.order_fulfillment_time,
+            // order_fulfillment_time_origin: new.order_fulfillment_time_origin,
+            // frm_routing_algorithm_id: new.frm_routing_algorithm_id,
             payout_routing_algorithm_id: new.payout_routing_algorithm_id,
-            default_fallback_routing: new.default_fallback_routing,
+            // default_fallback_routing: new.default_fallback_routing,
         }
     }
 }

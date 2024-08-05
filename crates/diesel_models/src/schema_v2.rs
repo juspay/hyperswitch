@@ -188,6 +188,8 @@ diesel::table! {
         redirect_to_merchant_with_http_post -> Bool,
         webhook_details -> Nullable<Json>,
         metadata -> Nullable<Json>,
+        intent_fulfillment_time -> Nullable<Int8>,
+        frm_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
@@ -203,13 +205,8 @@ diesel::table! {
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
-        order_fulfillment_time -> Nullable<Int8>,
-        order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
-        #[max_length = 64]
-        frm_routing_algorithm_id -> Nullable<Varchar>,
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
-        default_fallback_routing -> Nullable<Jsonb>,
     }
 }
 
