@@ -1024,7 +1024,7 @@ impl MerchantConnectorAccountUpdateBridge for api::MerchantAccountUpdate {
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt merchant name")?,
+                .attach_printable("Unable to encrypt merchant details")?,
             metadata,
             publishable_key: None,
             frm_routing_algorithm: None,
