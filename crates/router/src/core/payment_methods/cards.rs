@@ -4694,6 +4694,7 @@ where
 pub async fn list_countries_currencies_for_connector_payment_method(
     state: routes::SessionState,
     req: ListCountriesCurrenciesRequest,
+    _profile_id: Option<String>,
 ) -> errors::RouterResponse<ListCountriesCurrenciesResponse> {
     Ok(services::ApplicationResponse::Json(
         list_countries_currencies_for_connector_payment_method_util(
