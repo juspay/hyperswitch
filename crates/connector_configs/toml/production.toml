@@ -2713,3 +2713,49 @@ key1="Public Api Key"
 [datatrans.connector_auth.BodyKey]
 api_key = "Passcode"
 key1 = "datatrans MerchantId"
+
+[wellsfargo]
+[[wellsfargo.credit]]
+  payment_method_type = "Mastercard"
+[[wellsfargo.credit]]
+  payment_method_type = "Visa"
+[[wellsfargo.credit]]
+  payment_method_type = "Interac"
+[[wellsfargo.credit]]
+  payment_method_type = "AmericanExpress"
+[[wellsfargo.credit]]
+  payment_method_type = "JCB"
+[[wellsfargo.credit]]
+  payment_method_type = "DinersClub"
+[[wellsfargo.credit]]
+  payment_method_type = "Discover"
+[[wellsfargo.credit]]
+  payment_method_type = "CartesBancaires"
+[[wellsfargo.credit]]
+  payment_method_type = "UnionPay"
+[[wellsfargo.debit]]
+  payment_method_type = "Mastercard"
+[[wellsfargo.debit]]
+  payment_method_type = "Visa"
+[[wellsfargo.debit]]
+  payment_method_type = "Interac"
+[[wellsfargo.debit]]
+  payment_method_type = "AmericanExpress"
+[[wellsfargo.debit]]
+  payment_method_type = "JCB"
+[[wellsfargo.debit]]
+  payment_method_type = "DinersClub"
+[[wellsfargo.debit]]
+  payment_method_type = "Discover"
+[[wellsfargo.debit]]
+  payment_method_type = "CartesBancaires"
+[[wellsfargo.debit]]
+  payment_method_type = "UnionPay"
+[[wellsfargo.wallet]]
+  payment_method_type = "apple_pay"
+[[wellsfargo.wallet]]
+  payment_method_type = "google_pay"
+[wellsfargo.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"
