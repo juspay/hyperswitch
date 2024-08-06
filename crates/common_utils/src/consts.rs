@@ -87,7 +87,7 @@ pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 
 /// Default merchant details for payment links
-pub const DEFAULT_MERCHANT_DETAILS: &str = "{}";
+pub const DEFAULT_MERCHANT_DETAILS: Option<String> = None;
 
 /// Default ttl for Extended card info  in redis (in seconds)
 pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;

@@ -106,7 +106,7 @@ pub async fn form_payment_link_data(
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-                merchant_details: DEFAULT_MERCHANT_DETAILS.to_string(),
+                merchant_details: DEFAULT_MERCHANT_DETAILS,
             }
         };
 
@@ -606,7 +606,7 @@ pub fn get_payment_link_config_based_on_priority(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_details",
             },
-        )?,
+        ).ok(),
     };
 
     Ok((payment_link_config, domain_name))
@@ -689,7 +689,7 @@ pub async fn get_payment_link_status(
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-            merchant_details: DEFAULT_MERCHANT_DETAILS.to_string(),
+            merchant_details: DEFAULT_MERCHANT_DETAILS,
         }
     };
 
