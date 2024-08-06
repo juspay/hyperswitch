@@ -1,4 +1,3 @@
-use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
 use common_utils::{id_type, pii, types::MinorUnit};
 use serde::{Deserialize, Serialize};
@@ -71,7 +70,7 @@ pub trait PayoutsInterface {
     async fn get_total_count_of_filtered_payouts(
         &self,
         merchant_id: &id_type::MerchantId,
-        connector: Option<Vec<PayoutConnectors>>,
+        connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         currency: Option<Vec<storage_enums::Currency>>,
         status: Option<Vec<storage_enums::PayoutStatus>>,
         payout_method: Option<Vec<storage_enums::PayoutType>>,
