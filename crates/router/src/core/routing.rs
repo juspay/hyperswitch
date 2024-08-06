@@ -1,8 +1,6 @@
 pub mod helpers;
 pub mod transformers;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-use crate::utils::ValueExt;
 use api_models::{
     enums,
     routing::{self as routing_types, RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
@@ -14,6 +12,8 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+use crate::utils::ValueExt;
 use crate::{
     consts,
     core::{
