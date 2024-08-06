@@ -1,5 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+use error_stack::ResultExt;
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 use router_env::{instrument, tracing, Flow};
 
@@ -264,7 +266,7 @@ pub async fn delete_merchant_account(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
-pub async fn payment_connector_create(
+pub async fn connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<common_utils::id_type::MerchantId>,
@@ -278,7 +280,7 @@ pub async fn payment_connector_create(
         state,
         &req,
         payload,
-        |state, _, req, _| create_payment_connector(state, req, &merchant_id),
+        |state, _, req, _| create_connector(state, req, &merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -308,7 +310,7 @@ pub async fn payment_connector_create(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
-pub async fn payment_connector_create(
+pub async fn connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<admin::MerchantConnectorCreate>,
@@ -321,7 +323,7 @@ pub async fn payment_connector_create(
         state,
         &req,
         payload,
-        |state, _, req, _| create_payment_connector(state, req, &merchant_id),
+        |state, _, req, _| create_connector(state, req, &merchant_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -358,7 +360,7 @@ pub async fn payment_connector_create(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
-pub async fn payment_connector_retrieve(
+pub async fn connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(common_utils::id_type::MerchantId, String)>,
@@ -377,7 +379,7 @@ pub async fn payment_connector_retrieve(
         &req,
         payload,
         |state, _, req, _| {
-            retrieve_payment_connector(state, req.merchant_id, None, req.merchant_connector_id)
+            retrieve_connector(state, req.merchant_id, None, req.merchant_connector_id)
         },
         auth::auth_type(
             &auth::AdminApiAuth,
@@ -411,7 +413,7 @@ pub async fn payment_connector_retrieve(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
-pub async fn payment_connector_retrieve(
+pub async fn connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
@@ -420,25 +422,19 @@ pub async fn payment_connector_retrieve(
     let id = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
 
-    let x_merchant_id =
-        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
-        {
-            Ok(val) => val.to_owned(),
-            Err(err) => {
-                return api::log_and_return_error_response(err);
-            }
-        };
-
     let merchant_id =
-        match common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(x_merchant_id)) {
+        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
+            .map(|val| val.to_owned())
+            .and_then(|merchant_id| {
+                common_utils::id_type::MerchantId::wrap(merchant_id)
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Error while converting MerchantId from merchant_id string header",
+                    )
+            }) {
             Ok(val) => val,
             Err(err) => {
-                return api::log_and_return_error_response(
-                    err.change_context(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Error while converting MerchantId from x_merchant_id string header",
-                        ),
-                );
+                return api::log_and_return_error_response(err);
             }
         };
     api::server_wrap(
@@ -446,7 +442,7 @@ pub async fn payment_connector_retrieve(
         state,
         &req,
         payload,
-        |state, _, req, _| retrieve_payment_connector(state, merchant_id.clone(), req.id.clone()),
+        |state, _, req, _| retrieve_connector(state, merchant_id.clone(), req.id.clone()),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -529,7 +525,7 @@ pub async fn payment_connector_list(
    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
-pub async fn payment_connector_update(
+pub async fn connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(common_utils::id_type::MerchantId, String)>,
@@ -543,9 +539,7 @@ pub async fn payment_connector_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| {
-            update_payment_connector(state, &merchant_id, None, &merchant_connector_id, req)
-        },
+        |state, _, req, _| update_connector(state, &merchant_id, None, &merchant_connector_id, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -580,7 +574,7 @@ pub async fn payment_connector_update(
    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
-pub async fn payment_connector_update(
+pub async fn connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
@@ -596,7 +590,7 @@ pub async fn payment_connector_update(
         state,
         &req,
         payload,
-        |state, _, req, _| update_payment_connector(state, &merchant_id, None, &id, req),
+        |state, _, req, _| update_connector(state, &merchant_id, None, &id, req),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -633,7 +627,7 @@ pub async fn payment_connector_update(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
-pub async fn payment_connector_delete(
+pub async fn connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(common_utils::id_type::MerchantId, String)>,
@@ -651,9 +645,7 @@ pub async fn payment_connector_delete(
         state,
         &req,
         payload,
-        |state, _, req, _| {
-            delete_payment_connector(state, req.merchant_id, req.merchant_connector_id)
-        },
+        |state, _, req, _| delete_connector(state, req.merchant_id, req.merchant_connector_id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
@@ -686,7 +678,7 @@ pub async fn payment_connector_delete(
     security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
-pub async fn payment_connector_delete(
+pub async fn connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
@@ -695,25 +687,19 @@ pub async fn payment_connector_delete(
     let id = path.into_inner();
 
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
-    let x_merchant_id =
-        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
-        {
-            Ok(val) => val.to_owned(),
-            Err(err) => {
-                return api::log_and_return_error_response(err);
-            }
-        };
-
     let merchant_id =
-        match common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(x_merchant_id)) {
+        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
+            .map(|val| val.to_owned())
+            .and_then(|merchant_id| {
+                common_utils::id_type::MerchantId::wrap(merchant_id)
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Error while converting MerchantId from merchant_id string header",
+                    )
+            }) {
             Ok(val) => val,
             Err(err) => {
-                return api::log_and_return_error_response(
-                    err.change_context(ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Error while converting MerchantId from x_merchant_id string header",
-                        ),
-                );
+                return api::log_and_return_error_response(err);
             }
         };
     Box::pin(api::server_wrap(
@@ -721,7 +707,7 @@ pub async fn payment_connector_delete(
         state,
         &req,
         payload,
-        |state, _, req, _| delete_payment_connector(state, merchant_id.clone(), req.id),
+        |state, _, req, _| delete_connector(state, merchant_id.clone(), req.id),
         auth::auth_type(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {

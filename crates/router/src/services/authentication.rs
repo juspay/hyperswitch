@@ -1528,7 +1528,9 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
 pub fn get_mandatory_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(&key)
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Missing header key: {}", key),
+        })
         .attach_printable(format!("Failed to find header key: {}", key))?
         .to_str()
         .change_context(errors::ApiErrorResponse::InternalServerError)
