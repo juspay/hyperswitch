@@ -9,9 +9,9 @@ pub mod vault;
 use std::{borrow::Cow, collections::HashSet};
 
 pub use api_models::enums::Connector;
+use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use api_models::payment_methods;
 use common_utils::{ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -35,9 +35,7 @@ use crate::{
     },
     routes::{app::StorageInterface, SessionState},
     services,
-    types::{
-        domain, storage,
-    },
+    types::{domain, storage},
 };
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
