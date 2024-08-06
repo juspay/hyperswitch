@@ -12,9 +12,7 @@ pub use diesel_models::payment_method::{
 
 use crate::types::{
     api::{self},
-    domain::{
-        self,
-    },
+    domain::{self},
 };
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
