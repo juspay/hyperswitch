@@ -37,7 +37,13 @@ pub async fn refunds_create(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| {
-            refund_create_core(state, auth.merchant_account, None, auth.key_store, req)
+            refund_create_core(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -94,7 +100,7 @@ pub async fn refunds_retrieve(
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 refund_request,
                 refund_retrieve_core,
@@ -146,7 +152,7 @@ pub async fn refunds_retrieve_with_body(
             refund_response_wrapper(
                 state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 req,
                 refund_retrieve_core,
