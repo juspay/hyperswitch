@@ -15,6 +15,7 @@ use diesel_models::{
     user_role::{NewUserRole, UserRole},
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::merchant_account::MerchantAccount;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
@@ -639,7 +640,7 @@ impl NewUser {
     }
 
     pub async fn insert_user_role_in_db(
-        self,
+        &self,
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
@@ -1141,16 +1142,32 @@ impl SignInWithSingleRoleStrategy {
         self,
         state: &SessionState,
     ) -> UserResult<user_api::SignInResponse> {
+        let org_id = self
+            .user_role
+            .org_id
+            .as_ref()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("org_id not found")?;
+
+        let merchant_id =
+            UserRoleMerchantAccount::get_single_merchant_id(&self.user_role, state).await?;
         let token = utils::user::generate_jwt_auth_token_without_profile(
             state,
             &self.user,
-            &self.user_role,
+            &merchant_id,
+            org_id,
+            &self.user_role.role_id,
         )
         .await?;
         utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
 
-        let dashboard_entry_response =
-            utils::user::get_dashboard_entry_response(state, self.user, *self.user_role, token)?;
+        let dashboard_entry_response = utils::user::get_dashboard_entry_response(
+            state,
+            self.user,
+            merchant_id,
+            self.user_role.role_id,
+            token,
+        )?;
 
         Ok(user_api::SignInResponse::DashboardEntry(
             dashboard_entry_response,
@@ -1168,21 +1185,17 @@ impl SignInWithMultipleRolesStrategy {
         self,
         state: &SessionState,
     ) -> UserResult<user_api::SignInResponse> {
-        let merchant_accounts = state
-            .store
-            .list_multiple_merchant_accounts(
-                &state.into(),
-                self.user_roles
-                    .iter()
-                    .map(|role| {
-                        role.merchant_id
-                            .clone()
-                            .ok_or(UserErrors::InternalServerError)
-                    })
-                    .collect::<Result<Vec<_>, _>>()?,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?;
+        let merchant_accounts = futures::future::try_join_all(
+            self.user_roles
+                .iter()
+                .map(|role| UserRoleMerchantAccount::from_user_role(role, state)),
+        )
+        .await?
+        .into_iter()
+        .flat_map(|user_role_merchant_account| {
+            user_role_merchant_account.get_all_merchant_accounts()
+        })
+        .collect();
 
         let roles =
             utils::user_role::get_multiple_role_info_for_user_roles(state, &self.user_roles)
@@ -1273,5 +1286,120 @@ impl RecoveryCodes {
 
     pub fn into_inner(self) -> Vec<Secret<String>> {
         self.0
+    }
+}
+
+pub enum UserRoleMerchantAccount {
+    Multiple(Vec<MerchantAccount>),
+    Single(MerchantAccount),
+}
+
+impl UserRoleMerchantAccount {
+    pub async fn from_user_role(user_role: &UserRole, state: &SessionState) -> UserResult<Self> {
+        match user_role.entity_type {
+            Some(EntityType::Organization) => Ok(Self::Multiple(
+                state
+                    .store
+                    .list_merchant_accounts_by_organization_id(
+                        &state.into(),
+                        user_role
+                            .org_id
+                            .clone()
+                            .ok_or(UserErrors::InternalServerError)
+                            .attach_printable("org_id not found")?
+                            .get_string_repr(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to get merchant list for org")?,
+            )),
+            Some(EntityType::Merchant)
+            | Some(EntityType::Internal)
+            | Some(EntityType::Profile)
+            | None => {
+                let merchant_id = user_role
+                    .merchant_id
+                    .clone()
+                    .ok_or(UserErrors::InternalServerError)
+                    .attach_printable("merchant_id not found")?;
+
+                let key_store = state
+                    .store
+                    .get_merchant_key_store_by_merchant_id(
+                        &state.into(),
+                        &merchant_id,
+                        &state.store.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to get key_store for merchant_id")?;
+
+                Ok(Self::Single(
+                    state
+                        .store
+                        .find_merchant_account_by_merchant_id(
+                            &state.into(),
+                            &merchant_id,
+                            &key_store,
+                        )
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Failed to get merchant_account")?,
+                ))
+            }
+        }
+    }
+
+    pub fn get_single_merchant_account(self) -> UserResult<MerchantAccount> {
+        match self {
+            Self::Multiple(data) => data
+                .first()
+                .cloned()
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("merchant_account not found"),
+            Self::Single(data) => Ok(data),
+        }
+    }
+
+    pub fn get_all_merchant_accounts(self) -> Vec<MerchantAccount> {
+        match self {
+            Self::Multiple(data) => data,
+            Self::Single(data) => vec![data],
+        }
+    }
+
+    pub async fn get_single_merchant_id(
+        user_role: &UserRole,
+        state: &SessionState,
+    ) -> UserResult<id_type::MerchantId> {
+        match user_role.entity_type {
+            Some(EntityType::Organization) => Ok(state
+                .store
+                .list_merchant_accounts_by_organization_id(
+                    &state.into(),
+                    user_role
+                        .org_id
+                        .as_ref()
+                        .ok_or(UserErrors::InternalServerError)
+                        .attach_printable("org_id not found")?
+                        .get_string_repr(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to get merchant list for org")?
+                .first()
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("No merchants found for org_id")?
+                .get_id()
+                .clone()),
+            Some(EntityType::Merchant)
+            | Some(EntityType::Internal)
+            | Some(EntityType::Profile)
+            | None => user_role
+                .merchant_id
+                .clone()
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found"),
+        }
     }
 }

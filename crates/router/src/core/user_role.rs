@@ -7,7 +7,6 @@ use error_stack::{report, ResultExt};
 use router_env::logger;
 
 use crate::{
-    consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::{app::ReqState, SessionState},
     services::{
@@ -104,10 +103,7 @@ pub async fn update_user_role(
         .store
         .update_user_role_by_user_id_merchant_id(
             user_to_be_updated.get_user_id(),
-            &user_role_to_be_updated
-                .merchant_id
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("merchant_id not found in user_role")?,
+            &user_from_token.merchant_id,
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
@@ -193,13 +189,25 @@ pub async fn merchant_select(
 
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-        let token =
-            utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-                .await?;
+        let merchant_id =
+            domain::UserRoleMerchantAccount::get_single_merchant_id(&user_role, &state).await?;
+
+        let token = utils::user::generate_jwt_auth_token_without_profile(
+            &state,
+            &user_from_db,
+            &merchant_id,
+            &user_role
+                .org_id
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("org_id not found")?,
+            &user_role.role_id,
+        )
+        .await?;
         let response = utils::user::get_dashboard_entry_response(
             &state,
             user_from_db,
-            user_role,
+            merchant_id,
+            user_role.role_id,
             token.clone(),
         )?;
         return auth::cookies::set_cookie_response(

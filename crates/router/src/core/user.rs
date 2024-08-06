@@ -128,6 +128,7 @@ pub async fn signup(
         .get_new_organization()
         .insert_org_in_db(state.clone())
         .await?;
+
     let user_from_db = new_user
         .insert_user_and_merchant_in_db(state.clone())
         .await?;
@@ -141,11 +142,27 @@ pub async fn signup(
         .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    let token =
-        utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-            .await?;
-    let response =
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+    let merchant_id = new_user.get_new_merchant().get_merchant_id();
+    let org_id = new_user
+        .get_new_merchant()
+        .get_new_organization()
+        .get_organization_id();
+
+    let token = utils::user::generate_jwt_auth_token_without_profile(
+        &state,
+        &user_from_db,
+        &merchant_id,
+        &org_id,
+        &user_role.role_id,
+    )
+    .await?;
+    let response = utils::user::get_dashboard_entry_response(
+        &state,
+        user_from_db,
+        merchant_id,
+        user_role.role_id,
+        token.clone(),
+    )?;
 
     auth::cookies::set_cookie_response(user_api::TokenOrPayloadResponse::Payload(response), token)
 }
@@ -1041,7 +1058,13 @@ pub async fn accept_invite_from_email(
     let token = utils::user::generate_jwt_auth_token_without_profile(
         &state,
         &user_from_db,
-        &update_status_result,
+        merchant_id,
+        update_status_result
+            .org_id
+            .as_ref()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("org_id not found")?,
+        &update_status_result.role_id,
     )
     .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &update_status_result)
@@ -1050,7 +1073,8 @@ pub async fn accept_invite_from_email(
     let response = utils::user::get_dashboard_entry_response(
         &state,
         user_from_db,
-        update_status_result,
+        merchant_id.to_owned(),
+        update_status_result.role_id,
         token.clone(),
     )?;
 
@@ -1287,27 +1311,31 @@ pub async fn switch_merchant_id(
             .filter(|role| role.status == UserStatus::Active)
             .collect::<Vec<_>>();
 
-        let user_role = active_user_roles
-            .iter()
-            .find_map(|role| {
-                let Some(ref merchant_id) = role.merchant_id else {
-                    return Some(Err(report!(UserErrors::InternalServerError)));
-                };
-                if merchant_id == &request.merchant_id {
-                    Some(Ok(role))
-                } else {
-                    None
-                }
-            })
-            .transpose()?
-            .ok_or(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User doesn't have access to switch")?;
+        let mut res = None;
 
-        let token =
-            utils::user::generate_jwt_auth_token_without_profile(&state, &user, user_role).await?;
-        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, user_role).await;
+        for role in active_user_roles {
+            let merchant_id =
+                domain::UserRoleMerchantAccount::get_single_merchant_id(&role, &state).await?;
+            if merchant_id == request.merchant_id {
+                let token = utils::user::generate_jwt_auth_token_without_profile(
+                    &state,
+                    &user,
+                    &merchant_id,
+                    role.org_id
+                        .as_ref()
+                        .ok_or(UserErrors::InternalServerError)
+                        .attach_printable("org_id not found")?,
+                    &role.role_id,
+                )
+                .await?;
+                utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &role).await;
 
-        (token, user_role.role_id.clone())
+                res.replace((token, role.role_id));
+            }
+        }
+
+        res.ok_or(UserErrors::InvalidRoleOperation)
+            .attach_printable("User doesn't have access to switch")?
     };
 
     let response = user_api::DashboardEntryResponse {
@@ -1365,21 +1393,15 @@ pub async fn list_merchants_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let merchant_accounts = state
-        .store
-        .list_multiple_merchant_accounts(
-            &(&state).into(),
-            user_roles
-                .iter()
-                .map(|role| {
-                    role.merchant_id
-                        .clone()
-                        .ok_or(UserErrors::InternalServerError)
-                })
-                .collect::<Result<Vec<_>, _>>()?,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)?;
+    let merchant_accounts = futures::future::try_join_all(
+        user_roles
+            .iter()
+            .map(|role| domain::UserRoleMerchantAccount::from_user_role(role, &state)),
+    )
+    .await?
+    .into_iter()
+    .flat_map(|user_role_merchant_account| user_role_merchant_account.get_all_merchant_accounts())
+    .collect();
 
     let roles =
         utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
@@ -1476,14 +1498,8 @@ pub async fn list_users_for_merchant_account(
                 roles::RoleInfo::from_role_id(
                     &state,
                     &user_role.role_id.clone(),
-                    user_role
-                        .merchant_id
-                        .as_ref()
-                        .ok_or(UserErrors::InternalServerError)?,
-                    user_role
-                        .org_id
-                        .as_ref()
-                        .ok_or(UserErrors::InternalServerError)?,
+                    &user_from_token.merchant_id,
+                    &user_from_token.org_id,
                 )
                 .await
                 .map(|role_info| (user, user_role, role_info))

@@ -102,6 +102,8 @@ pub async fn validate_role_name(
     Ok(())
 }
 
+// This will currently not cache org level roles as we don't have org level custom roles
+// TODO: remove the usage of merchant_id in the following function
 pub async fn set_role_permissions_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,

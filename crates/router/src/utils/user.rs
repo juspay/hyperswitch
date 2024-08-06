@@ -84,24 +84,16 @@ impl UserFromToken {
 pub async fn generate_jwt_auth_token_without_profile(
     state: &SessionState,
     user: &UserFromStorage,
-    user_role: &UserRole,
+    merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
+    role_id: &str,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
-        user_role
-            .merchant_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("merchant_id not found for user_role")?
-            .clone(),
-        user_role.role_id.clone(),
+        merchant_id.clone(),
+        role_id.to_owned(),
         &state.conf,
-        user_role
-            .org_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("org_id not found for user_role")?
-            .clone(),
+        org_id.clone(),
         None,
     )
     .await?;
@@ -131,22 +123,20 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
 pub fn get_dashboard_entry_response(
     state: &SessionState,
     user: UserFromStorage,
-    user_role: UserRole,
+    merchant_id: id_type::MerchantId,
+    role_id: String,
     token: Secret<String>,
 ) -> UserResult<user_api::DashboardEntryResponse> {
     let verification_days_left = get_verification_days_left(state, &user)?;
 
     Ok(user_api::DashboardEntryResponse {
-        merchant_id: user_role.merchant_id.ok_or(
-            report!(UserErrors::InternalServerError)
-                .attach_printable("merchant_id not found for user_role"),
-        )?,
+        merchant_id,
         token,
         name: user.get_name(),
         email: user.get_email(),
         user_id: user.get_user_id().to_string(),
         verification_days_left,
-        user_role: user_role.role_id,
+        user_role: role_id,
     })
 }
 
@@ -161,6 +151,9 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
+// This function is currently throwing InternalServerError when merchant_id is not found in
+// user_role. Currently this function is being used on V1 data, so this will not break.
+// TODO: This function should be fixed when the V2 reads are present.
 pub fn get_multiple_merchant_details_with_status(
     user_roles: Vec<UserRole>,
     merchant_accounts: Vec<MerchantAccount>,
@@ -371,10 +364,3 @@ pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
         UserAuthType::Password | UserAuthType::MagicLink => false,
     }
 }
-
-// pub fn get_merchant_id_from_user_role(user_role: &UserRole) -> UserResult<id_type::MerchantId> {
-//     let Some(merchant_id) = user_role.merchant_id else {
-//         let org_id = user_role.org_id.ok_or(UserErrors::InternalServerError)?;
-//
-//     }
-// }
