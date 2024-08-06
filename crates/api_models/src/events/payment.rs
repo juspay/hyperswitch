@@ -1,12 +1,19 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::payment_methods::CustomerPaymentMethodsListResponse;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::payment_methods::CustomerPaymentMethodsListResponse;
 use crate::{
     payment_methods::{
-        CustomerDefaultPaymentMethodResponse, CustomerPaymentMethodsListResponse,
-        DefaultPaymentMethod, ListCountriesCurrenciesRequest, ListCountriesCurrenciesResponse,
-        PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
-        PaymentMethodCollectLinkResponse, PaymentMethodDeleteResponse, PaymentMethodListRequest,
-        PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+        CustomerDefaultPaymentMethodResponse, DefaultPaymentMethod, ListCountriesCurrenciesRequest,
+        ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
+        PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
+        PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
+        PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
