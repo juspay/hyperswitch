@@ -996,7 +996,11 @@ diesel::table! {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
+        customer_id -> Nullable<Varchar>,
+        #[max_length = 64]
         merchant_id -> Varchar,
+        #[max_length = 64]
+        address_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector -> Nullable<Varchar>,
         #[max_length = 128]
