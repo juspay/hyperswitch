@@ -1,19 +1,14 @@
 use api_models::surcharge_decision_configs::{
     SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord, SurchargeDecisionManagerResponse,
 };
-use common_utils::ext_traits::{Encode, StringExt, ValueExt};
-use diesel_models::configs;
+use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
-use euclid::frontend::ast;
-use storage_impl::redis::cache;
 
-use super::routing::helpers::update_merchant_active_algorithm_ref;
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
     services::api as service_api,
     types::domain,
-    utils::OptionExt,
 };
 
 #[cfg(all(
@@ -26,6 +21,11 @@ pub async fn upsert_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
     request: SurchargeDecisionConfigReq,
 ) -> RouterResponse<SurchargeDecisionManagerRecord> {
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+    use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
+    use diesel_models::configs;
+    use storage_impl::redis::cache;
+
     let db = state.store.as_ref();
     let name = request.name;
 
@@ -53,7 +53,7 @@ pub async fn upsert_surcharge_decision_config(
         .get_payment_method_surcharge_routing_id();
     let read_config_key = db.find_config_by_key(&key).await;
 
-    ast::lowering::lower_program(program.clone())
+    euclid::frontend::ast::lowering::lower_program(program.clone())
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid Request Data".to_string(),
         })
@@ -148,10 +148,7 @@ pub async fn upsert_surcharge_decision_config(
     _merchant_account: domain::MerchantAccount,
     _request: SurchargeDecisionConfigReq,
 ) -> RouterResponse<SurchargeDecisionManagerRecord> {
-    Err(errors::ApiErrorResponse::NotImplemented {
-        message: errors::NotImplementedMessage::Default,
-    }
-    .into())
+    todo!();
 }
 
 #[cfg(all(
@@ -163,6 +160,10 @@ pub async fn delete_surcharge_decision_config(
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+    use common_utils::ext_traits::ValueExt;
+    use storage_impl::redis::cache;
+
     let db = state.store.as_ref();
     let key = merchant_account
         .get_id()
@@ -195,11 +196,7 @@ pub async fn delete_surcharge_decision_config(
     _key_store: domain::MerchantKeyStore,
     _merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
-    // TODO: Implement this function for v2
-    Err(errors::ApiErrorResponse::NotImplemented {
-        message: errors::NotImplementedMessage::Default,
-    }
-    .into())
+    todo!()
 }
 
 pub async fn retrieve_surcharge_decision_config(

@@ -674,8 +674,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),
-                    frm_routing_algorithm: None,
-                    payout_routing_algorithm: None,
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                 }),
@@ -1023,8 +1021,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 .attach_printable("Unable to encrypt merchant details")?,
             metadata,
             publishable_key: None,
-            frm_routing_algorithm: None,
-            payout_routing_algorithm: None,
         })
     }
 }

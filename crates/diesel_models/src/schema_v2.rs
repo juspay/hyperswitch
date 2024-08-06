@@ -647,8 +647,6 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        frm_routing_algorithm -> Nullable<Jsonb>,
-        payout_routing_algorithm -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
         recon_status -> ReconStatus,

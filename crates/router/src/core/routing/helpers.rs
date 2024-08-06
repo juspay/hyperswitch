@@ -185,7 +185,7 @@ pub async fn update_merchant_active_algorithm_ref(
     _algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
     // TODO: handle updating the active routing algorithm for v2 in merchant account
-    Ok(())
+    todo!()
 }
 
 pub async fn update_business_profile_active_algorithm_ref(

@@ -153,8 +153,6 @@ pub struct MerchantAccount {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub id: common_utils::id_type::MerchantId,
@@ -172,9 +170,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             metadata: item.metadata,
             created_at: item.created_at,
             modified_at: item.modified_at,
-            frm_routing_algorithm: item.frm_routing_algorithm,
-
-            payout_routing_algorithm: item.payout_routing_algorithm,
             organization_id: item.organization_id,
             recon_status: item.recon_status,
         }
@@ -191,8 +186,6 @@ pub struct MerchantAccountSetter {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
 }
@@ -258,8 +251,6 @@ pub struct MerchantAccountNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub id: common_utils::id_type::MerchantId,
@@ -275,8 +266,6 @@ pub struct MerchantAccountUpdateInternal {
     pub storage_scheme: Option<storage_enums::MerchantStorageScheme>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub recon_status: Option<storage_enums::ReconStatus>,
 }

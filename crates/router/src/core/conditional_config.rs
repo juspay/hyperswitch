@@ -1,21 +1,15 @@
-#![allow(unused_imports)] // TODO: fix this when implementing the functions for v2
-use api_models::{
-    conditional_configs::{DecisionManager, DecisionManagerRecord, DecisionManagerResponse},
-    routing,
+use api_models::conditional_configs::{
+    DecisionManager, DecisionManagerRecord, DecisionManagerResponse,
 };
-use common_utils::ext_traits::{Encode, StringExt, ValueExt};
-use diesel_models::configs;
-use error_stack::ResultExt;
-use euclid::frontend::ast;
-use storage_impl::redis::cache;
+use common_utils::ext_traits::StringExt;
 
-use super::routing::helpers::update_merchant_active_algorithm_ref;
+use error_stack::ResultExt;
+
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
     services::api as service_api,
     types::domain,
-    utils::OptionExt,
 };
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -25,12 +19,7 @@ pub async fn upsert_conditional_config(
     _merchant_account: domain::MerchantAccount,
     _request: DecisionManager,
 ) -> RouterResponse<DecisionManagerRecord> {
-    // TODO: Implement for v2
-    Err(errors::ApiErrorResponse::NotImplemented {
-        message:
-            hyperswitch_domain_models::errors::api_error_response::NotImplementedMessage::Default,
-    }
-    .into())
+    todo!()
 }
 
 #[cfg(all(
@@ -43,6 +32,11 @@ pub async fn upsert_conditional_config(
     merchant_account: domain::MerchantAccount,
     request: DecisionManager,
 ) -> RouterResponse<DecisionManagerRecord> {
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+    use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
+    use diesel_models::configs;
+    use storage_impl::redis::cache;
+
     let db = state.store.as_ref();
     let (name, prog) = match request {
         DecisionManager::DecisionManagerv0(ccr) => {
@@ -71,7 +65,7 @@ pub async fn upsert_conditional_config(
         }
     };
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -83,7 +77,7 @@ pub async fn upsert_conditional_config(
     let key = merchant_account.get_id().get_payment_config_routing_id();
     let read_config_key = db.find_config_by_key(&key).await;
 
-    ast::lowering::lower_program(prog.clone())
+    euclid::frontend::ast::lowering::lower_program(prog.clone())
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid Request Data".to_string(),
         })
@@ -175,12 +169,7 @@ pub async fn delete_conditional_config(
     _key_store: domain::MerchantKeyStore,
     _merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
-    // TODO: Implement for v2
-    Err(errors::ApiErrorResponse::NotImplemented {
-        message:
-            hyperswitch_domain_models::errors::api_error_response::NotImplementedMessage::Default,
-    }
-    .into())
+    todo!()
 }
 
 #[cfg(all(
@@ -192,9 +181,13 @@ pub async fn delete_conditional_config(
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+    use common_utils::ext_traits::ValueExt;
+    use storage_impl::redis::cache;
+
     let db = state.store.as_ref();
     let key = merchant_account.get_id().get_payment_config_routing_id();
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|value| value.parse_value("routing algorithm"))
