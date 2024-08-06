@@ -19,10 +19,9 @@ pub mod diesel_exports {
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
-        DbRoutingAlgorithmStatus as RoutingAlgorithmStatus,
-        DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
-        DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbRoutingAlgorithmStatus as RoutingAlgorithmStatus, DbTotpStatus as TotpStatus,
+        DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
+        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;
