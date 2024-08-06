@@ -66,7 +66,7 @@ Congratulations 🎉 on making your first payment with Hyperswitch.
   <h2 id="get-started-with-hyperswitch">Get Started with Hyperswitch</h2>
 </a>
 
-### [For Enterprises][docs-link-for-Enterprise]
+### [For Enterprises][docs-link-for-enterprise]
   Hyperswitch helps enterprises in -  
   - Improving profitability
   - Increasing conversion rates
