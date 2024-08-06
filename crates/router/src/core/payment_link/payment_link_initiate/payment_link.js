@@ -236,6 +236,7 @@ function boot() {
   }
   else{
     renderPaymentDetails(paymentDetails);
+    renderDynamicMerchantDetails(paymentDetails);
     renderCart(paymentDetails);
     renderSDKHeader(paymentDetails);
   }
@@ -583,9 +584,6 @@ function renderPaymentDetails(paymentDetails) {
   if (paymentMerchantDetails instanceof HTMLDivElement) {
     paymentMerchantDetails.append(merchantNameNode);
     paymentMerchantDetails.append(paymentIdNode);
-    // add dynamic merchant details in the payment details section if present
-    appendMerchantDetails(paymentDetails, paymentMerchantDetails);
-    
   }
   var merchantImageNode = document.getElementById(
     "hyper-checkout-merchant-image"
@@ -599,28 +597,36 @@ function renderPaymentDetails(paymentDetails) {
   }
 }
 
-function appendMerchantDetails(paymentDetails, paymentMerchantDetails) {
+function renderDynamicMerchantDetails(paymentDetails) {
+  var merchantDynamicDetails = document.getElementById(
+    "hyper-checkout-payment-merchant-dynamic-details"
+  );
+  if (merchantDynamicDetails instanceof HTMLDivElement) {
+    // add dynamic merchant details in the payment details section if present
+    appendMerchantDetails(paymentDetails, merchantDynamicDetails);
+  }
+}
+
+function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
   if (Object.keys(paymentDetails.merchant_details).length === 0) {
     return;
   }
 
   // render a horizontal line above dynamic merchant details
+  let horizontalLineContainer = document.getElementById("hyper-checkout-payment-horizontal-line-container");
   let horizontalLine = document.createElement("hr");
-  paymentMerchantDetails.append(horizontalLine);
+  horizontalLine.className = "hyper-checkout-payment-horizontal-line";
+  horizontalLineContainer.append(horizontalLine);
 
   // max number of items to show in the merchant details
   let maxItemsInDetails = 5;
   let merchantDetailsObject = JSON.parse(paymentDetails.merchant_details);
   for(const key in merchantDetailsObject) {
-    // format of elements in merchant details is (index, key+value)
-    // the key is the index number of the field to preserve the order
-    // merchant details are stored in the format "key+value" in the value of the element
-    // split the value to get the key and value
     var merchantData = document.createElement("div");
     merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
     merchantData.innerHTML = key+": "+merchantDetailsObject[key].bold();
 
-    paymentMerchantDetails.append(merchantData);
+    merchantDynamicDetails.append(merchantData);
     if(--maxItemsInDetails === 0) {
       break;
     }
