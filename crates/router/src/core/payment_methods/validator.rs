@@ -1,5 +1,5 @@
 use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
-use common_utils::{ext_traits::ValueExt, link_utils};
+use common_utils::link_utils;
 use diesel_models::generic_link::PaymentMethodCollectLinkData;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -24,7 +24,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     // Validate customer_id
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
-    let merchant_id = merchant_account.merchant_id.clone();
+    let merchant_id = merchant_account.get_id().clone();
     match db
         .find_customer_by_customer_id_merchant_id(
             &state.into(),
@@ -40,7 +40,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
             if err.current_context().is_db_not_found() {
                 Err(err).change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "customer [{}] not found for merchant [{}]",
+                        "customer [{}] not found for merchant [{:?}]",
                         customer_id.get_string_repr(),
                         merchant_id
                     ),
@@ -62,18 +62,28 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
 
     // Fetch all configs
     let default_config = &state.conf.generic_link.payment_method_collect;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let merchant_config = merchant_account
         .pm_collect_link_config
         .as_ref()
         .map(|config| {
-            config
-                .clone()
-                .parse_value::<admin::BusinessCollectLinkConfig>("BusinessCollectLinkConfig")
+            common_utils::ext_traits::ValueExt::parse_value::<admin::BusinessCollectLinkConfig>(
+                config.clone(),
+                "BusinessCollectLinkConfig",
+            )
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "pm_collect_link_config in merchant_account",
         })?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let merchant_config = Option::<admin::BusinessCollectLinkConfig>::None;
+
     let merchant_ui_config = merchant_config.as_ref().map(|c| c.config.ui_config.clone());
     let ui_config = req
         .ui_config
@@ -102,7 +112,8 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         None => default_config.expiry,
     };
     let link = Secret::new(format!(
-        "{domain}/payment_methods/collect/{merchant_id}/{pm_collect_link_id}"
+        "{domain}/payment_methods/collect/{}/{pm_collect_link_id}",
+        merchant_id.get_string_repr()
     ));
     let enabled_payment_methods = match (&req.enabled_payment_methods, &merchant_config) {
         (Some(enabled_payment_methods), _) => enabled_payment_methods.clone(),

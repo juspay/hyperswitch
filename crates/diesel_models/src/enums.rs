@@ -12,14 +12,16 @@ pub mod diesel_exports {
         DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
+        DbOrderFulfillmentTimeOrigin as OrderFulfillmentTimeOrigin,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
-        DbRoutingAlgorithmStatus as RoutingAlgorithmStatus, DbTotpStatus as TotpStatus,
-        DbTransactionType as TransactionType, DbUserStatus as UserStatus,
+        DbRoutingAlgorithmStatus as RoutingAlgorithmStatus,
+        DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
+        DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
         DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
@@ -319,4 +321,25 @@ pub enum TotpStatus {
     InProgress,
     #[default]
     NotSet,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::Display,
+)]
+#[diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UserRoleVersion {
+    #[default]
+    V1,
+    V2,
 }

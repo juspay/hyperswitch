@@ -251,9 +251,12 @@ pub fn get_process_tracker_id<'a>(
     runner: storage::ProcessTrackerRunner,
     task_name: &'a str,
     txn_id: &'a str,
-    merchant_id: &'a str,
+    merchant_id: &'a common_utils::id_type::MerchantId,
 ) -> String {
-    format!("{runner}_{task_name}_{txn_id}_{merchant_id}")
+    format!(
+        "{runner}_{task_name}_{txn_id}_{}",
+        merchant_id.get_string_repr()
+    )
 }
 
 pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime> {
@@ -300,10 +303,10 @@ pub fn add_histogram_metrics(
 
 pub fn get_schedule_time(
     mapping: process_data::ConnectorPTMapping,
-    merchant_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<i32> {
-    let mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
         Some(map) => map.clone(),
         None => mapping.default_mapping,
     };
@@ -335,10 +338,10 @@ pub fn get_pm_schedule_time(
 
 pub fn get_outgoing_webhook_retry_schedule_time(
     mapping: process_data::OutgoingWebhookRetryProcessTrackerMapping,
-    merchant_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<i32> {
-    let retry_mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+    let retry_mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
         Some(map) => map.clone(),
         None => mapping.default_mapping,
     };

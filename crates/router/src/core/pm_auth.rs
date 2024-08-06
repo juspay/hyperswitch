@@ -125,7 +125,7 @@ pub async fn create_link_token(
                 pi.billing_address_id.clone(),
                 &key_store,
                 &pi.payment_id,
-                &merchant_account.merchant_id,
+                merchant_account.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -136,24 +136,34 @@ pub async fn create_link_token(
         .and_then(|address| address.country)
         .map(|country| country.to_string());
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &(&state).into(),
-            merchant_account.merchant_id.as_str(),
+            merchant_account.get_id(),
             &selected_config.mca_id,
             &key_store,
         )
         .await
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_account.merchant_id.clone(),
+            id: merchant_account.get_id().get_string_repr().to_owned(),
         })?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let merchant_connector_account = {
+        let _ = billing_country;
+        todo!()
+    };
 
     let auth_type = helpers::get_connector_auth_type(merchant_connector_account)?;
 
     let router_data = pm_auth_types::LinkTokenRouterData {
         flow: std::marker::PhantomData,
-        merchant_id: Some(merchant_account.merchant_id),
+        merchant_id: Some(merchant_account.get_id().clone()),
         connector: Some(connector_name.to_string()),
         request: pm_auth_types::LinkTokenRequest {
             client_name: "HyperSwitch".to_string(),
@@ -231,18 +241,30 @@ pub async fn exchange_token_core(
 
     let connector = PaymentAuthConnectorData::get_connector_by_name(connector_name)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &(&state).into(),
-            merchant_account.merchant_id.as_str(),
+            merchant_account.get_id(),
             &config.mca_id,
             &key_store,
         )
         .await
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_account.merchant_id.clone(),
+            id: merchant_account.get_id().get_string_repr().to_owned(),
         })?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let merchant_connector_account: domain::MerchantConnectorAccount = {
+        let _ = merchant_account;
+        let _ = connector;
+        let _ = key_store;
+        todo!()
+    };
 
     let auth_type = helpers::get_connector_auth_type(merchant_connector_account.clone())?;
 
@@ -273,7 +295,7 @@ pub async fn exchange_token_core(
         state,
         bank_account_details_resp,
         (connector_name, access_token),
-        merchant_connector_account.merchant_connector_id,
+        merchant_connector_account.get_id(),
     ))
     .await?;
 
@@ -297,7 +319,7 @@ async fn store_bank_details_in_payment_methods(
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             &payload.payment_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -311,7 +333,7 @@ async fn store_bank_details_in_payment_methods(
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             None,
         )
         .await
@@ -459,7 +481,7 @@ async fn store_bank_details_in_payment_methods(
             let now = common_utils::date_time::now();
             let pm_new = storage::PaymentMethodNew {
                 customer_id: customer_id.clone(),
-                merchant_id: merchant_account.merchant_id.clone(),
+                merchant_id: merchant_account.get_id().clone(),
                 payment_method_id: pm_id,
                 payment_method: Some(enums::PaymentMethod::BankDebit),
                 payment_method_type: Some(creds.payment_method_type),
@@ -555,7 +577,7 @@ pub async fn get_bank_account_creds(
 
     let router_data_bank_details = pm_auth_types::BankDetailsRouterData {
         flow: std::marker::PhantomData,
-        merchant_id: Some(merchant_account.merchant_id.clone()),
+        merchant_id: Some(merchant_account.get_id().clone()),
         connector: Some(connector_name.to_string()),
         request: pm_auth_types::BankAccountCredentialsRequest {
             access_token: access_token.clone(),
@@ -716,6 +738,10 @@ pub async fn retrieve_payment_method_from_auth_service(
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
@@ -730,6 +756,13 @@ pub async fn retrieve_payment_method_from_auth_service(
         .attach_printable(
             "error while fetching merchant_connector_account from merchant_id and connector name",
         )?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let mca = {
+        let _ = merchant_account;
+        let _ = connector;
+        todo!()
+    };
 
     let auth_type = pm_auth_helpers::get_connector_auth_type(mca)?;
 
@@ -784,7 +817,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         payment_intent.billing_address_id.clone(),
         key_store,
         &payment_intent.payment_id,
-        &merchant_account.merchant_id,
+        merchant_account.get_id(),
         merchant_account.storage_scheme,
     )
     .await?;

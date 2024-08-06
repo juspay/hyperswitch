@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+#[cfg(feature = "dummy_connector")]
+use common_utils::errors;
 use utoipa::ToSchema;
 
 #[derive(
@@ -113,6 +115,7 @@ pub enum Connector {
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
+    // Paybox, added as template code for future usage
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
     Payone,
@@ -132,6 +135,7 @@ pub enum Connector {
     // Tsys,
     Tsys,
     Volt,
+    // Wellsfargo,
     Wise,
     Worldline,
     Worldpay,
@@ -236,6 +240,7 @@ impl Connector {
             | Self::Nexinets
             | Self::Nuvei
             | Self::Opennode
+			// | Self::Paybox  added as template code for future usage
             | Self::Payme
             | Self::Payone
             | Self::Paypal
@@ -250,6 +255,7 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
+            // | Self::Wellsfargo
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
@@ -269,6 +275,31 @@ impl Connector {
     }
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {
         matches!(self, Self::Airwallex)
+    }
+    #[cfg(feature = "dummy_connector")]
+    pub fn validate_dummy_connector_enabled(
+        &self,
+        is_dummy_connector_enabled: bool,
+    ) -> errors::CustomResult<(), errors::ValidationError> {
+        if !is_dummy_connector_enabled
+            && matches!(
+                self,
+                Self::DummyConnector1
+                    | Self::DummyConnector2
+                    | Self::DummyConnector3
+                    | Self::DummyConnector4
+                    | Self::DummyConnector5
+                    | Self::DummyConnector6
+                    | Self::DummyConnector7
+            )
+        {
+            Err(errors::ValidationError::InvalidValue {
+                message: "Invalid connector name".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -474,6 +505,9 @@ pub enum FieldType {
     UserDateOfBirth,
     UserVpaId,
     LanguagePreference { options: Vec<String> },
+    UserPixKey,
+    UserCpf,
+    UserCnpj,
 }
 
 impl FieldType {
@@ -560,6 +594,9 @@ impl PartialEq for FieldType {
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
             (Self::UserVpaId, Self::UserVpaId) => true,
+            (Self::UserPixKey, Self::UserPixKey) => true,
+            (Self::UserCpf, Self::UserCpf) => true,
+            (Self::UserCnpj, Self::UserCnpj) => true,
             (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
             _unused => false,
         }

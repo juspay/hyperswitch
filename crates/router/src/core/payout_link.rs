@@ -32,7 +32,7 @@ pub async fn initiate_payout_link(
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
-    let merchant_id = &merchant_account.merchant_id;
+    let merchant_id = merchant_account.get_id();
     // Fetch payout
     let payout = db
         .find_payout_by_merchant_id_payout_id(
@@ -264,13 +264,15 @@ pub async fn filter_payout_methods(
     key_store: &domain::MerchantKeyStore,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
+    use masking::ExposeInterface;
+
     let db = &*state.store;
     let key_manager_state = &state.into();
     //Fetch all merchant connector accounts
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             key_manager_state,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             false,
             key_store,
         )
@@ -311,7 +313,7 @@ pub async fn filter_payout_methods(
         };
         for payout_method in payout_methods.iter() {
             let parse_result = serde_json::from_value::<api_models::admin::PaymentMethodsEnabled>(
-                payout_method.clone(),
+                payout_method.clone().expose(),
             );
             if let Ok(payment_methods_enabled) = parse_result {
                 let payment_method = payment_methods_enabled.payment_method;

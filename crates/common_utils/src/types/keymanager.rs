@@ -17,11 +17,13 @@ use crate::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{self, CustomResult},
+    id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 
 #[derive(Debug)]
 pub struct KeyManagerState {
+    pub enabled: Option<bool>,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
     #[cfg(feature = "keymanager_mtls")]
@@ -33,7 +35,7 @@ pub struct KeyManagerState {
 #[serde(tag = "data_identifier", content = "key_identifier")]
 pub enum Identifier {
     User(String),
-    Merchant(String),
+    Merchant(id_type::MerchantId),
     UserAuth(String),
 }
 

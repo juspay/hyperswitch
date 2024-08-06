@@ -33,8 +33,6 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
-  # Use `sccache` for caching compilation artifacts
-  RUSTC_WRAPPER: sccache
 
 jobs:
   formatting:
@@ -90,6 +88,10 @@ jobs:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
 
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+
     strategy:
       fail-fast: false
       matrix:
@@ -100,10 +102,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: "Fetch base branch"
-        shell: bash
-        run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -150,6 +148,8 @@ jobs:
 
       - name: Cargo hack
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: just ci_hack
 
   # cargo-deny:
@@ -176,6 +176,10 @@ jobs:
   test:
     name: Run tests on stable toolchain
     runs-on: ${{ matrix.runner }}
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
 
     strategy:
       fail-fast: false
@@ -204,10 +208,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
-
-      - name: "Fetch base branch"
-        shell: bash
-        run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -277,6 +277,8 @@ jobs:
 
       - name: Run cargo check
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: just ci_hack
 
   typos:
@@ -288,3 +290,51 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+
+  check-v2:
+    name: Check compilation for V2 features
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.0
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2.33.28
+        with:
+          tool: cargo-hack
+          checksum: true
+
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Deny warnings
+        shell: bash
+        run: |
+          sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+          # Allow the `clippy::todo` lint for v2 checks
+          sed -i --null-data 's/    "-Wclippy::todo",\n//' .cargo/config.toml
+
+      - name: Cargo hack_v2
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: just hack_v2

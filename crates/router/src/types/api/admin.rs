@@ -1,28 +1,42 @@
 use std::collections::HashMap;
 
-pub use api_models::admin::{
-    BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate, MerchantAccountCreate,
-    MerchantAccountDeleteResponse, MerchantAccountResponse, MerchantAccountUpdate,
-    MerchantConnectorCreate, MerchantConnectorDeleteResponse, MerchantConnectorDetails,
-    MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantConnectorResponse, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+pub use api_models::{
+    admin::{
+        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
+        MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
+        MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
+        MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
+        MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
+        ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+    },
+    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
-use common_utils::{
-    ext_traits::{AsyncExt, Encode, ValueExt},
-    types::keymanager::Identifier,
-};
-use error_stack::{report, ResultExt};
+use common_utils::{ext_traits::ValueExt, types::keymanager::Identifier};
+use diesel_models::organization::OrganizationBridge;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    core::{errors, payment_methods::cards::create_encrypted_data},
+    core::errors,
     routes::SessionState,
-    types::{domain, storage, transformers::ForeignTryFrom},
+    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
 };
+
+impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
+    fn foreign_from(org: diesel_models::organization::Organization) -> Self {
+        Self {
+            organization_id: org.get_organization_id(),
+            organization_name: org.get_organization_name(),
+            organization_details: org.organization_details,
+            metadata: org.metadata,
+            modified_at: org.modified_at,
+            created_at: org.created_at,
+        }
+    }
+}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -31,6 +45,7 @@ use crate::{
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
+        let merchant_id = item.get_id().to_owned();
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;
@@ -41,7 +56,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .transpose()?;
 
         Ok(Self {
-            merchant_id: item.merchant_id,
+            merchant_id,
             merchant_name: item.merchant_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -74,19 +89,20 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         use common_utils::ext_traits::OptionExt;
 
+        let id = item.get_id().to_owned();
+
         let merchant_name = item
             .merchant_name
             .get_required_value("merchant_name")?
             .into_inner();
 
         Ok(Self {
-            id: item.merchant_id,
+            id,
             merchant_name,
             merchant_details: item.merchant_details,
             publishable_key: item.publishable_key,
             metadata: item.metadata,
             organization_id: item.organization_id,
-            is_recon_enabled: item.is_recon_enabled,
             recon_status: item.recon_status,
         })
     }
@@ -159,7 +175,23 @@ pub async fn business_profile_response(
     })
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+
+pub async fn create_business_profile(
+    _state: &SessionState,
+    _request: BusinessProfileCreate,
+    _key_store: &MerchantKeyStore,
+) -> Result<
+    storage::business_profile::BusinessProfileNew,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn create_business_profile(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
@@ -169,8 +201,13 @@ pub async fn create_business_profile(
     storage::business_profile::BusinessProfileNew,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    use common_utils::ext_traits::{AsyncExt, Encode};
+
+    use crate::core;
+
     // Generate a unique profile id
     let profile_id = common_utils::generate_id_with_default_len("pro");
+    let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
 
@@ -203,7 +240,9 @@ pub async fn create_business_profile(
         .transpose()?;
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(state, key_store, headers))
+        .async_map(|headers| {
+            core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
+        })
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -218,15 +257,17 @@ pub async fn create_business_profile(
                     field_name: "payout_link_config",
                 },
             ),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
+            Err(e) => Err(error_stack::report!(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                }
+            )),
         })
         .transpose()?;
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,
-        merchant_id: merchant_account.merchant_id,
+        merchant_id,
         profile_name: request.profile_name.unwrap_or("default".to_string()),
         created_at: current_time,
         modified_at: current_time,

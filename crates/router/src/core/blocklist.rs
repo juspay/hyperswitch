@@ -15,7 +15,7 @@ pub async fn add_entry_to_blocklist(
     merchant_account: domain::MerchantAccount,
     body: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
-    utils::insert_entry_into_blocklist(&state, merchant_account.merchant_id, body)
+    utils::insert_entry_into_blocklist(&state, merchant_account.get_id(), body)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -25,7 +25,7 @@ pub async fn remove_entry_from_blocklist(
     merchant_account: domain::MerchantAccount,
     body: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
-    utils::delete_entry_from_blocklist(&state, merchant_account.merchant_id, body)
+    utils::delete_entry_from_blocklist(&state, merchant_account.get_id(), body)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -35,7 +35,7 @@ pub async fn list_blocklist_entries(
     merchant_account: domain::MerchantAccount,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResponse<Vec<api_blocklist::BlocklistResponse>> {
-    utils::list_blocklist_entries_for_merchant(&state, merchant_account.merchant_id, query)
+    utils::list_blocklist_entries_for_merchant(&state, merchant_account.get_id(), query)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -45,7 +45,7 @@ pub async fn toggle_blocklist_guard(
     merchant_account: domain::MerchantAccount,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
-    utils::toggle_blocklist_guard_for_merchant(&state, merchant_account.merchant_id, query)
+    utils::toggle_blocklist_guard_for_merchant(&state, merchant_account.get_id(), query)
         .await
         .map(services::ApplicationResponse::Json)
 }

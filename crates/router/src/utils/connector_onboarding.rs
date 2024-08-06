@@ -43,7 +43,7 @@ pub fn is_enabled(
 pub async fn check_if_connector_exists(
     state: &SessionState,
     connector_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<()> {
     let key_manager_state = &state.into();
     let key_store = state
@@ -56,6 +56,10 @@ pub async fn check_if_connector_exists(
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let _connector = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -68,6 +72,13 @@ pub async fn check_if_connector_exists(
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.to_string(),
         })?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    {
+        let _ = connector_id;
+        let _ = key_store;
+        todo!()
+    };
 
     Ok(())
 }

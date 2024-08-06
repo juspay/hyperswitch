@@ -33,8 +33,8 @@ pub struct CreateApiKeyResponse {
     pub key_id: String,
 
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The unique name for the API Key to help you identify it.
     #[schema(max_length = 64, example = "Sandbox integration key")]
@@ -76,8 +76,8 @@ pub struct RetrieveApiKeyResponse {
     pub key_id: String,
 
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The unique name for the API Key to help you identify it.
     #[schema(max_length = 64, example = "Sandbox integration key")]
@@ -134,15 +134,16 @@ pub struct UpdateApiKeyRequest {
     pub key_id: String,
 
     #[serde(skip_deserializing)]
-    pub merchant_id: String,
+    #[schema(value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 /// The response body for revoking an API Key.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct RevokeApiKeyResponse {
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The identifier for the API Key.
     #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]

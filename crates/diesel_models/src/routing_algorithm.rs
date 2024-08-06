@@ -8,7 +8,7 @@ use crate::{enums, schema::routing_algorithm};
 pub struct RoutingAlgorithm {
     pub algorithm_id: String,
     pub profile_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: String,
     pub description: Option<String>,
     pub kind: enums::RoutingAlgorithmKind,
