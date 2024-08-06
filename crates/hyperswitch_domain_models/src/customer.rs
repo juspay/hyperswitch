@@ -312,20 +312,35 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                default_payment_method_id: None,
+                updated_by: None,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                default_payment_method_id: None,
+                updated_by: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
             } => Self {
                 default_payment_method_id,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
             },
         }
     }
@@ -373,21 +388,38 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
-                modified_at: Some(date_time::now()),
+                modified_at: date_time::now(),
                 address_id,
-                ..Default::default()
+                default_payment_method_id: None,
+                updated_by: None,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                default_payment_method_id: None,
+                updated_by: None,
+                address_id: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
             } => Self {
                 default_payment_method_id,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                address_id: None,
             },
         }
     }
