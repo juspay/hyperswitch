@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use api_models::user as user_api;
 use common_enums::UserAuthType;
@@ -13,10 +13,11 @@ use redis_interface::RedisConnectionPool;
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
     core::errors::{StorageError, UserErrors, UserResult},
+    db::domain::UserRoleMerchantAccount,
     routes::SessionState,
     services::{
         authentication::{AuthToken, UserFromToken},
-        authorization::roles::RoleInfo,
+        authorization::roles::{self, RoleInfo},
     },
     types::{
         domain::{self, MerchantAccount, UserFromStorage},
@@ -151,55 +152,38 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-// This function is currently throwing InternalServerError when merchant_id is not found in
-// user_role. Currently this function is being used on V1 data, so this will not break.
-// TODO: This function should be fixed when the V2 reads are present.
-pub fn get_multiple_merchant_details_with_status(
+pub async fn get_multiple_merchant_details_with_status(
+    state: &SessionState,
     user_roles: Vec<UserRole>,
-    merchant_accounts: Vec<MerchantAccount>,
-    roles: Vec<RoleInfo>,
 ) -> UserResult<Vec<user_api::UserMerchantAccount>> {
-    let merchant_account_map = merchant_accounts
-        .into_iter()
-        .map(|merchant_account| (merchant_account.get_id().clone(), merchant_account))
-        .collect::<HashMap<_, _>>();
+    let mut res = Vec::new();
+    for user_role in user_roles {
+        let merchant_accounts = UserRoleMerchantAccount::from_user_role(&user_role, state)
+            .await?
+            .get_all_merchant_accounts();
 
-    let role_map = roles
-        .into_iter()
-        .map(|role_info| (role_info.get_role_id().to_string(), role_info))
-        .collect::<HashMap<_, _>>();
-
-    user_roles
-        .into_iter()
-        .map(|user_role| {
-            let Some(merchant_id) = &user_role.merchant_id else {
-                return Err(report!(UserErrors::InternalServerError))
-                    .attach_printable("merchant_id not found for user_role");
-            };
-            let Some(org_id) = &user_role.org_id else {
-                return Err(report!(UserErrors::InternalServerError)
-                    .attach_printable("org_id not found in user_role"));
-            };
-            let merchant_account = merchant_account_map
-                .get(merchant_id)
+        for merchant in merchant_accounts {
+            let org_id = user_role
+                .org_id
+                .as_ref()
                 .ok_or(UserErrors::InternalServerError)
-                .attach_printable("Merchant account for user role doesn't exist")?;
+                .attach_printable("org_id not found")?;
+            let role = RoleInfo::from_role_id(state, &user_role.role_id, merchant.get_id(), org_id)
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to fetch role info")?;
 
-            let role_info = role_map
-                .get(&user_role.role_id)
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("Role info for user role doesn't exist")?;
-
-            Ok(user_api::UserMerchantAccount {
-                merchant_id: merchant_id.to_owned(),
-                merchant_name: merchant_account.merchant_name.clone(),
+            res.push(user_api::UserMerchantAccount {
+                merchant_id: merchant.get_id().to_owned(),
+                merchant_name: merchant.merchant_name.clone(),
                 is_active: user_role.status == UserStatus::Active,
-                role_id: user_role.role_id,
-                role_name: role_info.get_role_name().to_string(),
+                role_id: user_role.role_id.clone(),
+                role_name: role.get_role_name().to_string(),
                 org_id: org_id.to_owned(),
-            })
-        })
-        .collect()
+            });
+        }
+    }
+    Ok(res)
 }
 
 pub async fn get_user_from_db_by_email(

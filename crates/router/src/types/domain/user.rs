@@ -1185,27 +1185,8 @@ impl SignInWithMultipleRolesStrategy {
         self,
         state: &SessionState,
     ) -> UserResult<user_api::SignInResponse> {
-        let merchant_accounts = futures::future::try_join_all(
-            self.user_roles
-                .iter()
-                .map(|role| UserRoleMerchantAccount::from_user_role(role, state)),
-        )
-        .await?
-        .into_iter()
-        .flat_map(|user_role_merchant_account| {
-            user_role_merchant_account.get_all_merchant_accounts()
-        })
-        .collect();
-
-        let roles =
-            utils::user_role::get_multiple_role_info_for_user_roles(state, &self.user_roles)
-                .await?;
-
-        let merchant_details = utils::user::get_multiple_merchant_details_with_status(
-            self.user_roles,
-            merchant_accounts,
-            roles,
-        )?;
+        let merchant_details =
+            utils::user::get_multiple_merchant_details_with_status(state, self.user_roles).await?;
 
         Ok(user_api::SignInResponse::MerchantSelect(
             user_api::MerchantSelectResponse {
