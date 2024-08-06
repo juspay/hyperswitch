@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use api_models::{enums::PaymentMethodType, webhooks::IncomingWebhookEvent};
 use base64::Engine;
 use common_utils::{
@@ -1980,7 +1979,6 @@ impl
         let merchant_account_code = get_key(&req.connector_auth_type)?;
         let connector_req =
             adyen::AdyenAcceptDisputeRequest::try_from((req, merchant_account_code))?;
-        println!("audit {:?}", connector_req);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -2151,7 +2149,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         let request = services::RequestBuilder::new()
-            .method(services::Method::Put)
+            .method(services::Method::Post)
             .url(&types::SubmitEvidenceType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::SubmitEvidenceType::get_headers(
@@ -2185,5 +2183,51 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+}
+impl api::UploadFile for Adyen {}
+impl api::RetrieveFile for Adyen {}
+impl
+    services::ConnectorIntegration<
+        api::Retrieve,
+        types::RetrieveFileRequestData,
+        types::RetrieveFileResponse,
+    > for Adyen
+{
+}
+impl
+    services::ConnectorIntegration<
+        api::Upload,
+        types::UploadFileRequestData,
+        types::UploadFileResponse,
+    > for Adyen
+{
+}
+#[async_trait::async_trait]
+impl api::FileUpload for Adyen {
+    fn validate_file_upload(
+        &self,
+        purpose: api::FilePurpose,
+        file_size: i32,
+        file_type: mime::Mime,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match purpose {
+            api::FilePurpose::DisputeEvidence => {
+                let supported_file_types =
+                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+                // 4 Megabytes (MB)
+                if file_size > 4000000 {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 4MB".to_owned(),
+                    })?
+                }
+                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+                    })?
+                }
+            }
+        }
+        Ok(())
     }
 }

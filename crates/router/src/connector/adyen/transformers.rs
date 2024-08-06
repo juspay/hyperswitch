@@ -4911,7 +4911,7 @@ pub struct Evidence {
 #[serde(rename_all = "camelCase")]
 
 pub struct DefenseDocuments {
-    content: Option<String>,
+    content: String,
     content_type: Option<String>,
     defense_document_type_code: String,
 }
@@ -5015,6 +5015,6 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     }
 }
 
-fn get_content(item: Vec<u8>) -> Option<String> {
-    String::from_utf8(item).ok()
+fn get_content(item: Vec<u8>) -> String {
+    String::from_utf8_lossy(&item).to_string()
 }
