@@ -87,11 +87,13 @@ Cypress.Commands.add(
     createConnectorBody,
     payment_methods_enabled,
     globalState,
-    connectorName
+    connectorName,
+    connectorLabel
   ) => {
     const merchantId = globalState.get("merchantId");
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
+    createConnectorBody.connector_label = connectorLabel;
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
