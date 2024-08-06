@@ -110,7 +110,6 @@ impl Payouts {
         if let Some(connector) = connector {
             filter = filter.filter(payout_attempt::dsl::connector.eq_any(connector));
         }
-
         if let Some(currency) = currency {
             filter = filter.filter(dsl::destination_currency.eq_any(currency));
         }
