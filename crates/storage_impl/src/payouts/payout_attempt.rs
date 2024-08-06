@@ -64,7 +64,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 let created_attempt = PayoutAttempt {
                     payout_attempt_id: new_payout_attempt.payout_attempt_id.clone(),
                     payout_id: new_payout_attempt.payout_id.clone(),
+                    customer_id: new_payout_attempt.customer_id.clone(),
                     merchant_id: new_payout_attempt.merchant_id.clone(),
+                    address_id: new_payout_attempt.address_id.clone(),
                     connector: new_payout_attempt.connector.clone(),
                     connector_payout_id: new_payout_attempt.connector_payout_id.clone(),
                     payout_token: new_payout_attempt.payout_token.clone(),
@@ -499,7 +501,9 @@ impl DataModelExt for PayoutAttempt {
         DieselPayoutAttempt {
             payout_attempt_id: self.payout_attempt_id,
             payout_id: self.payout_id,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
+            address_id: self.address_id,
             connector: self.connector,
             connector_payout_id: self.connector_payout_id,
             payout_token: self.payout_token,
@@ -521,7 +525,9 @@ impl DataModelExt for PayoutAttempt {
         Self {
             payout_attempt_id: storage_model.payout_attempt_id,
             payout_id: storage_model.payout_id,
+            customer_id: storage_model.customer_id,
             merchant_id: storage_model.merchant_id,
+            address_id: storage_model.address_id,
             connector: storage_model.connector,
             connector_payout_id: storage_model.connector_payout_id,
             payout_token: storage_model.payout_token,
@@ -546,7 +552,9 @@ impl DataModelExt for PayoutAttemptNew {
         DieselPayoutAttemptNew {
             payout_attempt_id: self.payout_attempt_id,
             payout_id: self.payout_id,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
+            address_id: self.address_id,
             connector: self.connector,
             connector_payout_id: self.connector_payout_id,
             payout_token: self.payout_token,
@@ -568,7 +576,9 @@ impl DataModelExt for PayoutAttemptNew {
         Self {
             payout_attempt_id: storage_model.payout_attempt_id,
             payout_id: storage_model.payout_id,
+            customer_id: storage_model.customer_id,
             merchant_id: storage_model.merchant_id,
+            address_id: storage_model.address_id,
             connector: storage_model.connector,
             connector_payout_id: storage_model.connector_payout_id,
             payout_token: storage_model.payout_token,
@@ -609,9 +619,13 @@ impl DataModelExt for PayoutAttemptUpdate {
             Self::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             } => DieselPayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             },
             Self::UpdateRouting {
                 connector,

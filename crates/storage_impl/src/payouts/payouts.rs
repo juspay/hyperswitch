@@ -817,6 +817,8 @@ impl DataModelExt for PayoutsUpdate {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             } => DieselPayoutsUpdate::Update {
                 amount,
                 destination_currency,
@@ -831,6 +833,8 @@ impl DataModelExt for PayoutsUpdate {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             },
             Self::PayoutMethodIdUpdate { payout_method_id } => {
                 DieselPayoutsUpdate::PayoutMethodIdUpdate { payout_method_id }

@@ -24,8 +24,8 @@ use crate::{
             vault,
         },
         payments::{
-            customers::get_connector_customer_details_if_present, route_connector_v1, routing,
-            CustomerDetails,
+            customers::get_connector_customer_details_if_present, helpers as payment_helpers,
+            route_connector_v1, routing, CustomerDetails,
         },
         routing::TransactionData,
     },
@@ -992,6 +992,7 @@ pub async fn update_payouts_and_payout_attempt(
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
     state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -1005,6 +1006,35 @@ pub async fn update_payouts_and_payout_attempt(
             ),
         }));
     }
+
+    // Fetch customer details from request and create new if it wasn't created during payout creation
+    let customer_id = payout_data.payouts.customer_id.clone().or({
+        let customer_in_request = get_customer_details_from_request(req);
+        let customer = get_or_create_customer_details(
+            state,
+            &customer_in_request,
+            merchant_account,
+            merchant_key_store,
+        )
+        .await?;
+        customer.map(|customer| customer.customer_id)
+    });
+
+    // Fetch address details from request and create new if it wasn't already created
+    let address_id = payout_data.payouts.address_id.clone().or({
+        let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+            state,
+            req.billing.as_ref(),
+            None,
+            merchant_account.get_id(),
+            customer_id.as_ref(),
+            merchant_key_store,
+            &payout_id,
+            merchant_account.storage_scheme,
+        )
+        .await?;
+        billing_address.map(|address| address.address_id)
+    });
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
@@ -1037,6 +1067,8 @@ pub async fn update_payouts_and_payout_attempt(
             .payout_type
             .to_owned()
             .or(payouts.payout_type.to_owned()),
+        address_id: address_id.clone(),
+        customer_id: customer_id.clone(),
     };
     let db = &*state.store;
     payout_data.payouts = db
@@ -1065,30 +1097,33 @@ pub async fn update_payouts_and_payout_attempt(
                     .to_owned()
                     .and_then(|nl| if nl != l { Some(nl) } else { None })
             });
-    match (updated_business_country, updated_business_label) {
-        (None, None) => Ok(()),
-        (business_country, business_label) => {
-            let payout_attempt = &payout_data.payout_attempt;
-            let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
-                business_country,
-                business_label,
-            };
-            payout_data.payout_attempt = db
-                .update_payout_attempt(
-                    payout_attempt,
-                    updated_payout_attempt,
-                    &payout_data.payouts,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating payout_attempt")?;
-            Ok(())
-        }
+    if updated_business_country.is_some()
+        || updated_business_label.is_some()
+        || (payout_attempt.customer_id.is_none() && customer_id.is_some())
+        || (payout_attempt.address_id.is_none() && address_id.is_some())
+    {
+        let payout_attempt = &payout_data.payout_attempt;
+        let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
+            business_country: updated_business_country,
+            business_label: updated_business_label,
+            address_id,
+            customer_id,
+        };
+        payout_data.payout_attempt = db
+            .update_payout_attempt(
+                payout_attempt,
+                updated_payout_attempt,
+                &payout_data.payouts,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating payout_attempt")?;
     }
+    Ok(())
 }
 
-pub fn get_customer_details_from_request(
+pub(super) fn get_customer_details_from_request(
     request: &payouts::PayoutCreateRequest,
 ) -> CustomerDetails {
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);

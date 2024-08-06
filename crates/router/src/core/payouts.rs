@@ -385,8 +385,14 @@ pub async fn payouts_confirm_core(
         "confirm",
     )?;
 
-    helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_account, &req, &state)
-        .await?;
+    helpers::update_payouts_and_payout_attempt(
+        &mut payout_data,
+        &merchant_account,
+        &req,
+        &state,
+        &key_store,
+    )
+    .await?;
 
     let db = &*state.store;
 
@@ -445,8 +451,14 @@ pub async fn payouts_update_core(
             ),
         }));
     }
-    helpers::update_payouts_and_payout_attempt(&mut payout_data, &merchant_account, &req, &state)
-        .await?;
+    helpers::update_payouts_and_payout_attempt(
+        &mut payout_data,
+        &merchant_account,
+        &req,
+        &state,
+        &key_store,
+    )
+    .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
 
     if (req.connector.is_none(), payout_attempt.connector.is_some()) != (true, true) {
@@ -770,10 +782,7 @@ pub async fn payouts_list_core(
                                 customer_id
                             );
                             logger::warn!(?err, err_msg);
-                            if matches!(
-                                err.current_context(),
-                                storage_impl::errors::StorageError::ValueNotFound(_)
-                            ) {
+                            if err.current_context().is_db_not_found() {
                                 Ok((payout, payout_attempt.to_owned(), None))
                             } else {
                                 Err(err
@@ -2388,7 +2397,13 @@ pub async fn make_payout_data(
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
         })
         .await
-        .transpose()?
+        .transpose()
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while fetching optional customer [id - {:?}] for payout [id - {}]",
+                payouts.customer_id, payouts.payout_id
+            )
+        })?
         .and_then(|c| c);
 
     let profile_id = payout_attempt.profile_id.clone();

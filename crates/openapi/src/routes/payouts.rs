@@ -18,7 +18,7 @@ pub async fn payouts_create() {}
     get,
     path = "/payouts/{payout_id}",
     params(
-        ("payout_id" = String, Path, description = "The identifier for payout]"),
+        ("payout_id" = String, Path, description = "The identifier for payout"),
         ("force_sync" = Option<bool>, Query, description = "Sync with the connector to get the payout details (defaults to false)")
     ),
     responses(
@@ -36,7 +36,7 @@ pub async fn payouts_retrieve() {}
     post,
     path = "/payouts/{payout_id}",
     params(
-        ("payout_id" = String, Path, description = "The identifier for payout]")
+        ("payout_id" = String, Path, description = "The identifier for payout")
     ),
     request_body=PayoutUpdateRequest,
     responses(
@@ -141,7 +141,7 @@ pub async fn payouts_list_by_filter() {}
     post,
     path = "/payouts/{payout_id}/confirm",
     params(
-        ("payout_id" = String, Path, description = "The identifier for payout]")
+        ("payout_id" = String, Path, description = "The identifier for payout")
     ),
     request_body=PayoutConfirmRequest,
     responses(

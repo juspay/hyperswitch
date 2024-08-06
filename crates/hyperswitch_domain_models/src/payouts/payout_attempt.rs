@@ -59,7 +59,9 @@ pub struct PayoutListFilters {
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -82,7 +84,9 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -106,7 +110,9 @@ impl Default for PayoutAttemptNew {
         Self {
             payout_attempt_id: String::default(),
             payout_id: String::default(),
+            customer_id: None,
             merchant_id: id_type::MerchantId::default(),
+            address_id: None,
             connector: None,
             connector_payout_id: Some(String::default()),
             payout_token: None,
@@ -140,6 +146,8 @@ pub enum PayoutAttemptUpdate {
     BusinessUpdate {
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
+        address_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
     },
     UpdateRouting {
         connector: String,
@@ -159,6 +167,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub business_label: Option<String>,
     pub connector: Option<String>,
     pub routing_info: Option<serde_json::Value>,
+    pub address_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -185,9 +195,13 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
             PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             } => Self {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::UpdateRouting {

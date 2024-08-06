@@ -5,5 +5,7 @@ ALTER COLUMN address_id
 DROP NOT NULL;
 
 ALTER TABLE payout_attempt
-DROP COLUMN IF EXISTS customer_id,
-DROP COLUMN IF EXISTS address_id;
+ALTER COLUMN customer_id
+DROP NOT NULL,
+ALTER COLUMN address_id
+DROP NOT NULL;

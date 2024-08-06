@@ -85,7 +85,7 @@ pub struct PayoutCreateRequest {
             "city": "San Francisco",
             "state": "CA",
             "zip": "94122",
-            "country": "US",`
+            "country": "US",
             "first_name": "John",
             "last_name": "Doe"
         },
@@ -115,14 +115,12 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<String>,
 
-    /// Business country of the merchant for this payout.
-    /// To be deprecated soon. Pass the profile_id instead
-    #[schema(example = "US", value_type = Option<CountryAlpha2>)]
+    /// Business country of the merchant for this payout. _Deprecated: Use profile_id instead._
+    #[schema(deprecated, example = "US", value_type = Option<CountryAlpha2>)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
-    /// Business label of the merchant for this payout.
-    /// To be deprecated soon. Pass the profile_id instead
-    #[schema(example = "food", value_type = Option<String>)]
+    /// Business label of the merchant for this payout. _Deprecated: Use profile_id instead._
+    #[schema(deprecated, example = "food", value_type = Option<String>)]
     pub business_label: Option<String>,
 
     /// A description of the payout
@@ -165,20 +163,20 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<u32>, example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// Customer's email. _Use customer object instead, this will be deprecated soon._
-    #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
+    /// Customer's email. _Deprecated: Use customer object instead._
+    #[schema(deprecated, max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Email>,
 
-    /// Customer's name. _Use customer object instead, this will be deprecated soon._
-    #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
+    /// Customer's name. _Deprecated: Use customer object instead._
+    #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "John Test")]
     pub name: Option<Secret<String>>,
 
-    /// Customer's phone. _Use customer object instead, this will be deprecated soon._
-    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
+    /// Customer's phone. _Deprecated: Use customer object instead._
+    #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
 
-    /// Customer's phone country code. _Use customer object instead, this will be deprecated soon._
-    #[schema(max_length = 255, example = "+1")]
+    /// Customer's phone country code. _Deprecated: Use customer object instead._
+    #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
 }
 
