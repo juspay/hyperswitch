@@ -68,7 +68,7 @@ pub struct StoreCardRespPayload {
     pub duplication_check: Option<DataDuplicationCheck>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum DataDuplicationCheck {
     Duplicated,
@@ -312,7 +312,11 @@ pub async fn mk_add_locker_request_hs(
     Ok(request)
 }
 
-#[cfg(feature = "payouts")]
+#[cfg(all(
+    feature = "payouts",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub fn mk_add_bank_response_hs(
     bank: api::BankPayout,
     bank_reference: String,
@@ -337,6 +341,34 @@ pub fn mk_add_bank_response_hs(
     }
 }
 
+#[cfg(all(feature = "payouts", feature = "v2", feature = "payment_methods_v2"))]
+pub fn mk_add_bank_response_hs(
+    bank: api::BankPayout,
+    bank_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id,
+        payment_method_id: bank_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        payment_method_data: Some(api::PaymentMethodResponseData::BankTransfer(bank)),
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: false,           // [#256]
+        installment_payment_enabled: false, // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -376,6 +408,54 @@ pub fn mk_add_card_response_hs(
         #[cfg(feature = "payouts")]
         bank_transfer: None,
         card: Some(card),
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: false,           // [#256]
+        installment_payment_enabled: false, // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()), // [#256]
+        client_secret: req.client_secret,
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn mk_add_card_response_hs(
+    card: api::CardDetail,
+    card_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
+) -> api::PaymentMethodResponse {
+    let card_number = card.card_number.clone();
+    let last4_digits = card_number.get_last4();
+    let card_isin = card_number.get_card_isin();
+
+    let card = api::CardDetailFromLocker {
+        scheme: card
+            .card_network
+            .clone()
+            .map(|card_network| card_network.to_string()),
+        last4_digits: Some(last4_digits),
+        issuer_country: card.card_issuing_country,
+        card_number: Some(card.card_number.clone()),
+        expiry_month: Some(card.card_exp_month.clone()),
+        expiry_year: Some(card.card_exp_year.clone()),
+        card_token: None,
+        card_fingerprint: None,
+        card_holder_name: card.card_holder_name.clone(),
+        nick_name: card.nick_name.clone(),
+        card_isin: Some(card_isin),
+        card_issuer: card.card_issuer,
+        card_network: card.card_network,
+        card_type: card.card_type,
+        saved_to_locker: true,
+    };
+    api::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id,
+        payment_method_id: card_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        payment_method_data: Some(api::PaymentMethodResponseData::Card(card)),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           // [#256]

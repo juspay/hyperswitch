@@ -208,9 +208,18 @@ where
                     .await?
                 };
 
-                let pm_card_details = resp.card.as_ref().map(|card| {
-                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
-                });
+                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                let pm_card_details = match &resp.payment_method_data {
+                    Some(api::PaymentMethodResponseData::Card(card_data)) => {
+                        Some(CardDetailsPaymentMethod::from(card_data.clone()))
+                    }
+                    _ => None,
+                };
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                let pm_card_details = resp.card.clone().map(CardDetailsPaymentMethod::from);
 
                 let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                     pm_card_details
@@ -309,6 +318,26 @@ where
                                     if err.current_context().is_db_not_found() {
                                         let pm_metadata =
                                             create_payment_method_metadata(None, connector_token)?;
+
+                                        #[cfg(all(
+                                            any(feature = "v1", feature = "v2"),
+                                            not(feature = "payment_methods_v2")
+                                        ))]
+                                        let card_scheme = resp.card.clone().and_then(|card| {
+                                            card.card_network
+                                                .map(|card_network| card_network.to_string())
+                                        });
+
+                                        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                                        let card_scheme = resp
+                                            .payment_method_data
+                                            .clone()
+                                            .and_then(|pmd| match pmd {
+                                                api::PaymentMethodResponseData::Card(card) => card
+                                                    .card_network
+                                                    .map(|card_network| card_network.to_string()),
+                                                _ => None,
+                                            });
                                         payment_methods::cards::create_payment_method(
                                             state,
                                             &payment_method_create_request,
@@ -326,10 +355,7 @@ where
                                             merchant_account.storage_scheme,
                                             encrypted_payment_method_billing_address
                                                 .map(Into::into),
-                                            resp.card.and_then(|card| {
-                                                card.card_network
-                                                    .map(|card_network| card_network.to_string())
-                                            }),
+                                            card_scheme,
                                         )
                                         .await
                                     } else {
@@ -343,7 +369,15 @@ where
                             };
                         }
                         payment_methods::transformers::DataDuplicationCheck::MetaDataChanged => {
-                            if let Some(card) = payment_method_create_request.card.clone() {
+                            let req_card =
+                                match payment_method_create_request.payment_method_data.as_ref() {
+                                    Some(api::PaymentMethodCreateData::Card(card)) => {
+                                        Some(card.clone())
+                                    }
+                                    _ => None,
+                                };
+
+                            if let Some(card) = req_card {
                                 let payment_method = {
                                     let existing_pm_by_pmid = db
                                         .find_payment_method(
@@ -597,6 +631,24 @@ where
                                 }
                             });
 
+                            #[cfg(all(
+                                any(feature = "v1", feature = "v2"),
+                                not(feature = "payment_methods_v2")
+                            ))]
+                            let card_scheme = resp.card.clone().and_then(|card| {
+                                card.card_network
+                                    .map(|card_network| card_network.to_string())
+                            });
+
+                            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                            let card_scheme =
+                                resp.payment_method_data.clone().and_then(|pmd| match pmd {
+                                    api::PaymentMethodResponseData::Card(card) => card
+                                        .card_network
+                                        .map(|card_network| card_network.to_string()),
+                                    _ => None,
+                                });
+
                             resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
                             payment_methods::cards::create_payment_method(
                                 state,
@@ -614,10 +666,7 @@ where
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
                                 encrypted_payment_method_billing_address.map(Into::into),
-                                resp.card.and_then(|card| {
-                                    card.card_network
-                                        .map(|card_network| card_network.to_string())
-                                }),
+                                card_scheme,
                             )
                             .await?;
                         };
@@ -634,6 +683,10 @@ where
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 async fn skip_saving_card_in_locker(
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
@@ -649,17 +702,16 @@ async fn skip_saving_card_in_locker(
         .get_required_value("customer_id")?;
     let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
 
-    let last4_digits = payment_method_request
-        .card
-        .clone()
-        .map(|c| c.card_number.get_last4());
+    let req_card = match payment_method_request.payment_method_data {
+        Some(api::PaymentMethodCreateData::Card(card)) => Some(card.clone()),
+        _ => None,
+    };
 
-    let card_isin = payment_method_request
-        .card
-        .clone()
-        .map(|c| c.card_number.get_card_isin());
+    let last4_digits = req_card.as_ref().map(|c| c.card_number.get_last4());
 
-    match payment_method_request.card.clone() {
+    let card_isin = req_card.as_ref().map(|c| c.card_number.get_card_isin());
+
+    match req_card {
         Some(card) => {
             let card_detail = CardDetailFromLocker {
                 scheme: None,
@@ -684,14 +736,16 @@ async fn skip_saving_card_in_locker(
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
+                #[cfg(feature = "v2")]
+                payment_method_data: Some(api::PaymentMethodResponseData::Card(card_detail)),
                 card: Some(card_detail),
+                #[cfg(feature = "payouts")]
+                bank_transfer: None,
                 recurring_enabled: false,
                 installment_payment_enabled: false,
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
             };
@@ -706,22 +760,112 @@ async fn skip_saving_card_in_locker(
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
-                card: None,
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,
                 installment_payment_enabled: false,
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                #[cfg(feature = "v2")]
+                payment_method_data: None,
+                card: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer: None,
             };
             Ok((payment_method_response, None))
         }
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn skip_saving_card_in_locker(
+    merchant_account: &domain::MerchantAccount,
+    payment_method_request: api::PaymentMethodCreate,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    let merchant_id = merchant_account.get_id();
+    let customer_id = payment_method_request
+        .clone()
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
+    let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+
+    let req_card = match payment_method_request.payment_method_data {
+        Some(api::PaymentMethodCreateData::Card(card)) => Some(card.clone()),
+        _ => None,
+    };
+
+    let last4_digits = req_card.as_ref().map(|c| c.card_number.get_last4());
+
+    let card_isin = req_card.as_ref().map(|c| c.card_number.get_card_isin());
+
+    match req_card {
+        Some(card) => {
+            let card_detail = CardDetailFromLocker {
+                scheme: None,
+                issuer_country: card.card_issuing_country.clone(),
+                last4_digits: last4_digits.clone(),
+                card_number: None,
+                expiry_month: Some(card.card_exp_month.clone()),
+                expiry_year: Some(card.card_exp_year),
+                card_token: None,
+                card_holder_name: card.card_holder_name.clone(),
+                card_fingerprint: None,
+                nick_name: None,
+                card_isin: card_isin.clone(),
+                card_issuer: card.card_issuer.clone(),
+                card_network: card.card_network.clone(),
+                card_type: card.card_type.clone(),
+                saved_to_locker: false,
+            };
+            let pm_resp = api::PaymentMethodResponse {
+                merchant_id: merchant_id.to_owned(),
+                customer_id: Some(customer_id),
+                payment_method_id,
+                payment_method: payment_method_request.payment_method,
+                payment_method_type: payment_method_request.payment_method_type,
+                payment_method_data: Some(api::PaymentMethodResponseData::Card(card_detail)),
+                recurring_enabled: false,
+                installment_payment_enabled: false,
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+                metadata: None,
+                created: Some(common_utils::date_time::now()),
+                last_used_at: Some(common_utils::date_time::now()),
+                client_secret: None,
+            };
+
+            Ok((pm_resp, None))
+        }
+        None => {
+            let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+            let payment_method_response = api::PaymentMethodResponse {
+                merchant_id: merchant_id.to_owned(),
+                customer_id: Some(customer_id),
+                payment_method_id: pm_id,
+                payment_method: payment_method_request.payment_method,
+                payment_method_type: payment_method_request.payment_method_type,
+                metadata: None,
+                created: Some(common_utils::date_time::now()),
+                recurring_enabled: false,
+                installment_payment_enabled: false,
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+                last_used_at: Some(common_utils::date_time::now()),
+                client_secret: None,
+                payment_method_data: None,
+            };
+            Ok((payment_method_response, None))
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn save_in_locker(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -736,19 +880,21 @@ pub async fn save_in_locker(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    match payment_method_request.card.clone() {
-        Some(card) => Box::pin(payment_methods::cards::add_card_to_locker(
-            state,
-            payment_method_request,
-            &card,
-            &customer_id,
-            merchant_account,
-            None,
-        ))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
-        None => {
+    match payment_method_request.payment_method_data.clone() {
+        Some(api::PaymentMethodCreateData::Card(card)) => {
+            Box::pin(payment_methods::cards::add_card_to_locker(
+                state,
+                payment_method_request,
+                &card,
+                &customer_id,
+                merchant_account,
+                None,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")
+        }
+        _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.clone(),
@@ -756,9 +902,6 @@ pub async fn save_in_locker(
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
                 payment_method_type: payment_method_request.payment_method_type,
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
-                card: None,
                 metadata: None,
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
@@ -766,6 +909,62 @@ pub async fn save_in_locker(
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
+                #[cfg(feature = "v2")]
+                payment_method_data: None,
+                card: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer: None,
+            };
+            Ok((payment_method_response, None))
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn save_in_locker(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payment_method_request: api::PaymentMethodCreate,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    payment_method_request.validate()?;
+    let merchant_id = merchant_account.get_id();
+    let customer_id = payment_method_request
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
+    match payment_method_request.payment_method_data.clone() {
+        Some(api::PaymentMethodCreateData::Card(card)) => {
+            Box::pin(payment_methods::cards::add_card_to_locker(
+                state,
+                payment_method_request,
+                &card,
+                &customer_id,
+                merchant_account,
+                None,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")
+        }
+        _ => {
+            let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+            let payment_method_response = api::PaymentMethodResponse {
+                merchant_id: merchant_id.clone(),
+                customer_id: Some(customer_id),
+                payment_method_id: pm_id,
+                payment_method: payment_method_request.payment_method,
+                payment_method_type: payment_method_request.payment_method_type,
+                metadata: None,
+                created: Some(common_utils::date_time::now()),
+                recurring_enabled: false,           //[#219]
+                installment_payment_enabled: false, //[#219]
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+                last_used_at: Some(common_utils::date_time::now()),
+                client_secret: None,
+                payment_method_data: None,
             };
             Ok((payment_method_response, None))
         }

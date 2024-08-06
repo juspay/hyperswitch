@@ -30,7 +30,7 @@ use super::blocklist;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "customer_v2")))]
+#[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods::*;
 #[cfg(feature = "payouts")]
 use super::payout_link::*;
@@ -54,8 +54,10 @@ use super::{
     files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
 use super::{cache::*, health::*};
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), not(feature = "payment_v2")))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "payment_v2"))]
+use super::{configs::*, customers::*, mandates::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, webhooks::*};
 #[cfg(feature = "olap")]
@@ -501,7 +503,30 @@ impl DummyConnector {
 
 pub struct Payments;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "payment_v2"
+))]
+impl Payments {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("/{payment_id}/saved_payment_methods")
+                .route(web::get().to(list_customer_payment_method_for_payment)),
+        );
+
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "payment_v2")
+))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
@@ -590,7 +615,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
-                );
+                )
         }
         route
     }
@@ -844,6 +869,7 @@ pub struct Customers;
 #[cfg(all(
     feature = "v2",
     feature = "customer_v2",
+    feature = "payment_methods_v2",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -853,6 +879,13 @@ impl Customers {
         {
             route = route.service(web::resource("").route(web::post().to(customers_create)))
         }
+        #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+        {
+            route = route.service(
+                web::resource("/{customer_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_api)),
+            );
+        }
         route
     }
 }
@@ -860,6 +893,7 @@ impl Customers {
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2"),
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -897,13 +931,12 @@ impl Customers {
                         .route(web::get().to(customers_retrieve))
                         .route(web::post().to(customers_update))
                         .route(web::delete().to(customers_delete)),
-                );
+                )
         }
 
         route
     }
 }
-
 pub struct Refunds;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -976,11 +1009,12 @@ pub struct PaymentMethods;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     any(feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
+    not(feature = "payment_methods_v2")
 ))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
+
         #[cfg(feature = "olap")]
         {
             route = route.service(
@@ -1033,6 +1067,27 @@ impl PaymentMethods {
     }
 }
 
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    any(feature = "olap", feature = "oltp")
+))]
+impl PaymentMethods {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payment_methods").app_data(web::Data::new(state));
+
+        #[cfg(feature = "oltp")]
+        {
+            route = route
+                .service(web::resource("").route(web::post().to(create_payment_method_api)))
+                .service(
+                    web::resource("/{payment_method_id}/save")
+                        .route(web::post().to(save_payment_method_api)),
+                )
+        }
+        route
+    }
+}
 #[cfg(all(feature = "olap", feature = "recon"))]
 pub struct Recon;
 

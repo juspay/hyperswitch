@@ -1359,11 +1359,6 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: card.card_issuer.clone(),
                         payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: Some(card_detail),
                         metadata: None,
                         customer_id: customer_id.clone(),
                         card_network: card
@@ -1371,10 +1366,29 @@ pub(crate) async fn get_payment_method_create_request(
                             .as_ref()
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
-                        payment_method_data: None,
+                        payment_method_data: Some(api::PaymentMethodCreateData::Card(
+                            card_detail.clone(),
+                        )),
                         billing: None,
                         connector_mandate_details: None,
                         network_transaction_id: None,
+                        #[cfg(all(
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_methods_v2")
+                        ))]
+                        card: Some(card_detail),
+                        #[cfg(all(
+                            feature = "payouts",
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_methods_v2")
+                        ))]
+                        bank_transfer: None,
+                        #[cfg(all(
+                            feature = "payouts",
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_methods_v2")
+                        ))]
+                        wallet: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -1384,11 +1398,6 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_type,
                         payment_method_issuer: None,
                         payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: None,
                         metadata: None,
                         customer_id: customer_id.clone(),
                         card_network: None,
@@ -1397,6 +1406,23 @@ pub(crate) async fn get_payment_method_create_request(
                         billing: None,
                         connector_mandate_details: None,
                         network_transaction_id: None,
+                        #[cfg(all(
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_methods_v2")
+                        ))]
+                        card: None,
+                        #[cfg(all(
+                            feature = "payouts",
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_methods_v2")
+                        ))]
+                        bank_transfer: None,
+                        #[cfg(all(
+                            feature = "payouts",
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "payment_methods_v2")
+                        ))]
+                        wallet: None,
                     };
 
                     Ok(payment_method_request)

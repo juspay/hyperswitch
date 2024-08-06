@@ -81,6 +81,10 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
@@ -99,14 +103,45 @@ impl
             payment_method_id: item.payment_method_id,
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
             card: card_details,
             recurring_enabled: false,
             installment_payment_enabled: false,
             payment_experience: None,
             metadata: item.metadata,
             created: Some(item.created_at),
-            #[cfg(feature = "payouts")]
-            bank_transfer: None,
+            last_used_at: None,
+            client_secret: item.client_secret,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl
+    ForeignFrom<(
+        Option<payment_methods::CardDetailFromLocker>,
+        diesel_models::PaymentMethod,
+    )> for payment_methods::PaymentMethodResponse
+{
+    fn foreign_from(
+        (card_details, item): (
+            Option<payment_methods::CardDetailFromLocker>,
+            diesel_models::PaymentMethod,
+        ),
+    ) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: Some(item.customer_id),
+            payment_method_id: item.payment_method_id,
+            payment_method: item.payment_method,
+            payment_method_type: item.payment_method_type,
+            payment_method_data: card_details.map(payment_methods::PaymentMethodResponseData::Card),
+            recurring_enabled: false,
+            installment_payment_enabled: false,
+            payment_experience: None,
+            metadata: item.metadata,
+            created: Some(item.created_at),
             last_used_at: None,
             client_secret: item.client_secret,
         }

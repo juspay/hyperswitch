@@ -121,19 +121,31 @@ pub async fn call_to_locker(
             payment_method_type: pm.payment_method_type,
             payment_method_issuer: pm.payment_method_issuer,
             payment_method_issuer_code: pm.payment_method_issuer_code,
-            card: Some(card_details.clone()),
-            #[cfg(feature = "payouts")]
-            wallet: None,
-            #[cfg(feature = "payouts")]
-            bank_transfer: None,
             metadata: pm.metadata,
             customer_id: Some(pm.customer_id),
             card_network: card.card_brand,
             client_secret: None,
-            payment_method_data: None,
+            payment_method_data: Some(api::PaymentMethodCreateData::Card(card_details.clone())),
             billing: None,
             connector_mandate_details: None,
             network_transaction_id: None,
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            card: Some(card_details.clone()),
+            #[cfg(all(
+                feature = "payouts",
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            bank_transfer: None,
+            #[cfg(all(
+                feature = "payouts",
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            wallet: None,
         };
 
         let add_card_result = cards::add_card_hs(
