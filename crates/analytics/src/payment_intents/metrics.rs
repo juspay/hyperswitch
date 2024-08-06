@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payment_intents::{
         PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetrics,
@@ -23,7 +25,7 @@ use smart_retried_amount::SmartRetriedAmount;
 use successful_smart_retries::SuccessfulSmartRetries;
 use total_smart_retries::TotalSmartRetries;
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct PaymentIntentMetricRow {
     pub status: Option<DBEnumWrapper<storage_enums::IntentStatus>>,
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
@@ -45,12 +47,12 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>;
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -66,12 +68,13 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    {
         match self {
             Self::SuccessfulSmartRetries => {
                 SuccessfulSmartRetries

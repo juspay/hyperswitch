@@ -154,13 +154,13 @@ impl Handler {
 pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: mpsc::Sender<()>) {
     match rx.await {
         Ok(_) => {
-            logger::error!("The redis server failed ");
+            logger::error!("The redis server failed");
             let _ = shutdown_channel.send(()).await.map_err(|err| {
                 logger::error!("Failed to send signal to the shutdown channel {err}")
             });
         }
         Err(err) => {
-            logger::error!("Channel receiver error{err}");
+            logger::error!("Channel receiver error {err}");
         }
     }
 }

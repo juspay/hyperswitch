@@ -32,8 +32,8 @@ pub struct RefundRequest {
     pub refund_id: Option<String>,
 
     /// The identifier for the Merchant Account
-    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: Option<String>,
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = Option<String>)]
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount
     #[schema(value_type = Option<i64> , minimum = 100, example = 6540)]
@@ -95,6 +95,22 @@ pub struct RefundUpdateRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefundManualUpdateRequest {
+    #[serde(skip)]
+    pub refund_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// The status for refund
+    pub status: Option<RefundStatus>,
+    /// The code for the error
+    pub error_code: Option<String>,
+    /// The error message
+    pub error_message: Option<String>,
 }
 
 /// To indicate whether to refund needs to be instant or scheduled
@@ -241,6 +257,17 @@ impl From<enums::RefundStatus> for RefundStatus {
             enums::RefundStatus::ManualReview => Self::Review,
             enums::RefundStatus::Pending => Self::Pending,
             enums::RefundStatus::Success => Self::Succeeded,
+        }
+    }
+}
+
+impl From<RefundStatus> for enums::RefundStatus {
+    fn from(status: RefundStatus) -> Self {
+        match status {
+            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Review => Self::ManualReview,
+            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Succeeded => Self::Success,
         }
     }
 }

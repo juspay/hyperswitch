@@ -134,8 +134,8 @@ async fn waited_fetch_and_update_caches(
                 return Ok(rates.clone());
             }
             Ok(None) => continue,
-            Err(e) => {
-                logger::error!(?e);
+            Err(error) => {
+                logger::error!(?error);
                 continue;
             }
         }
@@ -208,8 +208,8 @@ async fn handler_local_no_data(
             // No data in local as well as redis
             Ok(successive_fetch_and_save_forex(state, None).await?)
         }
-        Err(err) => {
-            logger::error!(?err);
+        Err(error) => {
+            logger::error!(?error);
             Ok(successive_fetch_and_save_forex(state, None).await?)
         }
     }
@@ -227,22 +227,22 @@ async fn successive_fetch_and_save_forex(
             let api_rates = fetch_forex_rates(state).await;
             match api_rates {
                 Ok(rates) => successive_save_data_to_redis_local(state, rates).await,
-                Err(err) => {
+                Err(error) => {
                     // API not able to fetch data call secondary service
-                    logger::error!(?err);
+                    logger::error!(?error);
                     let secondary_api_rates = fallback_fetch_forex_rates(state).await;
                     match secondary_api_rates {
                         Ok(rates) => Ok(successive_save_data_to_redis_local(state, rates).await?),
-                        Err(err) => stale_redis_data.ok_or({
-                            logger::error!(?err);
+                        Err(error) => stale_redis_data.ok_or({
+                            logger::error!(?error);
                             ForexCacheError::ApiUnresponsive.into()
                         }),
                     }
                 }
             }
         }
-        Err(e) => stale_redis_data.ok_or({
-            logger::error!(?e);
+        Err(error) => stale_redis_data.ok_or({
+            logger::error!(?error);
             ForexCacheError::ApiUnresponsive.into()
         }),
     }
@@ -259,8 +259,8 @@ async fn successive_save_data_to_redis_local(
         .async_and_then(|_val| async { Ok(save_forex_to_local(forex.clone()).await) })
         .await
         .map_or_else(
-            |e| {
-                logger::error!(?e);
+            |error| {
+                logger::error!(?error);
                 forex.clone()
             },
             |_| forex.clone(),
@@ -307,9 +307,9 @@ async fn handler_local_expired(
                 }
             }
         }
-        Err(e) => {
+        Err(error) => {
             //  data  not present in redis waited fetch
-            logger::error!(?e);
+            logger::error!(?error);
             successive_fetch_and_save_forex(state, Some(local_rates)).await
         }
     }

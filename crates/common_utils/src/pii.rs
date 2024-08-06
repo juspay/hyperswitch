@@ -14,6 +14,7 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret, Strategy, WithType};
 #[cfg(feature = "logs")]
 use router_env::logger;
+use serde::Deserialize;
 
 use crate::{
     crypto::Encryptable,
@@ -205,7 +206,7 @@ where
 }
 
 /// Strategy for masking Email
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Deserialize)]
 pub enum EmailStrategy {}
 
 impl<T> Strategy<T> for EmailStrategy

@@ -189,12 +189,6 @@ impl super::settings::GenericLinkEnvConfig {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "link's expiry should not be 0".into(),
             ))
-        })?;
-
-        when(self.sdk_url.is_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "sdk_url to be integrated in the link cannot be empty".into(),
-            ))
         })
     }
 }

@@ -17,7 +17,7 @@ async fn should_make_zen_3ds_payment(web_driver: WebDriver) -> Result<(), WebDri
         .make_redirection_payment(
             web_driver,
             vec![
-                Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/201"))),
+                Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/201"))),
                 Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
                 Event::Trigger(Trigger::Sleep(10)), //url gets updated only after some time, so need this timeout to solve the issue
                 Event::Trigger(Trigger::SwitchFrame(By::Name("cko-3ds2-iframe"))),

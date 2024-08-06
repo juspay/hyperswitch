@@ -91,7 +91,7 @@ pub struct ThreeDSRequestor {
     /// Format of this field was changed with EMV 3DS 2.3.1 version:
     /// In versions prior to 2.3.1, this field is a single object.
     /// Starting from EMVCo version 2.3.1, this field is now an array of objects. Accepted value length is 1-3 elements.
-    ///   
+    ///
     /// This field is optional, but recommended to include.
     #[serde(rename = "threeDSRequestorAuthenticationInfo")]
     pub three_ds_requestor_authentication_info:
@@ -118,8 +118,8 @@ pub struct ThreeDSRequestor {
     /// External IP address (i.e., the device public IP address) used by the 3DS Requestor App when it connects to the
     /// 3DS Requestor environment. The value length is maximum 45 characters. Accepted values are:
     ///
-    ///     IPv4 address is represented in the dotted decimal f. Refer to RFC 791.
-    ///     IPv6 address. Refer to RFC 4291.
+    /// - IPv4 address is represented in the dotted decimal f. Refer to RFC 791.
+    /// - IPv6 address. Refer to RFC 4291.
     ///
     /// This field is required when deviceChannel = 01 (APP) and unless market or regional mandate restricts sending
     /// this information.
@@ -206,16 +206,16 @@ pub struct ThreeDSRequestorAuthenticationInformation {
 /// Indicates whether a challenge is requested for this transaction. For example: For 01-PA, a 3DS Requestor may have
 /// concerns about the transaction, and request a challenge. For 02-NPA, a challenge may be necessary when adding a new
 /// card to a wallet.
-///    
+///
 /// This field is optional. The accepted values are:
 ///    
 ///  - 01 -> No preference
 ///  - 02 -> No challenge requested
 ///  - 03 -> Challenge requested: 3DS Requestor Preference
 ///  - 04 -> Challenge requested: Mandate.
-///  The next values are accepted as well if 3DS Server initiates authentication with EMV 3DS 2.2.0 version
-/// or greater (required protocol version can be set in
-///   ThreeDSServerAuthenticationRequest#preferredProtocolVersion field):
+///    The next values are accepted as well if 3DS Server initiates authentication with EMV 3DS 2.2.0 version
+///    or greater (required protocol version can be set in
+///    ThreeDSServerAuthenticationRequest#preferredProtocolVersion field):
 ///
 ///  - 05 -> No challenge requested (transactional risk analysis is already performed)
 ///  - 06 -> No challenge requested (Data share only)
@@ -223,9 +223,9 @@ pub struct ThreeDSRequestorAuthenticationInformation {
 ///  - 08 -> No challenge requested (utilise whitelist exemption if no challenge required)
 ///  - 09 -> Challenge requested (whitelist prompt requested if challenge required).
 ///  - Additionally, 80-99 can be used for PS-specific values, regardless of protocol version.
-///    
+///
 /// If the element is not provided, the expected action is that the ACS would interpret as 01 -> No preference.
-///    
+///
 /// Format of this field was changed with EMV 3DS 2.3.1 version:
 /// In versions prior to 2.3.1, this field is a String.
 /// Starting from EMVCo version 2.3.1, this field is now an array of objects. Accepted value length is 1-2 elements.
@@ -257,7 +257,7 @@ pub enum ThreeDSRequestorChallengeIndicator {
 /// Format of this field was changed with EMV 3DS 2.3.1 version:
 /// In versions prior to 2.3.1, this field is a single object.
 /// Starting from EMVCo version 2.3.1, this field is now an array of objects. Accepted value length is 1-3 elements.
-///    
+///
 /// This field is optional, but recommended to include for versions prior to 2.3.1. From 2.3.1,
 /// it is required for 3RI in the case of Decoupled Authentication Fallback or for SPC.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -1454,27 +1454,27 @@ pub struct Sdk {
     /// The Split-SDK Server:
     ///    Creates a JSON object of the following data as the JWS payload to be signed:
     ///
-    ///        SDK Reference Number -> Identifies the vendor and version of the 3DS SDK that is utilised for a specific
-    ///                                transaction. The value is assigned by EMVCo when the Letter of Approval of the
-    ///                                specific 3DS SDK is issued. The field is limited to 32 characters.
-    ///        SDK Signature Timestamp -> Date and time indicating when the 3DS SDK generated the Split-SDK Server Signed
-    ///                                   Content converted into UTC. The value is limited to 14 characters. Accepted
-    ///                                   format: YYYYMMDDHHMMSS.
-    ///        SDK Transaction ID -> Universally unique transaction identifier assigned by the 3DS SDK to identify a
-    ///                              single transaction. The field is limited to 36 characters and it shall be in a
-    ///                              canonical format as defined in IETF RFC 4122. This may utilize any of the specified
-    ///                              versions as long as the output meets specific requirements.
-    ///        Split-SDK Server ID -> DS assigned Split-SDK Server identifier. Each DS can provide a unique ID to each
-    ///                               Split-SDK Server on an individual basis. The field is limited to 32 characters.
-    ///                               Any individual DS may impose specific formatting and character requirements on the
-    ///                               contents of this field.
+    ///    - SDK Reference Number -> Identifies the vendor and version of the 3DS SDK that is utilised for a specific
+    ///                              transaction. The value is assigned by EMVCo when the Letter of Approval of the
+    ///                              specific 3DS SDK is issued. The field is limited to 32 characters.
+    ///    - SDK Signature Timestamp -> Date and time indicating when the 3DS SDK generated the Split-SDK Server Signed
+    ///                                 Content converted into UTC. The value is limited to 14 characters. Accepted
+    ///                                 format: YYYYMMDDHHMMSS.
+    ///    - SDK Transaction ID -> Universally unique transaction identifier assigned by the 3DS SDK to identify a
+    ///                            single transaction. The field is limited to 36 characters and it shall be in a
+    ///                            canonical format as defined in IETF RFC 4122. This may utilize any of the specified
+    ///                            versions as long as the output meets specific requirements.
+    ///    - Split-SDK Server ID -> DS assigned Split-SDK Server identifier. Each DS can provide a unique ID to each
+    ///                             Split-SDK Server on an individual basis. The field is limited to 32 characters.
+    ///                             Any individual DS may impose specific formatting and character requirements on the
+    ///                             contents of this field.
     ///
     ///    Generates a digital signature of the full JSON object according to JWS (RFC 7515) using JWS Compact
     ///    Serialization. The parameter values for this version of the specification and to be included in the JWS
     ///    header are:
     ///
-    ///        "alg": PS2567 or ES256
-    ///        "x5c": X.5C v3: Cert (PbSDK) and chaining certificates if present
+    ///    - `alg`: PS2567 or ES256
+    ///    - `x5c`: X.5C v3: Cert (PbSDK) and chaining certificates if present
     ///
     ///    All other parameters: optional
     ///

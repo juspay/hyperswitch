@@ -78,10 +78,6 @@
           "amount": 7000,
           "quantity": 1
         }
-      },
-      "routing": {
-        "type": "single",
-        "data": "stripe"
       }
     }
   },

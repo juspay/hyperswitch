@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::recon as recon_api;
+use diesel_models::enums::UserRoleVersion;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::Flow;
@@ -20,6 +21,7 @@ use crate::{
         api::{self as api_types, enums},
         domain::{UserEmail, UserFromStorage, UserName},
         storage,
+        transformers::ForeignTryFrom,
     },
 };
 
@@ -80,19 +82,22 @@ pub async fn send_recon_request(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let merchant_id = db
-        .find_user_role_by_user_id(&user.user_id)
+        .find_user_role_by_user_id(&user.user_id, UserRoleVersion::V1)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?
-        .merchant_id;
+        .merchant_id
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            merchant_id.as_str(),
+            key_manager_state,
+            &merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id.as_str(), &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -129,11 +134,16 @@ pub async fn send_recon_request(
         };
 
         let response = db
-            .update_merchant(merchant_account, updated_merchant_account, &key_store)
+            .update_merchant(
+                key_manager_state,
+                merchant_account,
+                updated_merchant_account,
+                &key_store,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable_lazy(|| {
-                format!("Failed while updating merchant's recon status: {merchant_id}")
+                format!("Failed while updating merchant's recon status: {merchant_id:?}")
             })?;
 
         Ok(service_api::ApplicationResponse::Json(
@@ -161,6 +171,7 @@ pub async fn recon_merchant_account_update(
 
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
+            &(&state).into(),
             &req.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -168,7 +179,7 @@ pub async fn recon_merchant_account_update(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(&(&state).into(), merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -177,11 +188,16 @@ pub async fn recon_merchant_account_update(
     };
 
     let response = db
-        .update_merchant(merchant_account, updated_merchant_account, &key_store)
+        .update_merchant(
+            &(&state).into(),
+            merchant_account,
+            updated_merchant_account,
+            &key_store,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Failed while updating merchant's recon status: {merchant_id}")
+            format!("Failed while updating merchant's recon status: {merchant_id:?}")
         })?;
 
     let email_contents = email_types::ReconActivation {
@@ -209,7 +225,7 @@ pub async fn recon_merchant_account_update(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        api_types::MerchantAccountResponse::try_from(response).change_context(
+        api_types::MerchantAccountResponse::foreign_try_from(response).change_context(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_account",
             },

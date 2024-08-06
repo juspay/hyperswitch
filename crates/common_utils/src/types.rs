@@ -1,4 +1,6 @@
 //! Types that can be used in other crates
+pub mod keymanager;
+
 use std::{
     fmt::Display,
     ops::{Add, Sub},
@@ -688,7 +690,7 @@ mod amount_conversion_tests {
     Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-/// Charge object for refunds
+/// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
 pub struct ChargeRefunds {
     /// Identifier for charge created for the payment
     pub charge_id: String,

@@ -298,7 +298,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let capture_amount_in_minor_units = match response.data.price_amount {
-            Some(ref amount) => Some(utils::convert_back(
+            Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
                 data.request.currency,
@@ -327,7 +327,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 impl ConnectorValidation for Cryptopay {
     fn validate_psync_reference_id(
         &self,
-        _data: &types::PaymentsSyncRouterData,
+        _data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: common_enums::enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
         Ok(())
@@ -393,7 +396,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let capture_amount_in_minor_units = match response.data.price_amount {
-            Some(ref amount) => Some(utils::convert_back(
+            Some(ref amount) => Some(utils::convert_back_amount_to_minor_units(
                 self.amount_converter,
                 amount.clone(),
                 data.request.currency,
@@ -462,7 +465,7 @@ impl api::IncomingWebhook for Cryptopay {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)

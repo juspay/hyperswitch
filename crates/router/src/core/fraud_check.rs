@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use api_models::{admin::FrmConfigs, enums as api_enums};
 use common_enums::CaptureMethod;
+use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{
@@ -21,7 +22,6 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, flows::ConstructFlowSpecificData, operations::BoxedOperation},
-        utils as core_utils,
     },
     db::StorageInterface,
     routes::{app::ReqState, SessionState},
@@ -91,6 +91,7 @@ where
             key_store,
             customer,
             &merchant_connector_account,
+            None,
         )
         .await?;
 
@@ -122,7 +123,7 @@ where
 pub async fn should_call_frm<F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &payments::PaymentData<F>,
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResult<(
     bool,
@@ -135,6 +136,7 @@ where
 {
     match merchant_account.frm_routing_algorithm.clone() {
         Some(frm_routing_algorithm_value) => {
+            let db = &*state.store;
             let frm_routing_algorithm_struct: FrmRoutingAlgorithm = frm_routing_algorithm_value
                 .clone()
                 .parse_value("FrmRoutingAlgorithm")
@@ -143,28 +145,41 @@ where
                 })
                 .attach_printable("Data field not found in frm_routing_algorithm")?;
 
-            let profile_id = core_utils::get_profile_id_from_business_details(
-                payment_data.payment_intent.business_country,
-                payment_data.payment_intent.business_label.as_ref(),
-                merchant_account,
-                payment_data.payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")?;
+            let profile_id = payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")?
+                .clone();
 
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
+                    &state.into(),
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
                     &key_store,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.merchant_id.clone(),
+                    id: merchant_account.get_id().get_string_repr().to_owned(),
                 })
                 .ok();
+
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            let merchant_connector_account_from_db_option: Option<
+                domain::MerchantConnectorAccount,
+            > = {
+                let _ = key_store;
+                let _ = frm_routing_algorithm_struct;
+                let _ = profile_id;
+                todo!()
+            };
 
             match merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
@@ -320,7 +335,7 @@ where
         .or_else(||
             // when the order_details are present within the meta_data, we need to take those to support backward compatibility
             payment_data.payment_intent.metadata.clone().and_then(|meta| {
-                let order_details = meta.peek().get("order_details").to_owned();
+                let order_details = meta.get("order_details").to_owned();
                 order_details.map(|order| vec![masking::Secret::new(order.to_owned())])
             }))
         .map(|order_details_value| {
@@ -416,7 +431,7 @@ where
                 let frm_data_updated = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
-                        &*state.store,
+                        state,
                         &key_store,
                         frm_data.clone(),
                         payment_data,
@@ -491,7 +506,7 @@ where
                 let mut frm_data = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
-                        &*state.store,
+                        state,
                         &key_store,
                         frm_data.to_owned(),
                         payment_data,
@@ -526,7 +541,7 @@ where
                 let updated_frm_data = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
-                        &*state.store,
+                        state,
                         &key_store,
                         frm_data.to_owned(),
                         payment_data,
@@ -546,7 +561,6 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn call_frm_before_connector_call<'a, F, Req>(
-    db: &dyn StorageInterface,
     operation: &BoxedOperation<'_, F, Req>,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut payments::PaymentData<F>,
@@ -561,13 +575,13 @@ where
     F: Send + Clone,
 {
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
-        should_call_frm(merchant_account, payment_data, db, key_store.clone()).await?;
+        should_call_frm(merchant_account, payment_data, state, key_store.clone()).await?;
     if let Some((frm_routing_algorithm_val, profile_id)) =
         frm_routing_algorithm.zip(frm_connector_label)
     {
         if let Some(frm_configs) = frm_configs.clone() {
             let mut updated_frm_info = Box::pin(make_frm_data_and_fraud_check_operation(
-                db,
+                &*state.store,
                 state,
                 merchant_account,
                 payment_data.to_owned(),
@@ -654,8 +668,9 @@ pub async fn frm_fulfillment_core(
     let db = &*state.clone().store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &req.payment_id.clone(),
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -669,7 +684,7 @@ pub async fn frm_fulfillment_core(
             let existing_fraud_check = db
                 .find_fraud_check_by_payment_id_if_present(
                     req.payment_id.clone(),
-                    merchant_account.merchant_id.clone(),
+                    merchant_account.get_id().clone(),
                 )
                 .await
                 .change_context(invalid_request_error.to_owned())?;
@@ -717,7 +732,7 @@ pub async fn make_fulfillment_api_call(
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             merchant_account.storage_scheme,
         )
         .await

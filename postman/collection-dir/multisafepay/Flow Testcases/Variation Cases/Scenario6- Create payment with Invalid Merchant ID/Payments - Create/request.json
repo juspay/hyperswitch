@@ -42,10 +42,6 @@
           "card_cvc": "123"
         }
       },
-      "routing": {
-        "type": "single",
-        "data": "multisafepay"
-      },
       "billing": {
         "address": {
           "line1": "1467",

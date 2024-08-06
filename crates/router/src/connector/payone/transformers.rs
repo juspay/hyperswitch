@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use cards::CardNumber;
+use common_utils::types::MinorUnit;
 #[cfg(feature = "payouts")]
 use error_stack::ResultExt;
 use masking::Secret;
@@ -24,30 +25,19 @@ use crate::{
     utils::OptionExt,
 };
 #[cfg(not(feature = "payouts"))]
-use crate::{
-    core::errors,
-    types::{self, api, storage::enums as storage_enums},
-};
+use crate::{core::errors, types};
 
 pub struct PayoneRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, storage_enums::Currency, i64, T)> for PayoneRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &api::CurrencyUnit,
-            storage_enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for PayoneRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -109,7 +99,7 @@ pub struct PayonePayoutFulfillRequest {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AmountOfMoney {
-    amount: i64,
+    amount: MinorUnit,
     currency_code: String,
 }
 
@@ -276,6 +266,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, PayonePayoutFulfillResponse>
                 connector_payout_id: Some(response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })

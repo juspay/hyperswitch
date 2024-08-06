@@ -314,6 +314,7 @@ mod tests {
                                     & payment_method /= voucher
                                     & payment_method /= gift_card
                                     & payment_method /= card_redirect
+                                    & payment_method /= real_time_payment
                             }
                         }
                     }

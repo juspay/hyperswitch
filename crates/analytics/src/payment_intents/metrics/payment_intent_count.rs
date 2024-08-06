@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::analytics::{
     payment_intents::{
         PaymentIntentDimensions, PaymentIntentFilters, PaymentIntentMetricsBucketIdentifier,
@@ -30,12 +32,13 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>> {
+    ) -> MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
+    {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::PaymentIntent);
 
@@ -113,7 +116,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
+                HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)

@@ -6,6 +6,7 @@ use api_models::{
         api_event::ApiEventDimensions,
         auth_events::AuthEventFlows,
         disputes::DisputeDimensions,
+        frm::{FrmDimensions, FrmTransactionType},
         payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
         refunds::{RefundDimensions, RefundType},
@@ -19,7 +20,7 @@ use api_models::{
     refunds::RefundStatus,
 };
 use common_utils::errors::{CustomResult, ParsingError};
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
@@ -353,6 +354,12 @@ pub trait ToSql<T: AnalyticsDataSource> {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
 }
 
+impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
 /// Implement `ToSql` on arrays of types that impl `ToString`.
 macro_rules! impl_to_sql_for_to_string {
     ($($type:ty),+) => {
@@ -372,10 +379,12 @@ impl_to_sql_for_to_string!(
     &PaymentDimensions,
     &PaymentIntentDimensions,
     &RefundDimensions,
+    &FrmDimensions,
     PaymentDimensions,
     PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    FrmDimensions,
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,
@@ -383,9 +392,11 @@ impl_to_sql_for_to_string!(
     AttemptStatus,
     IntentStatus,
     RefundStatus,
+    FraudCheckStatus,
     storage_enums::RefundStatus,
     Currency,
     RefundType,
+    FrmTransactionType,
     Flow,
     &String,
     &bool,

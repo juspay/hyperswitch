@@ -55,6 +55,8 @@ impl VerifyConnectorData {
             authentication_data: None,
             customer_acceptance: None,
             charges: None,
+            merchant_order_reference_id: None,
+            integrity_object: None,
         }
     }
 
@@ -77,7 +79,7 @@ impl VerifyConnectorData {
             attempt_id: attempt_id.clone(),
             description: None,
             customer_id: None,
-            merchant_id: consts::VERIFY_CONNECTOR_MERCHANT_ID.to_string(),
+            merchant_id: common_utils::id_type::MerchantId::default(),
             reference_id: None,
             access_token,
             session_token: None,
@@ -110,6 +112,7 @@ impl VerifyConnectorData {
             refund_id: None,
             dispute_id: None,
             connector_response: None,
+            integrity_check: Ok(()),
         }
     }
 }

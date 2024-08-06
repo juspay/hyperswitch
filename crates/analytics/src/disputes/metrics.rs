@@ -2,6 +2,8 @@ mod dispute_status_metric;
 mod total_amount_disputed;
 mod total_dispute_lost_amount;
 
+use std::collections::HashSet;
+
 use api_models::{
     analytics::{
         disputes::{
@@ -22,7 +24,7 @@ use crate::{
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
-#[derive(Debug, Eq, PartialEq, serde::Deserialize)]
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, Hash)]
 pub struct DisputeMetricRow {
     pub dispute_stage: Option<DBEnumWrapper<storage_enums::DisputeStage>>,
     pub dispute_status: Option<DBEnumWrapper<storage_enums::DisputeStatus>>,
@@ -50,12 +52,12 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>;
+    ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>;
 }
 
 #[async_trait::async_trait]
@@ -71,12 +73,12 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
+    ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
         match self {
             Self::TotalAmountDisputed => {
                 TotalAmountDisputed::default()

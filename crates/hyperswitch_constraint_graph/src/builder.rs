@@ -194,7 +194,7 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<String>,
+        domain_id: Option<DomainId>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
@@ -208,13 +208,7 @@ where
             .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
         for (node_id, relation, strength) in nodes {
-            self.make_edge(
-                *node_id,
-                aggregator_id,
-                *strength,
-                *relation,
-                domain.clone(),
-            )?;
+            self.make_edge(*node_id, aggregator_id, *strength, *relation, domain_id)?;
         }
 
         Ok(aggregator_id)
@@ -225,7 +219,7 @@ where
         nodes: &[(NodeId, Relation, Strength)],
         info: Option<&'static str>,
         metadata: Option<M>,
-        domain: Option<String>,
+        domain_id: Option<DomainId>,
     ) -> Result<NodeId, GraphError<V>> {
         nodes
             .iter()
@@ -239,13 +233,7 @@ where
             .push(metadata.map(|meta| -> Arc<dyn Metadata> { Arc::new(meta) }));
 
         for (node_id, relation, strength) in nodes {
-            self.make_edge(
-                *node_id,
-                aggregator_id,
-                *strength,
-                *relation,
-                domain.clone(),
-            )?;
+            self.make_edge(*node_id, aggregator_id, *strength, *relation, domain_id)?;
         }
 
         Ok(aggregator_id)

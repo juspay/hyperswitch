@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr, sync::Arc};
+use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
 
 use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use common_utils::id_type;
@@ -20,10 +20,12 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
+    let merchant_id = id_type::MerchantId::try_from(Cow::from("aci")).unwrap();
+
     types::RouterData {
         flow: PhantomData,
-        merchant_id: String::from("aci"),
-        customer_id: Some(id_type::CustomerId::from("aci".into()).unwrap()),
+        merchant_id,
+        customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -122,6 +124,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
     }
 }
 
@@ -130,10 +133,12 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         .aci
         .expect("Missing ACI connector authentication configuration");
 
+    let merchant_id = id_type::MerchantId::try_from(Cow::from("aci")).unwrap();
+
     types::RouterData {
         flow: PhantomData,
-        merchant_id: String::from("aci"),
-        customer_id: Some(id_type::CustomerId::from("aci".into()).unwrap()),
+        merchant_id,
+        customer_id: Some(id_type::CustomerId::try_from(Cow::from("aci")).unwrap()),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -186,6 +191,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        integrity_check: Ok(()),
     }
 }
 

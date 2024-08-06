@@ -10,6 +10,7 @@ use crate::{enums::Currency, refunds::RefundStatus};
     Copy,
     Debug,
     Default,
+    Hash,
     Eq,
     PartialEq,
     serde::Serialize,

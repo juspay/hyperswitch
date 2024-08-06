@@ -1,4 +1,4 @@
-use common_utils::pii::{Email, IpAddress};
+use common_utils::pii::IpAddress;
 use diesel_models::enums::RefundStatus;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -74,20 +74,20 @@ pub struct PowertranzCard {
     card_cvv: Secret<String>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct PowertranzAddressDetails {
-    first_name: Option<Secret<String>>,
-    last_name: Option<Secret<String>>,
-    line1: Option<Secret<String>>,
-    line2: Option<Secret<String>>,
-    city: Option<String>,
-    country: Option<enums::CountryAlpha2>,
-    state: Option<Secret<String>>,
-    postal_code: Option<Secret<String>>,
-    email_address: Option<Email>,
-    phone_number: Option<Secret<String>>,
-}
+// #[derive(Debug, Serialize)]
+// #[serde(rename_all = "PascalCase")]
+// pub struct PowertranzAddressDetails {
+//     first_name: Option<Secret<String>>,
+//     last_name: Option<Secret<String>>,
+//     line1: Option<Secret<String>>,
+//     line2: Option<Secret<String>>,
+//     city: Option<String>,
+//     country: Option<enums::CountryAlpha2>,
+//     state: Option<Secret<String>>,
+//     postal_code: Option<Secret<String>>,
+//     email_address: Option<Email>,
+//     phone_number: Option<Secret<String>>,
+// }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -116,6 +116,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),

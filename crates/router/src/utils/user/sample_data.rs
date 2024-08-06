@@ -19,11 +19,10 @@ use crate::{
 pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
-    merchant_id: &str,
+    merchant_id: &id_type::MerchantId,
 ) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
-    let merchant_id = merchant_id.to_string();
     let sample_data_size: usize = req.record.unwrap_or(100);
-
+    let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
         return Err(SampleDataError::InvalidRange.into());
     }
@@ -31,7 +30,8 @@ pub async fn generate_sample_data(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            merchant_id.as_str(),
+            key_manager_state,
+            merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -39,29 +39,48 @@ pub async fn generate_sample_data(
 
     let merchant_from_db = state
         .store
-        .find_merchant_account_by_merchant_id(merchant_id.as_str(), &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
-        serde_json::from_value(merchant_from_db.primary_business_details.clone())
-            .change_context(SampleDataError::InternalServerError)
-            .attach_printable("Error while parsing primary business details")?;
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
+    let (profile_id_result, business_country_default, business_label_default) = {
+        let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
+            serde_json::from_value(merchant_from_db.primary_business_details.clone())
+                .change_context(SampleDataError::InternalServerError)
+                .attach_printable("Error while parsing primary business details")?;
 
-    let business_country_default = merchant_parsed_details.first().map(|x| x.country);
+        let business_country_default = merchant_parsed_details.first().map(|x| x.country);
 
-    let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
+        let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let profile_id = match crate::core::utils::get_profile_id_from_business_details(
-        business_country_default,
-        business_label_default.as_ref(),
-        &merchant_from_db,
-        req.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    {
+        let profile_id = crate::core::utils::get_profile_id_from_business_details(
+            business_country_default,
+            business_label_default.as_ref(),
+            &merchant_from_db,
+            req.profile_id.as_ref(),
+            &*state.store,
+            false,
+        )
+        .await;
+        (profile_id, business_country_default, business_label_default)
+    };
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let (profile_id_result, business_country_default, business_label_default) = {
+        let profile_id = req
+            .profile_id.clone()
+            .ok_or(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::MissingRequiredField {
+                field_name: "profile_id",
+            });
+
+        (profile_id, None, None)
+    };
+
+    let profile_id = match profile_id_result {
         Ok(id) => id.clone(),
         Err(error) => {
             router_env::logger::error!(
@@ -70,7 +89,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_business_profile_by_merchant_id(&merchant_id)
+                .list_business_profile_by_merchant_id(merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
@@ -145,8 +164,9 @@ pub async fn generate_sample_data(
     }
 
     // This has to be an internal server error because, this function failing means that the intended functionality is not working as expected
-    let dashboard_customer_id = id_type::CustomerId::from("hs-dashboard-user".into())
-        .change_context(SampleDataError::InternalServerError)?;
+    let dashboard_customer_id =
+        id_type::CustomerId::try_from(std::borrow::Cow::from("hs-dashboard-user"))
+            .change_context(SampleDataError::InternalServerError)?;
 
     for num in 1..=sample_data_size {
         let payment_id = common_utils::generate_id_with_default_len("test");
@@ -226,6 +246,9 @@ pub async fn generate_sample_data(
             charges: None,
             frm_metadata: Default::default(),
             customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: Default::default(),
+            shipping_details: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
@@ -260,14 +283,49 @@ pub async fn generate_sample_data(
                 _ => None,
             },
             confirm: true,
-            created_at: Some(created_at),
-            modified_at: Some(modified_at),
+            created_at,
+            modified_at,
             last_synced: Some(last_synced),
             amount_to_capture: Some(amount * 100),
             connector_response_reference_id: Some(attempt_id.clone()),
             updated_by: merchant_from_db.storage_scheme.to_string(),
-
-            ..Default::default()
+            save_to_locker: None,
+            offer_amount: None,
+            surcharge_amount: None,
+            tax_amount: None,
+            payment_method_id: None,
+            capture_method: None,
+            capture_on: None,
+            cancellation_reason: None,
+            mandate_id: None,
+            browser_info: None,
+            payment_token: None,
+            connector_metadata: None,
+            payment_experience: None,
+            payment_method_data: None,
+            business_sub_label: None,
+            straight_through_algorithm: None,
+            preprocessing_step_id: None,
+            mandate_details: None,
+            error_reason: None,
+            multiple_capture_count: None,
+            amount_capturable: i64::default(),
+            merchant_connector_id: None,
+            authentication_data: None,
+            encoded_data: None,
+            unified_code: None,
+            unified_message: None,
+            net_amount: None,
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            mandate_data: None,
+            payment_method_billing_address_id: None,
+            fingerprint_id: None,
+            charge_id: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -282,8 +340,8 @@ pub async fn generate_sample_data(
                 connector_transaction_id: attempt_id.clone(),
                 connector_refund_id: None,
                 description: Some("This is a sample refund".to_string()),
-                created_at: Some(created_at),
-                modified_at: Some(modified_at),
+                created_at,
+                modified_at,
                 refund_reason: Some("Sample Refund".to_string()),
                 connector: payment_attempt
                     .connector

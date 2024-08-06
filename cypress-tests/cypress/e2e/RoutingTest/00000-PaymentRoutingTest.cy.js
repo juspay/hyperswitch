@@ -1,9 +1,6 @@
-import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
-import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
-import customerCreateBody from "../../fixtures/create-customer-body.json";
-import routingConfigBody from "../../fixtures/routing-config-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import * as utils from "../RoutingUtils/utils";
+import * as utils from "../RoutingUtils/Utils";
 
 let globalState;
 
@@ -42,11 +39,11 @@ describe("Routing Test", () => {
     });
 
     it("api-key-create-call-test", () => {
-      cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+      cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
     });
 
     it("customer-create-call-test", () => {
-      cy.createCustomerCallTest(customerCreateBody, globalState);
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
     it("add-routing-config", () => {
@@ -65,7 +62,7 @@ describe("Routing Test", () => {
         },
       ];
       cy.addRoutingConfig(
-        routingConfigBody,
+        fixtures.routingConfigBody,
         req_data,
         res_data,
         "priority",
@@ -99,7 +96,7 @@ describe("Routing Test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createConfirmPaymentTest(
-        createConfirmPaymentBody,
+        fixtures.createConfirmPaymentBody,
         req_data,
         res_data,
         "no_three_ds",

@@ -1,11 +1,15 @@
-use api_models::analytics::{active_payments::ActivePaymentsMetricsBucketIdentifier, Granularity};
+use std::collections::HashSet;
+
+use api_models::analytics::{
+    active_payments::ActivePaymentsMetricsBucketIdentifier, Granularity, TimeRange,
+};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use super::ActivePaymentsMetricRow;
 use crate::{
-    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, ToSql, Window},
+    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
@@ -24,11 +28,12 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
+        time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<
-        Vec<(
+        HashSet<(
             ActivePaymentsMetricsBucketIdentifier,
             ActivePaymentsMetricRow,
         )>,
@@ -46,9 +51,26 @@ where
         query_builder
             .add_custom_filter_clause(
                 "merchant_id",
-                format!("'{}','{}'", merchant_id, publishable_key),
+                format!("'{}','{}'", merchant_id.get_string_repr(), publishable_key),
                 FilterTypes::In,
             )
+            .switch()?;
+
+        query_builder
+            .add_negative_filter_clause("payment_id", "")
+            .switch()?;
+
+        query_builder
+            .add_custom_filter_clause(
+                "flow_type",
+                "'sdk', 'payment', 'payment_redirection_response'",
+                FilterTypes::In,
+            )
+            .switch()?;
+
+        time_range
+            .set_filter_clause(&mut query_builder)
+            .attach_printable("Error filtering time range")
             .switch()?;
 
         query_builder
@@ -59,7 +81,7 @@ where
             .into_iter()
             .map(|i| Ok((ActivePaymentsMetricsBucketIdentifier::new(None), i)))
             .collect::<error_stack::Result<
-                Vec<(
+                HashSet<(
                     ActivePaymentsMetricsBucketIdentifier,
                     ActivePaymentsMetricRow,
                 )>,

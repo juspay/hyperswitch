@@ -16,7 +16,7 @@ async fn should_make_mollie_paypal_payment(web_driver: WebDriver) -> Result<(), 
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/32"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/32"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
@@ -39,7 +39,7 @@ async fn should_make_mollie_sofort_payment(web_driver: WebDriver) -> Result<(), 
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/29"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/29"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
@@ -62,7 +62,7 @@ async fn should_make_mollie_ideal_payment(web_driver: WebDriver) -> Result<(), W
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/36"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/36"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::ClassName(
@@ -85,7 +85,7 @@ async fn should_make_mollie_eps_payment(web_driver: WebDriver) -> Result<(), Web
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/38"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/38"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
@@ -108,7 +108,7 @@ async fn should_make_mollie_giropay_payment(web_driver: WebDriver) -> Result<(),
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/41"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/41"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
@@ -131,7 +131,7 @@ async fn should_make_mollie_bancontact_card_payment(c: WebDriver) -> Result<(), 
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/86"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/86"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
@@ -154,7 +154,7 @@ async fn should_make_mollie_przelewy24_payment(c: WebDriver) -> Result<(), WebDr
     conn.make_redirection_payment(
         c,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/87"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/87"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),
@@ -177,7 +177,7 @@ async fn should_make_mollie_3ds_payment(web_driver: WebDriver) -> Result<(), Web
     conn.make_redirection_payment(
         web_driver,
         vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/148"))),
+            Event::Trigger(Trigger::Goto(&format!("{CHECKOUT_BASE_URL}/saved/148"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Assert(Assert::IsPresent("Test profile")),
             Event::Trigger(Trigger::Click(By::Css("input[value='paid']"))),

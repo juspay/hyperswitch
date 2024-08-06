@@ -61,6 +61,12 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// Organization create flow
+    OrganizationCreate,
+    /// Organization retrieve flow
+    OrganizationRetrieve,
+    /// Organization update flow
+    OrganizationUpdate,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
@@ -81,6 +87,8 @@ pub enum Flow {
     MerchantConnectorsDelete,
     /// Merchant Connectors list flow.
     MerchantConnectorsList,
+    /// Merchant Transfer Keys
+    MerchantTransferKey,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -111,6 +119,8 @@ pub enum Flow {
     MandatesList,
     /// Payment methods create flow.
     PaymentMethodsCreate,
+    /// Payment methods migrate flow.
+    PaymentMethodsMigrate,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow
@@ -280,6 +290,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// payment Link Initiate flow
+    PaymentSecureLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
     /// Payment Link Status
@@ -314,6 +326,8 @@ pub enum Flow {
     UserSignUpWithMerchantId,
     /// User Sign In
     UserSignIn,
+    /// User transfer key
+    UserTransferKey,
     /// User connect account
     UserConnectAccount,
     /// Upsert Decision Manager Config
@@ -452,6 +466,8 @@ pub enum Flow {
     ToggleConnectorAgnosticMit,
     /// Get the extended card info associated to a payment_id
     GetExtendedCardInfo,
+    /// Manually update the refund details like status, error code, error message etc.
+    RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
 }
