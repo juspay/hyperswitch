@@ -50,7 +50,7 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         state,
         &http_req,
         (),
-        |state, user: UserFromToken, _req, _| send_recon_request(state, user),
+        |state, user: UserFromToken, _req, _| send_recon_request(state, user, None),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -64,7 +64,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         state,
         &req,
         (),
-        |state, user: ReconUser, _, _| generate_recon_token(state, user),
+        |state, user: ReconUser, _, _| generate_recon_token(state, user, None),
         &auth::ReconJWT,
         api_locking::LockAction::NotApplicable,
     ))
