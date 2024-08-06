@@ -856,16 +856,16 @@ pub async fn payouts_filtered_list_core(
     let total_count = db
         .get_total_count_of_filtered_payouts(
             merchant_account.get_id(),
-            filters.connector,
-            filters.currency,
-            filters.status,
-            filters.payout_method,
+            filters.connector.clone(),
+            filters.currency.clone(),
+            filters.status.clone(),
+            filters.payout_method.clone(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed to fetch total count of filtered payouts for the given constraints - {}",
+                "Failed to fetch total count of filtered payouts for the given constraints - {:?}",
                 filters
             )
         })?;
