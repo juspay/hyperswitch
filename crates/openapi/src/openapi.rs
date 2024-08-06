@@ -486,6 +486,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::PayoutListConstraints,
         api_models::payouts::PayoutListFilterConstraints,
         api_models::payouts::PayoutListResponse,
+        api_models::payouts::PayoutListResponseV2,
         api_models::payouts::PayoutRetrieveBody,
         api_models::payouts::PayoutRetrieveRequest,
         api_models::payouts::PayoutMethodData,

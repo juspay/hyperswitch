@@ -810,7 +810,7 @@ pub async fn payouts_filtered_list_core(
     _profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
-) -> RouterResponse<payouts::PayoutListResponse> {
+) -> RouterResponse<payouts::PayoutListResponseV2> {
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
     let db = state.store.as_ref();
@@ -864,12 +864,11 @@ pub async fn payouts_filtered_list_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    logger::warn!("[DEBUGG] {}", total_count);
-
     Ok(services::ApplicationResponse::Json(
-        api::PayoutListResponse {
+        api::PayoutListResponseV2 {
             size: data.len(),
             data,
+            total_count,
         },
     ))
 }

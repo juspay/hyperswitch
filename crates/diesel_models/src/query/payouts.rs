@@ -3,7 +3,7 @@ use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
     JoinOnDsl, QueryDsl,
 };
-use error_stack::report;
+use error_stack::{report, ResultExt};
 
 use super::generics;
 use crate::{
@@ -13,7 +13,6 @@ use crate::{
     schema::{payout_attempt, payouts::dsl},
     PgPooledConn, StorageResult,
 };
-use error_stack::ResultExt;
 
 impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
