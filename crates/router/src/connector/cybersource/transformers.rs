@@ -1738,13 +1738,6 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
                     Self::Authorized
                 }
             }
-            CybersourcePaymentStatus::Pending => {
-                if capture {
-                    Self::Charged
-                } else {
-                    Self::Pending
-                }
-            }
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
                 Self::Charged
             }
@@ -1762,6 +1755,7 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             | CybersourcePaymentStatus::StatusNotReceived
             | CybersourcePaymentStatus::Challenge
             | CybersourcePaymentStatus::Accepted
+            | CybersourcePaymentStatus::Pending
             | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Pending,
         }
     }
@@ -1770,8 +1764,8 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
 impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
     fn from(item: CybersourceIncrementalAuthorizationStatus) -> Self {
         match item {
-            CybersourceIncrementalAuthorizationStatus::Authorized
-            | CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Success,
+            CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
+            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Processing,
             CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
         }
     }
