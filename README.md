@@ -9,19 +9,20 @@
 The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
-  <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
+  <a href="#try-a-payment">Try a Payment</a> •
+  <a href="#for-enterprises">For Enterprises</a> •
+  <a href="#for-contributors">For Contributors</a> •
+  <a href="#quick-start-guide">Quick Setup</a> •
   <a href="/docs/try_local_system.md">Local Setup Guide (Hyperswitch App Server)</a> •
-  <a href="#-fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
+  <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
   <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> •
-  <a href="#-supported-features">Supported Features</a> •
-  <br>
-  <a href="#whats-included">What's Included</a> •
-  <a href="#-join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
-  <a href="#-community">Community</a> •
-  <a href="#-bugs-and-feature-requests">Bugs and feature requests</a> •
-  <a href="#-FAQs">FAQs</a> •
-  <a href="#-versioning">Versioning</a> •
-  <a href="#%EF%B8%8F-copyright-and-license">Copyright and License</a>
+   <br>
+  <a href="#supported-features">Supported Features</a> •
+  <a href="#community">Community</a> •
+  <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
+  <a href="#FAQs">FAQs</a> •
+  <a href="#versioning">Versioning</a> •
+  <a href="#copyright-and-license">Copyright and License</a>
 </p>
 
 <p align="center">
@@ -54,34 +55,37 @@ Using Hyperswitch, you can:
 <img src="./docs/imgs/hyperswitch-product.png" alt="Hyperswitch-Product" width="50%"/>
 
 <a href="https://app.hyperswitch.io/">
-  <h2 id="Try a Payment">⚡️ Try a Payment</h2>
+  <h2 id="try-a-payment">⚡️ Try a Payment</h2>
 </a>
 
-To quickly experience the ease that Hyperswitch provides while handling the payment, you can signup on [hyperswitch-control-center][Dashboard-link], and try a payment.
+To quickly experience the ease that Hyperswitch provides while handling the payment, you can signup on [hyperswitch-control-center][dashboard-link], and try a payment.
 
-Congratulations🎉 on making your first payment with Hyperswitch. 
+Congratulations 🎉 on making your first payment with Hyperswitch. 
 
-## Get Started with Hyperswitch
+<a href="#Get Started with Hyperswitch">
+  <h2 id="get-started-with-hyperswitch">Get Started with Hyperswitch</h2>
+</a>
 
-- ### [For Enterprises][Docs-link-for-Enterprise]
+### [For Enterprises][docs-link-for-Enterprise]
   Hyperswitch helps enterprises in -  
   - Improving profitability
   - Increasing conversion rates
   - Lowering payment costs
   - Streamlining payment operations 
   
-  Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our offerings**][Website-link]. 
+  Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our offerings**][website-link]. 
 
-- ### [For Contributors][Contributing-guidelines]
+### [For Contributors][contributing-guidelines]
+  
   Hyperswitch is an open-source project that aims to make digital payments accessible to people across the globe like a basic utility. With the vision of developing Hyperswitch as the **Linux of Payments**, we seek support from developers worldwide.
 
   Utilise the following resources to quickstart your journey with Hyperswitch -
-  - [Guide for contributors][Contributing-guidelines]
-  - [Developer Docs][Docs-link-for-developers]
+  - [Guide for contributors][contributing-guidelines]
+  - [Developer Docs][docs-link-for-developers]
   - [Learning Resources][learning-resources]
 
 <a href="#Quick Start Guide">
-  <h2 id="Quick Start Guide">⚡️ Quick Start Guide</h2>
+  <h2 id="quick-start-guide">⚡️ Quick Setup</h2>
 </a>
 
 ### One-click deployment on AWS cloud
@@ -112,16 +116,16 @@ This will start the app server, web client and control center.
 Check out the [local setup guide][local-setup-guide] for a more comprehensive
 setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
 
-[Docs-link-for-Enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
-[Docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
-[Contributing-guidelines]: docs/CONTRIBUTING.md
-[Dashboard-link]: https://app.hyperswitch.io/
-[Website-link]: https://hyperswitch.io/
+[docs-link-for-Enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
+[docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
+[contributing-guidelines]: docs/CONTRIBUTING.md
+[dashboard-link]: https://app.hyperswitch.io/
+[website-link]: https://hyperswitch.io/
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
 [docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
 <a href="#Fast-Integration-for-Stripe-Users">
-  <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
+  <h2 id="fast-integration-for-stripe-users">🔌 Fast Integration for Stripe Users</h2>
 </a>
 
 If you are already using Stripe, integrating with Hyperswitch is fun, fast & easy.
@@ -135,12 +139,12 @@ Try the steps below to get a feel for how quick the setup is:
 [migrate-from-stripe]: https://hyperswitch.io/docs/migrateFromStripe
 
 <a href="#Supported-Features">
-  <h2 id="Supported Features">✅ Supported Features</h2>
+  <h2 id="supported-features">✅ Supported Features</h2>
 </a>
 
 ### 🌟 Supported Payment Processors and Methods
 
-As of today, Hyperswitch supports 50+ payment processors and multiple global payment methods.
+As of Aug 2024, Hyperswitch supports 50+ payment processors and multiple global payment methods.
 In addition, we are continuously integrating new processors based on their reach and community requests.
 Our target is to support 100+ processors by H2 2024.
 You can find the latest list of payment processors, supported methods, and features [here][supported-connectors-and-features].
@@ -178,15 +182,6 @@ analytics, and operations end-to-end:
 
 You can [try the hosted version in our sandbox][dashboard].
 
-<a href="#FAQs">
-  <h2 id="FAQs">🤔 FAQs</h2>
-</a>
-
-Got more questions?
-Please refer to our [FAQs page][faqs].
-
-[faqs]: https://hyperswitch.io/docs/devSupport
-
 <!--
 ## Documentation
 
@@ -200,6 +195,10 @@ Please refer to the following documentation pages:
  -->
 
 <!-- ### Sub-Crates -->
+
+<a href="#Join-us-in-building-Hyperswitch">
+  <h2 id="join-us-in-building-hyperswitch">💪 Join us in building Hyperswitch</h2>
+</a>
 
 ### 🤝 Our Belief
 
@@ -252,7 +251,7 @@ development.
   For example, some of the code in core functions (e.g., `payments_core`) is written to be more readable than pure-idiomatic.
 
 <a href="#Community">
-  <h2 id="Community">👥 Community</h2>
+  <h2 id="community">👥 Community</h2>
 </a>
 
 Get updates on Hyperswitch development and chat with the community:
@@ -284,7 +283,7 @@ Get updates on Hyperswitch development and chat with the community:
 </div>
 
 <a href="#Bugs and feature requests">
-  <h2 id="Bugs and feature requests">🐞 Bugs and feature requests</h2>
+  <h2 id="bugs-and-feature-requests">🐞 Bugs and feature requests</h2>
 </a>
 
 Please read the issue guidelines and search for [existing and closed issues].
@@ -294,13 +293,22 @@ If your problem or idea is not addressed yet, please [open a new issue].
 [open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
 
 <a href="#Versioning">
-  <h2 id="Versioning">🔖 Versioning</h2>
+  <h2 id="versioning">🔖 Versioning</h2>
 </a>
 
 Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 
+<a href="#FAQs">
+  <h2 id="FAQs">🤔 FAQs</h2>
+</a>
+
+Got more questions?
+Please refer to our [FAQs page][faqs].
+
+[faqs]: https://hyperswitch.io/docs/devSupport
+
 <a href="#©Copyright and License">
-  <h2 id="©Copyright and License">©️ Copyright and License</h2>
+  <h2 id="copyright-and-license">©️ Copyright and License</h2>
 </a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
