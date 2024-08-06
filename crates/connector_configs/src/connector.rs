@@ -117,6 +117,7 @@ pub struct ConnectorTomlConfig {
     pub bank_transfer: Option<Vec<Provider>>,
     pub bank_redirect: Option<Vec<Provider>>,
     pub bank_debit: Option<Vec<Provider>>,
+    pub open_banking: Option<Vec<Provider>>,
     pub pay_later: Option<Vec<Provider>>,
     pub wallet: Option<Vec<Provider>>,
     pub crypto: Option<Vec<Provider>>,

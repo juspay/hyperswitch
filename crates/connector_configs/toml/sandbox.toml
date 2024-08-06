@@ -2508,6 +2508,13 @@ type="Text"
 api_key="Login"
 key1="Trankey"
 
+[plaid]
+[[plaid.open_banking]]
+  payment_method_type = "open_banking_pis"
+[plaid.connector_auth.BodyKey]
+api_key="client_id"
+key1="secret"
+
 [powertranz]
 [[powertranz.credit]]
   payment_method_type = "Mastercard"
