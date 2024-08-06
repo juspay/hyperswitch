@@ -878,8 +878,9 @@ impl BusinessProfileUpdate {
             // order_fulfillment_time_origin: order_fulfillment_time_origin
             //     .or(source.order_fulfillment_time_origin),
             // frm_routing_algorithm_id: frm_routing_algorithm_id.or(source.frm_routing_algorithm_id),
-            payout_routing_algorithm_id: payout_routing_algorithm_id, //     .or(source.payout_routing_algorithm_id),
-                                                                      // default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
+            payout_routing_algorithm_id: payout_routing_algorithm_id
+                .or(source.payout_routing_algorithm_id),
+            // default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
         }
     }
 }
