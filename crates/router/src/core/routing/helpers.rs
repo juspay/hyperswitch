@@ -19,7 +19,7 @@ use crate::{
     db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},
-    utils::{self, StringExt},
+    utils::StringExt,
 };
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
@@ -243,15 +243,7 @@ pub async fn update_business_profile_active_algorithm_ref(
         )
         .into(),
     );
-    utils::when(
-        current_business_profile.routing_algorithm_id == Some(algorithm_id.clone())
-            || current_business_profile.payout_routing_algorithm_id == Some(algorithm_id.clone()),
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Algorithm is already active".to_string(),
-            })
-        },
-    )?;
+
     let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
         storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
         #[cfg(feature = "payouts")]

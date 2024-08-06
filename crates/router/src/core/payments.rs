@@ -3045,7 +3045,7 @@ pub async fn get_payment_filters(
     _profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant.get_id().to_owned()).await?
+        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), None).await?
     {
         data
     } else {
@@ -3974,7 +3974,7 @@ where
             .attach_printable("Could not decode merchant routing algorithm ref")?
             .unwrap_or_default();
 
-        routing::perform_static_routing_v1(
+        let connectors = routing::perform_static_routing_v1(
             state,
             merchant_account.get_id(),
             algorithm_ref,

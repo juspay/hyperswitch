@@ -1029,7 +1029,7 @@ async fn perform_session_routing_for_pm_type(
         not(any(feature = "routing_v2", feature = "business_profile_v2"))
     ))]
     let algorithm_id = match session_pm_input.routing_algorithm {
-        MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => algorithm_ref.algorithm_id,
+        MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
     };
     #[cfg(all(
         feature = "v2",

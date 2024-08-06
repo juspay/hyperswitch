@@ -1,29 +1,21 @@
 pub mod helpers;
 pub mod transformers;
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+use crate::utils::ValueExt;
 use api_models::{
     enums,
-    routing::{
-        self as routing_types, RoutingAlgorithmId, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
-    },
+    routing::{self as routing_types, RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
 };
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use diesel_models::routing_algorithm::RoutingAlgorithm;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use masking::Secret;
 use rustc_hash::FxHashSet;
 
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-use crate::consts;
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{consts, core::errors::RouterResult, db::StorageInterface};
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
@@ -34,8 +26,10 @@ use crate::{
         domain,
         transformers::{ForeignInto, ForeignTryFrom},
     },
-    utils::{self, OptionExt, ValueExt},
+    utils::{self, OptionExt},
 };
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+use crate::{core::errors::RouterResult, db::StorageInterface};
 pub enum TransactionData<'a, F>
 where
     F: Clone,
@@ -51,10 +45,8 @@ struct RoutingAlgorithmUpdate(RoutingAlgorithm);
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 impl RoutingAlgorithmUpdate {
     pub fn create_new_routing_algorithm(
-        algorithm: routing_types::RoutingAlgorithm,
+        request: &routing_types::RoutingConfigRequest,
         merchant_id: &common_utils::id_type::MerchantId,
-        name: String,
-        description: String,
         profile_id: String,
         transaction_type: &enums::TransactionType,
     ) -> Self {
@@ -67,10 +59,10 @@ impl RoutingAlgorithmUpdate {
             algorithm_id,
             profile_id,
             merchant_id: merchant_id.clone(),
-            name,
-            description: Some(description),
-            kind: algorithm.get_kind().foreign_into(),
-            algorithm_data: serde_json::json!(algorithm),
+            name: request.name.clone(),
+            description: Some(request.description.clone()),
+            kind: request.algorithm.get_kind().foreign_into(),
+            algorithm_data: serde_json::json!(request.algorithm),
             created_at: timestamp,
             modified_at: timestamp,
             algorithm_for: transaction_type.to_owned(),
@@ -129,31 +121,10 @@ pub async fn create_routing_config(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = &*state.store;
-    let name = request
-        .name
-        .get_required_value("name")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField { field_name: "name" })
-        .attach_printable("Name of config not given")?;
-
-    let description = request
-        .description
-        .get_required_value("description")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "description",
-        })
-        .attach_printable("Description of config not given")?;
-
-    let algorithm = request
-        .algorithm
-        .get_required_value("algorithm")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "algorithm",
-        })
-        .attach_printable("Algorithm of config not given")?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
-        request.profile_id.as_ref(),
+        Some(&request.profile_id),
         merchant_account.get_id(),
     )
     .await?
@@ -179,16 +150,14 @@ pub async fn create_routing_config(
     let algorithm_helper = helpers::RoutingAlgorithmHelpers {
         name_mca_id_set,
         name_set,
-        routing_algorithm: &algorithm,
+        routing_algorithm: &request.algorithm,
     };
 
     algorithm_helper.validate_connectors_in_routing_config()?;
 
     let algo = RoutingAlgorithmUpdate::create_new_routing_algorithm(
-        algorithm,
+        &request,
         merchant_account.get_id(),
-        name,
-        description,
         business_profile.profile_id,
         transaction_type,
     );
@@ -305,11 +274,13 @@ pub async fn link_routing_config(
     let routing_algorithm =
         RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
             .await?;
+
     utils::when(routing_algorithm.0.profile_id != profile_id, || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "Profile Id is invalid for the routing config".to_string(),
         })
     })?;
+
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         Some(&profile_id),
@@ -326,6 +297,16 @@ pub async fn link_routing_config(
                     "Cannot use {}'s routing algorithm for {} operation",
                     routing_algorithm.0.algorithm_for, transaction_type
                 ),
+            })
+        },
+    )?;
+
+    utils::when(
+        business_profile.routing_algorithm_id == Some(algorithm_id.clone())
+            || business_profile.payout_routing_algorithm_id == Some(algorithm_id.clone()),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Algorithm is already active".to_string(),
             })
         },
     )?;
@@ -417,10 +398,41 @@ pub async fn link_routing_config(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "routing_v2",))]
 pub async fn retrieve_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    algorithm_id: RoutingAlgorithmId,
+    algorithm_id: routing_types::RoutingAlgorithmId,
+) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
+    metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    let db = state.store.as_ref();
+
+    let routing_algorithm =
+        RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id.0, db)
+            .await?;
+    // TODO: Move to domain types of Business Profile
+    core_utils::validate_and_get_business_profile(
+        db,
+        Some(&routing_algorithm.0.profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")
+    .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm.0)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse routing algorithm")?;
+
+    metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    Ok(service_api::ApplicationResponse::Json(response))
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+pub async fn retrieve_routing_config(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    algorithm_id: routing_types::RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -450,6 +462,63 @@ pub async fn retrieve_routing_config(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+pub async fn unlink_routing_config(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: String,
+    transaction_type: &enums::TransactionType,
+) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    let db = state.store.as_ref();
+
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")?;
+
+    let routing_algo_id = match transaction_type {
+        enums::TransactionType::Payment => business_profile.routing_algorithm_id.clone(),
+        #[cfg(feature = "payouts")]
+        enums::TransactionType::Payout => business_profile.payout_routing_algorithm_id.clone(),
+    };
+
+    if let Some(algorithm_id) = routing_algo_id {
+        let record = RoutingAlgorithmUpdate::fetch_routing_algo(
+            merchant_account.get_id(),
+            &algorithm_id,
+            db,
+        )
+        .await?;
+        let response = record.0.foreign_into();
+        helpers::update_business_profile_active_algorithm_ref(
+            db,
+            business_profile,
+            algorithm_id,
+            transaction_type,
+        )
+        .await?;
+
+        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+        Ok(service_api::ApplicationResponse::Json(response))
+    } else {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Algorithm is already inactive".to_string(),
+        })?
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 pub async fn unlink_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -473,48 +542,20 @@ pub async fn unlink_routing_config(
     .await?;
     match business_profile {
         Some(business_profile) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(any(feature = "routing_v2", feature = "business_profile_v2"))
-            ))]
-            // replcae it with algorithm_id ; which would be either routing | payout
-            let algorithm_id = {
-                let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-                    enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
-                    #[cfg(feature = "payouts")]
-                    enums::TransactionType::Payout => {
-                        business_profile.payout_routing_algorithm.clone()
-                    }
-                }
-                .map(|val| val.parse_value("RoutingAlgorithmRef"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "unable to deserialize routing algorithm ref from merchant account",
-                )?
-                .unwrap_or_default();
-                routing_algo_ref.algorithm_id
-            };
-            #[cfg(all(
-                feature = "v2",
-                feature = "routing_v2",
-                feature = "business_profile_v2"
-            ))]
-            let algorithm_id = {
-                match transaction_type {
-                    enums::TransactionType::Payment => {
-                        business_profile.routing_algorithm_id.clone()
-                    }
-                    #[cfg(feature = "payouts")]
-                    enums::TransactionType::Payout => {
-                        business_profile.payout_routing_algorithm_id.clone()
-                    }
-                }
-            };
+            let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+                enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
+                #[cfg(feature = "payouts")]
+                enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
+            }
+            .map(|val| val.parse_value("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+            .unwrap_or_default();
 
             let timestamp = common_utils::date_time::now_unix_timestamp();
 
-            match algorithm_id {
+            match routing_algo_ref.algorithm_id {
                 Some(algorithm_id) => {
                     let routing_algorithm: routing_types::RoutingAlgorithmRef =
                         routing_types::RoutingAlgorithmRef {
@@ -532,7 +573,6 @@ pub async fn unlink_routing_config(
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
                     let response = record.foreign_into();
-                    // pass None to deactivate it
                     helpers::update_business_profile_active_algorithm_ref(
                         db,
                         business_profile,
