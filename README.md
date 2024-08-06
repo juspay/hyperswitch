@@ -15,7 +15,7 @@ The single API to access payment ecosystems across 130+ countries</div>
   <a href="#quick-start-guide">Quick Setup</a> •
   <a href="/docs/try_local_system.md">Local Setup Guide (Hyperswitch App Server)</a> •
   <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
-  <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> •
+  <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> 
    <br>
   <a href="#supported-features">Supported Features</a> •
   <a href="#community">Community</a> •
