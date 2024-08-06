@@ -269,7 +269,7 @@ pub async fn get_authentication_connector_data(
     key_store: &domain::MerchantKeyStore,
     business_profile: &storage::BusinessProfile,
 ) -> RouterResult<(
-    api_models::enums::AuthenticationConnectors,
+    common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,
 )> {
     let authentication_details: api_models::admin::AuthenticationConnectorDetails =

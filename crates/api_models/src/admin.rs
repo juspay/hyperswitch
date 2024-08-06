@@ -248,7 +248,7 @@ impl MerchantAccountCreate {
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     #[schema(value_type = Vec<AuthenticationConnectors>)]
-    pub authentication_connectors: Vec<api_enums::AuthenticationConnectors>,
+    pub authentication_connectors: Vec<common_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
 }

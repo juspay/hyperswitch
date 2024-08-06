@@ -1,3 +1,4 @@
+use common_enums::AuthenticationConnectors;
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 use common_enums::OrderFulfillmentTimeOrigin;
 use common_utils::{encryption::Encryption, pii};
@@ -885,3 +886,11 @@ impl From<BusinessProfileNew> for BusinessProfile {
         }
     }
 }
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthenticationConnectorDetails {
+    pub authentication_connectors: Vec<AuthenticationConnectors>,
+    pub three_ds_requestor_url: String,
+}
+
+common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
