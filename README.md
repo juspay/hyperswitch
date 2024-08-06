@@ -20,8 +20,8 @@ The single API to access payment ecosystems across 130+ countries</div>
   <a href="#supported-features">Supported Features</a> •
   <a href="#community">Community</a> •
   <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
-  <a href="#FAQs">FAQs</a> •
   <a href="#versioning">Versioning</a> •
+  <a href="#FAQs">FAQs</a> •
   <a href="#copyright-and-license">Copyright and License</a>
 </p>
 
