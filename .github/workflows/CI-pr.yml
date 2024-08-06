@@ -335,4 +335,6 @@ jobs:
 
       - name: Cargo hack_v2
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: just hack_v2
