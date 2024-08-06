@@ -1192,6 +1192,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+        status -> Nullable<RoutingAlgorithmStatus>,
     }
 }
 
