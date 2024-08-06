@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[cfg(feature = "payouts")]
 use api_models::enums::PayoutConnectors;
 use api_models::{
-    enums::{AuthenticationConnectors, Connector},
+    enums::{AuthenticationConnectors, Connector, PmAuthConnectors},
     payments,
 };
 use serde::Deserialize;
@@ -265,6 +265,15 @@ impl ConnectorConfig {
             AuthenticationConnectors::Threedsecureio => Ok(connector_data.threedsecureio),
             AuthenticationConnectors::Netcetera => Ok(connector_data.netcetera),
             AuthenticationConnectors::Gpayments => Ok(connector_data.gpayments),
+        }
+    }
+
+    pub fn get_pm_authentication_processor_config(
+        connector: PmAuthConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            PmAuthConnectors::Plaid => Ok(connector_data.plaid),
         }
     }
 
