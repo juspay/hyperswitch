@@ -180,7 +180,7 @@ pub async fn update_mca(
         merchant_id: merchant_id.clone(),
     };
     let mca_response =
-        admin::update_payment_connector(state.clone(), &merchant_id, &connector_id, request)
+        admin::update_payment_connector(state.clone(), &merchant_id, None, &connector_id, request)
             .await?;
 
     match mca_response {
