@@ -261,9 +261,15 @@ pub async fn initiate_secure_payment_link_flow(
         .and_then(|header_value| header_value.to_str().ok())
         .map(|str| str.to_owned());
 
-    let (payment_link, payment_link_details, payment_link_config) =
-        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id, locale)
-            .await?;
+    let (payment_link, payment_link_details, payment_link_config) = form_payment_link_data(
+        &state,
+        merchant_account,
+        key_store,
+        merchant_id,
+        payment_id,
+        locale,
+    )
+    .await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -349,11 +355,17 @@ pub async fn initiate_payment_link_flow(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
-    locale: Option<String>
+    locale: Option<String>,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let (_, payment_details, payment_link_config) =
-        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id,locale)
-            .await?;
+    let (_, payment_details, payment_link_config) = form_payment_link_data(
+        &state,
+        merchant_account,
+        key_store,
+        merchant_id,
+        payment_id,
+        locale,
+    )
+    .await?;
 
     let css_script = get_color_scheme_css(&payment_link_config);
     let js_script = get_js_script(&payment_details)?;
@@ -738,9 +750,7 @@ pub async fn get_payment_link_status(
         return_url,
         locale,
     };
-    let js_script = get_js_script(
-        &PaymentLinkData::PaymentLinkStatusDetails(payment_details),
-    )?;
+    let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(payment_details))?;
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,
         css_script,
