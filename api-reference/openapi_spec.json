@@ -19257,7 +19257,7 @@
             "type": "string"
           },
           "connector": {
-            "$ref": "#/components/schemas/api_enums.Connector"
+            "$ref": "#/components/schemas/Connector"
           },
           "merchant_connector_id": {
             "type": "string"
