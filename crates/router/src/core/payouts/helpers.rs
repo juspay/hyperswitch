@@ -599,7 +599,7 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
-pub async fn get_or_create_customer_details(
+pub(super) async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,
     merchant_account: &domain::MerchantAccount,
@@ -652,10 +652,11 @@ pub async fn get_or_create_customer_details(
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let encryptable_customer =
                     CustomerRequestWithEmail::from_encryptable(encrypted_data)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to form EncryptableCustomer")?;
 
                 let customer = domain::Customer {
-                    customer_id,
+                    customer_id: customer_id.clone(),
                     merchant_id: merchant_id.to_owned().clone(),
                     name: encryptable_customer.name,
                     email: encryptable_customer.email,
@@ -679,7 +680,13 @@ pub async fn get_or_create_customer_details(
                         merchant_account.storage_scheme,
                     )
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to insert customer [id - {:?}] for merchant [id - {:?}]",
+                            customer_id, merchant_id
+                        )
+                    })?,
                 ))
             } else {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
