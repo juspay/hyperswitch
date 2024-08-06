@@ -20,16 +20,7 @@ use crate::schema_v2::business_profile;
     any(feature = "v1", feature = "v2"),
     not(feature = "business_profile_v2")
 ))]
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Identifiable,
-    Queryable,
-    Selectable,
-    router_derive::DebugAsDisplay,
-)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
     pub profile_id: String,
@@ -461,16 +452,7 @@ impl BusinessProfileUpdate {
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Identifiable,
-    Queryable,
-    Selectable,
-    router_derive::DebugAsDisplay,
-)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
     pub profile_id: String,
