@@ -380,7 +380,8 @@ impl UserRoleInterface for MockDb {
 
         Err(errors::StorageError::ValueNotFound(format!(
             "No user role available for user_id = {} and merchant_id = {}",
-            user_id, merchant_id
+            user_id,
+            merchant_id.get_string_repr()
         ))
         .into())
     }
@@ -632,58 +633,5 @@ impl UserRoleInterface for MockDb {
             .collect();
 
         Ok(filtered_roles)
-    }
-}
-
-#[cfg(feature = "kafka_events")]
-#[async_trait::async_trait]
-impl UserRoleInterface for super::KafkaStore {
-    async fn insert_user_role(
-        &self,
-        user_role: storage::UserRoleNew,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.diesel_store.insert_user_role(user_role).await
-    }
-    async fn update_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
-        update: storage::UserRoleUpdate,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update)
-            .await
-    }
-    async fn find_user_role_by_user_id(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .find_user_role_by_user_id(user_id, version)
-            .await
-    }
-    async fn delete_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .delete_user_role_by_user_id_merchant_id(user_id, merchant_id)
-            .await
-    }
-    async fn list_user_roles_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        self.diesel_store.list_user_roles_by_user_id(user_id).await
-    }
-    async fn list_user_roles_by_merchant_id(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_merchant_id(merchant_id)
-            .await
     }
 }

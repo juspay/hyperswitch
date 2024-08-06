@@ -2,7 +2,7 @@
 
 mod utils;
 
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use common_utils::{id_type, types::MinorUnit};
 use router::{
@@ -46,7 +46,7 @@ async fn payments_create_core() {
     ))
     .await;
 
-    let merchant_id = id_type::MerchantId::from("juspay_merchant".into()).unwrap();
+    let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
 
     let state = Arc::new(app_state)
         .get_session_state("public", || {})
@@ -145,6 +145,7 @@ async fn payments_create_core() {
         state.clone(),
         state.get_req_state(),
         merchant_account,
+        None,
         key_store,
         payments::PaymentCreate,
         req,
@@ -245,7 +246,7 @@ async fn payments_create_core_adyen_no_redirect() {
         .unwrap();
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
-    let merchant_id = id_type::MerchantId::from("juspay_merchant".into()).unwrap();
+    let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -273,7 +274,7 @@ async fn payments_create_core_adyen_no_redirect() {
         amount_to_capture: Some(MinorUnit::new(6540)),
         capture_on: Some(datetime!(2022-09-10 10:11:12)),
         confirm: Some(true),
-        customer_id: Some(id_type::CustomerId::from(customer_id.into()).unwrap()),
+        customer_id: Some(id_type::CustomerId::try_from(Cow::from(customer_id)).unwrap()),
         description: Some("Its my first payment request".to_string()),
         return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OffSession),
@@ -339,6 +340,7 @@ async fn payments_create_core_adyen_no_redirect() {
         state.clone(),
         state.get_req_state(),
         merchant_account,
+        None,
         key_store,
         payments::PaymentCreate,
         req,

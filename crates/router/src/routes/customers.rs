@@ -26,7 +26,7 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -63,7 +63,9 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            retrieve_customer(state, auth.merchant_account, None, auth.key_store, req)
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -84,11 +86,12 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
+                None,
                 auth.key_store,
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerRead),
             req.headers(),
         ),
@@ -115,7 +118,7 @@ pub async fn customers_update(
         json_payload.into_inner(),
         |state, auth, req, _| update_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -144,7 +147,7 @@ pub async fn customers_delete(
         payload,
         |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -179,7 +182,7 @@ pub async fn get_customer_mandates(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MandateRead),
             req.headers(),
         ),

@@ -273,6 +273,7 @@ impl MerchantAccountInterface for Store {
                 .change_context(errors::StorageError::DecryptionError)?,
 
             key_store,
+            profile_id: None,
         })
     }
 
@@ -583,7 +584,7 @@ async fn publish_and_redact_merchant_account_cache(
         CacheKind::CGraph(
             format!(
                 "cgraph_{}_{}",
-                merchant_account.get_id().clone(),
+                merchant_account.get_id().get_string_repr(),
                 profile_id,
             )
             .into(),

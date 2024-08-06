@@ -56,7 +56,7 @@ pub async fn create_payment_method_api(
             ))
             .await
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -426,7 +426,7 @@ pub async fn payment_method_retrieve_api(
         |state, auth, pm, _| {
             cards::retrieve_payment_method(state, pm, auth.key_store, auth.merchant_account)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -515,7 +515,7 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
             req.headers(),
         ),
