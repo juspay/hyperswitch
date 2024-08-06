@@ -602,11 +602,11 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         allowed_domains,
-        merchant_details: serde_json::to_string(&merchant_details).change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
+        merchant_details: serde_json::to_string(&merchant_details)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_details",
-            },
-        ).ok(),
+            })
+            .ok(),
     };
 
     Ok((payment_link_config, domain_name))
