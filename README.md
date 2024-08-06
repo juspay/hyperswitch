@@ -84,8 +84,8 @@ Congratulations 🎉 on making your first payment with Hyperswitch.
   - [Developer Docs][docs-link-for-developers]
   - [Learning Resources][learning-resources]
 
-<a href="#Quick Start Guide">
-  <h2 id="quick-start-guide">⚡️ Quick Setup</h2>
+<a href="#Quick Setup">
+  <h2 id="quick-setup">⚡️ Quick Setup</h2>
 </a>
 
 ### One-click deployment on AWS cloud
