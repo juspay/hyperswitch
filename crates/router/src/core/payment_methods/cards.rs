@@ -2335,16 +2335,12 @@ pub async fn list_payment_methods(
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            crate::core::utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
+            payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")
         })
         .await
         .transpose()?;
@@ -2356,7 +2352,8 @@ pub async fn list_payment_methods(
     .await?;
 
     // filter out connectors based on the business country
-    let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id.clone());
+    let filtered_mcas =
+        helpers::filter_mca_based_on_business_profile(all_mcas.clone(), profile_id.clone());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -2663,33 +2660,34 @@ pub async fn list_payment_methods(
                     });
 
                 if let Some(config) = pm_auth_config {
-                    config
-                        .enabled_payment_methods
-                        .iter()
-                        .for_each(|inner_config| {
-                            if inner_config.payment_method_type == *payment_method_type {
-                                let pm = pmt_to_auth_connector
-                                    .get(&inner_config.payment_method)
-                                    .cloned();
+                    for inner_config in config.enabled_payment_methods.iter() {
+                        let is_active_mca = all_mcas
+                            .iter()
+                            .any(|mca| mca.get_id() == inner_config.mca_id);
 
-                                let inner_map = if let Some(mut inner_map) = pm {
-                                    inner_map.insert(
-                                        *payment_method_type,
-                                        inner_config.connector_name.clone(),
-                                    );
-                                    inner_map
-                                } else {
-                                    HashMap::from([(
-                                        *payment_method_type,
-                                        inner_config.connector_name.clone(),
-                                    )])
-                                };
+                        if inner_config.payment_method_type == *payment_method_type && is_active_mca
+                        {
+                            let pm = pmt_to_auth_connector
+                                .get(&inner_config.payment_method)
+                                .cloned();
 
-                                pmt_to_auth_connector
-                                    .insert(inner_config.payment_method, inner_map);
-                                val.push(inner_config.clone());
-                            }
-                        });
+                            let inner_map = if let Some(mut inner_map) = pm {
+                                inner_map.insert(
+                                    *payment_method_type,
+                                    inner_config.connector_name.clone(),
+                                );
+                                inner_map
+                            } else {
+                                HashMap::from([(
+                                    *payment_method_type,
+                                    inner_config.connector_name.clone(),
+                                )])
+                            };
+
+                            pmt_to_auth_connector.insert(inner_config.payment_method, inner_map);
+                            val.push(inner_config.clone());
+                        }
+                    }
                 };
             }
         }
@@ -3736,16 +3734,12 @@ pub async fn list_customer_payment_method(
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            core_utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
+            payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")
         })
         .await
         .transpose()?;
