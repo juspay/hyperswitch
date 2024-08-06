@@ -1946,12 +1946,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors
-                .adyen
-                .third_base_url
-                .clone()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
-                .as_str(),
+            connectors.adyen.third_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -2042,12 +2037,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors
-                .adyen
-                .third_base_url
-                .clone()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
-                .as_str(),
+            connectors.adyen.third_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -2138,12 +2128,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors
-                .adyen
-                .third_base_url
-                .clone()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?
-                .as_str(),
+            connectors.adyen.third_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;

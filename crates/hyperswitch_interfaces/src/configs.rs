@@ -23,7 +23,7 @@ pub struct Connectors {
     pub bankofamerica: ConnectorParams,
     pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParamsWithThreeBaseUrls,
+    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
@@ -139,7 +139,7 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
-/// struct ConnectorParamsWithSecondaryBaseUrl
+/// struct ConnectorParamsWithThreeBaseUrls
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithThreeBaseUrls {
@@ -148,5 +148,14 @@ pub struct ConnectorParamsWithThreeBaseUrls {
     /// secondary base url
     pub secondary_base_url: String,
     /// third base url
-    pub third_base_url: Option<String>,
+    pub third_base_url: String,
+}
+/// struct ConnectorParamsWithSecondaryBaseUrl
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWithSecondaryBaseUrl {
+    /// base url
+    pub base_url: String,
+    /// secondary base url
+    pub secondary_base_url: String,
 }
