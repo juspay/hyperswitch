@@ -371,7 +371,7 @@ pub struct ApplePayPaymentInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
-    payment_instrument: CybersoucrePaymentInstrument,
+    payment_instrument: WellsfargoPaymentInstrument,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -431,7 +431,7 @@ pub enum PaymentInformation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CybersoucrePaymentInstrument {
+pub struct WellsfargoPaymentInstrument {
     id: Secret<String>,
 }
 #[derive(Debug, Serialize)]
@@ -1306,7 +1306,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
-        let payment_instrument = CybersoucrePaymentInstrument {
+        let payment_instrument = WellsfargoPaymentInstrument {
             id: connector_mandate_id.into(),
         };
         let bill_to =
@@ -1664,7 +1664,7 @@ pub struct ClientRiskInformationRules {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WellsfargoTokenInformation {
-    payment_instrument: Option<CybersoucrePaymentInstrument>,
+    payment_instrument: Option<WellsfargoPaymentInstrument>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

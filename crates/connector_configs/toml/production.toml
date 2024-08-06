@@ -2759,5 +2759,3 @@ key1 = "datatrans MerchantId"
 api_key="Key"
 key1="Merchant ID"
 api_secret="Shared Secret"
-[wellsfargo.connector_webhook_details]
-merchant_secret="Source verification key"
