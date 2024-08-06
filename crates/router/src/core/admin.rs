@@ -3396,38 +3396,40 @@ pub async fn update_business_profile(
         })
         .transpose()?;
 
-    let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
-        profile_name: request.profile_name,
-        return_url: request.return_url.map(|return_url| return_url.to_string()),
-        enable_payment_response_hash: request.enable_payment_response_hash,
-        payment_response_hash_key: request.payment_response_hash_key,
-        redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
-        webhook_details,
-        metadata: request.metadata,
-        routing_algorithm: request.routing_algorithm,
-        intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
-        frm_routing_algorithm: request.frm_routing_algorithm,
-        #[cfg(feature = "payouts")]
-        payout_routing_algorithm: request.payout_routing_algorithm,
-        #[cfg(not(feature = "payouts"))]
-        payout_routing_algorithm: None,
-        is_recon_enabled: None,
-        applepay_verified_domains: request.applepay_verified_domains,
-        payment_link_config,
-        session_expiry: request.session_expiry.map(i64::from),
-        authentication_connector_details: request
-            .authentication_connector_details
-            .map(ForeignInto::foreign_into),
-        payout_link_config,
-        extended_card_info_config,
-        use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
-        collect_shipping_details_from_wallet_connector: request
-            .collect_shipping_details_from_wallet_connector,
-        collect_billing_details_from_wallet_connector: request
-            .collect_billing_details_from_wallet_connector,
-        is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
-    };
+    let business_profile_update =
+        storage::BusinessProfileUpdate::Update(Box::new(storage::BusinessProfileGeneralUpdate {
+            profile_name: request.profile_name,
+            return_url: request.return_url.map(|return_url| return_url.to_string()),
+            enable_payment_response_hash: request.enable_payment_response_hash,
+            payment_response_hash_key: request.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
+            webhook_details,
+            metadata: request.metadata,
+            routing_algorithm: request.routing_algorithm,
+            intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
+            frm_routing_algorithm: request.frm_routing_algorithm,
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: request.payout_routing_algorithm,
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
+            is_recon_enabled: None,
+            applepay_verified_domains: request.applepay_verified_domains,
+            payment_link_config,
+            session_expiry: request.session_expiry.map(i64::from),
+            authentication_connector_details: request
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config,
+            extended_card_info_config,
+            use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
+            collect_shipping_details_from_wallet_connector: request
+                .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: request
+                .collect_billing_details_from_wallet_connector,
+            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
+            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                .map(Into::into),
+        }));
 
     let updated_business_profile = db
         .update_business_profile_by_profile_id(business_profile, business_profile_update)
