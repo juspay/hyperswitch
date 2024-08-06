@@ -227,7 +227,7 @@ pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
 
 /// Generate a payment_method id with default length, with prefix as `pm`
 pub fn generate_payment_method_id_of_default_length() -> id_type::PaymentMethodId {
-    id_type::PaymentMethodId::new(generate_ref_id_with_default_length("pm"))
+    id_type::PaymentMethodId::default()
 }
 
 /// Generate a nanoid with the given prefix and a default length
