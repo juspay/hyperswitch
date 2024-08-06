@@ -1,8 +1,8 @@
-use api_models::user_role::{GroupInfo, PermissionInfo};
-use common_enums::PermissionGroup;
-use strum::{EnumIter, IntoEnumIterator};
-
 use super::{permission_groups::get_permissions_vec, permissions::Permission};
+use api_models::user_role::{GroupInfo, ParentGroup, ParentInfo, PermissionInfo};
+use common_enums::PermissionGroup;
+use std::collections::HashMap;
+use strum::{EnumIter, IntoEnumIterator};
 
 pub fn get_module_authorization_info() -> Vec<ModuleInfo> {
     PermissionModule::iter()
@@ -13,6 +13,24 @@ pub fn get_module_authorization_info() -> Vec<ModuleInfo> {
 pub fn get_group_authorization_info() -> Vec<GroupInfo> {
     PermissionGroup::iter()
         .map(get_group_info_from_permission_group)
+        .collect()
+}
+
+pub fn get_group_authorization_info_with_group_tag() -> Vec<ParentInfo> {
+    let parent_info_hash_map: HashMap<ParentGroup, Vec<String>> = PermissionGroup::iter()
+        .map(|value| (get_parent_name(value), value))
+        .fold(HashMap::new(), |mut acc, (key, value)| {
+            acc.entry(key).or_default().push(value.to_string());
+            acc
+        });
+
+    parent_info_hash_map
+        .into_iter()
+        .map(|(name, value)| ParentInfo {
+            name: name.clone(),
+            description: get_parent_group_description(name),
+            groups: value,
+        })
         .collect()
 }
 
@@ -215,5 +233,36 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
         PermissionGroup::MerchantDetailsView => "View Merchant Details",
         PermissionGroup::MerchantDetailsManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         PermissionGroup::OrganizationManage => "Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
+    }
+}
+
+fn get_parent_name(group: PermissionGroup) -> ParentGroup {
+    match group {
+        PermissionGroup::OperationsView | PermissionGroup::OperationsManage => {
+            ParentGroup::Operations
+        }
+        PermissionGroup::ConnectorsView | PermissionGroup::ConnectorsManage => {
+            ParentGroup::Connectors
+        }
+        PermissionGroup::WorkflowsView | PermissionGroup::WorkflowsManage => ParentGroup::Workflows,
+        PermissionGroup::AnalyticsView => ParentGroup::Analytics,
+        PermissionGroup::UsersView | PermissionGroup::UsersManage => ParentGroup::Users,
+        PermissionGroup::MerchantDetailsView | PermissionGroup::MerchantDetailsManage => {
+            ParentGroup::MerchantAccess
+        }
+        PermissionGroup::OrganizationManage => ParentGroup::OrganizationAccess,
+    }
+}
+
+fn get_parent_group_description(group: ParentGroup) -> &'static str {
+    match group {
+        ParentGroup::Operations => "Payments, Refunds, Payouts, Mandates, Disputes and Customers",
+        ParentGroup::Connectors => "Create, modify and delete connectors like Payment Processors, Payout Processors and Fraud & Risk Manager",
+        ParentGroup::Workflows => "Create, modify and delete Routing, 3DS Decision Manager, Surcharge Decision Manager",
+       ParentGroup::Analytics => "View Analytics",
+        ParentGroup::Users =>  "Manage and invite Users to the Team",
+       ParentGroup::MerchantAccess => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
+
+       ParentGroup::OrganizationAccess =>"Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
     }
 }

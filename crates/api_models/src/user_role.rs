@@ -38,6 +38,17 @@ pub enum Permission {
     GenerateReport,
 }
 
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
+pub enum ParentGroup {
+    Operations,
+    Connectors,
+    Workflows,
+    Analytics,
+    Users,
+    MerchantAccess,
+    OrganizationAccess,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub enum PermissionModule {
     Payments,
@@ -63,6 +74,7 @@ pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
 pub enum AuthorizationInfo {
     Module(ModuleInfo),
     Group(GroupInfo),
+    GroupWithTag(ParentInfo),
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -77,6 +89,13 @@ pub struct GroupInfo {
     pub group: PermissionGroup,
     pub description: &'static str,
     pub permissions: Vec<PermissionInfo>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ParentInfo {
+    pub name: ParentGroup,
+    pub description: &'static str,
+    pub groups: Vec<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
