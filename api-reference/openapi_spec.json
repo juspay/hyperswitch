@@ -19244,6 +19244,26 @@
         },
         "additionalProperties": false
       },
+      "ProcessorPaymentToken": {
+        "type": "object",
+        "description": "Processor payment token for MIT payments where payment_method_data is not available",
+        "required": [
+          "processor_payment_token",
+          "connector",
+          "merchant_connector_id"
+        ],
+        "properties": {
+          "processor_payment_token": {
+            "type": "string"
+          },
+          "connector": {
+            "$ref": "#/components/schemas/api_enums.Connector"
+          },
+          "merchant_connector_id": {
+            "type": "string"
+          }
+        }
+      },
       "ProductType": {
         "type": "string",
         "enum": [
