@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.02.0-hotfix1
+
+### Bug Fixes
+
+- [CYBERSOURCE] Update status handling for AuthorizedPendingReview ([#5542](https://github.com/juspay/hyperswitch/pull/5542)) ([`100dd52`](https://github.com/juspay/hyperswitch/commit/100dd52d29bdd5851080ac2687289274319facbe))
+
+- - -
+
 ## 2024.08.02.0
 
 ### Features
