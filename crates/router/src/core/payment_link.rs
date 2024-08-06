@@ -258,8 +258,18 @@ pub async fn initiate_secure_payment_link_flow(
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let locale = request_headers
         .get(header::ACCEPT_LANGUAGE)
-        .and_then(|header_value| header_value.to_str().ok())
-        .map(|str| str.to_owned());
+        .map(|value| {
+            value.to_str().map(|str| str.to_owned()).map_err(|err| {
+                logger::warn!(
+                    "Could not convert accept-language header to string: {}",
+                    err
+                );
+                err
+            })
+        })
+        .transpose()
+        .ok()
+        .flatten();
 
     let (payment_link, payment_link_details, payment_link_config) = form_payment_link_data(
         &state,

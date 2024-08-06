@@ -1,4 +1,4 @@
-use actix_web::{web, Responder};
+use actix_web::{http::header::ACCEPT_LANGUAGE, web, Responder};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -60,9 +60,20 @@ pub async fn initiate_payment_link(
     let (merchant_id, payment_id) = path.into_inner();
     let locale = req
         .headers()
-        .get(actix_web::http::header::ACCEPT_LANGUAGE)
-        .and_then(|header_value| header_value.to_str().ok())
-        .map(|str| str.to_owned());
+        .get(ACCEPT_LANGUAGE)
+        .map(|value| {
+            value.to_str().map(|str| str.to_owned()).map_err(|err| {
+                router_env::logger::warn!(
+                    "Could not convert accept-language header to string: {}",
+                    err
+                );
+                err
+            })
+        })
+        .transpose()
+        .ok()
+        .flatten();
+
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
@@ -175,9 +186,20 @@ pub async fn payment_link_status(
     let (merchant_id, payment_id) = path.into_inner();
     let locale = req
         .headers()
-        .get(actix_web::http::header::ACCEPT_LANGUAGE)
-        .and_then(|header_value| header_value.to_str().ok())
-        .map(|str| str.to_owned());
+        .get(ACCEPT_LANGUAGE)
+        .map(|value| {
+            value.to_str().map(|str| str.to_owned()).map_err(|err| {
+                router_env::logger::warn!(
+                    "Could not convert accept-language header to string: {}",
+                    err
+                );
+                err
+            })
+        })
+        .transpose()
+        .ok()
+        .flatten();
+
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
