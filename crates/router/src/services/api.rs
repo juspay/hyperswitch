@@ -1820,7 +1820,7 @@ fn build_payment_link_template(
     // Logging template
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
-     //Locale template
+    //Locale template
     let locale_template = include_str!("../core/payment_link/locale.js").to_string();
 
     // Modify Html template with rendered js and rendered css files
@@ -1944,7 +1944,7 @@ pub fn get_payment_link_status(
     let _ = tera.add_raw_template("payment_link_status", &html_template);
 
     context.insert("rendered_css", &rendered_css);
-    context.insert("locale_template",&locale_template);
+    context.insert("locale_template", &locale_template);
 
     context.insert("rendered_js", &rendered_js);
     context.insert("logging_template", &logging_template);
