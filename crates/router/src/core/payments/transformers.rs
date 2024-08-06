@@ -1,8 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    Address, CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData,
-    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
+    Address, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
 };
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;

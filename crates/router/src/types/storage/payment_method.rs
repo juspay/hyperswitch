@@ -11,10 +11,9 @@ pub use diesel_models::payment_method::{
 };
 
 use crate::types::{
-    api::{self, payments},
+    api::{self},
     domain::{
         self,
-        types::{self, AsyncLift},
     },
 };
 

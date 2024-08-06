@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use api_models::{
     enums,
     payment_methods::{self, BankAccountAccessCreds},
-    payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
+    payments::AddressDetails,
 };
 use common_enums::{enums::MerchantStorageScheme, PaymentMethodType};
 use hex;
@@ -825,11 +825,12 @@ pub async fn retrieve_payment_method_from_auth_service(
         .map(common_utils::pii::Email::from)
         .get_required_value("email")?;
 
-    let billing_details = BankDebitBilling {
-        name: Some(name),
-        email: Some(email),
-        address: address_details,
-    };
+    //TODO:should be tested
+    // let _billing_details = BankDebitBilling {
+    //     name: Some(name),
+    //     email: Some(email),
+    //     address: address_details,
+    // };
 
     let payment_method_data = match &bank_account.account_details {
         pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => {
