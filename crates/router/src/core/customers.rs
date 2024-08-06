@@ -366,6 +366,7 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
 pub async fn retrieve_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
@@ -399,6 +400,7 @@ pub async fn retrieve_customer(
 pub async fn list_customers(
     state: SessionState,
     merchant_id: id_type::MerchantId,
+    _profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();

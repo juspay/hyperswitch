@@ -148,22 +148,39 @@ pub async fn update_mca(
         .encode_to_value()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Error while deserializing connector_account_details")?;
-
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let request = MerchantConnectorUpdate {
         connector_type: common_enums::ConnectorType::PaymentProcessor,
         connector_account_details: Some(Secret::new(connector_auth_json)),
         disabled: Some(false),
         status: Some(common_enums::ConnectorStatus::Active),
-        test_mode: None,
         connector_label: None,
         payment_methods_enabled: None,
         metadata: None,
         frm_configs: None,
         connector_webhook_details: None,
         pm_auth_config: None,
+        test_mode: None,
+    };
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let request = MerchantConnectorUpdate {
+        connector_type: common_enums::ConnectorType::PaymentProcessor,
+        connector_account_details: Some(Secret::new(connector_auth_json)),
+        disabled: Some(false),
+        status: Some(common_enums::ConnectorStatus::Active),
+        connector_label: None,
+        payment_methods_enabled: None,
+        metadata: None,
+        frm_configs: None,
+        connector_webhook_details: None,
+        pm_auth_config: None,
+        merchant_id: merchant_id.clone(),
     };
     let mca_response =
-        admin::update_payment_connector(state.clone(), &merchant_id, &connector_id, request)
+        admin::update_payment_connector(state.clone(), &merchant_id, None, &connector_id, request)
             .await?;
 
     match mca_response {

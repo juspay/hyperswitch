@@ -47,6 +47,7 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -373,17 +374,24 @@ where
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(SessionState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(
+        SessionState,
+        domain::MerchantAccount,
+        Option<String>,
+        domain::MerchantKeyStore,
+        Req,
+    ) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
     Ok(services::ApplicationResponse::Json(
-        f(state, merchant_account, key_store, request)
+        f(state, merchant_account, profile_id, key_store, request)
             .await?
             .foreign_into(),
     ))
@@ -393,6 +401,7 @@ where
 pub async fn refund_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
@@ -856,6 +865,7 @@ pub async fn validate_and_create_refund(
 pub async fn refund_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id_list: Option<Vec<String>>,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
@@ -977,9 +987,11 @@ pub async fn refund_manual_update(
 pub async fn get_filters_for_refunds(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant_account.get_id().to_owned()).await?
+        super::admin::list_payment_connectors(state, merchant_account.get_id().to_owned(), None)
+            .await?
     {
         data
     } else {
@@ -993,9 +1005,7 @@ pub async fn get_filters_for_refunds(
                 .connector_label
                 .clone()
                 .map(|label| {
-                    let info = merchant_connector_account
-                        .clone()
-                        .to_merchant_connector_info(&label.clone());
+                    let info = merchant_connector_account.to_merchant_connector_info(&label);
                     (merchant_connector_account.connector_name, info)
                 })
         })
@@ -1159,6 +1169,7 @@ pub async fn sync_refund_with_gateway_workflow(
     let response = Box::pin(refund_retrieve_core(
         state.clone(),
         merchant_account,
+        None,
         key_store,
         refunds::RefundsRetrieveRequest {
             refund_id: refund_core.refund_internal_reference_id,

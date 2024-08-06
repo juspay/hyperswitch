@@ -118,7 +118,10 @@ pub async fn validate_create_request(
         None => None,
     };
 
-    // Profile ID
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let profile_id = core_utils::get_profile_id_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -128,6 +131,16 @@ pub async fn validate_create_request(
         false,
     )
     .await?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    // Profile id will be mandatory in v2 in the request / headers
+    let profile_id = req
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .attach_printable("Profile id is a mandatory parameter")?;
 
     Ok((payout_id, payout_method_data, profile_id))
 }

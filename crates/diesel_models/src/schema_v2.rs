@@ -188,10 +188,6 @@ diesel::table! {
         redirect_to_merchant_with_http_post -> Bool,
         webhook_details -> Nullable<Json>,
         metadata -> Nullable<Json>,
-        routing_algorithm -> Nullable<Json>,
-        intent_fulfillment_time -> Nullable<Int8>,
-        frm_routing_algorithm -> Nullable<Jsonb>,
-        payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
@@ -205,6 +201,15 @@ diesel::table! {
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
+        #[max_length = 64]
+        routing_algorithm_id -> Nullable<Varchar>,
+        order_fulfillment_time -> Nullable<Int8>,
+        order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
+        #[max_length = 64]
+        frm_routing_algorithm_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payout_routing_algorithm_id -> Nullable<Varchar>,
+        default_fallback_routing -> Nullable<Jsonb>,
     }
 }
 
@@ -634,39 +639,20 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     merchant_account (id) {
-        #[max_length = 255]
-        return_url -> Nullable<Varchar>,
-        enable_payment_response_hash -> Bool,
-        #[max_length = 255]
-        payment_response_hash_key -> Nullable<Varchar>,
-        redirect_to_merchant_with_http_post -> Bool,
         merchant_name -> Nullable<Bytea>,
         merchant_details -> Nullable<Bytea>,
-        webhook_details -> Nullable<Json>,
-        sub_merchants_enabled -> Nullable<Bool>,
-        #[max_length = 64]
-        parent_merchant_id -> Nullable<Varchar>,
         #[max_length = 128]
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
-        #[max_length = 64]
-        locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        primary_business_details -> Json,
-        intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
-        is_recon_enabled -> Bool,
-        #[max_length = 64]
-        default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
-        payment_link_config -> Nullable<Jsonb>,
-        pm_collect_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
     }
@@ -676,28 +662,18 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchant_connector_account (merchant_connector_id) {
-        id -> Int4,
+    merchant_connector_account (id) {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
         connector_name -> Varchar,
         connector_account_details -> Bytea,
-        test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
-        #[max_length = 128]
-        merchant_connector_id -> Varchar,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
         connector_label -> Nullable<Varchar>,
-        business_country -> Nullable<CountryAlpha2>,
-        #[max_length = 255]
-        business_label -> Nullable<Varchar>,
-        #[max_length = 64]
-        business_sub_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
@@ -709,6 +685,8 @@ diesel::table! {
         status -> ConnectorStatus,
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        id -> Varchar,
     }
 }
 
@@ -1189,6 +1167,8 @@ diesel::table! {
         last_modified_at -> Timestamp,
         #[max_length = 64]
         last_modified_by -> Varchar,
+        #[max_length = 64]
+        entity_type -> Nullable<Varchar>,
     }
 }
 

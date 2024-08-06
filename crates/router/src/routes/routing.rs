@@ -2,6 +2,7 @@
 //!
 //! Functions that are used to perform the api level configuration, retrieval, updation
 //! of Routing configs.
+
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{
     enums, routing as routing_types,
@@ -42,7 +43,7 @@ pub async fn routing_create_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -53,7 +54,11 @@ pub async fn routing_create_config(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "routing_v2")
+))]
 #[instrument(skip_all)]
 pub async fn routing_link_config(
     state: web::Data<AppState>,
@@ -72,6 +77,48 @@ pub async fn routing_link_config(
                 state,
                 auth.merchant_account,
                 algorithm_id.0,
+                transaction_type,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[instrument(skip_all)]
+pub async fn routing_link_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<routing_types::RoutingAlgorithmId>,
+    transaction_type: &enums::TransactionType,
+) -> impl Responder {
+    let flow = Flow::RoutingLinkConfig;
+    let wrapper = routing_types::RoutingLinkWrapper {
+        profile_id: path.into_inner(),
+        algorithm_id: json_payload.into_inner(),
+    };
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        wrapper,
+        |state, auth: auth::AuthenticationData, wrapper, _| {
+            routing::link_routing_config(
+                state,
+                auth.merchant_account,
+                wrapper.profile_id,
+                wrapper.algorithm_id.0,
                 transaction_type,
             )
         },
@@ -107,7 +154,7 @@ pub async fn routing_retrieve_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -142,7 +189,7 @@ pub async fn list_routing_configs(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -153,7 +200,41 @@ pub async fn list_routing_configs(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[instrument(skip_all)]
+pub async fn routing_unlink_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    transaction_type: &enums::TransactionType,
+) -> impl Responder {
+    let flow = Flow::RoutingUnlinkConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        path.into_inner(),
+        |state, auth: auth::AuthenticationData, path, _| {
+            routing::unlink_routing_config(state, auth.merchant_account, path, transaction_type)
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "routing_v2")
+))]
 #[instrument(skip_all)]
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
@@ -177,7 +258,7 @@ pub async fn routing_unlink_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -211,7 +292,7 @@ pub async fn routing_update_default_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
@@ -239,7 +320,7 @@ pub async fn routing_retrieve_default_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -273,7 +354,7 @@ pub async fn upsert_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
             req.headers(),
         ),
@@ -304,7 +385,7 @@ pub async fn delete_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
             req.headers(),
         ),
@@ -335,7 +416,7 @@ pub async fn retrieve_surcharge_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
             req.headers(),
         ),
@@ -369,7 +450,7 @@ pub async fn upsert_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
             req.headers(),
         ),
@@ -401,7 +482,7 @@ pub async fn delete_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
             req.headers(),
         ),
@@ -429,7 +510,7 @@ pub async fn retrieve_decision_manager_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
             req.headers(),
         ),
@@ -465,7 +546,7 @@ pub async fn routing_retrieve_linked_config(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -497,13 +578,13 @@ pub async fn routing_retrieve_default_config_for_profiles(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
         #[cfg(feature = "release")]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
@@ -541,7 +622,7 @@ pub async fn routing_update_default_config_for_profile(
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RoutingWrite),
             req.headers(),
         ),
