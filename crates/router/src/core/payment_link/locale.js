@@ -1,3 +1,23 @@
+/*    
+The languages supported by locale.js are: 
+ 1) English (en)
+ 2) Hebrew (he)
+ 3) French (fr)
+ 4) British English (en_GB)
+ 5) Arabic (ar)
+ 6) Japanese (ja)
+ 7) German (de)
+ 8) Belgian French (fr_BE)
+ 9) Spanish (es)
+ 10) Catalan (ca)
+ 11) Portuguese (pt)
+ 12) Italian (it)
+ 13) Polish (pl)
+ 14) Dutch (nl)
+ 15) Swedish (sv)
+ 16) Russian (ru)
+ 17) Chinese (zh)
+*/
 const locales = {
     en: {
       expiresOn: "Link expires on: ",
@@ -25,7 +45,8 @@ const locales = {
       redirecting: "Redirecting ...",
       redirectingIn: "Redirecting in ",
       seconds: " seconds ...",
-      unexpectedError: "An unexpected error occurred."
+      unexpectedError: "An unexpected error occurred.",
+      notAllowed: "You are not allowed to view this content."
     },
     he: {
       expiresOn: "הקישור יפוג ב: ",
@@ -53,7 +74,8 @@ const locales = {
       redirecting: "מעביר...",
       redirectingIn: "מעביר בעוד ",
       seconds: " שניות ...",
-      unexpectedError: "אירעה שגיאה בלתי צפויה."
+      unexpectedError: "אירעה שגיאה בלתי צפויה.",
+      notAllowed: "אינך מורשה לצפות בתוכן זה."
     },
     fr: {
       expiresOn: "Le lien expire le: ",
@@ -81,7 +103,8 @@ const locales = {
       redirecting: "Redirection...",
       redirectingIn: "Redirection dans ",
       seconds: " secondes...",
-      unexpectedError: "Une erreur inattendue est survenue."
+      unexpectedError: "Une erreur inattendue est survenue.",
+      notAllowed: "Vous n'êtes pas autorisé à voir ce contenu."
     },
     en_GB: {
       expiresOn: "Link expires on: ",
@@ -109,7 +132,9 @@ const locales = {
       redirecting: "Redirecting ...",
       redirectingIn: "Redirecting in ",
       seconds: " seconds ...",
-      unexpectedError: "An unexpected error occurred."
+      unexpectedError: "An unexpected error occurred.",
+      notAllowed: "You are not allowed to view this content."
+      
     },
     ar: {
       expiresOn: "الرابط ينتهي في: ",
@@ -137,7 +162,8 @@ const locales = {
       redirecting: "إعادة توجيه ...",
       redirectingIn: "إعادة توجيه في ",
       seconds: " ثوانٍ ...",
-      unexpectedError: "حدث خطأ غير متوقع."
+      unexpectedError: "حدث خطأ غير متوقع.",
+      notAllowed: "أنت غير مسموح لك بعرض هذا المحتوى."
     },
     ja: {
       expiresOn: "リンクの有効期限は: ",
@@ -165,7 +191,8 @@ const locales = {
       redirecting: "リダイレクト中...",
       redirectingIn: "リダイレクト中 ",
       seconds: " 秒 ...",
-      unexpectedError: "予期しないエラーが発生しました。"
+      unexpectedError: "予期しないエラーが発生しました。",
+      notAllowed: "このコンテンツを表示する権限がありません。"
     },
     de: {
       expiresOn: "Link läuft ab am: ",
@@ -193,7 +220,8 @@ const locales = {
       redirecting: "Weiterleiten ...",
       redirectingIn: "Weiterleiten in ",
       seconds: " Sekunden ...",
-      unexpectedError: "Ein unerwarteter Fehler ist aufgetreten."
+      unexpectedError: "Ein unerwarteter Fehler ist aufgetreten.",
+      notAllowed: "Sie dürfen diesen Inhalt nicht ansehen."
     },
     fr_BE: {
       expiresOn: "Le lien expire le: ",
@@ -221,7 +249,9 @@ const locales = {
       redirecting: "Redirection...",
       redirectingIn: "Redirection dans ",
       seconds: " secondes...",
-      unexpectedError: "Une erreur inattendue est survenue."
+      unexpectedError: "Une erreur inattendue est survenue.",
+      notAllowed: "Vous n'êtes pas autorisé à voir ce contenu."
+      
     },
     es: {
       expiresOn: "El enlace expira el: ",
@@ -249,7 +279,8 @@ const locales = {
       redirecting: "Redirigiendo ...",
       redirectingIn: "Redirigiendo en ",
       seconds: " segundos ...",
-      unexpectedError: "Ocurrió un error inesperado."
+      unexpectedError: "Ocurrió un error inesperado.",
+      notAllowed: "No tienes permiso para ver este contenido."
     },
     ca: {
       expiresOn: "L'enllaç caduca el: ",
@@ -277,7 +308,8 @@ const locales = {
       redirecting: "Redirigint ...",
       redirectingIn: "Redirigint en ",
       seconds: " segons ...",
-      unexpectedError: "S'ha produït un error inesperat."
+      unexpectedError: "S'ha produït un error inesperat.",
+      notAllowed: "No tens permís per veure aquest contingut."
     },
     pt: {
       expiresOn: "Link expira em: ",
@@ -290,7 +322,7 @@ const locales = {
       showMore: "Mostrar mais",
       miscellaneousCharges: "Encargos diversos",
       miscellaneousChargesDetail: "(inclui impostos, frete, descontos, ofertas, etc.)",
-      paymentTakingLonger: "Desculpe! Seu pagamento está demorando mais do que o esperado. Por favor, verifique novamente em algum tempo.",
+      paymentTakingLonger: "Desculpe! Seu pagamento está demorando mais do que o esperado. Por favor, volte novamente em algum momento.",
       paymentLinkExpired: "Link de Pagamento Expirado",
       paymentReceived: "Recebemos seu pagamento com sucesso",
       paymentLinkExpiredMessage: "Desculpe, este link de pagamento expirou. Por favor, use a referência abaixo para investigação adicional.",
@@ -305,7 +337,8 @@ const locales = {
       redirecting: "Redirecionando ...",
       redirectingIn: "Redirecionando em ",
       seconds: " segundos ...",
-      unexpectedError: "Ocorreu um erro inesperado."
+      unexpectedError: "Ocorreu um erro inesperado.",
+      notAllowed: "Você não tem permissão para ver este conteúdo."
     },
     it: {
       expiresOn: "Link scade il: ",
@@ -333,7 +366,8 @@ const locales = {
       redirecting: "Reindirizzando ...",
       redirectingIn: "Reindirizzando in ",
       seconds: " secondi ...",
-      unexpectedError: "Si è verificato un errore imprevisto."
+      unexpectedError: "Si è verificato un errore imprevisto.",
+      notAllowed: "Non sei autorizzato a vedere questo contenuto."
     },
     pl: {
       expiresOn: "Link wygasa w dniu: ",
@@ -361,7 +395,8 @@ const locales = {
       redirecting: "Przekierowanie ...",
       redirectingIn: "Przekierowanie w ",
       seconds: " sekund ...",
-      unexpectedError: "Wystąpił nieoczekiwany błąd."
+      unexpectedError: "Wystąpił nieoczekiwany błąd.",
+      notAllowed: "Nie masz uprawnień do przeglądania tej zawartości."
     },
     nl: {
       expiresOn: "Link verloopt op: ",
@@ -389,7 +424,8 @@ const locales = {
       redirecting: "Doorverwijzen ...",
       redirectingIn: "Doorverwijzen in ",
       seconds: " seconden ...",
-      unexpectedError: "Er is een onverwachte fout opgetreden."
+      unexpectedError: "Er is een onverwachte fout opgetreden.",
+      notAllowed: "Je mag deze inhoud niet bekijken."
     },
     sv: {
       expiresOn: "Länken upphör att gälla den: ",
@@ -417,7 +453,8 @@ const locales = {
       redirecting: "Omdirigerar ...",
       redirectingIn: "Omdirigerar om ",
       seconds: " sekunder ...",
-      unexpectedError: "Ett oväntat fel inträffade."
+      unexpectedError: "Ett oväntat fel inträffade.",
+      notAllowed: "Du har inte behörighet att se detta innehåll."
     },
     ru: {
       expiresOn: "Ссылка истекает: ",
@@ -445,7 +482,8 @@ const locales = {
       redirecting: "Перенаправление...",
       redirectingIn: "Перенаправление через ",
       seconds: " секунд ...",
-      unexpectedError: "Произошла неожиданная ошибка."
+      unexpectedError: "Произошла неожиданная ошибка.",
+      notAllowed: "Вам не разрешено просматривать этот контент."
     },
     zh: {
       expiresOn: "链接将于以下时间过期: ",
@@ -473,6 +511,7 @@ const locales = {
       redirecting: "重定向中...",
       redirectingIn: "将在 ",
       seconds: " 秒内重定向...",
-      unexpectedError: "发生意外错误。"
+      unexpectedError: "发生意外错误。",
+      notAllowed: "您没有权限查看此内容。"
     }
   };
