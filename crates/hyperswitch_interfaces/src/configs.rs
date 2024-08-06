@@ -14,7 +14,7 @@ pub struct Connectors {
     pub adyen: ConnectorParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
     #[cfg(not(feature = "payouts"))]
-    pub adyen: ConnectorParams,
+    pub adyen: ConnectorParamsWithThreeBaseUrls,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
