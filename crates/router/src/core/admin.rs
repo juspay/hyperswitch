@@ -49,7 +49,7 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::{ForeignTryFrom, ForeignTryInto},
+        transformers::{ForeignInto, ForeignTryFrom, ForeignTryInto},
     },
     utils,
 };
@@ -3450,12 +3450,7 @@ pub async fn update_business_profile(
         session_expiry: request.session_expiry.map(i64::from),
         authentication_connector_details: request
             .authentication_connector_details
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "authentication_connector_details",
-            })?,
+            .map(ForeignInto::foreign_into),
         payout_link_config,
         extended_card_info_config,
         use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,

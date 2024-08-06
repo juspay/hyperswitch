@@ -44,7 +44,7 @@ pub struct BusinessProfile {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<pii::SecretSerdeValue>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
     pub payout_link_config: Option<pii::SecretSerdeValue>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
@@ -82,7 +82,7 @@ pub struct BusinessProfileNew {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<pii::SecretSerdeValue>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
     pub payout_link_config: Option<pii::SecretSerdeValue>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
@@ -117,7 +117,7 @@ pub struct BusinessProfileUpdateInternal {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<pii::SecretSerdeValue>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
     pub payout_link_config: Option<pii::SecretSerdeValue>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
@@ -150,7 +150,7 @@ pub enum BusinessProfileUpdate {
         applepay_verified_domains: Option<Vec<String>>,
         payment_link_config: Option<pii::SecretSerdeValue>,
         session_expiry: Option<i64>,
-        authentication_connector_details: Option<serde_json::Value>,
+        authentication_connector_details: Option<AuthenticationConnectorDetails>,
         payout_link_config: Option<pii::SecretSerdeValue>,
         extended_card_info_config: Option<pii::SecretSerdeValue>,
         use_billing_as_payment_method_billing: Option<bool>,
@@ -472,7 +472,7 @@ pub struct BusinessProfile {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<pii::SecretSerdeValue>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
     pub payout_link_config: Option<pii::SecretSerdeValue>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
@@ -509,7 +509,7 @@ pub struct BusinessProfileNew {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<pii::SecretSerdeValue>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
     pub payout_link_config: Option<pii::SecretSerdeValue>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
@@ -543,7 +543,7 @@ pub struct BusinessProfileUpdateInternal {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub payment_link_config: Option<pii::SecretSerdeValue>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
     pub payout_link_config: Option<pii::SecretSerdeValue>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
@@ -575,7 +575,7 @@ pub enum BusinessProfileUpdate {
         applepay_verified_domains: Option<Vec<String>>,
         payment_link_config: Option<pii::SecretSerdeValue>,
         session_expiry: Option<i64>,
-        authentication_connector_details: Option<serde_json::Value>,
+        authentication_connector_details: Option<AuthenticationConnectorDetails>,
         payout_link_config: Option<pii::SecretSerdeValue>,
         extended_card_info_config: Option<pii::SecretSerdeValue>,
         use_billing_as_payment_method_billing: Option<bool>,
@@ -887,7 +887,8 @@ impl From<BusinessProfileNew> for BusinessProfile {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct AuthenticationConnectorDetails {
     pub authentication_connectors: Vec<AuthenticationConnectors>,
     pub three_ds_requestor_url: String,

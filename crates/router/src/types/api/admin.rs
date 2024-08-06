@@ -25,7 +25,11 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
     routes::SessionState,
-    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
+    types::{
+        domain, storage,
+        transformers::{ForeignInto, ForeignTryFrom},
+        ForeignFrom,
+    },
 };
 
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
@@ -157,10 +161,7 @@ pub async fn business_profile_response(
         session_expiry: item.session_expiry,
         authentication_connector_details: item
             .authentication_connector_details
-            .map(|authentication_connector_details| {
-                authentication_connector_details.parse_value("AuthenticationDetails")
-            })
-            .transpose()?,
+            .map(ForeignInto::foreign_into),
         payout_link_config: item
             .payout_link_config
             .map(|payout_link_config| payout_link_config.parse_value("BusinessPayoutLinkConfig"))
@@ -294,12 +295,7 @@ pub async fn create_business_profile(
             .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
         authentication_connector_details: request
             .authentication_connector_details
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "authentication_connector_details",
-            })?,
+            .map(ForeignInto::foreign_into),
         payout_link_config,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
         is_extended_card_info_enabled: None,
