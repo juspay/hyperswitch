@@ -47,7 +47,7 @@ pub fn construct_authentication_router_data(
     three_ds_requestor_url: String,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
-        payment_method_data: payment_method_data,
+        payment_method_data,
         billing_address,
         shipping_address,
         browser_details,

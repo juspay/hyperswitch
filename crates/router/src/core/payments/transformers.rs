@@ -1382,9 +1382,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
 
         Ok(Self {
-            payment_method_data: From::from(
-                payment_method_data.get_required_value("payment_method_data")?,
-            ),
+            payment_method_data:
+                (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -1738,11 +1737,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             confirm: true,
             amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
             minor_amount: Some(amount),
-            payment_method_data: From::from(
-                payment_data
+            payment_method_data: 
+                (payment_data
                     .payment_method_data
-                    .get_required_value("payment_method_data")?,
-            ),
+                    .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             off_session: payment_data.mandate_id.as_ref().map(|_| true),

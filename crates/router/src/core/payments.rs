@@ -1552,24 +1552,18 @@ where
             payment_processing_details,
         ) => {
             let apple_pay_data = match payment_data.payment_method_data.clone() {
-                Some(payment_method_data) => {
-                    let domain_data = domain::PaymentMethodData::from(payment_method_data);
-                    match domain_data {
-                        domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
-                            wallet_data,
-                        )) => Some(
-                            ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .decrypt(
-                                    &payment_processing_details.payment_processing_certificate,
-                                    &payment_processing_details.payment_processing_certificate_key,
-                                )
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        ),
-                        _ => None,
-                    }
-                }
+                Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                    wallet_data,
+                ))) => Some(
+                    ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                        .decrypt(
+                            &payment_processing_details.payment_processing_certificate,
+                            &payment_processing_details.payment_processing_certificate_key,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                ),
                 _ => None,
             };
 

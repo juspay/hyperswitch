@@ -1079,7 +1079,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        payment_data.payment_attempt.clone().payment_method_data;
+        // payment_data.payment_attempt.clone();
 
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let additional_pm_data = payment_data
