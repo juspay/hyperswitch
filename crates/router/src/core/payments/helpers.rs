@@ -122,7 +122,7 @@ pub fn filter_mca_based_on_profile_and_connector_type(
     connector_type: Option<&ConnectorType>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
-        .into_iter()
+        .iter()
         .filter(|&mca| {
             profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
                 && connector_type.map_or(true, |&ct| mca.connector_type == ct)
