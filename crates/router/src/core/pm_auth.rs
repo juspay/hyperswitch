@@ -479,6 +479,11 @@ async fn store_bank_details_in_payment_methods(
                     .attach_printable("Unable to encrypt customer details")?;
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
             let now = common_utils::date_time::now();
+
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
             let pm_new = storage::PaymentMethodNew {
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_account.get_id().clone(),
@@ -500,6 +505,28 @@ async fn store_bank_details_in_payment_methods(
                 is_stored: None,
                 swift_code: None,
                 direct_debit_token: None,
+                created_at: now,
+                last_modified: now,
+                locker_id: None,
+                last_used_at: now,
+                connector_mandate_details: None,
+                customer_acceptance: None,
+                network_transaction_id: None,
+                client_secret: None,
+                payment_method_billing_address: None,
+                updated_by: None,
+            };
+
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+            let pm_new = storage::PaymentMethodNew {
+                customer_id: customer_id.clone(),
+                merchant_id: merchant_account.get_id().clone(),
+                id: pm_id,
+                payment_method: Some(enums::PaymentMethod::BankDebit),
+                payment_method_type: Some(creds.payment_method_type),
+                status: enums::PaymentMethodStatus::Active,
+                metadata: None,
+                payment_method_data: Some(encrypted_data.into()),
                 created_at: now,
                 last_modified: now,
                 locker_id: None,

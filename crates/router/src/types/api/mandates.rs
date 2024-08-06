@@ -62,7 +62,7 @@ impl MandateResponseExt for MandateResponse {
                     payment_method
                         .locker_id
                         .as_ref()
-                        .unwrap_or(&payment_method.payment_method_id),
+                        .unwrap_or(payment_method.get_id()),
                 )
                 .await?;
 

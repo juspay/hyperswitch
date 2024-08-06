@@ -395,17 +395,33 @@ pub async fn save_payout_data_to_locker(
                 payment_method_type: Some(payment_method_type),
                 payment_method_issuer: None,
                 payment_method_issuer_code: None,
-                bank_transfer: None,
-                card: card_details.clone(),
-                wallet: None,
                 metadata: None,
                 customer_id: Some(payout_attempt.customer_id.to_owned()),
                 card_network: None,
                 client_secret: None,
-                payment_method_data: None,
+                payment_method_data: card_details
+                    .as_ref()
+                    .map(|cd| api::PaymentMethodCreateData::Card(cd.clone())),
                 billing: None,
                 connector_mandate_details: None,
                 network_transaction_id: None,
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                card: card_details.clone(),
+                #[cfg(all(
+                    feature = "payouts",
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                bank_transfer: None,
+                #[cfg(all(
+                    feature = "payouts",
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
+                wallet: None,
             };
 
             let pm_data = card_isin
@@ -482,17 +498,43 @@ pub async fn save_payout_data_to_locker(
                     payment_method_type: Some(payment_method_type),
                     payment_method_issuer: None,
                     payment_method_issuer_code: None,
-                    bank_transfer: bank_details,
-                    card: None,
-                    wallet: wallet_details,
                     metadata: None,
                     customer_id: Some(payout_attempt.customer_id.to_owned()),
                     card_network: None,
                     client_secret: None,
-                    payment_method_data: None,
+                    payment_method_data: if let Some(ref bank) = bank_details {
+                        if cfg!(feature = "payouts") {
+                            Some(api::PaymentMethodCreateData::BankTransfer(bank.clone()))
+                        } else {
+                            None
+                        }
+                    } else if cfg!(feature = "payouts") {
+                        wallet_details
+                            .clone()
+                            .map(api::PaymentMethodCreateData::Wallet)
+                    } else {
+                        None
+                    },
                     billing: None,
                     connector_mandate_details: None,
                     network_transaction_id: None,
+                    #[cfg(all(
+                        any(feature = "v1", feature = "v2"),
+                        not(feature = "payment_methods_v2")
+                    ))]
+                    card: None,
+                    #[cfg(all(
+                        feature = "payouts",
+                        any(feature = "v1", feature = "v2"),
+                        not(feature = "payment_methods_v2")
+                    ))]
+                    bank_transfer: bank_details,
+                    #[cfg(all(
+                        feature = "payouts",
+                        any(feature = "v1", feature = "v2"),
+                        not(feature = "payment_methods_v2")
+                    ))]
+                    wallet: wallet_details,
                 },
             )
         };
@@ -530,7 +572,7 @@ pub async fn save_payout_data_to_locker(
         let card_reference = &existing_pm
             .locker_id
             .clone()
-            .unwrap_or(existing_pm.payment_method_id.clone());
+            .unwrap_or(existing_pm.get_id().clone());
         // Delete from locker
         cards::delete_card_from_hs_locker(
             state,
@@ -560,7 +602,7 @@ pub async fn save_payout_data_to_locker(
             logger::error!(vault_err=?err);
             db.delete_payment_method_by_merchant_id_payment_method_id(
                 merchant_account.get_id(),
-                &existing_pm.payment_method_id,
+                existing_pm.get_id(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;

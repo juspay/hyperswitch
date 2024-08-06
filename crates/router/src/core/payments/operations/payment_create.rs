@@ -978,7 +978,7 @@ impl PaymentCreate {
                 offer_amount: None,
                 payment_method_id: payment_method_info
                     .as_ref()
-                    .map(|pm_info| pm_info.payment_method_id.clone()),
+                    .map(|pm_info| pm_info.get_id().clone()),
                 cancellation_reason: None,
                 error_code: None,
                 connector_metadata: None,

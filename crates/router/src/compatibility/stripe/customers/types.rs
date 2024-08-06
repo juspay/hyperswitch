@@ -193,7 +193,7 @@ pub struct CustomerPaymentMethodListResponse {
 
 #[derive(Default, Serialize, PartialEq, Eq)]
 pub struct PaymentMethodData {
-    pub id: String,
+    pub id: Option<String>,
     pub object: &'static str,
     pub card: Option<CardDetails>,
     pub created: Option<time::PrimitiveDateTime>,
@@ -222,12 +222,29 @@ impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodList
     }
 }
 
+// Check this in review
 impl From<api_types::CustomerPaymentMethod> for PaymentMethodData {
     fn from(item: api_types::CustomerPaymentMethod) -> Self {
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
+        let card = item.card.map(From::from);
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        let card = match item.payment_method_data {
+            Some(api_types::PaymentMethodListData::Card(card)) => Some(CardDetails::from(card)),
+            _ => None,
+        };
         Self {
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            id: Some(item.payment_token),
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
             id: item.payment_token,
             object: "payment_method",
-            card: item.card.map(From::from),
+            card,
             created: item.created,
         }
     }

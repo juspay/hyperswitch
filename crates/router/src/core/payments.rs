@@ -3694,7 +3694,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                             mandate_reference_record.connector_mandate_id.clone(),
                                         ),
                                         payment_method_id: Some(
-                                            payment_method_info.payment_method_id.clone(),
+                                            payment_method_info.get_id().clone(),
                                         ),
                                         update_history: None,
                                     },

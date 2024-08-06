@@ -9,9 +9,13 @@ pub mod vault;
 use std::{borrow::Cow, collections::HashSet};
 
 pub use api_models::enums::Connector;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use api_models::payments::Address;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 use api_models::{payment_methods, payments::CardToken};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::pii;
 use common_utils::{ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -25,14 +29,12 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
 
-use super::errors::{RouterResponse, StorageErrorExt};
+use super::errors::{self, RouterResponse, StorageErrorExt};
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     consts,
-    core::{
-        errors::{self, RouterResult},
-        payments::helpers,
-        pm_auth as core_pm_auth,
-    },
+    core::{errors::RouterResult, payments::helpers, pm_auth as core_pm_auth},
     routes::{app::StorageInterface, SessionState},
     services,
     types::{
@@ -388,7 +390,7 @@ pub async fn add_payment_method_status_update_task(
         created_at.saturating_add(Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
     let tracking_data = storage::PaymentMethodStatusTrackingData {
-        payment_method_id: payment_method.payment_method_id.clone(),
+        payment_method_id: payment_method.get_id().clone(),
         prev_status,
         curr_status,
         merchant_id: merchant_id.to_owned(),
@@ -399,7 +401,7 @@ pub async fn add_payment_method_status_update_task(
     let tag = [PAYMENT_METHOD_STATUS_TAG];
 
     let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
-        payment_method.payment_method_id.as_str(),
+        payment_method.get_id().as_str(),
         &runner,
         task,
     );
@@ -421,7 +423,7 @@ pub async fn add_payment_method_status_update_task(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
-                payment_method.payment_method_id.clone()
+                payment_method.get_id().clone()
             )
         })?;
 
@@ -565,4 +567,50 @@ pub async fn retrieve_payment_method_with_token(
         },
     };
     Ok(token)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct PaymentMethodAddServer;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct PaymentMethodAddClient;
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+pub trait PaymentMethodAdd<T: Send + Sync> {
+    async fn perform_preprocessing(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentMethodCreate,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        data: T,
+    ) -> RouterResult<T>;
+    async fn vault_payment_method(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentMethodCreate,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        data: T,
+    ) -> RouterResult<T>;
+    async fn handle_duplication(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentMethodCreate,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        data: T,
+    ) -> RouterResult<T>;
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub struct PaymentMethodVaultingData {
+    pub pm_id: Option<String>,
+    pub payment_method: Option<diesel_models::PaymentMethod>,
+    pub customer: Option<domain::Customer>,
+    pub response: Option<api::PaymentMethodResponse>,
+    pub duplication_check: Option<pm_transformers::DataDuplicationCheck>,
+    pub network_transaction_id: Option<String>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub payment_method_billing_address: Option<Address>,
 }

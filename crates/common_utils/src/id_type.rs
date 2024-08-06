@@ -6,6 +6,7 @@ use std::{borrow::Cow, fmt::Debug};
 mod customer;
 mod merchant;
 mod organization;
+mod payment_methods;
 
 pub use customer::CustomerId;
 use diesel::{
@@ -17,6 +18,7 @@ use diesel::{
 };
 pub use merchant::MerchantId;
 pub use organization::OrganizationId;
+pub use payment_methods::PaymentMethodId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
