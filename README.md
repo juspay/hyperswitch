@@ -57,7 +57,7 @@ Using Hyperswitch, you can:
   <h2 id="Try a Payment">⚡️ Try a Payment</h2>
 </a>
 
-To quickly experience the ease that Hyperswitch provides while handling the payment, You can signup on [hyperswitch-control-center][Dashboard-link], and try a payment.
+To quickly experience the ease that Hyperswitch provides while handling the payment, you can signup on [hyperswitch-control-center][Dashboard-link], and try a payment.
 
 Congratulations🎉 on making your first payment with Hyperswitch. 
 
