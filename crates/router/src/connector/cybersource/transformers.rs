@@ -1730,20 +1730,12 @@ pub enum CybersourceIncrementalAuthorizationStatus {
 impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
     fn foreign_from((status, capture): (CybersourcePaymentStatus, bool)) -> Self {
         match status {
-            CybersourcePaymentStatus::Authorized
-            | CybersourcePaymentStatus::AuthorizedPendingReview => {
+            CybersourcePaymentStatus::Authorized => {
                 if capture {
                     // Because Cybersource will return Payment Status as Authorized even in AutoCapture Payment
                     Self::Charged
                 } else {
                     Self::Authorized
-                }
-            }
-            CybersourcePaymentStatus::Pending => {
-                if capture {
-                    Self::Charged
-                } else {
-                    Self::Pending
                 }
             }
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
@@ -1762,7 +1754,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             CybersourcePaymentStatus::PendingReview
             | CybersourcePaymentStatus::StatusNotReceived
             | CybersourcePaymentStatus::Challenge
-            | CybersourcePaymentStatus::Accepted => Self::Pending,
+            | CybersourcePaymentStatus::Accepted
+            | CybersourcePaymentStatus::Pending
+            | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Pending,
         }
     }
 }
@@ -1770,8 +1764,8 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
 impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
     fn from(item: CybersourceIncrementalAuthorizationStatus) -> Self {
         match item {
-            CybersourceIncrementalAuthorizationStatus::Authorized
-            | CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Success,
+            CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
+            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Processing,
             CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
         }
     }
