@@ -9,8 +9,8 @@ storage_impl'
 
 v2_feature_set='v2,merchant_account_v2,payment_v2,customer_v2,routing_v2,business_profile_v2'
 
-PACKAGES_CHECKED=()
-PACKAGES_SKIPPED=()
+packages_checked=()
+packages_skipped=()
 
 # List of cargo commands that will be executed
 all_commands=()
@@ -37,26 +37,26 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
         all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${v2_feature_set}' --package '${package_name}'")
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
-      PACKAGES_CHECKED+=("${package_name}")
+      packages_checked+=("${package_name}")
     else
       printf '::debug::Skipping `%s` since it was not modified: %s\n' "${package_name}"
-      PACKAGES_SKIPPED+=("${package_name}")
+      packages_skipped+=("${package_name}")
     fi
   done <<< "${crates_to_check}"
-  printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
+  printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${packages_checked[*]}" "${packages_skipped[*]}"
 
 else
   # If we are doing this locally or on merge queue, then check for all the V2 crates
   all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
 
-  COMMON_COMMAND="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${v2_feature_set}'"
-  CRATES_TO_INCLUDE=""
+  common_command="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${v2_feature_set}'"
+  crates_to_include=""
   while IFS= read -r crate; do
     if [[ "${crate}" != "storage_impl" ]]; then
-      CRATES_TO_INCLUDE+="--package '$crate' "
+      crates_to_include+="--package '${crate}' "
     fi
   done <<< "${crates_to_check}"
-  all_commands+=("$COMMON_COMMAND $CRATES_TO_INCLUDE")
+  all_commands+=("${common_command} ${crates_to_include}")
 fi
 
 if ((${#all_commands[@]} == 0)); then
