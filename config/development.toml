@@ -195,8 +195,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
+braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -579,8 +578,6 @@ merchant_ids_send_payment_id_as_connector_request_id = []
 [payouts]
 payout_eligibility = true
 
-[multiple_api_version_supported_connectors]
-supported_connectors = "braintree"
 
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
@@ -682,7 +679,7 @@ enabled = true
 file_storage_backend = "file_system"
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [opensearch]
 host = "https://localhost:9200"
