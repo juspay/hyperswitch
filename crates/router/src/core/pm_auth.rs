@@ -47,7 +47,7 @@ use crate::{
         domain::{self, types::decrypt_optional},
         storage,
         transformers::ForeignTryFrom,
-    }
+    },
 };
 
 pub async fn create_link_token(
