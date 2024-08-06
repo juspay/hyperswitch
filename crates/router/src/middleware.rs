@@ -366,6 +366,10 @@ where
     fn call(&self, mut req: actix_web::dev::ServiceRequest) -> Self::Future {
         let svc = self.service.clone();
         Box::pin(async move {
+            #[derive(serde::Deserialize)]
+            struct LocaleQueryParam {
+                locale: Option<String>,
+            }
             let query_params = req.query_string();
             let locale_param =
                 serde_qs::from_str::<LocaleQueryParam>(query_params).map_err(|error| {
@@ -374,16 +378,15 @@ where
                         error
                     ))
                 })?;
-            let accept_language_header =
-                req.headers().get(actix_web::http::header::ACCEPT_LANGUAGE);
+            let accept_language_header = req.headers().get(http::header::ACCEPT_LANGUAGE);
             if let Some(locale) = locale_param.locale {
                 req.headers_mut().insert(
-                    http::header::HeaderName::from_static("accept-language"),
-                    http::HeaderValue::from_str(&locale.to_string())?,
+                    http::header::ACCEPT_LANGUAGE,
+                    http::HeaderValue::from_str(&locale)?,
                 );
             } else if accept_language_header.is_none() {
                 req.headers_mut().insert(
-                    http::header::HeaderName::from_static("accept-language"),
+                    http::header::ACCEPT_LANGUAGE,
                     http::HeaderValue::from_static("en"),
                 );
             }
@@ -392,9 +395,4 @@ where
             Ok(response)
         })
     }
-}
-
-#[derive(serde::Deserialize)]
-pub struct LocaleQueryParam {
-    locale: Option<String>,
 }

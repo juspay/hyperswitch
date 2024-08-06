@@ -93,7 +93,7 @@
       }
     </style>
   </head>
-  <body class="hide-scrollbar">
+  <body id="payment-link" class="hide-scrollbar">
     <div id="payment-details-shimmer">
       <div class = "wrap">
         <box class="shine"></box>
@@ -324,6 +324,7 @@
     </div>
     <script>
       {{rendered_js}}
+      {{payment_link_initiator}}
       {{logging_template}}
     </script>
     {{ hyperloader_sdk_link }}

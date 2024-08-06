@@ -117,7 +117,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", merchant_account.get_id())
+            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {attempt_id}", merchant_account.get_id())
         });
 
         let profile_id = payment_intent

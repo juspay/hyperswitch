@@ -25,6 +25,7 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api, HeaderPayload},
 };
+pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
@@ -787,6 +788,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -997,6 +999,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             state.clone(),
             req_state,
             merchant_account,
+            None,
             merchant_key_store,
             payment_complete_authorize::CompleteAuthorize,
             payment_confirm_req,
@@ -1128,6 +1131,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             state.clone(),
             req_state,
             merchant_account,
+            None,
             merchant_key_store,
             PaymentStatus,
             payment_sync_req,
@@ -1285,6 +1289,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 state.clone(),
                 req_state,
                 merchant_account,
+                None,
                 merchant_key_store,
                 PaymentConfirm,
                 payment_confirm_req,
@@ -1315,6 +1320,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 state.clone(),
                 req_state,
                 merchant_account.clone(),
+                None,
                 merchant_key_store,
                 PaymentStatus,
                 payment_sync_req,
@@ -1722,7 +1728,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
         if contains {
             // Customer Id for OpenBanking connectors will be merchant_id as the account data stored at locker belongs to the merchant
             let merchant_id_str = merchant_account.get_id().get_string_repr().to_owned();
-            let cust_id = id_type::CustomerId::from(merchant_id_str.into())
+            let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(merchant_id_str))
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to convert to CustomerId")?;
             let locker_resp = cards::get_payment_method_from_hs_locker(
@@ -2661,18 +2667,6 @@ where
     Ok(payment_data.to_owned())
 }
 
-#[derive(Clone, PartialEq)]
-pub enum CallConnectorAction {
-    Trigger,
-    Avoid,
-    StatusUpdate {
-        status: storage_enums::AttemptStatus,
-        error_code: Option<String>,
-        error_message: Option<String>,
-    },
-    HandleResponse(Vec<u8>),
-}
-
 #[derive(Clone)]
 pub struct MandateConnectorDetails {
     pub connector: String,
@@ -2877,6 +2871,7 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    _profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
@@ -2949,6 +2944,7 @@ pub async fn list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    _profile_id_list: Option<Vec<String>>,
     merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
@@ -3046,9 +3042,10 @@ pub async fn get_filters_for_payments(
 pub async fn get_payment_filters(
     state: SessionState,
     merchant: domain::MerchantAccount,
+    _profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant.get_id().to_owned()).await?
+        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), None).await?
     {
         data
     } else {
