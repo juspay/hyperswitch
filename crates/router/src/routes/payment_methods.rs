@@ -735,6 +735,7 @@ pub async fn default_payment_method_set_api(
                 auth.merchant_account.get_id(),
                 auth.key_store,
                 customer_id,
+                None,
                 default_payment_method.payment_method_id,
                 auth.merchant_account.storage_scheme,
             )

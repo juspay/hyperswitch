@@ -331,8 +331,6 @@ pub fn mk_add_bank_response_hs(
         payment_method_type: req.payment_method_type,
         bank_transfer: Some(bank),
         card: None,
-        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-        payment_method_data: Some(api::PaymentMethodResponseData::BankTransfer(bank)),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           // [#256]
