@@ -380,9 +380,9 @@ where
         .attach_printable("Could not find profile id from business details")?;
 
         let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
-            &all_connector_accounts,
+            all_connector_accounts,
             Some(&profile_id),
-            Some(&common_enums::ConnectorType::PaymentProcessor),
+            common_enums::ConnectorType::PaymentProcessor,
         );
 
         let requested_payment_method_types = request.wallets.clone();

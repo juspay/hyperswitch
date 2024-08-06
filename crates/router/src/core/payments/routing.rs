@@ -568,9 +568,9 @@ pub async fn refresh_cgraph_cache<'a>(
 
     let merchant_connector_accounts =
         payments_oss::helpers::filter_mca_based_on_profile_and_connector_type(
-            &merchant_connector_accounts,
+            merchant_connector_accounts,
             profile_id.as_ref(),
-            Some(&connector_type),
+            connector_type,
         );
 
     let api_mcas = merchant_connector_accounts

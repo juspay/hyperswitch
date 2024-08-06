@@ -280,9 +280,9 @@ pub async fn filter_payout_methods(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     // Filter MCAs based on profile_id and connector_type
     let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
-        &all_mcas,
+        all_mcas,
         Some(&payout.profile_id),
-        Some(&common_enums::ConnectorType::PayoutProcessor),
+        common_enums::ConnectorType::PayoutProcessor,
     );
     let address = db
         .find_address_by_address_id(key_manager_state, &payout.address_id.clone(), key_store)

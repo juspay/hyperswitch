@@ -2357,9 +2357,9 @@ pub async fn list_payment_methods(
 
     // filter out payment connectors based on profile_id
     let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
-        &all_mcas,
+        all_mcas.clone(),
         profile_id.as_ref(),
-        Some(&ConnectorType::PaymentProcessor),
+        ConnectorType::PaymentProcessor,
     );
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
