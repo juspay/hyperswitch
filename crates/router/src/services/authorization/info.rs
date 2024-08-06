@@ -1,8 +1,10 @@
-use super::{permission_groups::get_permissions_vec, permissions::Permission};
+use std::collections::HashMap;
+
 use api_models::user_role::{GroupInfo, ParentGroup, ParentInfo, PermissionInfo};
 use common_enums::PermissionGroup;
-use std::collections::HashMap;
 use strum::{EnumIter, IntoEnumIterator};
+
+use super::{permission_groups::get_permissions_vec, permissions::Permission};
 
 pub fn get_module_authorization_info() -> Vec<ModuleInfo> {
     PermissionModule::iter()
