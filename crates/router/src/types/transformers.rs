@@ -1676,3 +1676,111 @@ impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
         }
     }
 }
+
+impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
+    for diesel_models::business_profile::BusinessPaymentLinkConfig
+{
+    fn foreign_from(item: api_models::admin::BusinessPaymentLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            default_config: item.default_config.map(ForeignInto::foreign_into),
+            business_specific_configs: item.business_specific_configs.map(|map| {
+                map.into_iter()
+                    .map(|(k, v)| (k, v.foreign_into()))
+                    .collect()
+            }),
+            allowed_domains: item.allowed_domains,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
+    for api_models::admin::BusinessPaymentLinkConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::BusinessPaymentLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            default_config: item.default_config.map(ForeignInto::foreign_into),
+            business_specific_configs: item.business_specific_configs.map(|map| {
+                map.into_iter()
+                    .map(|(k, v)| (k, v.foreign_into()))
+                    .collect()
+            }),
+            allowed_domains: item.allowed_domains,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
+    for diesel_models::business_profile::PaymentLinkConfigRequest
+{
+    fn foreign_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
+        Self {
+            theme: item.theme,
+            logo: item.logo,
+            seller_name: item.seller_name,
+            sdk_layout: item.sdk_layout,
+            display_sdk_only: item.display_sdk_only,
+            enabled_saved_payment_method: item.enabled_saved_payment_method,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
+    for api_models::admin::PaymentLinkConfigRequest
+{
+    fn foreign_from(item: diesel_models::business_profile::PaymentLinkConfigRequest) -> Self {
+        Self {
+            theme: item.theme,
+            logo: item.logo,
+            seller_name: item.seller_name,
+            sdk_layout: item.sdk_layout,
+            display_sdk_only: item.display_sdk_only,
+            enabled_saved_payment_method: item.enabled_saved_payment_method,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
+    for diesel_models::business_profile::BusinessPayoutLinkConfig
+{
+    fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
+        Self {
+            config: item.config.foreign_into(),
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
+    for api_models::admin::BusinessPayoutLinkConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
+        Self {
+            config: item.config.foreign_into(),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
+    for diesel_models::business_profile::BusinessGenericLinkConfig
+{
+    fn foreign_from(item: api_models::admin::BusinessGenericLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            allowed_domains: item.allowed_domains,
+            ui_config: item.ui_config,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
+    for api_models::admin::BusinessGenericLinkConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::BusinessGenericLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            allowed_domains: item.allowed_domains,
+            ui_config: item.ui_config,
+        }
+    }
+}

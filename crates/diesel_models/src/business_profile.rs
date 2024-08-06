@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use common_enums::AuthenticationConnectors;
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 use common_enums::OrderFulfillmentTimeOrigin;
@@ -43,10 +45,10 @@ pub struct BusinessProfile {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -81,10 +83,10 @@ pub struct BusinessProfileNew {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -116,10 +118,10 @@ pub struct BusinessProfileUpdateInternal {
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -149,10 +151,10 @@ pub enum BusinessProfileUpdate {
         payout_routing_algorithm: Option<serde_json::Value>,
         is_recon_enabled: Option<bool>,
         applepay_verified_domains: Option<Vec<String>>,
-        payment_link_config: Option<pii::SecretSerdeValue>,
+        payment_link_config: Option<BusinessPaymentLinkConfig>,
         session_expiry: Option<i64>,
         authentication_connector_details: Option<AuthenticationConnectorDetails>,
-        payout_link_config: Option<pii::SecretSerdeValue>,
+        payout_link_config: Option<BusinessPayoutLinkConfig>,
         extended_card_info_config: Option<pii::SecretSerdeValue>,
         use_billing_as_payment_method_billing: Option<bool>,
         collect_shipping_details_from_wallet_connector: Option<bool>,
@@ -471,10 +473,10 @@ pub struct BusinessProfile {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -508,10 +510,10 @@ pub struct BusinessProfileNew {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -542,10 +544,10 @@ pub struct BusinessProfileUpdateInternal {
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -574,10 +576,10 @@ pub enum BusinessProfileUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         is_recon_enabled: Option<bool>,
         applepay_verified_domains: Option<Vec<String>>,
-        payment_link_config: Option<pii::SecretSerdeValue>,
+        payment_link_config: Option<BusinessPaymentLinkConfig>,
         session_expiry: Option<i64>,
         authentication_connector_details: Option<AuthenticationConnectorDetails>,
-        payout_link_config: Option<pii::SecretSerdeValue>,
+        payout_link_config: Option<BusinessPayoutLinkConfig>,
         extended_card_info_config: Option<pii::SecretSerdeValue>,
         use_billing_as_payment_method_billing: Option<bool>,
         collect_shipping_details_from_wallet_connector: Option<bool>,
@@ -910,3 +912,42 @@ pub struct WebhookDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct BusinessPaymentLinkConfig {
+    pub domain_name: Option<String>,
+    #[serde(flatten)]
+    pub default_config: Option<PaymentLinkConfigRequest>,
+    pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
+    pub allowed_domains: Option<HashSet<String>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentLinkConfigRequest {
+    pub theme: Option<String>,
+    pub logo: Option<String>,
+    pub seller_name: Option<String>,
+    pub sdk_layout: Option<String>,
+    pub display_sdk_only: Option<bool>,
+    pub enabled_saved_payment_method: Option<bool>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct BusinessPayoutLinkConfig {
+    #[serde(flatten)]
+    pub config: BusinessGenericLinkConfig,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct BusinessGenericLinkConfig {
+    pub domain_name: Option<String>,
+    pub allowed_domains: HashSet<String>,
+    #[serde(flatten)]
+    pub ui_config: common_utils::link_utils::GenericLinkUiConfig,
+}
+
+common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);

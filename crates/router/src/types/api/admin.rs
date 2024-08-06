@@ -12,15 +12,15 @@ pub use api_models::{
     organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
 use common_utils::{
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ValueExt},
     types::keymanager::Identifier,
 };
 use diesel_models::organization::OrganizationBridge;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     core::{errors, payment_methods::cards::create_encrypted_data},
@@ -157,15 +157,12 @@ pub async fn business_profile_response(
         #[cfg(feature = "payouts")]
         payout_routing_algorithm: item.payout_routing_algorithm,
         applepay_verified_domains: item.applepay_verified_domains,
-        payment_link_config: item.payment_link_config,
+        payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),
         session_expiry: item.session_expiry,
         authentication_connector_details: item
             .authentication_connector_details
             .map(ForeignInto::foreign_into),
-        payout_link_config: item
-            .payout_link_config
-            .map(|payout_link_config| payout_link_config.parse_value("BusinessPayoutLinkConfig"))
-            .transpose()?,
+        payout_link_config: item.payout_link_config.map(ForeignInto::foreign_into),
         use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
         extended_card_info_config: item
             .extended_card_info_config
@@ -203,17 +200,7 @@ pub async fn create_business_profile(
         .or(merchant_account.payment_response_hash_key)
         .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
-    let payment_link_config_value = request
-        .payment_link_config
-        .map(|pl_config| {
-            pl_config
-                .encode_to_value()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config_value",
-                })
-        })
-        .transpose()?
-        .map(Secret::new);
+    let payment_link_config_value = request.payment_link_config.map(ForeignInto::foreign_into);
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| create_encrypted_data(state, key_store, headers))
@@ -222,21 +209,7 @@ pub async fn create_business_profile(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
-    let payout_link_config = request
-        .payout_link_config
-        .as_ref()
-        .map(|payout_conf| match payout_conf.config.validate() {
-            Ok(_) => payout_conf.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payout_link_config",
-                },
-            ),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
-        })
-        .transpose()?
-        .map(Secret::new);
+    let payout_link_config = request.payout_link_config.map(ForeignInto::foreign_into);
 
     Ok(storage::business_profile::BusinessProfileNew {
         profile_id,

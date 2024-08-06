@@ -3358,19 +3358,13 @@ pub async fn update_business_profile(
 
     let payment_link_config = request
         .payment_link_config
-        .as_ref()
         .map(|payment_link_conf| match payment_link_conf.validate() {
-            Ok(_) => payment_link_conf.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                },
-            ),
+            Ok(_) => Ok(payment_link_conf.foreign_into()),
             Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: e.to_string()
             })),
         })
-        .transpose()?
-        .map(Secret::new);
+        .transpose()?;
 
     let extended_card_info_config = request
         .extended_card_info_config
@@ -3394,19 +3388,13 @@ pub async fn update_business_profile(
 
     let payout_link_config = request
         .payout_link_config
-        .as_ref()
         .map(|payout_conf| match payout_conf.config.validate() {
-            Ok(_) => payout_conf.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payout_link_config",
-                },
-            ),
+            Ok(_) => Ok(payout_conf.foreign_into()),
             Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: e.to_string()
             })),
         })
-        .transpose()?
-        .map(Secret::new);
+        .transpose()?;
 
     let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
         profile_name: request.profile_name,
