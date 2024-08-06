@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use api_models::enums::PayoutConnectors;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
 use diesel_models::{
@@ -1919,7 +1918,7 @@ impl PayoutsInterface for KafkaStore {
     async fn get_total_count_of_filtered_payouts(
         &self,
         merchant_id: &id_type::MerchantId,
-        connector: Option<Vec<PayoutConnectors>>,
+        connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
         payout_method: Option<Vec<enums::PayoutType>>,

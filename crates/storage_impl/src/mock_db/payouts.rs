@@ -1,4 +1,3 @@
-use api_models::enums::PayoutConnectors;
 use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::{
@@ -90,7 +89,7 @@ impl PayoutsInterface for MockDb {
     async fn get_total_count_of_filtered_payouts(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        _connector: Option<Vec<PayoutConnectors>>,
+        _connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,
         _payout_method: Option<Vec<storage_enums::PayoutType>>,

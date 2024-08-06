@@ -864,7 +864,10 @@ pub async fn payouts_filtered_list_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Failed to fetch total count of filtered payouts for the given constraints")
+            format!(
+                "Failed to fetch total count of filtered payouts for the given constraints - {}",
+                filters
+            )
         })?;
 
     Ok(services::ApplicationResponse::Json(
