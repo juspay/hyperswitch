@@ -13937,8 +13937,7 @@
           "seller_name",
           "sdk_layout",
           "display_sdk_only",
-          "enabled_saved_payment_method",
-          "merchant_details"
+          "enabled_saved_payment_method"
         ],
         "properties": {
           "theme": {
@@ -13976,7 +13975,8 @@
           },
           "merchant_details": {
             "type": "string",
-            "description": "Dynamic details related to merchant to be rendered in payment link"
+            "description": "Dynamic details related to merchant to be rendered in payment link",
+            "nullable": true
           }
         }
       },
