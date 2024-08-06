@@ -116,7 +116,7 @@ This will start the app server, web client and control center.
 Check out the [local setup guide][local-setup-guide] for a more comprehensive
 setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
 
-[docs-link-for-Enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
+[docs-link-for-enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
 [docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
 [contributing-guidelines]: docs/CONTRIBUTING.md
 [dashboard-link]: https://app.hyperswitch.io/
