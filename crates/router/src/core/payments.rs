@@ -3079,7 +3079,7 @@ pub async fn get_payment_filters(
     _profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant.get_id().to_owned()).await?
+        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), None).await?
     {
         data
     } else {

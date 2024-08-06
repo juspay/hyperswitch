@@ -713,6 +713,7 @@ pub async fn list_merchant_account(
 pub async fn get_merchant_account(
     state: SessionState,
     req: api::MerchantId,
+    _profile_id: Option<String>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1028,6 +1029,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 pub async fn merchant_account_update(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
+    _profile_id: Option<String>,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
@@ -1287,9 +1289,7 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
             }
             api_enums::Connector::Braintree => {
                 braintree::transformers::BraintreeAuthType::try_from(self.auth_type)?;
-                braintree::braintree_graphql_transformers::BraintreeMeta::try_from(
-                    self.connector_meta_data,
-                )?;
+                braintree::transformers::BraintreeMeta::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Cashtocode => {
@@ -2751,6 +2751,7 @@ async fn validate_pm_auth(
 pub async fn retrieve_payment_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
+    _profile_id: Option<String>,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -2799,6 +2800,7 @@ pub async fn retrieve_payment_connector(
 pub async fn list_payment_connectors(
     state: SessionState,
     merchant_id: id_type::MerchantId,
+    _profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -2839,6 +2841,7 @@ pub async fn list_payment_connectors(
 pub async fn update_payment_connector(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
+    _profile_id: Option<String>,
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {

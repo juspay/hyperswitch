@@ -47,3 +47,9 @@ ADD COLUMN webhook_details JSONB NULL;
 
 ALTER TABLE merchant_account
 ADD COLUMN routing_algorithm JSON;
+
+ALTER TABLE merchant_account
+ADD COLUMN frm_routing_algorithm JSONB;
+
+ALTER TABLE merchant_account
+ADD COLUMN payout_routing_algorithm JSONB;

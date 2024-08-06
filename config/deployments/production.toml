@@ -38,8 +38,7 @@ bitpay.base_url = "https://bitpay.com"
 bluesnap.base_url = "https://ws.bluesnap.com/"
 bluesnap.secondary_base_url = "https://pay.bluesnap.com/"
 boku.base_url = "https://country-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.braintree-api.com/graphql"
+braintree.base_url = "https://payments.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster14.api.cashtocode.com"
 checkout.base_url = "https://api.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -155,8 +154,6 @@ bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"        # M
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
-[multiple_api_version_supported_connectors]
-supported_connectors = "braintree"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility

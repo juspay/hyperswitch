@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use api_models::{self, enums as api_enums};
 use common_enums::CaptureMethod;
-
 use error_stack::ResultExt;
 use masking::PeekInterface;
 use router_env::{
