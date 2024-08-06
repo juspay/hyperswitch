@@ -21,10 +21,11 @@ pub async fn upsert_surcharge_decision_config(
     merchant_account: domain::MerchantAccount,
     request: SurchargeDecisionConfigReq,
 ) -> RouterResponse<SurchargeDecisionManagerRecord> {
-    use super::routing::helpers::update_merchant_active_algorithm_ref;
     use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
     use diesel_models::configs;
     use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
 
     let db = state.store.as_ref();
     let name = request.name;
@@ -160,9 +161,10 @@ pub async fn delete_surcharge_decision_config(
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
-    use super::routing::helpers::update_merchant_active_algorithm_ref;
     use common_utils::ext_traits::ValueExt;
     use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
 
     let db = state.store.as_ref();
     let key = merchant_account

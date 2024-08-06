@@ -2,7 +2,6 @@ use api_models::conditional_configs::{
     DecisionManager, DecisionManagerRecord, DecisionManagerResponse,
 };
 use common_utils::ext_traits::StringExt;
-
 use error_stack::ResultExt;
 
 use crate::{
@@ -32,10 +31,11 @@ pub async fn upsert_conditional_config(
     merchant_account: domain::MerchantAccount,
     request: DecisionManager,
 ) -> RouterResponse<DecisionManagerRecord> {
-    use super::routing::helpers::update_merchant_active_algorithm_ref;
     use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
     use diesel_models::configs;
     use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
 
     let db = state.store.as_ref();
     let (name, prog) = match request {
@@ -181,9 +181,10 @@ pub async fn delete_conditional_config(
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
-    use super::routing::helpers::update_merchant_active_algorithm_ref;
     use common_utils::ext_traits::ValueExt;
     use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
 
     let db = state.store.as_ref();
     let key = merchant_account.get_id().get_payment_config_routing_id();
