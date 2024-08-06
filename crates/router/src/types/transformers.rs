@@ -1644,3 +1644,35 @@ impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails
         }
     }
 }
+
+impl ForeignFrom<api_models::admin::WebhookDetails>
+    for diesel_models::business_profile::WebhookDetails
+{
+    fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url: item.webhook_url,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
+    for api_models::admin::WebhookDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url: item.webhook_url,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+        }
+    }
+}

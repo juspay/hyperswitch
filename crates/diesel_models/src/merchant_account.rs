@@ -1,7 +1,6 @@
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
-use crate::enums as storage_enums;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
@@ -9,6 +8,7 @@ use crate::enums as storage_enums;
 use crate::schema::merchant_account;
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use crate::schema_v2::merchant_account;
+use crate::{business_profile::WebhookDetails, enums as storage_enums};
 
 /// Note: The order of fields in the struct is important.
 /// This should be in the same order as the fields in the schema.rs file, otherwise the code will not compile
@@ -36,7 +36,7 @@ pub struct MerchantAccount {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
@@ -70,7 +70,7 @@ pub struct MerchantAccountSetter {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
@@ -152,7 +152,7 @@ pub struct MerchantAccount {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
@@ -219,7 +219,7 @@ pub struct MerchantAccountSetter {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
@@ -268,7 +268,7 @@ pub struct MerchantAccountNew {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub enable_payment_response_hash: Option<bool>,
@@ -299,7 +299,7 @@ pub struct MerchantAccountNew {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub enable_payment_response_hash: Option<bool>,
@@ -330,7 +330,7 @@ pub struct MerchantAccountUpdateInternal {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub enable_payment_response_hash: Option<bool>,

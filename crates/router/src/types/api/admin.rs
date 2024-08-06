@@ -70,7 +70,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             merchant_details: item.merchant_details,
-            webhook_details: item.webhook_details,
+            webhook_details: item.webhook_details.clone().map(ForeignInto::foreign_into),
             routing_algorithm: item.routing_algorithm,
             sub_merchants_enabled: item.sub_merchants_enabled,
             parent_merchant_id: item.parent_merchant_id,
@@ -149,7 +149,7 @@ pub async fn business_profile_response(
         enable_payment_response_hash: item.enable_payment_response_hash,
         payment_response_hash_key: item.payment_response_hash_key,
         redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-        webhook_details: item.webhook_details,
+        webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
         metadata: item.metadata,
         routing_algorithm: item.routing_algorithm,
         intent_fulfillment_time: item.intent_fulfillment_time,
@@ -196,18 +196,7 @@ pub async fn create_business_profile(
 
     let current_time = common_utils::date_time::now();
 
-    let webhook_details = request
-        .webhook_details
-        .as_ref()
-        .map(|webhook_details| {
-            webhook_details.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "webhook details",
-                },
-            )
-        })
-        .transpose()?
-        .map(Secret::new);
+    let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 
     let payment_response_hash_key = request
         .payment_response_hash_key

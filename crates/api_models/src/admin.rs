@@ -167,15 +167,6 @@ impl MerchantAccountCreate {
             .transpose()
     }
 
-    pub fn get_webhook_details_as_value(
-        &self,
-    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
-        self.webhook_details
-            .as_ref()
-            .map(|webhook_details| webhook_details.encode_to_value().map(Secret::new))
-            .transpose()
-    }
-
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
@@ -374,8 +365,7 @@ pub struct MerchantAccountResponse {
     pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
     /// Webhook related details
-    #[schema(value_type = Option<WebhookDetails>)]
-    pub webhook_details: Option<Secret<serde_json::Value>>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[serde(skip)]
@@ -1842,8 +1832,7 @@ pub struct BusinessProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
-    #[schema(value_type = Option<WebhookDetails>)]
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]

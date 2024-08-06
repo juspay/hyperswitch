@@ -3,6 +3,7 @@ use common_enums::AuthenticationConnectors;
 use common_enums::OrderFulfillmentTimeOrigin;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use masking::Secret;
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -33,7 +34,7 @@ pub struct BusinessProfile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -71,7 +72,7 @@ pub struct BusinessProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -106,7 +107,7 @@ pub struct BusinessProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -140,7 +141,7 @@ pub enum BusinessProfileUpdate {
         enable_payment_response_hash: Option<bool>,
         payment_response_hash_key: Option<String>,
         redirect_to_merchant_with_http_post: Option<bool>,
-        webhook_details: Option<pii::SecretSerdeValue>,
+        webhook_details: Option<WebhookDetails>,
         metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
         intent_fulfillment_time: Option<i64>,
@@ -465,7 +466,7 @@ pub struct BusinessProfile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -502,7 +503,7 @@ pub struct BusinessProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -536,7 +537,7 @@ pub struct BusinessProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -569,7 +570,7 @@ pub enum BusinessProfileUpdate {
         enable_payment_response_hash: Option<bool>,
         payment_response_hash_key: Option<String>,
         redirect_to_merchant_with_http_post: Option<bool>,
-        webhook_details: Option<pii::SecretSerdeValue>,
+        webhook_details: Option<WebhookDetails>,
         metadata: Option<pii::SecretSerdeValue>,
         is_recon_enabled: Option<bool>,
         applepay_verified_domains: Option<Vec<String>>,
@@ -895,3 +896,17 @@ pub struct AuthenticationConnectorDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+pub struct WebhookDetails {
+    pub webhook_version: Option<String>,
+    pub webhook_username: Option<String>,
+    pub webhook_password: Option<Secret<String>>,
+    pub webhook_url: Option<Secret<String>>,
+    pub payment_created_enabled: Option<bool>,
+    pub payment_succeeded_enabled: Option<bool>,
+    pub payment_failed_enabled: Option<bool>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(WebhookDetails);

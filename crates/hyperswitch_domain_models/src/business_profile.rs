@@ -9,7 +9,7 @@ use common_utils::{
     types::keymanager,
 };
 use diesel_models::business_profile::{
-    AuthenticationConnectorDetails, BusinessProfileUpdateInternal,
+    AuthenticationConnectorDetails, BusinessProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -31,7 +31,7 @@ pub struct BusinessProfile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -64,7 +64,7 @@ pub enum BusinessProfileUpdate {
         enable_payment_response_hash: Option<bool>,
         payment_response_hash_key: Option<String>,
         redirect_to_merchant_with_http_post: Option<bool>,
-        webhook_details: Option<pii::SecretSerdeValue>,
+        webhook_details: Option<WebhookDetails>,
         metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
         intent_fulfillment_time: Option<i64>,
@@ -398,7 +398,7 @@ pub struct BusinessProfile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -430,7 +430,7 @@ pub enum BusinessProfileUpdate {
         enable_payment_response_hash: Option<bool>,
         payment_response_hash_key: Option<String>,
         redirect_to_merchant_with_http_post: Option<bool>,
-        webhook_details: Option<pii::SecretSerdeValue>,
+        webhook_details: Option<WebhookDetails>,
         metadata: Option<pii::SecretSerdeValue>,
         is_recon_enabled: Option<bool>,
         applepay_verified_domains: Option<Vec<String>>,

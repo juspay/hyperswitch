@@ -288,11 +288,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        let webhook_details = self.get_webhook_details_as_value().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "webhook details",
-            },
-        )?;
+        let webhook_details = self.webhook_details.clone().map(ForeignInto::foreign_into);
 
         let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
@@ -1029,13 +1025,7 @@ pub async fn merchant_account_update(
 
         return_url: req.return_url.map(|a| a.to_string()),
 
-        webhook_details: req
-            .webhook_details
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .map(Secret::new),
+        webhook_details: req.webhook_details.map(ForeignInto::foreign_into),
 
         routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
@@ -3354,18 +3344,7 @@ pub async fn update_business_profile(
         helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
     }
 
-    let webhook_details = request
-        .webhook_details
-        .as_ref()
-        .map(|webhook_details| {
-            webhook_details.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "webhook details",
-                },
-            )
-        })
-        .transpose()?
-        .map(Secret::new);
+    let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
         let _: api_models::routing::RoutingAlgorithm = routing_algorithm
