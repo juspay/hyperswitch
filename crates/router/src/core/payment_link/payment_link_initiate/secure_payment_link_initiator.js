@@ -13,12 +13,11 @@ try {
 
 if (!isFramed) {
   function initializeSDK() {
-    var errMsg = "You are not allowed to view this content.";
     var contentElement = document.getElementById("payment-link");
     if (contentElement instanceof HTMLDivElement) {
-      contentElement.innerHTML = errMsg;
+      contentElement.innerHTML = translations.notAllowed;
     } else {
-      document.body.innerHTML = errMsg;
+      document.body.innerHTML = translations.notAllowed;
     }
   }
 } else {

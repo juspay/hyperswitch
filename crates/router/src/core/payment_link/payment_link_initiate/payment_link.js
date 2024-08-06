@@ -179,14 +179,7 @@ var unifiedCheckout = null;
 var pub_key = window.__PAYMENT_DETAILS.pub_key;
 var hyper = null;
 
-
-
-function getTranslations() {
-  var locale = window.__PAYMENT_DETAILS.locale || 'en'; // defaults if locale is not present in payment details.
-  return locales[locale] || locales['en']; // defaults if locale is not implemented in locales.
-}
-
-const translations = getTranslations();
+const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 
 /**
  * Trigger - init function invoked once the script tag is loaded

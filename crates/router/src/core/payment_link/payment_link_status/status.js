@@ -86,15 +86,7 @@ window.state = {
   isMobileView: window.innerWidth <= 1400,
 };
 
-
-function getTranslations() {
-  var paymentDetails = window.__PAYMENT_DETAILS;
-  console.log(paymentDetails);
-  var locale = paymentDetails.locale || 'en'; // defaults if locale is not present in payment details.
-  return locales[locale] || locales['en']; // defaults if locale is not implemented in locales.
-}
-
-const translations = getTranslations();
+const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
