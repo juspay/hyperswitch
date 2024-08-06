@@ -12,7 +12,6 @@ use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
-    user_role::NewUserRole,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
@@ -756,7 +755,7 @@ async fn handle_existing_user_invitation(
     let now = common_utils::date_time::now();
     state
         .store
-        .insert_user_role(NewUserRole {
+        .insert_user_role(domain::NewUserRole {
             user_id: invitee_user_from_db.get_user_id().to_owned(),
             merchant_id: user_from_token.merchant_id.clone(),
             role_id: request.role_id.clone(),
@@ -845,7 +844,7 @@ async fn handle_new_user_invitation(
     let now = common_utils::date_time::now();
     state
         .store
-        .insert_user_role(NewUserRole {
+        .insert_user_role(domain::NewUserRole {
             user_id: new_user.get_user_id().to_owned(),
             merchant_id: user_from_token.merchant_id.clone(),
             role_id: request.role_id.clone(),

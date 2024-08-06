@@ -12,7 +12,7 @@ use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
     organization::{self as diesel_org, Organization, OrganizationBridge},
     user as storage_user,
-    user_role::{NewUserRole, UserRole},
+    user_role::{UserRole, UserRoleNew},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::merchant_account::MerchantAccount;
@@ -20,6 +20,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
+use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
 use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
@@ -1267,6 +1268,83 @@ impl RecoveryCodes {
 
     pub fn into_inner(self) -> Vec<Secret<String>> {
         self.0
+    }
+}
+
+#[derive(Clone)]
+pub struct NewUserRole {
+    pub user_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub role_id: String,
+    pub org_id: id_type::OrganizationId,
+    pub status: UserStatus,
+    pub created_by: String,
+    pub last_modified_by: String,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
+    pub entity_type: EntityType,
+}
+
+impl NewUserRole {
+    pub fn to_v1_role(self) -> UserRoleNew {
+        UserRoleNew {
+            user_id: self.user_id,
+            merchant_id: Some(self.merchant_id),
+            role_id: self.role_id,
+            org_id: Some(self.org_id),
+            status: self.status,
+            created_by: self.created_by,
+            last_modified_by: self.last_modified_by,
+            created_at: self.created_at,
+            last_modified: self.last_modified,
+            profile_id: None,
+            entity_id: None,
+            entity_type: None,
+            version: UserRoleVersion::V1,
+        }
+    }
+
+    pub fn to_v2_role(self) -> UserRoleNew {
+        let merchant_id = match self.entity_type {
+            EntityType::Internal => Some(self.merchant_id.to_owned()),
+            EntityType::Organization => None,
+            EntityType::Merchant => Some(self.merchant_id.to_owned()),
+            EntityType::Profile => Some(self.merchant_id.to_owned()),
+        };
+        let org_id = match self.entity_type {
+            EntityType::Internal => Some(self.org_id.to_owned()),
+            EntityType::Organization => None,
+            EntityType::Merchant => Some(self.org_id.to_owned()),
+            EntityType::Profile => Some(self.org_id.to_owned()),
+        };
+        let profile_id = match self.entity_type {
+            EntityType::Internal => None,
+            EntityType::Organization => None,
+            EntityType::Merchant => None,
+            EntityType::Profile => None,
+        };
+        let entity_id = match self.entity_type {
+            EntityType::Internal => Some(self.org_id.get_string_repr().to_owned()),
+            EntityType::Organization => Some(self.org_id.get_string_repr().to_owned()),
+            EntityType::Merchant => Some(self.merchant_id.get_string_repr().to_owned()),
+            EntityType::Profile => None,
+        };
+
+        UserRoleNew {
+            user_id: self.user_id,
+            merchant_id,
+            role_id: self.role_id,
+            org_id,
+            status: self.status,
+            created_by: self.created_by,
+            last_modified_by: self.last_modified_by,
+            created_at: self.created_at,
+            last_modified: self.last_modified,
+            profile_id,
+            entity_id,
+            entity_type: Some(self.entity_type),
+            version: UserRoleVersion::V2,
+        }
     }
 }
 

@@ -1,9 +1,9 @@
 use common_utils::id_type;
 use diesel_models::{enums, user_role as storage};
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
-use super::MockDb;
+use super::{domain, MockDb};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -14,7 +14,7 @@ use crate::{
 pub trait UserRoleInterface {
     async fn insert_user_role(
         &self,
-        user_role: storage::NewUserRole,
+        user_role: domain::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn find_user_role_by_user_id(
@@ -63,7 +63,7 @@ impl UserRoleInterface for Store {
     #[instrument(skip_all)]
     async fn insert_user_role(
         &self,
-        user_role: storage::NewUserRole,
+        user_role: domain::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
@@ -180,38 +180,51 @@ impl UserRoleInterface for Store {
 impl UserRoleInterface for MockDb {
     async fn insert_user_role(
         &self,
-        _user_role: storage::NewUserRole,
+        user_role_new: domain::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        // let mut user_roles = self.user_roles.lock().await;
-        // if user_roles
-        //     .iter()
-        //     .any(|user_role_inner| user_role_inner.user_id == user_role.user_id)
-        // {
-        //     Err(errors::StorageError::DuplicateValue {
-        //         entity: "user_id",
-        //         key: None,
-        //     })?
-        // }
-        // let user_role = storage::UserRole {
-        //     id: i32::try_from(user_roles.len())
-        //         .change_context(errors::StorageError::MockDbError)?,
-        //     user_id: user_role.user_id,
-        //     merchant_id: user_role.merchant_id,
-        //     role_id: user_role.role_id,
-        //     status: user_role.status,
-        //     created_by: user_role.created_by,
-        //     created_at: user_role.created_at,
-        //     last_modified: user_role.last_modified,
-        //     last_modified_by: user_role.last_modified_by,
-        //     org_id: user_role.org_id,
-        //     profile_id: None,
-        //     entity_id: None,
-        //     entity_type: None,
-        //     version: enums::UserRoleVersion::V1,
-        // };
-        // user_roles.push(user_role.clone());
-        // Ok(user_role)
-        todo!()
+        let mut user_roles = self.user_roles.lock().await;
+        let v1_role = user_role_new.clone().to_v1_role();
+
+        let user_role = storage::UserRole {
+            id: i32::try_from(user_roles.len())
+                .change_context(errors::StorageError::MockDbError)?,
+            user_id: v1_role.user_id,
+            merchant_id: v1_role.merchant_id,
+            role_id: v1_role.role_id,
+            status: v1_role.status,
+            created_by: v1_role.created_by,
+            created_at: v1_role.created_at,
+            last_modified: v1_role.last_modified,
+            last_modified_by: v1_role.last_modified_by,
+            org_id: v1_role.org_id,
+            profile_id: v1_role.profile_id,
+            entity_id: v1_role.entity_id,
+            entity_type: v1_role.entity_type,
+            version: v1_role.version,
+        };
+        user_roles.push(user_role);
+
+        let v2_role = user_role_new.to_v2_role();
+        let user_role = storage::UserRole {
+            id: i32::try_from(user_roles.len())
+                .change_context(errors::StorageError::MockDbError)?,
+            user_id: v2_role.user_id,
+            merchant_id: v2_role.merchant_id,
+            role_id: v2_role.role_id,
+            status: v2_role.status,
+            created_by: v2_role.created_by,
+            created_at: v2_role.created_at,
+            last_modified: v2_role.last_modified,
+            last_modified_by: v2_role.last_modified_by,
+            org_id: v2_role.org_id,
+            profile_id: v2_role.profile_id,
+            entity_id: v2_role.entity_id,
+            entity_type: v2_role.entity_type,
+            version: v2_role.version,
+        };
+        user_roles.push(user_role.clone());
+
+        Ok(user_role)
     }
 
     async fn find_user_role_by_user_id(
