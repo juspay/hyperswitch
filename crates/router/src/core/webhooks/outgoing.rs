@@ -484,29 +484,26 @@ async fn raise_webhooks_analytics_event(
         )
         .await
         .attach_printable_lazy(|| format!("event not found for id: {}", &event_id))
-        .map_err(|e| {
-            logger::error!("{:?}", e);
-            e
+        .map_err(|error| {
+            logger::error!(?error);
+            error
         })
         .ok();
 
     // Get status_code from webhook response
-    let status_code = if let Some(updated_event) = updated_event {
-        let webhook_response: Option<OutgoingWebhookResponseContent> = updated_event
-            .response
-            .map(|res| res.peek().to_owned())
-            .and_then(|res| {
-                res.parse_struct("OutgoingWebhookResponseContent")
-                    .map_err(|e| {
-                        logger::error!("Error deserializing webhook response: {:?}", e);
-                        e
+    let status_code = updated_event.and_then(|updated_event| {
+        let webhook_response: Option<OutgoingWebhookResponseContent> =
+            updated_event.response.and_then(|res| {
+                res.peek()
+                    .parse_struct("OutgoingWebhookResponseContent")
+                    .map_err(|error| {
+                        logger::error!(?error, "Error deserializing webhook response");
+                        error
                     })
                     .ok()
             });
         webhook_response.and_then(|res| res.status_code)
-    } else {
-        None
-    };
+    });
 
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
