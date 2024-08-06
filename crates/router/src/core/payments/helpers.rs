@@ -117,7 +117,7 @@ pub fn create_certificate(
 }
 
 pub fn filter_mca_based_on_profile_and_connector_type(
-    merchant_connector_accounts: &Vec<domain::MerchantConnectorAccount>,
+    merchant_connector_accounts: &[domain::MerchantConnectorAccount],
     profile_id: Option<&String>,
     connector_type: Option<&ConnectorType>,
 ) -> Vec<domain::MerchantConnectorAccount> {
