@@ -88,13 +88,13 @@ jobs:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true
@@ -165,13 +165,13 @@ jobs:
           components: clippy
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true
@@ -257,19 +257,19 @@ jobs:
           components: clippy
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: sccache
           checksum: true
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: cargo-nextest
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true

@@ -38,7 +38,7 @@ jobs:
           toolchain: stable
 
       - name: Install cocogitto
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: cocogitto@6.1.0
           checksum: true

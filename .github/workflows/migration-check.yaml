@@ -55,7 +55,7 @@ jobs:
           args: --no-default-features
 
       - name: Install just
-        uses: taiki-e/install-action@v2.41.10
+        uses: taiki-e/install-action@v2.42.18
         with:
           tool: just
           checksum: true
