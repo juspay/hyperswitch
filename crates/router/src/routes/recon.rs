@@ -50,7 +50,7 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         state,
         &http_req,
         (),
-        |state, user: UserFromToken, _req, _| send_recon_request(state, user, None),
+        |state, user: UserFromToken, _req, _| send_recon_request(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -64,7 +64,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         state,
         &req,
         (),
-        |state, user: ReconUser, _, _| generate_recon_token(state, user, None),
+        |state, user: ReconUser, _, _| generate_recon_token(state, user),
         &auth::ReconJWT,
         api_locking::LockAction::NotApplicable,
     ))
@@ -74,7 +74,6 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
 pub async fn send_recon_request(
     state: SessionState,
     user: UserFromToken,
-    _profile_id: Option<String>,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
@@ -237,7 +236,6 @@ pub async fn recon_merchant_account_update(
 pub async fn generate_recon_token(
     state: SessionState,
     req: ReconUser,
-    _profile_id: Option<String>,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
     let db = &*state.global_store;
     let user = db
