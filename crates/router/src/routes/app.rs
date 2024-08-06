@@ -1144,8 +1144,9 @@ impl MerchantConnectorAccount {
         {
             use super::admin::*;
 
-            route =
-                route.service(web::resource("").route(web::post().to(payment_connector_create)));
+            route = route
+                .service(web::resource("").route(web::post().to(payment_connector_create)))
+                .service(web::resource("/{id}").route(web::post().to(payment_connector_update)));
         }
         route
     }
@@ -1454,18 +1455,16 @@ impl BusinessProfile {
                             },
                         )),
                     )
-                    .service(
-                        web::resource("/deactivate_routing_algorithm").route(web::post().to(
-                            |state, req, path| {
-                                routing::routing_unlink_config(
-                                    state,
-                                    req,
-                                    path,
-                                    &TransactionType::Payment,
-                                )
-                            },
-                        )),
-                    ),
+                    .service(web::resource("/deactivate_routing_algorithm").route(
+                        web::patch().to(|state, req, path| {
+                            routing::routing_unlink_config(
+                                state,
+                                req,
+                                path,
+                                &TransactionType::Payment,
+                            )
+                        }),
+                    )),
             )
     }
 }
