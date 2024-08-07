@@ -9,7 +9,9 @@
     "cypress:ci": "npx cypress run --headless",
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/PaymentTest/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/PayoutTest/**/*'",
-    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'"
+    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'",
+    "generate:report": "npx mochawesome-merge \"cypress/reports/*.json\" > merged_report.json && npx marge merged_report.json --reportDir \"cypress/reports/merged_report\" --reportTitle \"Cypress Test Report\" && rm merged_report.json",
+    "cypress:ci_report": "npm run cypress:ci && npm run generate:report"
   },
   "author": "",
   "license": "ISC",
