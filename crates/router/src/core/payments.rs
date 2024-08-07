@@ -1510,19 +1510,20 @@ where
     )
     .await?;
 
-    let merchant_recipient_data = if let Some(true) = payment_data.is_payment_processor_token_flow {
-        None
-    } else {
-        payment_data
-            .get_merchant_recipient_data(
-                state,
-                merchant_account,
-                key_store,
-                &merchant_connector_account,
-                &connector,
-            )
-            .await?
-    };
+    let merchant_recipient_data =
+        if let Some(true) = payment_data.payment_intent.is_payment_processor_token_flow {
+            None
+        } else {
+            payment_data
+                .get_merchant_recipient_data(
+                    state,
+                    merchant_account,
+                    key_store,
+                    &merchant_connector_account,
+                    &connector,
+                )
+                .await?
+        };
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -2720,7 +2721,6 @@ where
     pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
-    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

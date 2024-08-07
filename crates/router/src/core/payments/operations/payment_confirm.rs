@@ -696,7 +696,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
-            is_payment_processor_token_flow: Some(mandate_id.is_some()),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1305,7 +1304,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
         let key_manager_state = state.into();
-        let is_payment_processor_token_flow = payment_data.is_payment_processor_token_flow;
+        let is_payment_processor_token_flow =
+            payment_data.payment_intent.is_payment_processor_token_flow;
 
         let payment_intent_fut = tokio::spawn(
             async move {
