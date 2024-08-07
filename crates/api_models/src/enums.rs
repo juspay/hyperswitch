@@ -303,36 +303,6 @@ impl Connector {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthenticationConnectors {
-    Threedsecureio,
-    Netcetera,
-    Gpayments,
-}
-
-impl AuthenticationConnectors {
-    pub fn is_separate_version_call_required(&self) -> bool {
-        match self {
-            Self::Threedsecureio | Self::Netcetera => false,
-            Self::Gpayments => true,
-        }
-    }
-}
-
 #[cfg(feature = "payouts")]
 #[derive(
     Clone,

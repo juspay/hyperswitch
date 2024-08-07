@@ -4,7 +4,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    id_type,
+    id_type, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{address::AddressUpdateInternal, enums};
@@ -188,13 +188,17 @@ impl behaviour::Conversion for Address {
         _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let identifier = Identifier::Merchant(other.merchant_id.clone());
-        let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::batch_decrypt(
+        let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::crypto_operation(
             state,
-            diesel_models::Address::to_encryptable(other.clone()),
+            type_name!(Self::DstType),
+            types::CryptoOperation::BatchDecrypt(diesel_models::Address::to_encryptable(
+                other.clone(),
+            )),
             identifier.clone(),
             key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting".to_string(),
         })?;

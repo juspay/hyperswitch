@@ -6,7 +6,9 @@
 use std::fmt::Display;
 
 use crate::{
-    date_time, generate_id_with_default_len,
+    date_time,
+    errors::{CustomResult, ValidationError},
+    generate_id_with_default_len,
     id_type::{AlphaNumericId, LengthId},
     new_type::MerchantName,
     types::keymanager,
@@ -79,6 +81,11 @@ impl MerchantId {
         let alphanumeric_id = AlphaNumericId::new_unchecked("irrelevant_merchant_id".to_string());
         let length_id = LengthId::new_unchecked(alphanumeric_id);
         Self(length_id)
+    }
+
+    /// Get a merchant id from String
+    pub fn wrap(merchant_id: String) -> CustomResult<Self, ValidationError> {
+        Self::try_from(std::borrow::Cow::from(merchant_id))
     }
 }
 

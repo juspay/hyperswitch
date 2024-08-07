@@ -266,7 +266,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -302,7 +302,7 @@ export const connectorDetails = {
         },
       },
     },
-    giropay: {
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -341,7 +341,7 @@ export const connectorDetails = {
         },
       },
     },
-    sofort: {
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -378,7 +378,7 @@ export const connectorDetails = {
         },
       },
     },
-    eps: {
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
