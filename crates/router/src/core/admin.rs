@@ -48,7 +48,7 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage::{self, enums::MerchantStorageScheme},
-        transformers::{ForeignTryFrom, ForeignTryInto},
+        transformers::{ForeignInto, ForeignTryFrom, ForeignTryInto},
     },
     utils,
 };
@@ -291,11 +291,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        let webhook_details = self.get_webhook_details_as_value().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "webhook details",
-            },
-        )?;
+        let webhook_details = self.webhook_details.clone().map(ForeignInto::foreign_into);
 
         let pm_collect_link_config = self.get_pm_link_config_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
@@ -886,11 +882,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             },
         )?;
 
-        let webhook_details = self.get_webhook_details_as_value().change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "webhook_details",
-            },
-        )?;
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
 
         let parent_merchant_id = get_parent_merchant(
             state,
@@ -3410,17 +3402,7 @@ pub async fn update_business_profile(
         helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
     }
 
-    let webhook_details = request
-        .webhook_details
-        .as_ref()
-        .map(|webhook_details| {
-            webhook_details.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "webhook details",
-                },
-            )
-        })
-        .transpose()?;
+    let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
         let _: api_models::routing::RoutingAlgorithm = routing_algorithm
@@ -3434,13 +3416,8 @@ pub async fn update_business_profile(
 
     let payment_link_config = request
         .payment_link_config
-        .as_ref()
         .map(|payment_link_conf| match payment_link_conf.validate() {
-            Ok(_) => payment_link_conf.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                },
-            ),
+            Ok(_) => Ok(payment_link_conf.foreign_into()),
             Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: e.to_string()
             })),
@@ -3469,56 +3446,48 @@ pub async fn update_business_profile(
 
     let payout_link_config = request
         .payout_link_config
-        .as_ref()
         .map(|payout_conf| match payout_conf.config.validate() {
-            Ok(_) => payout_conf.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payout_link_config",
-                },
-            ),
+            Ok(_) => Ok(payout_conf.foreign_into()),
             Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: e.to_string()
             })),
         })
         .transpose()?;
 
-    let business_profile_update = storage::business_profile::BusinessProfileUpdate::Update {
-        profile_name: request.profile_name,
-        return_url: request.return_url.map(|return_url| return_url.to_string()),
-        enable_payment_response_hash: request.enable_payment_response_hash,
-        payment_response_hash_key: request.payment_response_hash_key,
-        redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
-        webhook_details,
-        metadata: request.metadata,
-        routing_algorithm: request.routing_algorithm,
-        intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
-        frm_routing_algorithm: request.frm_routing_algorithm,
-        #[cfg(feature = "payouts")]
-        payout_routing_algorithm: request.payout_routing_algorithm,
-        #[cfg(not(feature = "payouts"))]
-        payout_routing_algorithm: None,
-        is_recon_enabled: None,
-        applepay_verified_domains: request.applepay_verified_domains,
-        payment_link_config,
-        session_expiry: request.session_expiry.map(i64::from),
-        authentication_connector_details: request
-            .authentication_connector_details
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "authentication_connector_details",
-            })?,
-        payout_link_config,
-        extended_card_info_config,
-        use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
-        collect_shipping_details_from_wallet_connector: request
-            .collect_shipping_details_from_wallet_connector,
-        collect_billing_details_from_wallet_connector: request
-            .collect_billing_details_from_wallet_connector,
-        is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-        outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
-    };
+    let business_profile_update =
+        storage::BusinessProfileUpdate::Update(Box::new(storage::BusinessProfileGeneralUpdate {
+            profile_name: request.profile_name,
+            return_url: request.return_url.map(|return_url| return_url.to_string()),
+            enable_payment_response_hash: request.enable_payment_response_hash,
+            payment_response_hash_key: request.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
+            webhook_details,
+            metadata: request.metadata,
+            routing_algorithm: request.routing_algorithm,
+            intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
+            frm_routing_algorithm: request.frm_routing_algorithm,
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: request.payout_routing_algorithm,
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
+            is_recon_enabled: None,
+            applepay_verified_domains: request.applepay_verified_domains,
+            payment_link_config,
+            session_expiry: request.session_expiry.map(i64::from),
+            authentication_connector_details: request
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config,
+            extended_card_info_config,
+            use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
+            collect_shipping_details_from_wallet_connector: request
+                .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: request
+                .collect_billing_details_from_wallet_connector,
+            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
+            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                .map(Into::into),
+        }));
 
     let updated_business_profile = db
         .update_business_profile_by_profile_id(business_profile, business_profile_update)

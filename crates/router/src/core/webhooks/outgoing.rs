@@ -541,16 +541,11 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
 fn get_webhook_url_from_business_profile(
     business_profile: &diesel_models::business_profile::BusinessProfile,
 ) -> CustomResult<String, errors::WebhooksFlowError> {
-    let webhook_details_json = business_profile
+    let webhook_details = business_profile
         .webhook_details
         .clone()
         .get_required_value("webhook_details")
         .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-
-    let webhook_details: api::WebhookDetails =
-        webhook_details_json
-            .parse_value("WebhookDetails")
-            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
     webhook_details
         .webhook_url

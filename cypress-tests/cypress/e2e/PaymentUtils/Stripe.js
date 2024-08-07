@@ -527,7 +527,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -563,7 +563,7 @@ export const connectorDetails = {
         },
       },
     },
-    giropay: {
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -600,7 +600,7 @@ export const connectorDetails = {
         },
       },
     },
-    sofort: {
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -634,7 +634,7 @@ export const connectorDetails = {
         },
       },
     },
-    eps: {
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -670,7 +670,7 @@ export const connectorDetails = {
         },
       },
     },
-    blik: {
+    Blik: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
@@ -690,7 +690,7 @@ export const connectorDetails = {
         },
       },
     },
-    przelewy24: {
+    Przelewy24: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "przelewy24",
