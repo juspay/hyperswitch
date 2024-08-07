@@ -16,7 +16,6 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use indexmap::IndexMap;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
@@ -571,15 +570,7 @@ pub fn get_payment_link_config_based_on_priority(
             (default_domain_name, None, None)
         };
 
-    let (
-        theme,
-        logo,
-        seller_name,
-        sdk_layout,
-        display_sdk_only,
-        enabled_saved_payment_method,
-        merchant_details,
-    ) = get_payment_link_config_value!(
+    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
         (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
@@ -590,8 +581,7 @@ pub fn get_payment_link_config_based_on_priority(
         (
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
-        ),
-        (merchant_details, IndexMap::new())
+        )
     );
 
     let payment_link_config = PaymentLinkConfig {
@@ -602,11 +592,18 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         allowed_domains,
-        merchant_details: serde_json::to_string(&merchant_details)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
-            })
-            .ok(),
+        merchant_details: payment_create_link_config.and_then(|payment_link_config| {
+            payment_link_config
+                .theme_config
+                .merchant_details
+                .and_then(|merchant_details| {
+                    serde_json::to_string(&merchant_details)
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "merchant_details",
+                        })
+                        .ok()
+                })
+        }),
     };
 
     Ok((payment_link_config, domain_name))

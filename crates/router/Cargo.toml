@@ -73,7 +73,6 @@ hex = "0.4.3"
 http = "0.2.12"
 hyper = "0.14.28"
 image = { version = "0.25.1", default-features = false, features = ["png"] }
-indexmap = "2.3.0"
 infer = "0.15.0"
 iso_currency = "0.4.4"
 isocountry = "0.3.2"
