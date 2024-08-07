@@ -1,9 +1,9 @@
 use common_utils::id_type;
 use diesel_models::{enums, user_role as storage};
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
-use super::{domain, MockDb};
+use super::MockDb;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -14,7 +14,7 @@ use crate::{
 pub trait UserRoleInterface {
     async fn insert_user_role(
         &self,
-        user_role: domain::NewUserRole,
+        user_role: storage::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
     async fn find_user_role_by_user_id(
@@ -63,7 +63,7 @@ impl UserRoleInterface for Store {
     #[instrument(skip_all)]
     async fn insert_user_role(
         &self,
-        user_role: domain::NewUserRole,
+        user_role: storage::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
@@ -180,7 +180,7 @@ impl UserRoleInterface for Store {
 impl UserRoleInterface for MockDb {
     async fn insert_user_role(
         &self,
-        user_role_new: domain::NewUserRole,
+        user_role: storage::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
         let v1_role = user_role_new.clone().to_v1_role();
