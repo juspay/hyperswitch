@@ -5380,7 +5380,6 @@ pub struct PaymentLinkInitiateRequest {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     pub payment_id: String,
-    pub locale: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]

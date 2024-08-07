@@ -1243,15 +1243,16 @@ async fn create_payment_link(
         domain_name,
         merchant_id.get_string_repr(),
         payment_id.clone(),
-        locale_str,
+        locale_str.clone(),
     );
 
     let secure_link = payment_link_config.allowed_domains.as_ref().map(|_| {
         format!(
-            "{}/payment_link/s/{}/{}",
+            "{}/payment_link/s/{}/{}?locale={}",
             domain_name,
             merchant_id.get_string_repr(),
-            payment_id.clone()
+            payment_id.clone(),
+            locale_str,
         )
     });
 

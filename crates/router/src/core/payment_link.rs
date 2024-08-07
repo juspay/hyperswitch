@@ -365,8 +365,22 @@ pub async fn initiate_payment_link_flow(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
-    locale: Option<String>,
+    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
+    let locale = request_headers
+        .get(header::ACCEPT_LANGUAGE)
+        .map(|value| {
+            value.to_str().map(|str| str.to_owned()).map_err(|err| {
+                logger::warn!(
+                    "Could not convert accept-language header to string: {}",
+                    err
+                );
+                err
+            })
+        })
+        .transpose()
+        .ok()
+        .flatten();
     let (_, payment_details, payment_link_config) = form_payment_link_data(
         &state,
         merchant_account,
@@ -608,7 +622,6 @@ pub fn get_payment_link_config_based_on_priority(
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         )
     );
-
     let payment_link_config = PaymentLinkConfig {
         theme,
         logo,
@@ -618,6 +631,7 @@ pub fn get_payment_link_config_based_on_priority(
         enabled_saved_payment_method,
         allowed_domains,
     };
+    router_env::logger::debug!("payment_link_config : {:?}", payment_link_config.clone());
 
     Ok((payment_link_config, domain_name))
 }
@@ -648,8 +662,22 @@ pub async fn get_payment_link_status(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
-    locale: Option<String>,
+    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
+    let locale = request_headers
+        .get(header::ACCEPT_LANGUAGE)
+        .map(|value| {
+            value.to_str().map(|str| str.to_owned()).map_err(|err| {
+                logger::warn!(
+                    "Could not convert accept-language header to string: {}",
+                    err
+                );
+                err
+            })
+        })
+        .transpose()
+        .ok()
+        .flatten();
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(

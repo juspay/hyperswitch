@@ -14035,10 +14035,6 @@
           },
           "payment_id": {
             "type": "string"
-          },
-          "locale": {
-            "type": "string",
-            "nullable": true
           }
         }
       },

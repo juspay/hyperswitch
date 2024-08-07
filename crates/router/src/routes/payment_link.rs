@@ -1,4 +1,4 @@
-use actix_web::{http::header::ACCEPT_LANGUAGE, web, Responder};
+use actix_web::{web, Responder};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -58,27 +58,12 @@ pub async fn initiate_payment_link(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
-    let locale = req
-        .headers()
-        .get(ACCEPT_LANGUAGE)
-        .map(|value| {
-            value.to_str().map(|str| str.to_owned()).map_err(|err| {
-                router_env::logger::warn!(
-                    "Could not convert accept-language header to string: {}",
-                    err
-                );
-                err
-            })
-        })
-        .transpose()
-        .ok()
-        .flatten();
 
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
-        locale,
     };
+    let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -91,7 +76,7 @@ pub async fn initiate_payment_link(
                 auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
-                payload.locale.clone(),
+                headers,
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
@@ -110,7 +95,6 @@ pub async fn initiate_secure_payment_link(
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
-        locale: None,
     };
     let headers = req.headers();
     Box::pin(api::server_wrap(
@@ -184,27 +168,12 @@ pub async fn payment_link_status(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkStatus;
     let (merchant_id, payment_id) = path.into_inner();
-    let locale = req
-        .headers()
-        .get(ACCEPT_LANGUAGE)
-        .map(|value| {
-            value.to_str().map(|str| str.to_owned()).map_err(|err| {
-                router_env::logger::warn!(
-                    "Could not convert accept-language header to string: {}",
-                    err
-                );
-                err
-            })
-        })
-        .transpose()
-        .ok()
-        .flatten();
 
     let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
-        locale,
     };
+    let headers = req.headers();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -217,7 +186,7 @@ pub async fn payment_link_status(
                 auth.key_store,
                 payload.merchant_id.clone(),
                 payload.payment_id.clone(),
-                payload.locale.clone(),
+                headers,
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
