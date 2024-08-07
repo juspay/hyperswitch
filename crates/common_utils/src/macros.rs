@@ -301,3 +301,14 @@ mod id_type {
         };
     }
 }
+
+/// Get the type name for a type
+#[macro_export]
+macro_rules! type_name {
+    ($type:ty) => {
+        std::any::type_name::<$type>()
+            .rsplit("::")
+            .nth(1)
+            .unwrap_or_default();
+    };
+}

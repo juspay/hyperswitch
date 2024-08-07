@@ -178,7 +178,7 @@ where
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    async fn find_by_merchant_connector_account_id(
+    async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
         id: &str,
@@ -439,7 +439,7 @@ impl MerchantConnectorAccountInterface for Store {
 
     #[instrument(skip_all)]
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    async fn find_by_merchant_connector_account_id(
+    async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
         id: &str,
@@ -1106,7 +1106,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    async fn find_by_merchant_connector_account_id(
+    async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
         id: &str,
@@ -1420,7 +1420,7 @@ mod merchant_connector_account_cache_tests {
         not(feature = "merchant_connector_account_v2")
     ))]
     use api_models::enums::CountryAlpha2;
-    use common_utils::{date_time, types::keymanager::Identifier};
+    use common_utils::{date_time, type_name, types::keymanager::Identifier};
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
     use masking::PeekInterface;
@@ -1493,13 +1493,17 @@ mod merchant_connector_account_cache_tests {
             key_manager_state,
             domain::MerchantKeyStore {
                 merchant_id: merchant_id.clone(),
-                key: domain::types::encrypt(
+                key: domain::types::crypto_operation(
                     key_manager_state,
-                    services::generate_aes256_key().unwrap().to_vec().into(),
+                    type_name!(domain::MerchantKeyStore),
+                    domain::types::CryptoOperation::Encrypt(
+                        services::generate_aes256_key().unwrap().to_vec().into(),
+                    ),
                     Identifier::Merchant(merchant_id.clone()),
                     master_key,
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .unwrap(),
                 created_at: datetime!(2023-02-01 0:00),
             },
@@ -1520,13 +1524,15 @@ mod merchant_connector_account_cache_tests {
         let mca = domain::MerchantConnectorAccount {
             merchant_id: merchant_id.to_owned(),
             connector_name: "stripe".to_string(),
-            connector_account_details: domain::types::encrypt(
+            connector_account_details: domain::types::crypto_operation(
                 key_manager_state,
-                serde_json::Value::default().into(),
+                type_name!(domain::MerchantConnectorAccount),
+                domain::types::CryptoOperation::Encrypt(serde_json::Value::default().into()),
                 Identifier::Merchant(merchant_key.merchant_id.clone()),
                 merchant_key.key.get_inner().peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .unwrap(),
             test_mode: None,
             disabled: None,
@@ -1547,13 +1553,15 @@ mod merchant_connector_account_cache_tests {
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
             connector_wallets_details: Some(
-                domain::types::encrypt(
+                domain::types::crypto_operation(
                     key_manager_state,
-                    serde_json::Value::default().into(),
+                    type_name!(domain::MerchantConnectorAccount),
+                    domain::types::CryptoOperation::Encrypt(serde_json::Value::default().into()),
                     Identifier::Merchant(merchant_key.merchant_id.clone()),
                     merchant_key.key.get_inner().peek(),
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .unwrap(),
             ),
             additional_merchant_data: None,
@@ -1653,13 +1661,17 @@ mod merchant_connector_account_cache_tests {
             key_manager_state,
             domain::MerchantKeyStore {
                 merchant_id: merchant_id.clone(),
-                key: domain::types::encrypt(
+                key: domain::types::crypto_operation(
                     key_manager_state,
-                    services::generate_aes256_key().unwrap().to_vec().into(),
+                    type_name!(domain::MerchantConnectorAccount),
+                    domain::types::CryptoOperation::Encrypt(
+                        services::generate_aes256_key().unwrap().to_vec().into(),
+                    ),
                     Identifier::Merchant(merchant_id.clone()),
                     master_key,
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .unwrap(),
                 created_at: datetime!(2023-02-01 0:00),
             },
@@ -1681,13 +1693,15 @@ mod merchant_connector_account_cache_tests {
             id: id.to_string(),
             merchant_id: merchant_id.clone(),
             connector_name: "stripe".to_string(),
-            connector_account_details: domain::types::encrypt(
+            connector_account_details: domain::types::crypto_operation(
                 key_manager_state,
-                serde_json::Value::default().into(),
+                type_name!(domain::MerchantConnectorAccount),
+                domain::types::CryptoOperation::Encrypt(serde_json::Value::default().into()),
                 Identifier::Merchant(merchant_key.merchant_id.clone()),
                 merchant_key.key.get_inner().peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .unwrap(),
             disabled: None,
             payment_methods_enabled: None,
@@ -1703,13 +1717,15 @@ mod merchant_connector_account_cache_tests {
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
             connector_wallets_details: Some(
-                domain::types::encrypt(
+                domain::types::crypto_operation(
                     key_manager_state,
-                    serde_json::Value::default().into(),
+                    type_name!(domain::MerchantConnectorAccount),
+                    domain::types::CryptoOperation::Encrypt(serde_json::Value::default().into()),
                     Identifier::Merchant(merchant_key.merchant_id.clone()),
                     merchant_key.key.get_inner().peek(),
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .unwrap(),
             ),
             additional_merchant_data: None,
