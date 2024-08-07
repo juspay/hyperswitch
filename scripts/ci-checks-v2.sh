@@ -16,13 +16,9 @@ packages_skipped=()
 all_commands=()
 
 # Function to get defined features for a crate
-get_defined_features() {
-  local crate_path=$1
-  cargo metadata --format-version 1 > metadata.json
-  jq -r --arg crate_name "$crate_path" '
-    .packages[] |
-    select(.name == $crate_name) |
-    .features | keys[]' metadata.json
+features_to_run() {
+  local crate_name=$1
+  cargo metadata --format-version 1 --no-deps | jq --raw-output --arg crate_name "${crate_name}" --arg v2_features "${v2_feature_set}" '[ .packages[] | select(.name == $crate_name) | .features | keys[] | select( IN( .; ( $v2_features | split(",") )[] ) ) ] | join(",")'
   rm metadata.json
 }
 
@@ -45,8 +41,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
       if [[ "${package_name}" == "storage_impl" ]]; then
         all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2' -p storage_impl")
       else
-        defined_features=$(get_defined_features "$package_name")
-        valid_features=$(echo "$v2_feature_set" | tr ',' '\n' | grep -Fxf <(echo "$defined_features") | tr '\n' ',' | sed 's/,$//')
+        valid_features=$(features_to_run "$package_name")
         all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${valid_features}' --package '${package_name}'")
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
@@ -65,8 +60,7 @@ else
   while IFS= read -r crate; do
     if [[ "${crate}" != "storage_impl" ]]; then
       crates_to_include=""
-      defined_features=$(get_defined_features "$crate")
-      valid_features=$(echo "$v2_feature_set" | tr ',' '\n' | grep -Fxf <(echo "$defined_features") | tr '\n' ',' | sed 's/,$//')
+      valid_features=$(features_to_run "$crate")
       crates_to_include+="--include-features '${valid_features}' --package '${crate}' "
       all_commands+=("${common_command} ${crates_to_include}")
     fi
