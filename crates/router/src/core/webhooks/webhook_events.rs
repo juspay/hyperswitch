@@ -15,7 +15,7 @@ const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
 #[derive(Debug)]
 enum MerchantAccountOrBusinessProfile {
     MerchantAccount(domain::MerchantAccount),
-    BusinessProfile(storage::BusinessProfile),
+    BusinessProfile(domain::BusinessProfile),
 }
 
 #[instrument(skip(state))]
@@ -186,7 +186,11 @@ pub async fn retry_delivery_attempt(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to read business profile ID from event to retry")?;
             store
-                .find_business_profile_by_profile_id(&business_profile_id)
+                .find_business_profile_by_profile_id(
+                    key_manager_state,
+                    &key_store,
+                    &business_profile_id,
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to find business profile")

@@ -1011,18 +1011,18 @@ pub async fn merchant_account_transfer_keys(
 pub async fn toggle_extended_card_info(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
     json_payload: web::Json<api_models::admin::ExtendedCardInfoChoice>,
 ) -> HttpResponse {
     let flow = Flow::ToggleExtendedCardInfo;
-    let (_, profile_id) = path.into_inner();
+    let (merchant_id, profile_id) = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| extended_card_info_toggle(state, &profile_id, req),
+        |state, _, req, _| extended_card_info_toggle(state, &merchant_id, &profile_id, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
