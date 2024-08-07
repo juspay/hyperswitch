@@ -2335,16 +2335,12 @@ pub async fn list_payment_methods(
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            crate::core::utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
+            payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")
         })
         .await
         .transpose()?;
@@ -2667,7 +2663,7 @@ pub async fn list_payment_methods(
                     for inner_config in config.enabled_payment_methods.iter() {
                         let is_active_mca = all_mcas
                             .iter()
-                            .any(|mca| mca.merchant_connector_id == inner_config.mca_id);
+                            .any(|mca| mca.get_id() == inner_config.mca_id);
 
                         if inner_config.payment_method_type == *payment_method_type && is_active_mca
                         {
@@ -3738,16 +3734,12 @@ pub async fn list_customer_payment_method(
     let profile_id = payment_intent
         .as_ref()
         .async_map(|payment_intent| async {
-            core_utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                &merchant_account,
-                payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")
+            payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")
         })
         .await
         .transpose()?;
@@ -4694,6 +4686,7 @@ where
 pub async fn list_countries_currencies_for_connector_payment_method(
     state: routes::SessionState,
     req: ListCountriesCurrenciesRequest,
+    _profile_id: Option<String>,
 ) -> errors::RouterResponse<ListCountriesCurrenciesResponse> {
     Ok(services::ApplicationResponse::Json(
         list_countries_currencies_for_connector_payment_method_util(

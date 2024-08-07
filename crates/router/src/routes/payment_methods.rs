@@ -510,8 +510,12 @@ pub async fn list_countries_currencies_for_connector_payment_method(
         state,
         &req,
         payload,
-        |state, _auth: auth::AuthenticationData, req, _| {
-            cards::list_countries_currencies_for_connector_payment_method(state, req)
+        |state, auth: auth::AuthenticationData, req, _| {
+            cards::list_countries_currencies_for_connector_payment_method(
+                state,
+                req,
+                auth.profile_id,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
