@@ -482,7 +482,7 @@ pub async fn payouts_update_core(
 pub async fn payouts_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -493,7 +493,10 @@ pub async fn payouts_retrieve_core(
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
     )
     .await?;
-
+    core_utils::validate_profile_id_from_auth_layer(
+        profile_id.as_ref(),
+        Some(&payout_data.profile_id),
+    )?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 

@@ -2760,7 +2760,7 @@ async fn validate_pm_auth(
 pub async fn retrieve_payment_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -2794,6 +2794,7 @@ pub async fn retrieve_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.clone(),
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), mca.profile_id.as_ref())?;
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     let mca: domain::MerchantConnectorAccount = {
@@ -2809,7 +2810,7 @@ pub async fn retrieve_payment_connector(
 pub async fn list_payment_connectors(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -2837,6 +2838,10 @@ pub async fn list_payment_connectors(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+    let merchant_connector_accounts = core_utils::filter_objects_based_on_profile_id_list(
+        profile_id_list,
+        merchant_connector_accounts,
+    );
     let mut response = vec![];
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
@@ -2850,7 +2855,7 @@ pub async fn list_payment_connectors(
 pub async fn update_payment_connector(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
@@ -2880,6 +2885,7 @@ pub async fn update_payment_connector(
             key_manager_state,
         )
         .await?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), mca.profile_id.as_ref())?;
 
     let payment_connector = req
         .clone()

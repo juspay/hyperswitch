@@ -103,6 +103,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
+    profile_id_from_auth_layer: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -161,6 +162,11 @@ where
             header_payload.payment_confirm_source,
         )
         .await?;
+
+    utils::validate_profile_id_from_auth_layer(
+        payment_data.payment_intent.profile_id.as_ref(),
+        profile_id_from_auth_layer.as_ref(),
+    )?;
 
     let (operation, customer) = operation
         .to_domain()?
@@ -788,7 +794,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -825,6 +831,7 @@ where
             &state,
             req_state,
             merchant_account,
+            profile_id,
             key_store,
             operation.clone(),
             req,
@@ -2866,7 +2873,7 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
@@ -2883,6 +2890,8 @@ pub async fn list_payments(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_intents =
+        utils::filter_objects_based_on_profile_id_list(profile_id_list, payment_intents);
 
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
@@ -2939,7 +2948,7 @@ pub async fn list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
@@ -2956,7 +2965,7 @@ pub async fn apply_filters_on_payments(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
+    let list = utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
