@@ -1525,6 +1525,20 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
         .transpose()
 }
 
+pub fn try_get_header_value_by_key(key: String, headers: &HeaderMap) -> Option<String> {
+    headers
+        .get(key.clone())
+        .map(|value| {
+            value.to_str().map(|str| str.to_owned()).map_err(|err| {
+                logger::warn!("Could not convert {} header to string: {}", key, err);
+                err
+            })
+        })
+        .transpose()
+        .ok()
+        .flatten()
+}
+
 pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {
     headers
         .get(crate::headers::AUTHORIZATION)
