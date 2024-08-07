@@ -1,10 +1,10 @@
 use common_utils::{
     crypto::Encryptable,
-    date_time,
+    date_time, type_name,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::type_encryption::decrypt;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
@@ -41,11 +41,18 @@ impl super::behaviour::Conversion for UserKeyStore {
     {
         let identifier = Identifier::User(item.user_id.clone());
         Ok(Self {
-            key: decrypt(state, item.key, identifier, key.peek())
-                .await
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
+            key: crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::Decrypt(item.key),
+                identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_operation())
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?,
             user_id: item.user_id,
             created_at: item.created_at,
         })
