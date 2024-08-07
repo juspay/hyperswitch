@@ -2479,7 +2479,7 @@ pub async fn list_payment_methods(
             if wallet_pm_exists {
                 match db
                     .find_payment_method_by_customer_id_merchant_id_list(
-                        &customer.customer_id,
+                       &customer.get_customer_id(),
                        merchant_account.get_id(),
                         None,
                     )
@@ -4814,7 +4814,7 @@ pub async fn set_default_payment_method(
         default_payment_method_id: Some(Some(payment_method_id.to_owned())),
     };
 
-    let customer_id = customer.customer_id.clone();
+    let customer_id = customer.get_customer_id().clone();
 
     // update the db with the default payment method id
     let updated_customer_details = db
