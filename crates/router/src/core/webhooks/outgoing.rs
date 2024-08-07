@@ -7,11 +7,12 @@ use api_models::{
 use common_utils::{
     ext_traits::{Encode, StringExt},
     request::RequestContent,
+    type_name,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::type_encryption::decrypt_optional;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
@@ -36,7 +37,7 @@ use crate::{
     services,
     types::{
         api,
-        domain::{self, types as domain_types},
+        domain::{self},
         storage::{self, enums},
         transformers::ForeignFrom,
     },
@@ -117,17 +118,21 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
         request: Some(
-            domain_types::encrypt(
+            crypto_operation(
                 key_manager_state,
-                request_content
-                    .encode_to_string_of_json()
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("Failed to encode outgoing webhook request content")
-                    .map(Secret::new)?,
+                type_name!(domain::Event),
+                CryptoOperation::Encrypt(
+                    request_content
+                        .encode_to_string_of_json()
+                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                        .attach_printable("Failed to encode outgoing webhook request content")
+                        .map(Secret::new)?,
+                ),
                 Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                 merchant_key_store.key.get_inner().peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to encrypt outgoing webhook request content")?,
         ),
@@ -586,16 +591,11 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
 fn get_webhook_url_from_business_profile(
     business_profile: &diesel_models::business_profile::BusinessProfile,
 ) -> CustomResult<String, errors::WebhooksFlowError> {
-    let webhook_details_json = business_profile
+    let webhook_details = business_profile
         .webhook_details
         .clone()
         .get_required_value("webhook_details")
         .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
-
-    let webhook_details: api::WebhookDetails =
-        webhook_details_json
-            .parse_value("WebhookDetails")
-            .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
     webhook_details
         .webhook_url
@@ -625,15 +625,19 @@ pub(crate) async fn get_outgoing_webhook_request(
 
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
-        let custom_headers = decrypt_optional::<serde_json::Value, masking::WithType>(
+        let custom_headers = crypto_operation::<serde_json::Value, masking::WithType>(
             &state.into(),
-            business_profile
-                .outgoing_webhook_custom_http_headers
-                .clone(),
+            type_name!(domain::Event),
+            CryptoOperation::DecryptOptional(
+                business_profile
+                    .outgoing_webhook_custom_http_headers
+                    .clone(),
+            ),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key_store.key.get_inner().peek(),
         )
         .await
+        .and_then(|val| val.try_into_optionaloperation())
         .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
         .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
         .map(|decrypted_value| {
@@ -715,18 +719,22 @@ async fn update_event_if_client_error(
     let event_update = domain::EventUpdate::UpdateResponse {
         is_webhook_notified,
         response: Some(
-            domain_types::encrypt(
+            crypto_operation(
                 key_manager_state,
-                response_to_store
-                    .encode_to_string_of_json()
-                    .change_context(
-                        errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
-                    )
-                    .map(Secret::new)?,
+                type_name!(domain::Event),
+                CryptoOperation::Encrypt(
+                    response_to_store
+                        .encode_to_string_of_json()
+                        .change_context(
+                            errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
+                        )
+                        .map(Secret::new)?,
+                ),
                 Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                 merchant_key_store.key.get_inner().peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
             .attach_printable("Failed to encrypt outgoing webhook response content")?,
         ),
@@ -833,18 +841,22 @@ async fn update_event_in_storage(
     let event_update = domain::EventUpdate::UpdateResponse {
         is_webhook_notified,
         response: Some(
-            domain_types::encrypt(
+            crypto_operation(
                 key_manager_state,
-                response_to_store
-                    .encode_to_string_of_json()
-                    .change_context(
-                        errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
-                    )
-                    .map(Secret::new)?,
+                type_name!(domain::Event),
+                CryptoOperation::Encrypt(
+                    response_to_store
+                        .encode_to_string_of_json()
+                        .change_context(
+                            errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
+                        )
+                        .map(Secret::new)?,
+                ),
                 Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                 merchant_key_store.key.get_inner().peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
             .attach_printable("Failed to encrypt outgoing webhook response content")?,
         ),

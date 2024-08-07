@@ -1,10 +1,14 @@
 pub mod types;
-
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use api_models::payments as payment_types;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     compatibility::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
@@ -16,6 +20,7 @@ use crate::{
     types::api as api_types,
 };
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn setup_intents_create(
     state: web::Data<routes::AppState>,
@@ -79,6 +84,8 @@ pub async fn setup_intents_create(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
@@ -140,6 +147,8 @@ pub async fn setup_intents_retrieve(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
@@ -213,6 +222,8 @@ pub async fn setup_intents_update(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
