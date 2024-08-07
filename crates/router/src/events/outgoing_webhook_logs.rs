@@ -92,6 +92,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
 }
 
 impl OutgoingWebhookEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         merchant_id: common_utils::id_type::MerchantId,
         event_id: String,
