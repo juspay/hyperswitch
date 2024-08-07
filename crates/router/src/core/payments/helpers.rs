@@ -1,7 +1,8 @@
 use std::{borrow::Cow, str::FromStr};
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
-    customers::CustomerRequestWithEmail,
     mandates::RecurringDetails,
     payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
 };
@@ -20,10 +21,12 @@ use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_method_data::GetPaymentMethodType,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
@@ -52,7 +55,7 @@ use crate::{
         mandate::helpers::MandateGenericData,
         payment_methods::{
             self,
-            cards::{self, create_encrypted_data},
+            cards::{self},
             vault,
         },
         payments,
@@ -67,9 +70,7 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{
-            self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
-        },
+        storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
         MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
@@ -80,6 +81,10 @@ use crate::{
         crypto::{self, SignMessage},
         OptionExt, StringExt,
     },
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
 pub fn create_identity_from_certificate_and_key(
@@ -1535,6 +1540,22 @@ pub async fn get_connector_default(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
+pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+    _state: &SessionState,
+    _operation: BoxedOperation<'a, F, R>,
+    _payment_data: &mut PaymentData<F>,
+    _req: Option<CustomerDetails>,
+    _merchant_id: &id_type::MerchantId,
+    _key_store: &domain::MerchantKeyStore,
+    _storage_scheme: common_enums::enums::MerchantStorageScheme,
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
@@ -1690,6 +1711,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
+                        version: common_enums::ApiVersion::V1,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
