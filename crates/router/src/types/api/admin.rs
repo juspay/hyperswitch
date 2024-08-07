@@ -11,13 +11,9 @@ pub use api_models::{
     },
     organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
-use common_utils::{
-    ext_traits::{AsyncExt, Encode, ValueExt},
-    type_name,
-    types::keymanager::Identifier,
-};
+use common_utils::{ext_traits::ValueExt, type_name, types::keymanager::Identifier};
 use diesel_models::organization::OrganizationBridge;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
@@ -25,7 +21,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    core::{errors, payment_methods::cards::create_encrypted_data},
+    core::errors,
     routes::SessionState,
     types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
 };
@@ -108,7 +104,6 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             publishable_key: item.publishable_key,
             metadata: item.metadata,
             organization_id: item.organization_id,
-            is_recon_enabled: item.is_recon_enabled,
             recon_status: item.recon_status,
         })
     }
@@ -183,7 +178,23 @@ pub async fn business_profile_response(
     })
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+
+pub async fn create_business_profile(
+    _state: &SessionState,
+    _request: BusinessProfileCreate,
+    _key_store: &MerchantKeyStore,
+) -> Result<
+    storage::business_profile::BusinessProfileNew,
+    error_stack::Report<errors::ApiErrorResponse>,
+> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn create_business_profile(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
@@ -193,6 +204,10 @@ pub async fn create_business_profile(
     storage::business_profile::BusinessProfileNew,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    use common_utils::ext_traits::{AsyncExt, Encode};
+
+    use crate::core;
+
     // Generate a unique profile id
     let profile_id = common_utils::generate_id_with_default_len("pro");
     let merchant_id = merchant_account.get_id().to_owned();
@@ -228,7 +243,9 @@ pub async fn create_business_profile(
         .transpose()?;
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(state, key_store, headers))
+        .async_map(|headers| {
+            core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
+        })
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -243,9 +260,11 @@ pub async fn create_business_profile(
                     field_name: "payout_link_config",
                 },
             ),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
+            Err(e) => Err(error_stack::report!(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                }
+            )),
         })
         .transpose()?;
 
