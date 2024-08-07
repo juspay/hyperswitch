@@ -19,7 +19,7 @@ use api_models::{
     pm_auth::PaymentMethodAuthConfig,
     surcharge_decision_configs as api_surcharge_decision_configs,
 };
-use common_enums::enums::MerchantStorageScheme;
+use common_enums::{enums::MerchantStorageScheme, ConnectorType};
 use common_utils::{
     consts,
     crypto::Encryptable,
@@ -2368,9 +2368,12 @@ pub async fn list_payment_methods(
     )
     .await?;
 
-    // filter out connectors based on the business country
-    let filtered_mcas =
-        helpers::filter_mca_based_on_business_profile(all_mcas.clone(), profile_id.clone());
+    // filter out payment connectors based on profile_id
+    let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
+        all_mcas.clone(),
+        profile_id.as_ref(),
+        ConnectorType::PaymentProcessor,
+    );
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
