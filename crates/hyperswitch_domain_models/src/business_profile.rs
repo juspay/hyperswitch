@@ -5,7 +5,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    pii,
+    pii, type_name,
     types::keymanager,
 };
 use diesel_models::business_profile::{
@@ -15,7 +15,7 @@ use diesel_models::business_profile::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
-use crate::type_encryption::{decrypt_optional, AsyncLift};
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -348,8 +348,16 @@ impl super::behaviour::Conversion for BusinessProfile {
                     .collect_billing_details_from_wallet_connector,
                 outgoing_webhook_custom_http_headers: item
                     .outgoing_webhook_custom_http_headers
-                    .async_lift(|inner| {
-                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
             })
@@ -725,8 +733,16 @@ impl super::behaviour::Conversion for BusinessProfile {
                     .collect_billing_details_from_wallet_connector,
                 outgoing_webhook_custom_http_headers: item
                     .outgoing_webhook_custom_http_headers
-                    .async_lift(|inner| {
-                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
                 routing_algorithm_id: item.routing_algorithm_id,
