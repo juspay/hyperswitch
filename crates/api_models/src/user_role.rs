@@ -45,8 +45,10 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    MerchantAccess,
-    OrganizationAccess,
+    #[serde(rename = "MerchantAccess")]
+    Merchant,
+    #[serde(rename = "OrganizationAccess")]
+    Organization,
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -250,9 +250,9 @@ fn get_parent_name(group: PermissionGroup) -> ParentGroup {
         PermissionGroup::AnalyticsView => ParentGroup::Analytics,
         PermissionGroup::UsersView | PermissionGroup::UsersManage => ParentGroup::Users,
         PermissionGroup::MerchantDetailsView | PermissionGroup::MerchantDetailsManage => {
-            ParentGroup::MerchantAccess
+            ParentGroup::Merchant
         }
-        PermissionGroup::OrganizationManage => ParentGroup::OrganizationAccess,
+        PermissionGroup::OrganizationManage => ParentGroup::Organization,
     }
 }
 
@@ -263,8 +263,7 @@ fn get_parent_group_description(group: ParentGroup) -> &'static str {
         ParentGroup::Workflows => "Create, modify and delete Routing, 3DS Decision Manager, Surcharge Decision Manager",
        ParentGroup::Analytics => "View Analytics",
         ParentGroup::Users =>  "Manage and invite Users to the Team",
-       ParentGroup::MerchantAccess => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
-
-       ParentGroup::OrganizationAccess =>"Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
+       ParentGroup::Merchant => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
+       ParentGroup::Organization =>"Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
     }
 }
