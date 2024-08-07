@@ -436,6 +436,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
+        println!("ENTERRRR");
         update_payment_method_status_and_ntid(
             state,
             payment_data,
@@ -1440,7 +1441,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             && pm.status != attempt_status.into()
         {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
-
+            println!("ENTERHERE1{:?}", updated_pm_status);
             payment_data
                 .payment_method_info
                 .as_mut()
