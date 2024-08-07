@@ -2211,7 +2211,7 @@ pub struct PaymentLinkConfigRequest {
     pub enabled_saved_payment_method: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     #[schema(value_type = Option<Object>, example = r#"{ "value1": "some-value", "value2": "some-value" }"#)]
-    pub merchant_details: Option<IndexMap<String, String>>,
+    pub transaction_details: Option<IndexMap<String, String>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -2231,7 +2231,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
-    pub merchant_details: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

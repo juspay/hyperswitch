@@ -7,8 +7,8 @@ use api_models::{
 use common_utils::{
     consts::{
         DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_MERCHANT_DETAILS, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
+        DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY, DEFAULT_TRANSACTION_DETAILS,
     },
     ext_traits::{OptionExt, ValueExt},
     types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
@@ -105,7 +105,7 @@ pub async fn form_payment_link_data(
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-                merchant_details: DEFAULT_MERCHANT_DETAILS,
+                transaction_details: DEFAULT_TRANSACTION_DETAILS,
             }
         };
 
@@ -215,7 +215,7 @@ pub async fn form_payment_link_data(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
-            merchant_details: payment_link_config.merchant_details.clone(),
+            transaction_details: payment_link_config.transaction_details.clone(),
         };
 
         return Ok((
@@ -241,7 +241,7 @@ pub async fn form_payment_link_data(
         merchant_description: payment_intent.description,
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
-        merchant_details: payment_link_config.merchant_details.clone(),
+        transaction_details: payment_link_config.transaction_details.clone(),
     };
 
     Ok((
@@ -586,19 +586,19 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         allowed_domains,
-        merchant_details: payment_create_link_config.and_then(|payment_link_config| {
+        transaction_details: payment_create_link_config.and_then(|payment_link_config| {
             payment_link_config
                 .theme_config
-                .merchant_details
-                .and_then(|merchant_details| {
-                    match serde_json::to_string(&merchant_details).change_context(
+                .transaction_details
+                .and_then(|transaction_details| {
+                    match serde_json::to_string(&transaction_details).change_context(
                         errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "merchant_details",
+                            field_name: "transaction_details",
                         },
                     ) {
-                        Ok(merchant_details) => Some(merchant_details),
+                        Ok(details) => Some(details),
                         Err(_) => {
-                            logger::error!("Failed to serialize merchant details");
+                            logger::error!("Failed to serialize transaction details");
                             None
                         }
                     }
@@ -686,7 +686,7 @@ pub async fn get_payment_link_status(
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-            merchant_details: DEFAULT_MERCHANT_DETAILS,
+            transaction_details: DEFAULT_TRANSACTION_DETAILS,
         }
     };
 
@@ -745,7 +745,7 @@ pub async fn get_payment_link_status(
         redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
-        merchant_details: payment_link_config.merchant_details,
+        transaction_details: payment_link_config.transaction_details,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,

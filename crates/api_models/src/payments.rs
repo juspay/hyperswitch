@@ -5406,7 +5406,7 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
-    pub merchant_details: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5431,7 +5431,7 @@ pub struct PaymentLinkStatusDetails {
     pub redirect: bool,
     pub theme: String,
     pub return_url: String,
-    pub merchant_details: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
