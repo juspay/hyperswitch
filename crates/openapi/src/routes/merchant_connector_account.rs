@@ -58,7 +58,7 @@
     operation_id = "Create a Merchant Connector",
     security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_create() {}
+pub async fn connector_create() {}
 
 /// Merchant Connector - Retrieve
 ///
@@ -79,7 +79,7 @@ pub async fn payment_connector_create() {}
     operation_id = "Retrieve a Merchant Connector",
     security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_retrieve() {}
+pub async fn connector_retrieve() {}
 
 /// Merchant Connector - List
 ///
@@ -146,7 +146,7 @@ pub async fn payment_connector_list() {}
    operation_id = "Update a Merchant Connector",
    security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_update() {}
+pub async fn connector_update() {}
 
 /// Merchant Connector - Delete
 ///
@@ -167,4 +167,4 @@ pub async fn payment_connector_update() {}
     operation_id = "Delete a Merchant Connector",
     security(("admin_api_key" = []))
 )]
-pub async fn payment_connector_delete() {}
+pub async fn connector_delete() {}
