@@ -26,7 +26,7 @@ use crate::{
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
     headers::ACCEPT_LANGUAGE,
     routes::SessionState,
-    services::{self, authentication::try_get_header_value_by_key},
+    services::{self, authentication::get_header_value_by_key},
     types::{
         api::payment_link::PaymentLinkResponseExt,
         domain,
@@ -257,7 +257,8 @@ pub async fn initiate_secure_payment_link_flow(
     payment_id: String,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = try_get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers);
+    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
+        .map(|val| val.to_string());
     let (payment_link, payment_link_details, payment_link_config) = form_payment_link_data(
         &state,
         merchant_account,
@@ -354,7 +355,8 @@ pub async fn initiate_payment_link_flow(
     payment_id: String,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = try_get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers);
+    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
+        .map(|val| val.to_string());
     let (_, payment_details, payment_link_config) = form_payment_link_data(
         &state,
         merchant_account,
@@ -637,7 +639,8 @@ pub async fn get_payment_link_status(
     payment_id: String,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let locale = try_get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers);
+    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
+        .map(|val| val.to_string());
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
