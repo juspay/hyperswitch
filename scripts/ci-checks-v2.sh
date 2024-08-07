@@ -43,7 +43,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
     # A package must be checked if it has been modified
     if grep --quiet --extended-regexp "^crates/${package_name}" <<< "${files_modified}"; then
       if [[ "${package_name}" == "storage_impl" ]]; then
-        all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
+        all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2' -p storage_impl")
       else
         defined_features=$(get_defined_features "$package_name")
         valid_features=$(echo "$v2_feature_set" | tr ',' '\n' | grep -Fxf <(echo "$defined_features") | tr '\n' ',' | sed 's/,$//')
