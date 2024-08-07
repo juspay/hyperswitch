@@ -59,7 +59,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        payment_confirm_source: Option<common_enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
@@ -99,7 +99,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             Some(common_enums::PaymentSource::Webhook),
             Some(common_enums::PaymentSource::ExternalAuthenticator),
         ]
-        .contains(&payment_confirm_source)
+        .contains(&header_payload.payment_confirm_source)
         {
             helpers::validate_payment_status_against_not_allowed_statuses(
                 &payment_intent.status,
