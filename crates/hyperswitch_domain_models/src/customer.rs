@@ -6,7 +6,7 @@ use common_utils::{
     crypto, date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    id_type, pii, type_name,
+    id_type, pii,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
         Description,
@@ -212,7 +212,7 @@ impl super::behaviour::Conversion for Customer {
     {
         let decrypted = types::crypto_operation(
             state,
-            type_name!(Self::DstType),
+            common_utils::type_name!(Self::DstType),
             types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
                 CustomerRequestWithEncryption {
                     name: item.name.clone(),
