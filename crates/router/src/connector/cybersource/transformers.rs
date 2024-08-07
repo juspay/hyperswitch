@@ -2805,6 +2805,16 @@ impl
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
         ));
+        let connector_customer_id =
+        item.response
+            .token_information
+            .clone()
+            .and_then(|token_information| {
+                token_information
+                    .customer
+                    .map(|customer| customer.id.expose())
+            });
+
         if matches!(mandate_status, enums::AttemptStatus::Authorized) {
             //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
             mandate_status = enums::AttemptStatus::Charged
@@ -2847,7 +2857,7 @@ impl
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
                     charge_id: None,
-                    connector_customer_id: None,
+                    connector_customer_id,
                 }),
             },
             connector_response,
