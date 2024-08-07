@@ -63,7 +63,15 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            retrieve_customer(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -84,6 +92,7 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
+                None,
                 auth.key_store,
             )
         },

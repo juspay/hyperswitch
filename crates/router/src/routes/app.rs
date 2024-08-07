@@ -501,7 +501,30 @@ impl DummyConnector {
 
 pub struct Payments;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "payment_v2"
+))]
+impl Payments {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
+        route = route.service(
+            web::resource("/{payment_id}/saved_payment_methods")
+                .route(web::get().to(list_customer_payment_method_for_payment)),
+        );
+
+        route
+    }
+}
+
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "payment_v2")
+))]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
@@ -590,7 +613,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
-                );
+                )
         }
         route
     }
@@ -844,6 +867,7 @@ pub struct Customers;
 #[cfg(all(
     feature = "v2",
     feature = "customer_v2",
+    feature = "payment_methods_v2",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -855,6 +879,13 @@ impl Customers {
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(web::resource("/{id}").route(web::put().to(customers_update)))
         }
+        #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
+        {
+            route = route.service(
+                web::resource("/{customer_id}/saved_payment_methods")
+                    .route(web::get().to(list_customer_payment_method_api)),
+            );
+        }
         route
     }
 }
@@ -862,6 +893,7 @@ impl Customers {
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2"),
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -899,13 +931,12 @@ impl Customers {
                         .route(web::get().to(customers_retrieve))
                         .route(web::post().to(customers_update))
                         .route(web::delete().to(customers_delete)),
-                );
+                )
         }
 
         route
     }
 }
-
 pub struct Refunds;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1099,6 +1130,11 @@ impl MerchantAccount {
         web::scope("/v2/accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(retrieve_merchant_account))
+                    .route(web::post().to(update_merchant_account)),
+            )
     }
 }
 
@@ -1146,8 +1182,9 @@ impl MerchantConnectorAccount {
         {
             use super::admin::*;
 
-            route =
-                route.service(web::resource("").route(web::post().to(payment_connector_create)));
+            route = route
+                .service(web::resource("").route(web::post().to(payment_connector_create)))
+                .service(web::resource("/{id}").route(web::post().to(payment_connector_update)));
         }
         route
     }
@@ -1456,18 +1493,16 @@ impl BusinessProfile {
                             },
                         )),
                     )
-                    .service(
-                        web::resource("/deactivate_routing_algorithm").route(web::post().to(
-                            |state, req, path| {
-                                routing::routing_unlink_config(
-                                    state,
-                                    req,
-                                    path,
-                                    &TransactionType::Payment,
-                                )
-                            },
-                        )),
-                    ),
+                    .service(web::resource("/deactivate_routing_algorithm").route(
+                        web::patch().to(|state, req, path| {
+                            routing::routing_unlink_config(
+                                state,
+                                req,
+                                path,
+                                &TransactionType::Payment,
+                            )
+                        }),
+                    )),
             )
     }
 }

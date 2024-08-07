@@ -80,7 +80,13 @@ impl From<CustomerNew> for Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone, Debug, Insertable, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
+    Clone,
+    Debug,
+    PartialEq,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    serde::Deserialize,
+    serde::Serialize,
 )]
 #[diesel(table_name = customers, primary_key(id))]
 pub struct CustomerNew {
@@ -188,13 +194,7 @@ pub struct Customer {
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    AsChangeset,
-    router_derive::DebugAsDisplay,
-    serde::Deserialize,
-    serde::Serialize,
+    Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
 #[diesel(table_name = customers)]
 pub struct CustomerUpdateInternal {
@@ -204,7 +204,7 @@ pub struct CustomerUpdateInternal {
     pub description: Option<Description>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub modified_at: Option<PrimitiveDateTime>,
+    pub modified_at: PrimitiveDateTime,
     pub connector_customer: Option<pii::SecretSerdeValue>,
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<Option<String>>,
@@ -247,13 +247,7 @@ impl CustomerUpdateInternal {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    AsChangeset,
-    router_derive::DebugAsDisplay,
-    serde::Deserialize,
-    serde::Serialize,
+    Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
 #[diesel(table_name = customers)]
 pub struct CustomerUpdateInternal {
@@ -263,7 +257,7 @@ pub struct CustomerUpdateInternal {
     pub description: Option<Description>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub modified_at: Option<PrimitiveDateTime>,
+    pub modified_at: PrimitiveDateTime,
     pub connector_customer: Option<pii::SecretSerdeValue>,
     pub default_payment_method_id: Option<Option<String>>,
     pub updated_by: Option<String>,

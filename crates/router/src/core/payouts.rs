@@ -5,7 +5,7 @@ pub mod retry;
 pub mod validator;
 use std::vec::IntoIter;
 
-use api_models::{self, admin, enums as api_enums, payouts::PayoutLinkResponse};
+use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
@@ -2542,18 +2542,7 @@ pub async fn create_payout_link(
 
     // Fetch all configs
     let default_config = &state.conf.generic_link.payout_link;
-    let profile_config = business_profile
-        .payout_link_config
-        .as_ref()
-        .map(|config| {
-            config
-                .clone()
-                .parse_value::<admin::BusinessPayoutLinkConfig>("BusinessPayoutLinkConfig")
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payout_link_config in business_profile",
-        })?;
+    let profile_config = &business_profile.payout_link_config;
     let profile_ui_config = profile_config.as_ref().map(|c| c.config.ui_config.clone());
     let ui_config = payout_link_config_req
         .as_ref()

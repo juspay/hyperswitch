@@ -52,7 +52,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        utils, webhooks as webhooks_core,
+        webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -442,20 +442,14 @@ pub async fn get_mca_from_payment_intent(
             }
         }
         None => {
-            let profile_id = match payment_intent.profile_id {
-                Some(profile_id) => profile_id,
-                None => utils::get_profile_id_from_business_details(
-                    payment_intent.business_country,
-                    payment_intent.business_label.as_ref(),
-                    merchant_account,
-                    payment_intent.profile_id.as_ref(),
-                    db,
-                    false,
-                )
-                .await
+            let profile_id = payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")?,
-            };
+                .attach_printable("profile_id is not set in payment_intent")?
+                .clone();
+
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
                 not(feature = "merchant_connector_account_v2")
@@ -580,7 +574,17 @@ pub async fn get_mca_from_object_reference_id(
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
-    match merchant_account.default_profile.as_ref() {
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
+    let default_profile_id = merchant_account.default_profile.as_ref();
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let default_profile_id = Option::<&String>::None;
+
+    match default_profile_id {
         Some(profile_id) => {
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
@@ -602,8 +606,8 @@ pub async fn get_mca_from_object_reference_id(
             }
             #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
             {
-                let _ = db;
-                let _ = profile_id;
+                let _db = db;
+                let _profile_id = profile_id;
                 todo!()
             }
         }
