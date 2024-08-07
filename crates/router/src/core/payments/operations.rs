@@ -248,6 +248,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_connector_customer<'b>(
         &self,
         _state: &SessionState,
