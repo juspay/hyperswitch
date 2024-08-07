@@ -2,11 +2,14 @@ use actix_web::{web, Scope};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use super::customers::*;
-use super::{payment_intents::*, refunds::*, setup_intents::*, webhooks::*};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use super::{payment_intents::*, setup_intents::*};
+use super::{refunds::*, webhooks::*};
 use crate::routes::{self, mandates, webhooks};
 
 pub struct PaymentIntents;
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl PaymentIntents {
     pub fn server(state: routes::AppState) -> Scope {
         let mut route = web::scope("/payment_intents").app_data(web::Data::new(state));
@@ -42,6 +45,7 @@ impl PaymentIntents {
 
 pub struct SetupIntents;
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl SetupIntents {
     pub fn server(state: routes::AppState) -> Scope {
         web::scope("/setup_intents")

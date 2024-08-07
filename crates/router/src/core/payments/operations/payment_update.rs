@@ -677,7 +677,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_id = customer.clone().map(|c| c.customer_id);
+        let customer_id = customer.clone().map(|c| c.get_customer_id());
 
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;

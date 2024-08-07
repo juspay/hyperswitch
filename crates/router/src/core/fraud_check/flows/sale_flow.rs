@@ -43,7 +43,9 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = customer
+            .to_owned()
+            .map(|customer| customer.get_customer_id());
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,
