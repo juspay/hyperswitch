@@ -5,7 +5,7 @@ pub mod retry;
 pub mod validator;
 use std::vec::IntoIter;
 
-use api_models::{self, admin, enums as api_enums};
+use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
@@ -1125,7 +1125,7 @@ pub async fn create_recipient(
             Ok(recipient_create_data) => {
                 let db = &*state.store;
                 if let Some(customer) = customer_details {
-                    let customer_id = customer.customer_id.to_owned();
+                    let customer_id = customer.get_customer_id().to_owned();
                     let merchant_id = merchant_account.get_id().to_owned();
                     if let Some(updated_customer) =
                         customers::update_connector_customer_in_customers(
@@ -2170,7 +2170,7 @@ pub async fn response_handler(
         attempts: None,
         payout_link: payout_link
             .map(|payout_link| {
-                url::Url::parse(payout_link.url.peek()).map(|link| payouts::PayoutLinkResponse {
+                url::Url::parse(payout_link.url.peek()).map(|link| PayoutLinkResponse {
                     payout_link_id: payout_link.link_id,
                     link: link.into(),
                 })
@@ -2196,7 +2196,7 @@ pub async fn payout_create_db_entries(
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
-    let customer_id = customer.map(|cust| &cust.customer_id);
+    let customer_id = customer.map(|cust| cust.get_customer_id());
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
@@ -2207,7 +2207,7 @@ pub async fn payout_create_db_entries(
             create_payout_link(
                 state,
                 &business_profile,
-                &customer_id.get_required_value("customer_id")?.clone(),
+                &customer_id.clone().get_required_value("customer_id")?,
                 merchant_id,
                 req,
                 payout_id,
@@ -2223,7 +2223,7 @@ pub async fn payout_create_db_entries(
         req.billing.as_ref(),
         None,
         merchant_id,
-        customer_id,
+        customer_id.as_ref(),
         key_store,
         payout_id,
         merchant_account.storage_scheme,
@@ -2260,7 +2260,7 @@ pub async fn payout_create_db_entries(
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_owned(),
-        customer_id: customer_id.map(ToOwned::to_owned),
+        customer_id,
         address_id: address_id.to_owned(),
         payout_type,
         amount,
@@ -2418,7 +2418,7 @@ pub async fn make_payout_data(
                 Some(payout_token) => {
                     let customer_id = customer_details
                         .as_ref()
-                        .map(|cd| cd.customer_id.to_owned())
+                        .map(|cd| cd.get_customer_id().to_owned())
                         .get_required_value("customer_id")?;
                     helpers::make_payout_method_data(
                         state,
@@ -2530,18 +2530,7 @@ pub async fn create_payout_link(
 
     // Fetch all configs
     let default_config = &state.conf.generic_link.payout_link;
-    let profile_config = business_profile
-        .payout_link_config
-        .as_ref()
-        .map(|config| {
-            config
-                .clone()
-                .parse_value::<admin::BusinessPayoutLinkConfig>("BusinessPayoutLinkConfig")
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "payout_link_config in business_profile",
-        })?;
+    let profile_config = &business_profile.payout_link_config;
     let profile_ui_config = profile_config.as_ref().map(|c| c.config.ui_config.clone());
     let ui_config = payout_link_config_req
         .as_ref()

@@ -178,7 +178,7 @@ where
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    async fn find_by_merchant_connector_account_id(
+    async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
         id: &str,
@@ -439,7 +439,7 @@ impl MerchantConnectorAccountInterface for Store {
 
     #[instrument(skip_all)]
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    async fn find_by_merchant_connector_account_id(
+    async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
         id: &str,
@@ -1106,7 +1106,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     }
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    async fn find_by_merchant_connector_account_id(
+    async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
         id: &str,

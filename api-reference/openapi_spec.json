@@ -7378,7 +7378,11 @@
             "nullable": true
           },
           "payment_link_config": {
-            "description": "Default Payment Link config for all payment links created under this business profile",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPaymentLinkConfig"
+              }
+            ],
             "nullable": true
           },
           "authentication_connector_details": {
@@ -8058,6 +8062,7 @@
           "trustpay",
           "tsys",
           "volt",
+          "wellsfargo",
           "wise",
           "worldline",
           "worldpay",
@@ -20675,6 +20680,7 @@
           "trustpay",
           "tsys",
           "volt",
+          "wellsfargo",
           "wise",
           "worldline",
           "worldpay",
