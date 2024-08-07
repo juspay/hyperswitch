@@ -3,7 +3,7 @@ use common_enums as storage_enums;
 use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    id_type, pii,
+    id_type, pii, type_name,
     types::{
         keymanager::{self, KeyManagerState},
         MinorUnit,
@@ -18,7 +18,7 @@ use super::PaymentIntent;
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
-    type_encryption::{decrypt_optional, AsyncLift},
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
     ForeignIDRef, RemoteStorageObject,
 };
 
@@ -553,8 +553,17 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt =
-                |inner| decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek());
+            let inner_decrypt = |inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            };
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -742,8 +751,17 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt =
-                |inner| decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek());
+            let inner_decrypt = |inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            };
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

@@ -290,7 +290,7 @@ pub async fn render_pm_collect_link(
                     publishable_key: masking::Secret::new(merchant_account.publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
-                    customer_id: customer.customer_id,
+                    customer_id: customer.get_customer_id(),
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
                     ui_config: ui_config_data,

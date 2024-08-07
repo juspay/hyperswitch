@@ -62,19 +62,20 @@ extend-exclude = [
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
-    "crates/router/locales/ar.yml",
-    "crates/router/locales/ca.yml",
-    "crates/router/locales/de.yml",
-    "crates/router/locales/es.yml",
-    "crates/router/locales/fr-BE.yml",
-    "crates/router/locales/fr.yml",
-    "crates/router/locales/he.yml",
-    "crates/router/locales/it.yml",
-    "crates/router/locales/ja.yml",
-    "crates/router/locales/nl.yml",
-    "crates/router/locales/pl.yml",
-    "crates/router/locales/pt.yml",
-    "crates/router/locales/ru.yml",
-    "crates/router/locales/sv.yml",
-    "crates/router/locales/zh.yml",
+    "crates/router/locales/ar.yml", # locales
+    "crates/router/locales/ca.yml", # locales
+    "crates/router/locales/de.yml", # locales
+    "crates/router/locales/es.yml", # locales
+    "crates/router/locales/fr-BE.yml", # locales
+    "crates/router/locales/fr.yml", # locales
+    "crates/router/locales/he.yml", # locales
+    "crates/router/locales/it.yml", # locales
+    "crates/router/locales/ja.yml", # locales
+    "crates/router/locales/nl.yml", # locales
+    "crates/router/locales/pl.yml", # locales
+    "crates/router/locales/pt.yml", # locales
+    "crates/router/locales/ru.yml", # locales
+    "crates/router/locales/sv.yml", # locales
+    "crates/router/locales/zh.yml", # locales
+    "crates/router/src/core/payment_link/locale.js" # this file contains converision of static strings in various languages 
 ]
