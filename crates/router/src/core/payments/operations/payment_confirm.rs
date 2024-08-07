@@ -1132,7 +1132,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_details = payment_data.payment_intent.customer_details.clone();
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
-        let authentication_type = payment_data.payment_attempt.clone().authentication_type;
+        let authentication_type = payment_data.payment_attempt.authentication_type;
 
         let (shipping_address_id, billing_address_id, payment_method_billing_address_id) = (
             payment_data.payment_intent.shipping_address_id.clone(),
