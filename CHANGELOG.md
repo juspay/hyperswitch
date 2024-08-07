@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.02.0-hotfix2
+
+### Bug Fixes
+
+- **core:** Update pm_status accordingly for the respective attempt status ([#5560](https://github.com/juspay/hyperswitch/pull/5560)) ([`8b70aed`](https://github.com/juspay/hyperswitch/commit/8b70aed64c382bf9af78adc57efff13fbf1c123b))
+
+- - -
+
 ## 2024.08.02.0-hotfix1
 
 ### Bug Fixes
