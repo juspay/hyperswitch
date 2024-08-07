@@ -89,6 +89,10 @@ pub async fn rust_locker_migration(
     ))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn call_to_locker(
     state: &SessionState,
     payment_methods: Vec<PaymentMethod>,
@@ -184,4 +188,15 @@ pub async fn call_to_locker(
     }
 
     Ok(cards_moved)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn call_to_locker(
+    _state: &SessionState,
+    _payment_methods: Vec<PaymentMethod>,
+    _customer_id: &id_type::CustomerId,
+    _merchant_id: &id_type::MerchantId,
+    _merchant_account: &domain::MerchantAccount,
+) -> CustomResult<usize, errors::ApiErrorResponse> {
+    todo!()
 }

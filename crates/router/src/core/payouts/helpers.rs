@@ -195,6 +195,10 @@ pub async fn make_payout_method_data<'a>(
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn save_payout_data_to_locker(
     state: &SessionState,
     payout_data: &mut PayoutData,
@@ -601,6 +605,17 @@ pub async fn save_payout_data_to_locker(
         .attach_printable("Error updating payouts in saved payout method")?;
 
     Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn save_payout_data_to_locker(
+    _state: &SessionState,
+    _payout_data: &mut PayoutData,
+    _payout_method_data: &api::PayoutMethodData,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    todo!()
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
