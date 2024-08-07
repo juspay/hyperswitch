@@ -57,8 +57,11 @@ pub struct NewUserRole {
 }
 
 impl NewUserRole {
-    pub fn to_v1_role(self) -> UserRoleNew {
-        UserRoleNew {
+    pub fn to_v1_role(self) -> Option<UserRoleNew> {
+        if matches!(self.entity_type, EntityType::Profile) {
+            return None;
+        }
+        Some(UserRoleNew {
             user_id: self.user_id,
             merchant_id: Some(self.merchant_id),
             role_id: self.role_id,
@@ -72,7 +75,7 @@ impl NewUserRole {
             entity_id: None,
             entity_type: None,
             version: enums::UserRoleVersion::V1,
-        }
+        })
     }
 
     pub fn to_v2_role(self) -> UserRoleNew {
@@ -95,7 +98,7 @@ impl NewUserRole {
             EntityType::Profile => None,
         };
         let entity_id = match self.entity_type {
-            EntityType::Internal => Some(self.org_id.get_string_repr().to_owned()),
+            EntityType::Internal => Some(self.merchant_id.get_string_repr().to_owned()),
             EntityType::Organization => Some(self.org_id.get_string_repr().to_owned()),
             EntityType::Merchant => Some(self.merchant_id.get_string_repr().to_owned()),
             EntityType::Profile => None,

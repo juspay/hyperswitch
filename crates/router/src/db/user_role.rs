@@ -67,15 +67,14 @@ impl UserRoleInterface for Store {
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        let v1_role = user_role.clone().to_v1_role();
-
-        v1_role
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?;
+        if let Some(v1_role) = user_role.clone().to_v1_role() {
+            v1_role
+                .insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+        }
 
         let v2_role = user_role.to_v2_role();
-
         v2_role
             .insert(&conn)
             .await
@@ -183,26 +182,27 @@ impl UserRoleInterface for MockDb {
         user_role_new: storage::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
-        let v1_role = user_role_new.clone().to_v1_role();
 
-        let user_role = storage::UserRole {
-            id: i32::try_from(user_roles.len())
-                .change_context(errors::StorageError::MockDbError)?,
-            user_id: v1_role.user_id,
-            merchant_id: v1_role.merchant_id,
-            role_id: v1_role.role_id,
-            status: v1_role.status,
-            created_by: v1_role.created_by,
-            created_at: v1_role.created_at,
-            last_modified: v1_role.last_modified,
-            last_modified_by: v1_role.last_modified_by,
-            org_id: v1_role.org_id,
-            profile_id: v1_role.profile_id,
-            entity_id: v1_role.entity_id,
-            entity_type: v1_role.entity_type,
-            version: v1_role.version,
-        };
-        user_roles.push(user_role);
+        if let Some(v1_role) = user_role_new.clone().to_v1_role() {
+            let user_role = storage::UserRole {
+                id: i32::try_from(user_roles.len())
+                    .change_context(errors::StorageError::MockDbError)?,
+                user_id: v1_role.user_id,
+                merchant_id: v1_role.merchant_id,
+                role_id: v1_role.role_id,
+                status: v1_role.status,
+                created_by: v1_role.created_by,
+                created_at: v1_role.created_at,
+                last_modified: v1_role.last_modified,
+                last_modified_by: v1_role.last_modified_by,
+                org_id: v1_role.org_id,
+                profile_id: v1_role.profile_id,
+                entity_id: v1_role.entity_id,
+                entity_type: v1_role.entity_type,
+                version: v1_role.version,
+            };
+            user_roles.push(user_role);
+        }
 
         let v2_role = user_role_new.to_v2_role();
         let user_role = storage::UserRole {
