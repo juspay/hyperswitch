@@ -1,4 +1,5 @@
 let globalState;
+
 module.exports = {
   e2e: {
     setupNodeEvents(on, config) {
@@ -17,6 +18,15 @@ module.exports = {
       });
     },
     experimentalRunAllSpecs: true,
+    reporter: "mochawesome",
+    reporterOptions: {
+      reportDir: "cypress/reports",
+      reportFilename: "report",
+      overwrite: false,
+      html: false,
+      json: true,
+      charts: true,
+    },
   },
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
