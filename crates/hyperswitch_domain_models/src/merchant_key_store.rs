@@ -2,13 +2,14 @@ use common_utils::{
     crypto::Encryptable,
     custom_serde, date_time,
     errors::{CustomResult, ValidationError},
+    type_name,
     types::keymanager::{self, KeyManagerState},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
-use crate::type_encryption::decrypt;
+use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantKeyStore {
@@ -40,12 +41,20 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         Self: Sized,
     {
         let identifier = keymanager::Identifier::Merchant(item.merchant_id.clone());
+
         Ok(Self {
-            key: decrypt(state, item.key, identifier, key.peek())
-                .await
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
+            key: crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::Decrypt(item.key),
+                identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_operation())
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?,
             merchant_id: item.merchant_id,
             created_at: item.created_at,
         })
