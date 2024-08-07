@@ -750,6 +750,7 @@ pub struct HeaderPayload {
     pub browser_name: Option<api_enums::BrowserName>,
     pub x_client_platform: Option<api_enums::ClientPlatform>,
     pub x_merchant_domain: Option<String>,
+    pub locale: Option<String>,
 }
 
 impl HeaderPayload {
@@ -5406,6 +5407,7 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
+    pub locale: Option<String>,
     pub transaction_details: Option<String>,
 }
 
@@ -5431,6 +5433,7 @@ pub struct PaymentLinkStatusDetails {
     pub redirect: bool,
     pub theme: String,
     pub return_url: String,
+    pub locale: Option<String>,
     pub transaction_details: Option<String>,
 }
 
