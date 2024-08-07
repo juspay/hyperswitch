@@ -216,6 +216,7 @@ pub enum PaymentInformation {
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
     payment_instrument: BankOfAmericaPaymentInstrument,
+    customer: BankOfAmericaCustomer,
 }
 
 #[derive(Debug, Serialize)]
@@ -374,6 +375,16 @@ impl<F, T>
                 let error_response =
                     get_error_response_if_failure((&info_response, mandate_status, item.http_code));
 
+                    let connector_customer_id =
+                    info_response
+                        .token_information
+                        .clone()
+                        .and_then(|token_information| {
+                            token_information
+                                .customer
+                                .map(|customer| customer.id.expose())
+                        });
+
                 let connector_response = match item.data.payment_method {
                     common_enums::PaymentMethod::Card => info_response
                         .processor_information
@@ -426,7 +437,7 @@ impl<F, T>
                             ),
                             incremental_authorization_allowed: None,
                             charge_id: None,
-                            connector_customer_id: None,
+                            connector_customer_id,
                         }),
                     },
                     connector_response,
@@ -1110,6 +1121,10 @@ impl
         let payment_instrument = BankOfAmericaPaymentInstrument {
             id: connector_mandate_id.into(),
         };
+        let customer = BankOfAmericaCustomer {
+            id: connector_mandate_id.into(),
+        };
+
         let bill_to =
             item.router_data.request.get_email().ok().and_then(|email| {
                 build_bill_to(item.router_data.get_optional_billing(), email).ok()
@@ -1118,6 +1133,7 @@ impl
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
+                customer,
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
@@ -1346,6 +1362,7 @@ pub struct MerchantInitiatedTransactionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaTokenInformation {
     payment_instrument: Option<BankOfAmericaPaymentInstrument>,
+    customer: Option<BankOfAmericaCustomer>
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1493,6 +1510,16 @@ fn get_payment_response(
                         payment_method_id: None,
                     });
 
+            let connector_customer_id =
+                    info_response
+                        .token_information
+                        .clone()
+                        .and_then(|token_information| {
+                            token_information
+                                .customer
+                                .map(|customer| customer.id.expose())
+                        });
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: None,
@@ -1508,7 +1535,7 @@ fn get_payment_response(
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
-                connector_customer_id: None,
+                connector_customer_id,
             })
         }
     }
