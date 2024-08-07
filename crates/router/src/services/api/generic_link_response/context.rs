@@ -1,6 +1,6 @@
 use tera::Context;
 
-pub fn insert_locales_in_context_for_payout_link(context: &mut Context, locale: &str) -> () {
+pub fn insert_locales_in_context_for_payout_link(context: &mut Context, locale: &str) {
     let i18n_payout_link_title = t!("payout_link.initiate.title", locale = locale);
     let i18n_january = t!("months.january", locale = locale);
     let i18n_february = t!("months.february", locale = locale);
@@ -36,7 +36,7 @@ pub fn insert_locales_in_context_for_payout_link(context: &mut Context, locale: 
     context.insert("i18n_pm", &i18n_pm);
 }
 
-pub fn insert_locales_in_context_for_payout_link_status(context: &mut Context, locale: &str) -> () {
+pub fn insert_locales_in_context_for_payout_link_status(context: &mut Context, locale: &str) {
     let i18n_payout_link_status_title = t!("payout_link.status.title", locale = locale);
     let i18n_success_text = t!("payout_link.status.text.success", locale = locale);
     let i18n_success_message = t!("payout_link.status.message.success", locale = locale);
