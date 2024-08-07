@@ -597,11 +597,17 @@ pub fn get_payment_link_config_based_on_priority(
                 .theme_config
                 .merchant_details
                 .and_then(|merchant_details| {
-                    serde_json::to_string(&merchant_details)
-                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    match serde_json::to_string(&merchant_details).change_context(
+                        errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "merchant_details",
-                        })
-                        .ok()
+                        },
+                    ) {
+                        Ok(merchant_details) => Some(merchant_details),
+                        Err(_) => {
+                            logger::error!("Failed to serialize merchant details");
+                            None
+                        }
+                    }
                 })
         }),
     };
