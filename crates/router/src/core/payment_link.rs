@@ -24,8 +24,9 @@ use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
+    headers::ACCEPT_LANGUAGE,
     routes::SessionState,
-    services,
+    services::{self, authentication::get_header_value_by_key},
     types::{
         api::payment_link::PaymentLinkResponseExt,
         domain,
@@ -64,6 +65,7 @@ pub async fn form_payment_link_data(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
+    locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
     let payment_intent = db
@@ -214,6 +216,7 @@ pub async fn form_payment_link_data(
             redirect: false,
             theme: payment_link_config.theme.clone(),
             return_url: return_url.clone(),
+            locale: locale.clone(),
         };
 
         return Ok((
@@ -240,6 +243,7 @@ pub async fn form_payment_link_data(
             merchant_description: payment_intent.description,
             sdk_layout: payment_link_config.sdk_layout.clone(),
             display_sdk_only: payment_link_config.display_sdk_only,
+            locale,
         });
 
     Ok((payment_link, payment_link_details, payment_link_config))
@@ -253,9 +257,17 @@ pub async fn initiate_secure_payment_link_flow(
     payment_id: String,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let (payment_link, payment_link_details, payment_link_config) =
-        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
-            .await?;
+    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
+        .map(|val| val.to_string());
+    let (payment_link, payment_link_details, payment_link_config) = form_payment_link_data(
+        &state,
+        merchant_account,
+        key_store,
+        merchant_id,
+        payment_id,
+        locale,
+    )
+    .await?;
 
     validator::validate_secure_payment_link_render_request(
         request_headers,
@@ -341,10 +353,19 @@ pub async fn initiate_payment_link_flow(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
+    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
-    let (_, payment_details, payment_link_config) =
-        form_payment_link_data(&state, merchant_account, key_store, merchant_id, payment_id)
-            .await?;
+    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
+        .map(|val| val.to_string());
+    let (_, payment_details, payment_link_config) = form_payment_link_data(
+        &state,
+        merchant_account,
+        key_store,
+        merchant_id,
+        payment_id,
+        locale,
+    )
+    .await?;
 
     let css_script = get_color_scheme_css(&payment_link_config);
     let js_script = get_js_script(&payment_details)?;
@@ -571,7 +592,6 @@ pub fn get_payment_link_config_based_on_priority(
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         )
     );
-
     let payment_link_config = PaymentLinkConfig {
         theme,
         logo,
@@ -611,7 +631,10 @@ pub async fn get_payment_link_status(
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
     payment_id: String,
+    request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
+    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
+        .map(|val| val.to_string());
     let db = &*state.store;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
@@ -720,6 +743,7 @@ pub async fn get_payment_link_status(
         redirect: true,
         theme: payment_link_config.theme.clone(),
         return_url,
+        locale,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(payment_details))?;
     let payment_link_status_data = services::PaymentLinkStatusData {

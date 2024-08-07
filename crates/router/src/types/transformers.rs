@@ -21,8 +21,8 @@ use super::domain;
 use crate::{
     core::errors,
     headers::{
-        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION, X_MERCHANT_DOMAIN,
-        X_PAYMENT_CONFIRM_SOURCE,
+        ACCEPT_LANGUAGE, BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE,
     },
     services::authentication::get_header_value_by_key,
     types::{
@@ -1318,6 +1318,8 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
                 }))
             },
         )?;
+        let locale =
+            get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)?.map(|val| val.to_string());
         let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
@@ -1358,6 +1360,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
             browser_name,
             x_client_platform,
             x_merchant_domain,
+            locale,
         })
     }
 }
