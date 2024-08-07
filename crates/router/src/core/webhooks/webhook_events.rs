@@ -15,6 +15,7 @@ const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
 #[derive(Debug)]
 enum MerchantAccountOrBusinessProfile {
     MerchantAccount(domain::MerchantAccount),
+    #[allow(dead_code)]
     BusinessProfile(domain::BusinessProfile),
 }
 
@@ -305,6 +306,7 @@ async fn determine_identifier_and_get_key_store(
             ))
         }
 
+        /*
         // Since no merchant key store was found with `merchant_id` = `merchant_id_or_profile_id`,
         // `merchant_id_or_profile_id` is not a valid merchant ID.
         // Assuming that `merchant_id_or_profile_id` is a business profile ID, try to find a
@@ -337,7 +339,7 @@ async fn determine_identifier_and_get_key_store(
                 key_store,
             ))
         }
-
+        */
         Err(error) => Err(error)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to find merchant key store by merchant ID"),
