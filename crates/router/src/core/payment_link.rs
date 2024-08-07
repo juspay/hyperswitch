@@ -7,8 +7,8 @@ use api_models::{
 use common_utils::{
     consts::{
         DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
-        DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
+        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{OptionExt, ValueExt},
     types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
@@ -322,6 +322,7 @@ pub async fn initiate_secure_payment_link_flow(
             let link_data = GenericLinks {
                 allowed_domains,
                 data: GenericLinksData::SecurePaymentLink(payment_link_data),
+                locale: DEFAULT_LOCALE.to_string(),
             };
             logger::info!(
                 "payment link data, for building secure payment link {:?}",

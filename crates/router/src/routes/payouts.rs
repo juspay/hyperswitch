@@ -2,6 +2,7 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     web, HttpRequest, HttpResponse, Responder,
 };
+use common_utils::consts;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -9,7 +10,12 @@ use super::app::AppState;
 use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, payouts::*},
-    services::{api, authentication as auth, authorization::permissions::Permission},
+    headers::ACCEPT_LANGUAGE,
+    services::{
+        api,
+        authentication::{self as auth, get_header_value_by_key},
+        authorization::permissions::Permission,
+    },
     types::api::payouts as payout_types,
 };
 
@@ -33,13 +39,18 @@ pub async fn payouts_create(
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCreate;
+    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), req.headers())
+        .ok()
+        .flatten()
+        .map(|val| val.to_string())
+        .unwrap_or(consts::DEFAULT_LOCALE.to_string());
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| {
-            payouts_create_core(state, auth.merchant_account, auth.key_store, req)
+            payouts_create_core(state, auth.merchant_account, auth.key_store, req, &locale)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,

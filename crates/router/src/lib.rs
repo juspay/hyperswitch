@@ -44,6 +44,11 @@ use crate::{configs::settings, core::errors};
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+// Load I18n macro, for allow you use `t!` macro in anywhere.
+#[macro_use]
+extern crate rust_i18n;
+i18n!("locales");
+
 /// Header Constants
 pub mod headers {
     pub const ACCEPT: &str = "Accept";

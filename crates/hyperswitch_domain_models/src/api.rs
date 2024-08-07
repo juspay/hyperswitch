@@ -62,6 +62,7 @@ pub struct PaymentLinkStatusData {
 pub struct GenericLinks {
     pub allowed_domains: HashSet<String>,
     pub data: GenericLinksData,
+    pub locale: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
