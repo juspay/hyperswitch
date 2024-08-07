@@ -154,7 +154,7 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
-            req.request.destination_currency,
+            req.request.source_currency,
         )?;
         let connector_router_data = ebanx::EbanxRouterData::from((amount, req));
         let connector_req = ebanx::EbanxPayoutCreateRequest::try_from(&connector_router_data)?;
@@ -237,7 +237,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
-            req.request.destination_currency,
+            req.request.source_currency,
         )?;
         let connector_router_data = ebanx::EbanxRouterData::from((amount, req));
         let connector_req = ebanx::EbanxPayoutFulfillRequest::try_from(&connector_router_data)?;
