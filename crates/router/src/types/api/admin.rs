@@ -166,7 +166,7 @@ pub async fn create_business_profile(
     _state: &SessionState,
     _request: BusinessProfileCreate,
     _key_store: &MerchantKeyStore,
-) -> Result<domain::BusinessProfileNew, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
     todo!()
 }
 

@@ -149,9 +149,12 @@ pub async fn create_routing_config(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = &*state.store;
+    let key_manager_state = &(&state).into();
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
+        key_manager_state,
+        &key_store,
         Some(&request.profile_id),
         merchant_account.get_id(),
     )
@@ -167,7 +170,7 @@ pub async fn create_routing_config(
 
     let name_mca_id_set = helpers::ConnectNameAndMCAIdForProfile(
         all_mcas.filter_by_profile(&business_profile.profile_id, |mca| {
-            (&mca.connector_name, &mca.merchant_connector_id)
+            (&mca.connector_name, &mca.id)
         }),
     );
 
@@ -296,12 +299,14 @@ pub async fn create_routing_config(
 pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     profile_id: String,
     algorithm_id: String,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
 
     let routing_algorithm =
         RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
@@ -315,6 +320,8 @@ pub async fn link_routing_config(
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
+        key_manager_state,
+        &key_store,
         Some(&profile_id),
         merchant_account.get_id(),
     )
@@ -330,9 +337,10 @@ pub async fn link_routing_config(
 
     routing_algorithm.update_routing_ref_with_algorithm_id(transaction_type, &mut routing_ref)?;
 
-    // TODO move to business profile
     helpers::update_business_profile_active_algorithm_ref(
         db,
+        key_manager_state,
+        &key_store,
         business_profile,
         routing_ref,
         transaction_type,
@@ -495,14 +503,18 @@ pub async fn retrieve_routing_config(
 pub async fn unlink_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     profile_id: String,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
+        key_manager_state,
+        &key_store,
         Some(&profile_id),
         merchant_account.get_id(),
     )
@@ -539,6 +551,8 @@ pub async fn unlink_routing_config(
         let response = record.0.foreign_into();
         helpers::update_business_profile_active_algorithm_ref(
             db,
+            key_manager_state,
+            &key_store,
             business_profile,
             routing_algorithm,
             transaction_type,

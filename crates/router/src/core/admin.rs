@@ -1018,25 +1018,31 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             merchant_name: self
                 .merchant_name
                 .map(Secret::new)
-                .async_lift(|inner| {
-                    domain_types::encrypt_optional(
+                .async_lift(|inner| async {
+                    domain_types::crypto_operation(
                         key_manager_state,
-                        inner,
+                        type_name!(storage::MerchantAccount),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
                         identifier.clone(),
                         key,
                     )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant name")?,
             merchant_details: merchant_details
-                .async_lift(|inner| {
-                    domain_types::encrypt_optional(
+                .async_lift(|inner| async {
+                    domain_types::crypto_operation(
                         key_manager_state,
-                        inner,
-                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        type_name!(storage::MerchantAccount),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
+                        identifier.clone(),
                         key,
                     )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2033,7 +2039,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     domain_types::crypto_operation(
                         key_manager_state,
                         type_name!(storage::MerchantConnectorAccount),
-                        domai_types::CryptoOperation::EncryptOptional(inner),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
                         km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                         key_store.key.get_inner().peek(),
                     )
@@ -3371,15 +3377,6 @@ pub async fn create_business_profile(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?,
     ))
-}
-
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-pub async fn create_business_profile(
-    _state: SessionState,
-    _request: api::BusinessProfileCreate,
-    _merchant_id: &id_type::MerchantId,
-) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    todo!()
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]

@@ -118,6 +118,7 @@ pub async fn routing_link_config(
             routing::link_routing_config(
                 state,
                 auth.merchant_account,
+                auth.key_store,
                 wrapper.profile_id,
                 wrapper.algorithm_id.0,
                 transaction_type,
@@ -221,7 +222,13 @@ pub async fn routing_unlink_config(
         &req,
         path.into_inner(),
         |state, auth: auth::AuthenticationData, path, _| {
-            routing::unlink_routing_config(state, auth.merchant_account, path, transaction_type)
+            routing::unlink_routing_config(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                path,
+                transaction_type,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
