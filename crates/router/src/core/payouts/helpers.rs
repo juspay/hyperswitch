@@ -1038,33 +1038,53 @@ pub async fn update_payouts_and_payout_attempt(
     }
 
     // Fetch customer details from request and create new if it wasn't created during payout creation
-    let customer_id = payout_data.payouts.customer_id.clone().or({
-        let customer_in_request = get_customer_details_from_request(req);
-        let customer = get_or_create_customer_details(
-            state,
-            &customer_in_request,
-            merchant_account,
-            merchant_key_store,
-        )
-        .await?;
-        customer.map(|customer| customer.customer_id)
-    });
+    let customer_id = if let Some(customer_id) = &payout_data.payouts.customer_id {
+        Some(customer_id.clone())
+    } else {
+        let customer = get_customer_details_from_request(req);
+        if customer.customer_id.is_some()
+            || customer.name.is_some()
+            || customer.email.is_some()
+            || customer.phone.is_some()
+            || customer.phone_country_code.is_some()
+        {
+            payout_data.customer_details = get_or_create_customer_details(
+                state,
+                &customer,
+                merchant_account,
+                merchant_key_store,
+            )
+            .await?;
+            payout_data
+                .customer_details
+                .as_ref()
+                .map(|customer| customer.get_customer_id())
+        } else {
+            None
+        }
+    };
 
     // Fetch address details from request and create new if it wasn't already created
-    let address_id = payout_data.payouts.address_id.clone().or({
-        let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
-            state,
-            req.billing.as_ref(),
-            None,
-            merchant_account.get_id(),
-            customer_id.as_ref(),
-            merchant_key_store,
-            &payout_id,
-            merchant_account.storage_scheme,
-        )
-        .await?;
-        billing_address.map(|address| address.address_id)
-    });
+    let address_id = if let Some(address_id) = &payout_data.payouts.address_id {
+        Some(address_id.clone())
+    } else {
+        payout_data.billing_address =
+            payment_helpers::create_or_find_address_for_payment_by_request(
+                state,
+                req.billing.as_ref(),
+                None,
+                merchant_account.get_id(),
+                customer_id.as_ref(),
+                merchant_key_store,
+                &payout_id,
+                merchant_account.storage_scheme,
+            )
+            .await?;
+        payout_data
+            .billing_address
+            .as_ref()
+            .map(|address| address.address_id.clone())
+    };
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();

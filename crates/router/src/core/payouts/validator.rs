@@ -102,13 +102,22 @@ pub async fn validate_create_request(
 
     // Fetch customer details (merge of loose fields + customer object) and create DB entry
     let customer_in_request = helpers::get_customer_details_from_request(req);
-    let customer = helpers::get_or_create_customer_details(
-        state,
-        &customer_in_request,
-        merchant_account,
-        merchant_key_store,
-    )
-    .await?;
+    let customer = if customer_in_request.customer_id.is_some()
+        || customer_in_request.name.is_some()
+        || customer_in_request.email.is_some()
+        || customer_in_request.phone.is_some()
+        || customer_in_request.phone_country_code.is_some()
+    {
+        helpers::get_or_create_customer_details(
+            state,
+            &customer_in_request,
+            merchant_account,
+            merchant_key_store,
+        )
+        .await?
+    } else {
+        None
+    };
 
     // payout_token
     let payout_method_data = match (req.payout_token.as_ref(), customer.as_ref()) {
