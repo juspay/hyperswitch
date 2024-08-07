@@ -708,7 +708,6 @@ impl<F>
                         incremental_authorization_allowed: None,
                         charge_id: None,
                         connector_customer_id: None,
-
                     })
                 };
                 Ok(Self {

@@ -96,9 +96,9 @@ pub fn should_call_connector_create_customer<'a>(
         .connector_list
         .contains(&connector.connector_name);
 
-    let connector_customer_details = customer.as_ref().and_then(|customer| {
-            get_connector_customer_details_if_present(customer, connector_label)
-        });
+    let connector_customer_details = customer
+        .as_ref()
+        .and_then(|customer| get_connector_customer_details_if_present(customer, connector_label));
 
     if connector_needs_customer {
         let should_call_connector = connector_customer_details.is_none();

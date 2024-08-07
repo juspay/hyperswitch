@@ -277,19 +277,20 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         payment_data: &mut PaymentData<F>,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
-        F: 'b + Clone + Send + Sync
-        {
-            update_connector_customer_from_router_data(
-                state,
-                router_data,
-                merchant_account,
-                merchant_connector_account,
-                customer,
-                key_store ,
-                payment_data,
-            ).await?;
-            Ok(()) 
-        }
+        F: 'b + Clone + Send + Sync,
+    {
+        update_connector_customer_from_router_data(
+            state,
+            router_data,
+            merchant_account,
+            merchant_connector_account,
+            customer,
+            key_store,
+            payment_data,
+        )
+        .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -490,18 +491,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
-        {
-            update_connector_customer_from_router_data(
-                state,
-                router_data,
-                merchant_account,
-                merchant_connector_account,
-                customer,
-                key_store ,
-                payment_data,
-            ).await?;
-            Ok(()) 
-        }
+    {
+        update_connector_customer_from_router_data(
+            state,
+            router_data,
+            merchant_account,
+            merchant_connector_account,
+            customer,
+            key_store,
+            payment_data,
+        )
+        .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -767,18 +769,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
-        {
-            update_connector_customer_from_router_data(
-                state,
-                router_data,
-                merchant_account,
-                merchant_connector_account,
-                customer,
-                key_store ,
-                payment_data,
-            ).await?;
-            Ok(()) 
-        }
+    {
+        update_connector_customer_from_router_data(
+            state,
+            router_data,
+            merchant_account,
+            merchant_connector_account,
+            customer,
+            key_store,
+            payment_data,
+        )
+        .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -847,18 +850,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
-        {
-            update_connector_customer_from_router_data(
-                state,
-                router_data,
-                merchant_account,
-                merchant_connector_account,
-                customer,
-                key_store ,
-                payment_data,
-            ).await?;
-            Ok(()) 
-        }
+    {
+        update_connector_customer_from_router_data(
+            state,
+            router_data,
+            merchant_account,
+            merchant_connector_account,
+            customer,
+            key_store,
+            payment_data,
+        )
+        .await?;
+        Ok(())
+    }
 }
 
 #[instrument(skip_all)]
@@ -1510,11 +1514,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
 async fn update_connector_customer_from_router_data<F, T>(
     state: &SessionState,
-    router_data: &types::RouterData<
-        F,
-        T,
-        types::PaymentsResponseData,
-    >,
+    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     customer: Option<domain::Customer>,
@@ -1617,7 +1617,6 @@ where
     let _ = utils::flatten_join_error(customer_fut).await?;
     Ok(())
 }
-
 
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
