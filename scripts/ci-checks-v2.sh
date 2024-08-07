@@ -1,4 +1,4 @@
-#! /usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 crates_to_check=\
@@ -14,6 +14,17 @@ packages_skipped=()
 
 # List of cargo commands that will be executed
 all_commands=()
+
+# Function to get defined features for a crate
+get_defined_features() {
+  local crate_path=$1
+  cargo metadata --format-version 1 > metadata.json
+  jq -r --arg crate_name "$crate_path" '
+    .packages[] |
+    select(.name == $crate_name) |
+    .features | keys[]' metadata.json
+  rm metadata.json
+}
 
 # If we are running this on a pull request, then only check for packages that are modified
 if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
@@ -34,7 +45,9 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
       if [[ "${package_name}" == "storage_impl" ]]; then
         all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
       else
-        all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${v2_feature_set}' --package '${package_name}'")
+        defined_features=$(get_defined_features "$package_name")
+        valid_features=$(echo "$v2_feature_set" | tr ',' '\n' | grep -Fxf <(echo "$defined_features") | tr '\n' ',' | sed 's/,$//')
+        all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${valid_features}' --package '${package_name}'")
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
       packages_checked+=("${package_name}")
@@ -48,19 +61,20 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
 else
   # If we are doing this locally or on merge queue, then check for all the V2 crates
   all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
-
-  common_command="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${v2_feature_set}'"
-  crates_to_include=""
+  common_command="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 '"
   while IFS= read -r crate; do
     if [[ "${crate}" != "storage_impl" ]]; then
-      crates_to_include+="--package '${crate}' "
+      crates_to_include=""
+      defined_features=$(get_defined_features "$crate")
+      valid_features=$(echo "$v2_feature_set" | tr ',' '\n' | grep -Fxf <(echo "$defined_features") | tr '\n' ',' | sed 's/,$//')
+      crates_to_include+="--include-features '${valid_features}' --package '${crate}' "
+      all_commands+=("${common_command} ${crates_to_include}")
     fi
   done <<< "${crates_to_check}"
-  all_commands+=("${common_command} ${crates_to_include}")
 fi
 
 if ((${#all_commands[@]} == 0)); then
-  echo "There are no commands to be be executed"
+  echo "There are no commands to be executed"
   exit 0
 fi
 
