@@ -665,6 +665,7 @@ impl NewUser {
                     .get_new_organization()
                     .get_organization_id(),
                 entity_type,
+                profile_id: None,
             })
             .await
             .change_context(UserErrors::InternalServerError)

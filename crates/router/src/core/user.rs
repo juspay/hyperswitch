@@ -768,6 +768,7 @@ async fn handle_existing_user_invitation(
                     UserStatus::Active
                 }
             },
+            profile_id: user_from_token.profile_id.clone(),
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
@@ -853,6 +854,7 @@ async fn handle_new_user_invitation(
             status: invitation_status,
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id.clone(),
+            profile_id: user_from_token.profile_id.clone(),
             created_at: now,
             last_modified: now,
             entity_type: EntityType::Merchant,
