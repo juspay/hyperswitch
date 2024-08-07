@@ -254,3 +254,6 @@ api_key="API Key"
 api_key = "MyApiKey"
 key1 = "Merchant id"
 api_secret = "Secret key"
+
+[paybox]
+api_key="API Key"

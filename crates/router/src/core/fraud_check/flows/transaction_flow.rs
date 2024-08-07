@@ -50,7 +50,9 @@ impl
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = customer
+            .to_owned()
+            .map(|customer| customer.get_customer_id());
 
         let payment_method = self.payment_attempt.payment_method;
         let currency = self.payment_attempt.currency;

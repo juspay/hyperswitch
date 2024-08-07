@@ -15,6 +15,7 @@ function normalise(input) {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
     paypal: "Paypal",
+    wellsfargo: "Wellsfargo",
     // Add more known exceptions here
   };
 
@@ -128,6 +129,9 @@ export const getCustomExchange = (overrides) => {
       ...defaultExchange.Response,
       ...(overrides.Response || {}),
     },
+    ...(overrides.ResponseCustom
+      ? { ResponseCustom: overrides.ResponseCustom }
+      : {}),
   };
 };
 
@@ -383,7 +387,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: getCustomExchange({
+    Ideal: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -410,7 +414,7 @@ export const connectorDetails = {
         },
       },
     }),
-    giropay: getCustomExchange({
+    Giropay: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -440,7 +444,7 @@ export const connectorDetails = {
         },
       },
     }),
-    sofort: getCustomExchange({
+    Sofort: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -467,7 +471,7 @@ export const connectorDetails = {
         },
       },
     }),
-    eps: getCustomExchange({
+    Eps: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -493,7 +497,7 @@ export const connectorDetails = {
         },
       },
     }),
-    przelewy24: getCustomExchange({
+    Przelewy24: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "przelewy24",
@@ -509,7 +513,7 @@ export const connectorDetails = {
         },
       },
     }),
-    blikPaymentIntent: getCustomExchange({
+    BlikPaymentIntent: getCustomExchange({
       Request: {
         currency: "PLN",
       },
@@ -520,7 +524,7 @@ export const connectorDetails = {
         },
       },
     }),
-    blik: getCustomExchange({
+    Blik: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
@@ -625,6 +629,17 @@ export const connectorDetails = {
           capture_method: "manual",
         },
       },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot cancel this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
     }),
     Refund: getCustomExchange({
       Request: {
@@ -634,6 +649,16 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
       },
     }),
     PartialRefund: getCustomExchange({
@@ -784,6 +809,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -801,6 +827,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -818,6 +845,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSAutoCapture: getCustomExchange({
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -836,6 +864,7 @@ export const connectorDetails = {
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -847,6 +876,319 @@ export const connectorDetails = {
           online: {
             ip_address: "125.0.0.1",
             user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    InvalidCardNumber: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "123456",
+            card_exp_month: "10",
+            card_exp_year: "25",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: "Json deserialize error: invalid card number length",
+        },
+      },
+    },
+    InvalidExpiryMonth: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "00",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid Expiry Month",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    InvalidExpiryYear: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid Expiry Year",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    InvalidCardCvv: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid card_cvc length",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    InvalidCurrency: {
+      Request: {
+        currency: "United",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error:
+            "Json deserialize error: unknown variant `United`, expected one of `AED`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BWP`, `BYN`, `BZD`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SZL`, `THB`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`",
+        },
+      },
+    },
+    InvalidCaptureMethod: {
+      Request: {
+        currency: "USD",
+        capture_method: "auto",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error:
+            "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+        },
+      },
+    },
+    InvalidPaymentMethod: {
+      Request: {
+        currency: "USD",
+        payment_method: "this_supposed_to_be_a_card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error:
+            "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`",
+        },
+      },
+    },
+    InvalidAmountToCapture: {
+      Request: {
+        currency: "USD",
+        amount_to_capture: 10000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2026",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "amount_to_capture contains invalid data. Expected format is amount_to_capture lesser than amount",
+            code: "IR_05",
+          },
+        },
+      },
+    },
+    MissingRequiredParam: {
+      Request: {
+        currency: "USD",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2026",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: payment_method",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    PaymentIntentErrored: {
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "A payment token or payment method data is required",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    CaptureGreaterAmount: {
+      Request: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          currency: "USD",
+          customer_acceptance: null,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_to_capture is greater than amount",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    CaptureCapturedAmount: getCustomExchange({
+      Request: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          currency: "USD",
+          customer_acceptance: null,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ConfirmSuccessfulPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot confirm this payment because it has status succeeded",
+            code: "IR_16",
           },
         },
       },

@@ -14,7 +14,7 @@ impl ApiEventMetric for CustomerRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         self.get_merchant_reference_id()
             .clone()
-            .map(|customer_id| ApiEventsType::Customer { customer_id })
+            .map(|cid| ApiEventsType::Customer { customer_id: cid })
     }
 }
 

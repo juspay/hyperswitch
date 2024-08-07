@@ -21,4 +21,5 @@ module.exports = {
   chromeWebSecurity: false,
   defaultCommandTimeout: 10000,
   pageLoadTimeout: 20000,
+  trashAssetsBeforeRuns: false,
 };

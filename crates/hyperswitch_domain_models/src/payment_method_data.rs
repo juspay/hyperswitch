@@ -450,9 +450,9 @@ pub enum BankTransferData {
         /// Unique key for pix transfer
         pix_key: Option<Secret<String>>,
         /// CPF is a Brazilian tax identification number
-        cpf: Option<Secret<i64>>,
+        cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
-        cnpj: Option<Secret<i64>>,
+        cnpj: Option<Secret<String>>,
     },
     Pse {},
     LocalBankTransfer {

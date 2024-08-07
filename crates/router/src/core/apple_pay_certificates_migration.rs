@@ -1,5 +1,5 @@
 use api_models::apple_pay_certificates_migration;
-use common_utils::{errors::CustomResult, types::keymanager::Identifier};
+use common_utils::{errors::CustomResult, type_name, types::keymanager::Identifier};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
@@ -64,17 +64,19 @@ pub async fn apple_pay_certificates_migration(
                     })
                     .ok();
             if let Some(apple_pay_metadata) = connector_apple_pay_metadata {
-                let encrypted_apple_pay_metadata = domain_types::encrypt(
+                let encrypted_apple_pay_metadata = domain_types::crypto_operation(
                     &(&state).into(),
-                    Secret::new(
+                    type_name!(storage::MerchantConnectorAccount),
+                    domain_types::CryptoOperation::Encrypt(Secret::new(
                         serde_json::to_value(apple_pay_metadata)
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to serialize apple pay metadata as JSON")?,
-                    ),
+                    )),
                     Identifier::Merchant(merchant_id.clone()),
                     key_store.key.get_inner().peek(),
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt connector apple pay metadata")?;
 

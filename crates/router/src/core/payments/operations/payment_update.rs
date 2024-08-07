@@ -50,7 +50,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
 
@@ -677,7 +677,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_id = customer.clone().map(|c| c.customer_id);
+        let customer_id = customer.clone().map(|c| c.get_customer_id());
 
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;

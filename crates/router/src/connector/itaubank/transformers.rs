@@ -42,9 +42,9 @@ pub struct PixPaymentValue {
 #[derive(Default, Debug, Serialize)]
 pub struct ItaubankDebtor {
     #[serde(skip_serializing_if = "Option::is_none")]
-    cpf: Option<Secret<i64>>, // CPF is a Brazilian tax identification number
+    cpf: Option<Secret<String>>, // CPF is a Brazilian tax identification number
     #[serde(skip_serializing_if = "Option::is_none")]
-    cnpj: Option<Secret<i64>>, // CNPJ is a Brazilian company tax identification number
+    cnpj: Option<Secret<String>>, // CNPJ is a Brazilian company tax identification number
     #[serde(skip_serializing_if = "Option::is_none")]
     nome: Option<Secret<String>>, // name of the debtor
 }
@@ -60,15 +60,15 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     domain::BankTransferData::Pix { pix_key, cpf, cnpj } => {
                         let nome = item.router_data.get_optional_billing_full_name();
                         // cpf and cnpj are mutually exclusive
-                        let devedor = match (cpf, cnpj) {
-                            (Some(cpf), _) => ItaubankDebtor {
-                                cpf: Some(cpf),
-                                cnpj: None,
-                                nome,
-                            },
-                            (None, Some(cnpj)) => ItaubankDebtor {
+                        let devedor = match (cnpj, cpf) {
+                            (Some(cnpj), _) => ItaubankDebtor {
                                 cpf: None,
                                 cnpj: Some(cnpj),
+                                nome,
+                            },
+                            (None, Some(cpf)) => ItaubankDebtor {
+                                cpf: Some(cpf),
+                                cnpj: None,
                                 nome,
                             },
                             _ => Err(errors::ConnectorError::MissingRequiredField {

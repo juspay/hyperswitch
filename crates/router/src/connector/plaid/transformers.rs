@@ -233,16 +233,16 @@ impl From<PlaidPaymentStatus> for enums::AttemptStatus {
     fn from(item: PlaidPaymentStatus) -> Self {
         match item {
             PlaidPaymentStatus::PaymentStatusAuthorising => Self::Authorizing,
-            PlaidPaymentStatus::PaymentStatusBlocked => Self::AuthorizationFailed,
+            PlaidPaymentStatus::PaymentStatusBlocked
+            | PlaidPaymentStatus::PaymentStatusInsufficientFunds
+            | PlaidPaymentStatus::PaymentStatusRejected => Self::AuthorizationFailed,
             PlaidPaymentStatus::PaymentStatusCancelled => Self::Voided,
             PlaidPaymentStatus::PaymentStatusEstablished => Self::Authorized,
-            PlaidPaymentStatus::PaymentStatusExecuted => Self::Authorized,
+            PlaidPaymentStatus::PaymentStatusExecuted
+            | PlaidPaymentStatus::PaymentStatusSettled
+            | PlaidPaymentStatus::PaymentStatusInitiated => Self::Charged,
             PlaidPaymentStatus::PaymentStatusFailed => Self::Failure,
-            PlaidPaymentStatus::PaymentStatusInitiated => Self::AuthenticationPending,
             PlaidPaymentStatus::PaymentStatusInputNeeded => Self::AuthenticationPending,
-            PlaidPaymentStatus::PaymentStatusInsufficientFunds => Self::AuthorizationFailed,
-            PlaidPaymentStatus::PaymentStatusRejected => Self::AuthorizationFailed,
-            PlaidPaymentStatus::PaymentStatusSettled => Self::Charged,
         }
     }
 }

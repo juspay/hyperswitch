@@ -9,6 +9,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
+    type_name,
     types::keymanager::Identifier,
 };
 use error_stack::{report, ResultExt};
@@ -39,7 +40,10 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self, types::decrypt_optional},
+        domain::{
+            self,
+            types::{crypto_operation, CryptoOperation},
+        },
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
@@ -59,7 +63,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        payment_confirm_source: Option<common_enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
@@ -99,7 +103,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             Some(common_enums::PaymentSource::Webhook),
             Some(common_enums::PaymentSource::ExternalAuthenticator),
         ]
-        .contains(&payment_confirm_source)
+        .contains(&header_payload.payment_confirm_source)
         {
             helpers::validate_payment_status_against_not_allowed_statuses(
                 &payment_intent.status,
@@ -1084,13 +1088,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             let key = key_store.key.get_inner().peek();
 
             let card_detail_from_locker: Option<api::CardDetailFromLocker> =
-                decrypt_optional::<serde_json::Value, masking::WithType>(
+                crypto_operation::<serde_json::Value, masking::WithType>(
                     key_manager_state,
-                    pm.payment_method_data.clone(),
+                    type_name!(storage::PaymentMethod),
+                    CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
                     Identifier::Merchant(key_store.merchant_id.clone()),
                     key,
                 )
                 .await
+                .and_then(|val| val.try_into_optionaloperation())
                 .change_context(errors::StorageError::DecryptionError)
                 .attach_printable("unable to decrypt card details")
                 .ok()
@@ -1129,7 +1135,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 .clone(),
         );
 
-        let customer_id = customer.clone().map(|c| c.customer_id);
+        let customer_id = customer.clone().map(|c| c.get_customer_id());
         let return_url = payment_data.payment_intent.return_url.take();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = payment_data.payment_intent.business_label.clone();
@@ -1323,7 +1329,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let customer_fut =
             if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
-                let m_customer_customer_id = customer.customer_id.to_owned();
+                let m_customer_customer_id = customer.get_customer_id().to_owned();
                 let m_customer_merchant_id = customer.merchant_id.to_owned();
                 let m_key_store = key_store.clone();
                 let m_updated_customer = updated_customer.clone();

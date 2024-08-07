@@ -50,7 +50,9 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             })?;
 
         let browser_info: Option<BrowserInformation> = self.payment_attempt.get_browser_info().ok();
-        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+        let customer_id = customer
+            .to_owned()
+            .map(|customer| customer.get_customer_id());
 
         let router_data = RouterData {
             flow: std::marker::PhantomData,

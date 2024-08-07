@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_account_details": {
         "auth_type": "SignatureKey",
         "api_key": "{{connector_api_key}}",
@@ -54,10 +54,7 @@
           "payment_method_types": [
             {
               "payment_method_type": "credit",
-              "card_networks": [
-                "Visa",
-                "Mastercard"
-              ],
+              "card_networks": ["Visa", "Mastercard"],
               "minimum_amount": 1,
               "maximum_amount": 68607706,
               "recurring_enabled": true,
@@ -65,10 +62,7 @@
             },
             {
               "payment_method_type": "debit",
-              "card_networks": [
-                "Visa",
-                "Mastercard"
-              ],
+              "card_networks": ["Visa", "Mastercard"],
               "minimum_amount": 1,
               "maximum_amount": 68607706,
               "recurring_enabled": true,
@@ -85,15 +79,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors/:connector_id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      ":account_id",
-      "connectors",
-      ":connector_id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", ":account_id", "connectors", ":connector_id"],
     "variable": [
       {
         "key": "account_id",

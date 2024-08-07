@@ -6,4 +6,5 @@ pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const TIMESTAMP: &str = "Timestamp";
+    pub(crate) const X_ACCEPT_VERSION: &str = "X-Accept-Version";
 }

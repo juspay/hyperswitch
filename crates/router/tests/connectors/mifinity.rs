@@ -11,7 +11,7 @@ impl utils::Connector for MifinityTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Mifinity;
         utils::construct_connector_data_old(
-            Box::new(&Mifinity),
+            Box::new(Mifinity::new()),
             types::Connector::Mifinity,
             types::api::GetToken::Connector,
             None,

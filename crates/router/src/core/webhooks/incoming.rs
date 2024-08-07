@@ -544,6 +544,7 @@ async fn payments_incoming_webhook_flow(
                 state.clone(),
                 req_state,
                 merchant_account.clone(),
+                None,
                 key_store.clone(),
                 payments::operations::PaymentStatus,
                 api::PaymentsRetrieveRequest {
@@ -824,6 +825,7 @@ async fn refunds_incoming_webhook_flow(
         Box::pin(refunds::refund_retrieve_core(
             state.clone(),
             merchant_account.clone(),
+            None,
             key_store.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
@@ -1075,6 +1077,7 @@ async fn external_authentication_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account.clone(),
+                    None,
                     key_store.clone(),
                     payments::PaymentConfirm,
                     payment_confirm_req,
@@ -1268,6 +1271,7 @@ async fn frm_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account.clone(),
+                    None,
                     key_store.clone(),
                     payments::PaymentApprove,
                     api::PaymentsCaptureRequest {
@@ -1293,6 +1297,7 @@ async fn frm_incoming_webhook_flow(
                     state.clone(),
                     req_state,
                     merchant_account.clone(),
+                    None,
                     key_store.clone(),
                     payments::PaymentReject,
                     api::PaymentsCancelRequest {
@@ -1459,6 +1464,7 @@ async fn bank_transfer_webhook_flow(
             state.clone(),
             req_state,
             merchant_account.to_owned(),
+            None,
             key_store.clone(),
             payments::PaymentConfirm,
             request,
@@ -1673,6 +1679,10 @@ async fn fetch_optional_mca_and_connector(
 > {
     let db = &state.store;
     if connector_name_or_mca_id.starts_with("mca_") {
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_connector_account_v2")
+        ))]
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &state.into(),
@@ -1687,11 +1697,16 @@ async fn fetch_optional_mca_and_connector(
             .attach_printable(
                 "error while fetching merchant_connector_account from connector_id",
             )?;
-        let (connector, connector_name) = get_connector_by_connector_name(
-            state,
-            &mca.connector_name,
-            Some(mca.merchant_connector_id.clone()),
-        )?;
+        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        let mca: domain::MerchantConnectorAccount = {
+            let _ = merchant_account;
+            let _ = key_store;
+            let _ = db;
+            todo!()
+        };
+
+        let (connector, connector_name) =
+            get_connector_by_connector_name(state, &mca.connector_name, Some(mca.get_id()))?;
 
         Ok((Some(mca), connector, connector_name))
     } else {

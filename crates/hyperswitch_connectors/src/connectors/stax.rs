@@ -2,33 +2,53 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
-use diesel_models::enums;
+use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::enums;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_domain_models::{
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{
+            Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, Session,
+            SetupMandate, Void,
+        },
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        TokenizationRouterData,
+    },
+};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    consts, errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks,
+};
+use masking::{Mask, PeekInterface, Secret};
 use transformers as stax;
 
 use self::stax::StaxWebhookEventType;
-use super::utils::{self as connector_utils, to_connector_meta, RefundsRequestData};
 use crate::{
-    configs::settings,
-    consts,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
-    },
-    utils::BytesExt,
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, RefundsRequestData},
 };
-
 #[derive(Debug, Clone)]
 pub struct Stax;
 
@@ -51,9 +71,9 @@ where
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self)
@@ -79,14 +99,14 @@ impl ConnectorCommon for Stax {
         "application/json"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.stax.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = stax::StaxAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
@@ -126,7 +146,7 @@ impl ConnectorValidation for Stax {
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+                utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
     }
@@ -134,18 +154,14 @@ impl ConnectorValidation for Stax {
 
 impl api::ConnectorCustomer for Stax {}
 
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Stax
+impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for Stax
 {
     fn get_headers(
         &self,
-        req: &types::ConnectorCustomerRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -155,16 +171,16 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::ConnectorCustomerRouterData,
-        connectors: &settings::Connectors,
+        _req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}customer", self.base_url(connectors),))
     }
 
     fn get_request_body(
         &self,
-        req: &types::ConnectorCustomerRouterData,
-        _connectors: &settings::Connectors,
+        req: &ConnectorCustomerRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stax::StaxCustomerRequest::try_from(req)?;
 
@@ -173,12 +189,12 @@ impl
 
     fn build_request(
         &self,
-        req: &types::ConnectorCustomerRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::ConnectorCustomerType::get_url(
                     self, req, connectors,
                 )?)
@@ -195,12 +211,12 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::ConnectorCustomerRouterData,
+        data: &ConnectorCustomerRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::ConnectorCustomerRouterData, errors::ConnectorError>
+    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError>
     where
-        types::PaymentsResponseData: Clone,
+        PaymentsResponseData: Clone,
     {
         let response: stax::StaxCustomerResponse = res
             .response
@@ -210,7 +226,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -226,18 +242,14 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Stax
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Stax
 {
     fn get_headers(
         &self,
-        req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -247,16 +259,16 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
+        _req: &TokenizationRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}payment-method/", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
-        req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
+        req: &TokenizationRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = stax::StaxTokenRequest::try_from(req)?;
 
@@ -265,12 +277,12 @@ impl
 
     fn build_request(
         &self,
-        req: &types::TokenizationRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::TokenizationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::TokenizationType::get_headers(self, req, connectors)?)
@@ -283,12 +295,12 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::TokenizationRouterData,
+        data: &TokenizationRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
+    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
     where
-        types::PaymentsResponseData: Clone,
+        PaymentsResponseData: Clone,
     {
         let response: stax::StaxTokenResponse = res
             .response
@@ -298,7 +310,7 @@ impl
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -314,33 +326,18 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Stax
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Stax {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Stax
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Stax {}
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Stax
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Stax {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Stax".to_string())
                 .into(),
@@ -348,14 +345,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Stax
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Stax {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -365,16 +360,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}charge", self.base_url(connectors),))
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stax::StaxRouterData::try_from((
             &self.get_currency_unit(),
@@ -389,12 +384,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -411,10 +406,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: stax::StaxPaymentsResponse = res
             .response
             .parse_struct("StaxPaymentsAuthorizeResponse")
@@ -423,7 +418,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -439,14 +434,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Stax
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Stax {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -456,8 +449,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req
             .request
@@ -473,12 +466,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
+            RequestBuilder::new()
+                .method(Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
@@ -488,10 +481,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: stax::StaxPaymentsResponse = res
             .response
             .parse_struct("StaxPaymentsSyncResponse")
@@ -500,7 +493,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -516,14 +509,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Stax
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Stax {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -533,8 +524,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}/transaction/{}/capture",
@@ -545,8 +536,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stax::StaxRouterData::try_from((
             &self.get_currency_unit(),
@@ -560,12 +551,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
@@ -580,10 +571,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: stax::StaxPaymentsResponse = res
             .response
             .parse_struct("StaxPaymentsCaptureResponse")
@@ -592,7 +583,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -608,14 +599,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Stax
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Stax {
     fn get_headers(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -625,8 +614,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn get_url(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}/transaction/{}/void-or-refund",
@@ -637,12 +626,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn build_request(
         &self,
-        req: &types::PaymentsCancelRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
@@ -652,10 +641,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCancelRouterData,
+        data: &PaymentsCancelRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
         let response: stax::StaxPaymentsResponse = res
             .response
             .parse_struct("StaxPaymentsVoidResponse")
@@ -664,7 +653,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -680,12 +669,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Stax {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stax {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -695,12 +684,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_transaction_id = if req.request.connector_metadata.is_some() {
             let stax_capture: stax::StaxMetaData =
-                to_connector_meta(req.request.connector_metadata.clone())?;
+                utils::to_connector_meta(req.request.connector_metadata.clone())?;
             stax_capture.capture_id
         } else {
             req.request.connector_transaction_id.clone()
@@ -715,8 +704,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = stax::StaxRouterData::try_from((
             &self.get_currency_unit(),
@@ -730,11 +719,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
@@ -749,10 +738,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: stax::RefundResponse = res
             .response
             .parse_struct("StaxRefundResponse")
@@ -761,7 +750,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -777,12 +766,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Stax {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Stax {
     fn get_headers(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -792,8 +781,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}/transaction/{}",
@@ -804,12 +793,12 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
+            RequestBuilder::new()
+                .method(Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
@@ -819,10 +808,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn handle_response(
         &self,
-        data: &types::RefundSyncRouterData,
+        data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: stax::RefundResponse = res
             .response
             .parse_struct("StaxRefundSyncResponse")
@@ -831,7 +820,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -848,10 +837,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Stax {
+impl webhooks::IncomingWebhook for Stax {
     async fn verify_webhook_source(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
@@ -862,8 +851,8 @@ impl api::IncomingWebhook for Stax {
 
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook_body: stax::StaxWebhookBody = request
             .body
             .parse_struct("StaxWebhookBody")
@@ -894,8 +883,8 @@ impl api::IncomingWebhook for Stax {
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: stax::StaxWebhookBody = request
             .body
             .parse_struct("StaxWebhookEventType")
@@ -903,24 +892,24 @@ impl api::IncomingWebhook for Stax {
 
         Ok(match &details.transaction_type {
             StaxWebhookEventType::Refund => match &details.success {
-                true => api::IncomingWebhookEvent::RefundSuccess,
-                false => api::IncomingWebhookEvent::RefundFailure,
+                true => IncomingWebhookEvent::RefundSuccess,
+                false => IncomingWebhookEvent::RefundFailure,
             },
             StaxWebhookEventType::Capture | StaxWebhookEventType::Charge => {
                 match &details.success {
-                    true => api::IncomingWebhookEvent::PaymentIntentSuccess,
-                    false => api::IncomingWebhookEvent::PaymentIntentFailure,
+                    true => IncomingWebhookEvent::PaymentIntentSuccess,
+                    false => IncomingWebhookEvent::PaymentIntentFailure,
                 }
             }
             StaxWebhookEventType::PreAuth
             | StaxWebhookEventType::Void
-            | StaxWebhookEventType::Unknown => api::IncomingWebhookEvent::EventNotSupported,
+            | StaxWebhookEventType::Unknown => IncomingWebhookEvent::EventNotSupported,
         })
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;

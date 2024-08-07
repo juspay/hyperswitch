@@ -37,7 +37,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest>> {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;

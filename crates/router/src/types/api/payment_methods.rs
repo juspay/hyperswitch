@@ -1,3 +1,19 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub use api_models::payment_methods::{
+    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
+    CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
+    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
+    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
+    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
+    PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
+    PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData,
+    TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2,
+    TokenizedWalletValue1, TokenizedWalletValue2,
+};
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
     CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,

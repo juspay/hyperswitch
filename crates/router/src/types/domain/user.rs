@@ -5,12 +5,12 @@ use api_models::{
 };
 use common_enums::TokenPurpose;
 use common_utils::{
-    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
+    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
 };
 use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
-    organization::{self as diesel_org, Organization},
+    organization::{self as diesel_org, Organization, OrganizationBridge},
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
 };
@@ -254,7 +254,7 @@ impl NewUserOrganization {
     }
 
     pub fn get_organization_id(&self) -> id_type::OrganizationId {
-        self.0.org_id.clone()
+        self.0.get_organization_id()
     }
 }
 
@@ -300,14 +300,10 @@ impl From<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for Ne
 
 impl From<UserMerchantCreateRequestWithToken> for NewUserOrganization {
     fn from(value: UserMerchantCreateRequestWithToken) -> Self {
-        Self(diesel_org::OrganizationNew {
-            org_id: value.2.org_id,
-            org_name: Some(value.1.company_name),
-            organization_details: None,
-            metadata: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-        })
+        Self(diesel_org::OrganizationNew::new(
+            value.2.org_id,
+            Some(value.1.company_name),
+        ))
     }
 }
 
@@ -344,7 +340,7 @@ impl MerchantId {
 impl TryFrom<MerchantId> for id_type::MerchantId {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: MerchantId) -> Result<Self, Self::Error> {
-        Self::from(value.0.into())
+        Self::try_from(std::borrow::Cow::from(value.0))
             .change_context(UserErrors::MerchantIdParsingError)
             .attach_printable("Could not convert user merchant_id to merchant_id type")
     }
@@ -1005,13 +1001,15 @@ impl UserFromStorage {
 
             let key_store = UserKeyStore {
                 user_id: self.get_user_id().to_string(),
-                key: domain_types::encrypt(
+                key: domain_types::crypto_operation(
                     key_manager_state,
-                    key.to_vec().into(),
+                    type_name!(UserKeyStore),
+                    domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .change_context(UserErrors::InternalServerError)?,
                 created_at: common_utils::date_time::now(),
             };
@@ -1055,13 +1053,15 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::decrypt_optional::<String, masking::WithType>(
+        Ok(domain_types::crypto_operation::<String, masking::WithType>(
             key_manager_state,
-            self.0.totp_secret.clone(),
+            type_name!(storage_user::User),
+            domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
             Identifier::User(user_key_store.user_id.clone()),
             user_key_store.key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_optionaloperation())
         .change_context(UserErrors::InternalServerError)?
         .map(Encryptable::into_inner))
     }
@@ -1148,8 +1148,12 @@ impl SignInWithSingleRoleStrategy {
         self,
         state: &SessionState,
     ) -> UserResult<user_api::SignInResponse> {
-        let token =
-            utils::user::generate_jwt_auth_token(state, &self.user, &self.user_role).await?;
+        let token = utils::user::generate_jwt_auth_token_without_profile(
+            state,
+            &self.user,
+            &self.user_role,
+        )
+        .await?;
         utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
 
         let dashboard_entry_response =

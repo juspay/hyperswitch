@@ -737,6 +737,7 @@ pub struct PaymentIntentListParams {
     pub starting_after_id: Option<String>,
     pub ending_before_id: Option<String>,
     pub limit: Option<u32>,
+    pub order: api_models::payments::Order,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
@@ -758,6 +759,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
             limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            order: Default::default(),
         }))
     }
 }
@@ -781,6 +783,7 @@ impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
             starting_after_id: None,
             ending_before_id: None,
             limit: None,
+            order: Default::default(),
         }))
     }
 }
@@ -807,6 +810,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 starting_after_id: None,
                 ending_before_id: None,
                 limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+                order: value.order,
             }))
         }
     }

@@ -1,13 +1,19 @@
-use common_utils::types::MinorUnit;
+use common_enums::enums;
+use common_utils::{request::Method, types::MinorUnit};
+use hyperswitch_domain_models::{
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
-    services,
-    types::{self, api, storage::enums, ConnectorAuthType},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::PaymentsAuthorizeRequestData,
 };
 
 #[derive(Debug, Serialize)]
@@ -109,7 +115,7 @@ pub enum ExceptionStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BitpayPaymentResponseData {
-    pub url: Option<Url>,
+    pub url: Option<url::Url>,
     pub status: BitpayPaymentStatus,
     pub price: MinorUnit,
     pub currency: String,
@@ -135,24 +141,23 @@ pub struct BitpayPaymentsResponse {
     facade: Option<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BitpayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, BitpayPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item
             .response
             .data
             .url
-            .map(|x| services::RedirectForm::from((x, services::Method::Get)));
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
+            .map(|x| RedirectForm::from((x, Method::Get)));
+        let connector_id = ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = item.response.data.status;
         Ok(Self {
             status: enums::AttemptStatus::from(attempt_status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
                 redirection_data,
                 mandate_reference: None,
@@ -218,15 +223,15 @@ pub struct RefundResponse {
     status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -235,15 +240,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),

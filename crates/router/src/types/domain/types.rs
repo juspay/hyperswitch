@@ -1,13 +1,13 @@
 use common_utils::types::keymanager::KeyManagerState;
 pub use hyperswitch_domain_models::type_encryption::{
-    batch_decrypt, batch_encrypt, decrypt, decrypt_optional, encrypt, encrypt_optional, AsyncLift,
-    Lift,
+    crypto_operation, AsyncLift, CryptoOperation, Lift,
 };
 
 impl From<&crate::SessionState> for KeyManagerState {
     fn from(state: &crate::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
         Self {
+            enabled: conf.enabled,
             url: conf.url.clone(),
             client_idle_timeout: state.conf.proxy.idle_pool_connection_timeout,
             #[cfg(feature = "keymanager_mtls")]

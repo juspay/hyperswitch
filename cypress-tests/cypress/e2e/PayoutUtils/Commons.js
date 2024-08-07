@@ -14,6 +14,7 @@ function normalise(input) {
   const exceptions = {
     adyenplatform: "Adyenplatform",
     wise: "Wise",
+    wellsfargo: "Wellsfargo",
     // Add more known exceptions here
   };
 

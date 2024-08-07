@@ -16,7 +16,8 @@ async fn create_merchant_account() {
 
     let expected = "merchant_12345";
     let expected_merchant_id_type =
-        common_utils::id_type::MerchantId::from("merchant_12345".into()).unwrap();
+        common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_12345"))
+            .unwrap();
 
     let hlist_pat![merchant_id, _api_key]: HList![MerchantId, ApiKey] = admin_client
         .create_merchant_account(&server, expected.to_owned())

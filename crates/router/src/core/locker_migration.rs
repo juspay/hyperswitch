@@ -1,10 +1,15 @@
 use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{enums as storage_enums, PaymentMethod};
-use error_stack::{FutureExt, ResultExt};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use error_stack::FutureExt;
+use error_stack::ResultExt;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use futures::TryFutureExt;
 
-use super::{errors::StorageErrorExt, payment_methods::cards};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use super::errors::StorageErrorExt;
+use super::payment_methods::cards;
 use crate::{
     errors,
     routes::SessionState,
@@ -12,6 +17,15 @@ use crate::{
     types::{api, domain},
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn rust_locker_migration(
+    _state: SessionState,
+    _merchant_id: &id_type::MerchantId,
+) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn rust_locker_migration(
     state: SessionState,
     merchant_id: &id_type::MerchantId,

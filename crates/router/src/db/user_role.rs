@@ -380,7 +380,8 @@ impl UserRoleInterface for MockDb {
 
         Err(errors::StorageError::ValueNotFound(format!(
             "No user role available for user_id = {} and merchant_id = {}",
-            user_id, merchant_id
+            user_id,
+            merchant_id.get_string_repr()
         ))
         .into())
     }

@@ -144,6 +144,7 @@ impl RoleInterface for MockDb {
             org_id: role.org_id,
             groups: role.groups,
             scope: role.scope,
+            entity_type: role.entity_type,
             created_by: role.created_by,
             created_at: role.created_at,
             last_modified_at: role.last_modified_at,

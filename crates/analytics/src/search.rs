@@ -16,6 +16,17 @@ pub async fn msearch_results(
     merchant_id: &common_utils::id_type::MerchantId,
     indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
+    if req.query.trim().is_empty()
+        && req
+            .filters
+            .as_ref()
+            .map_or(true, |filters| filters.is_all_none())
+    {
+        return Err(OpenSearchError::BadRequestError(
+            "Both query and filters are empty".to_string(),
+        )
+        .into());
+    }
     let mut query_builder =
         OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
 
@@ -84,6 +95,10 @@ pub async fn msearch_results(
                     .switch()?;
             }
         };
+    };
+
+    if let Some(time_range) = req.time_range {
+        query_builder.set_time_range(time_range.into()).switch()?;
     };
 
     let response_text: OpenMsearchOutput = client
@@ -210,6 +225,11 @@ pub async fn search_results(
             }
         };
     };
+
+    if let Some(time_range) = search_req.time_range {
+        query_builder.set_time_range(time_range.into()).switch()?;
+    };
+
     query_builder
         .set_offset_n_count(search_req.offset, search_req.count)
         .switch()?;

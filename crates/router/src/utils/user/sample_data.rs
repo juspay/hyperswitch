@@ -43,25 +43,44 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
-        serde_json::from_value(merchant_from_db.primary_business_details.clone())
-            .change_context(SampleDataError::InternalServerError)
-            .attach_printable("Error while parsing primary business details")?;
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
+    let (profile_id_result, business_country_default, business_label_default) = {
+        let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
+            serde_json::from_value(merchant_from_db.primary_business_details.clone())
+                .change_context(SampleDataError::InternalServerError)
+                .attach_printable("Error while parsing primary business details")?;
 
-    let business_country_default = merchant_parsed_details.first().map(|x| x.country);
+        let business_country_default = merchant_parsed_details.first().map(|x| x.country);
 
-    let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
+        let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let profile_id = match crate::core::utils::get_profile_id_from_business_details(
-        business_country_default,
-        business_label_default.as_ref(),
-        &merchant_from_db,
-        req.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    {
+        let profile_id = crate::core::utils::get_profile_id_from_business_details(
+            business_country_default,
+            business_label_default.as_ref(),
+            &merchant_from_db,
+            req.profile_id.as_ref(),
+            &*state.store,
+            false,
+        )
+        .await;
+        (profile_id, business_country_default, business_label_default)
+    };
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let (profile_id_result, business_country_default, business_label_default) = {
+        let profile_id = req
+            .profile_id.clone()
+            .ok_or(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::MissingRequiredField {
+                field_name: "profile_id",
+            });
+
+        (profile_id, None, None)
+    };
+
+    let profile_id = match profile_id_result {
         Ok(id) => id.clone(),
         Err(error) => {
             router_env::logger::error!(
@@ -145,8 +164,9 @@ pub async fn generate_sample_data(
     }
 
     // This has to be an internal server error because, this function failing means that the intended functionality is not working as expected
-    let dashboard_customer_id = id_type::CustomerId::from("hs-dashboard-user".into())
-        .change_context(SampleDataError::InternalServerError)?;
+    let dashboard_customer_id =
+        id_type::CustomerId::try_from(std::borrow::Cow::from("hs-dashboard-user"))
+            .change_context(SampleDataError::InternalServerError)?;
 
     for num in 1..=sample_data_size {
         let payment_id = common_utils::generate_id_with_default_len("test");

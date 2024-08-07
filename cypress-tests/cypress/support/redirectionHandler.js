@@ -295,7 +295,11 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get('input[type="password"]').type("password");
         cy.get("#buttonSubmit").click();
       });
-  } else if (connectorId === "bankofamerica" || connectorId === "cybersource") {
+  } else if (
+    connectorId === "bankofamerica" ||
+    connectorId === "cybersource" ||
+    connectorId === "wellsfargo"
+  ) {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
       .within((body) => {

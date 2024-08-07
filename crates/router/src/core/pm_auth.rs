@@ -14,7 +14,7 @@ use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
     ext_traits::AsyncExt,
-    generate_id,
+    generate_id, type_name,
     types::{self as util_types, keymanager::Identifier, AmountConvertor},
 };
 use error_stack::ResultExt;
@@ -45,7 +45,7 @@ use crate::{
     services::{pm_auth as pm_auth_services, ApplicationResponse},
     types::{
         self,
-        domain::{self, types::decrypt_optional},
+        domain::{self, types::crypto_operation},
         storage,
         transformers::ForeignTryFrom,
     },
@@ -136,6 +136,10 @@ pub async fn create_link_token(
         .and_then(|address| address.country)
         .map(|country| country.to_string());
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -148,6 +152,12 @@ pub async fn create_link_token(
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_account.get_id().get_string_repr().to_owned(),
         })?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let merchant_connector_account = {
+        let _ = billing_country;
+        todo!()
+    };
 
     let auth_type = helpers::get_connector_auth_type(merchant_connector_account)?;
 
@@ -231,6 +241,10 @@ pub async fn exchange_token_core(
 
     let connector = PaymentAuthConnectorData::get_connector_by_name(connector_name)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -243,6 +257,14 @@ pub async fn exchange_token_core(
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_account.get_id().get_string_repr().to_owned(),
         })?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let merchant_connector_account: domain::MerchantConnectorAccount = {
+        let _ = merchant_account;
+        let _ = connector;
+        let _ = key_store;
+        todo!()
+    };
 
     let auth_type = helpers::get_connector_auth_type(merchant_connector_account.clone())?;
 
@@ -273,7 +295,7 @@ pub async fn exchange_token_core(
         state,
         bank_account_details_resp,
         (connector_name, access_token),
-        merchant_connector_account.merchant_connector_id,
+        merchant_connector_account.get_id(),
     ))
     .await?;
 
@@ -327,13 +349,15 @@ async fn store_bank_details_in_payment_methods(
 
     for pm in payment_methods {
         if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
-            let bank_details_pm_data = decrypt_optional::<serde_json::Value, masking::WithType>(
+            let bank_details_pm_data = crypto_operation::<serde_json::Value, masking::WithType>(
                 &(&state).into(),
-                pm.payment_method_data.clone(),
+                type_name!(storage::PaymentMethod),
+                domain::types::CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
             .await
+            .and_then(|val| val.try_into_optionaloperation())
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("unable to decrypt bank account details")?
             .map(|x| x.into_inner().expose())
@@ -716,6 +740,10 @@ pub async fn retrieve_payment_method_from_auth_service(
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_connector_account_v2")
+    ))]
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
@@ -730,6 +758,13 @@ pub async fn retrieve_payment_method_from_auth_service(
         .attach_printable(
             "error while fetching merchant_connector_account from merchant_id and connector name",
         )?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    let mca = {
+        let _ = merchant_account;
+        let _ = connector;
+        todo!()
+    };
 
     let auth_type = pm_auth_helpers::get_connector_auth_type(mca)?;
 

@@ -40,7 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest>> {
         let db = &*state.store;
         let merchant_id = merchant_account.get_id();

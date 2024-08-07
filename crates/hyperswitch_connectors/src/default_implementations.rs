@@ -3,6 +3,7 @@
 // impl api::PaymentsPreProcessing for Helcim {}
 // impl api::PaymentReject for Helcim {}
 // impl api::PaymentApprove for Helcim {}
+use common_utils::errors::CustomResult;
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
     router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
@@ -55,16 +56,19 @@ use hyperswitch_interfaces::api::payouts::{
     PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
     PayoutRecipientAccount, PayoutSync,
 };
-use hyperswitch_interfaces::api::{
-    self,
-    disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
-    files::{FileUpload, RetrieveFile, UploadFile},
-    payments::{
-        ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
-        PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
-        PaymentsPostProcessing, PaymentsPreProcessing,
+use hyperswitch_interfaces::{
+    api::{
+        self,
+        disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
+        files::{FileUpload, RetrieveFile, UploadFile},
+        payments::{
+            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
+            PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
+            PaymentsPostProcessing, PaymentsPreProcessing,
+        },
+        ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
-    ConnectorIntegration, ConnectorMandateRevoke,
+    errors::ConnectorError,
 };
 
 macro_rules! default_imp_for_authorize_session_token {
@@ -81,7 +85,13 @@ macro_rules! default_imp_for_authorize_session_token {
     };
 }
 
-default_imp_for_authorize_session_token!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_authorize_session_token!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 use crate::connectors;
 macro_rules! default_imp_for_complete_authorize {
@@ -99,7 +109,12 @@ macro_rules! default_imp_for_complete_authorize {
     };
 }
 
-default_imp_for_complete_authorize!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_complete_authorize!(
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_incremental_authorization {
     ($($path:ident::$connector:ident),*) => {
@@ -116,7 +131,13 @@ macro_rules! default_imp_for_incremental_authorization {
     };
 }
 
-default_imp_for_incremental_authorization!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_incremental_authorization!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_create_customer {
     ($($path:ident::$connector:ident),*) => {
@@ -133,7 +154,36 @@ macro_rules! default_imp_for_create_customer {
     };
 }
 
-default_imp_for_create_customer!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_create_customer!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim
+);
+
+macro_rules! default_imp_for_connector_redirect_response {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl ConnectorRedirectResponse for $path::$connector {
+                fn get_flow_type(
+                    &self,
+                    _query_params: &str,
+                    _json_payload: Option<serde_json::Value>,
+                    _action: common_enums::enums::PaymentAction
+                ) -> CustomResult<common_enums::enums::CallConnectorAction, ConnectorError> {
+                    Ok(common_enums::enums::CallConnectorAction::Trigger)
+                }
+            }
+    )*
+    };
+}
+
+default_imp_for_connector_redirect_response!(
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_pre_processing_steps{
     ($($path:ident::$connector:ident),*)=> {
@@ -150,7 +200,13 @@ macro_rules! default_imp_for_pre_processing_steps{
     };
 }
 
-default_imp_for_pre_processing_steps!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_pre_processing_steps!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_post_processing_steps{
     ($($path:ident::$connector:ident),*)=> {
@@ -167,7 +223,13 @@ macro_rules! default_imp_for_post_processing_steps{
     };
 }
 
-default_imp_for_post_processing_steps!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_post_processing_steps!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_approve {
     ($($path:ident::$connector:ident),*) => {
@@ -184,7 +246,13 @@ macro_rules! default_imp_for_approve {
     };
 }
 
-default_imp_for_approve!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_approve!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_reject {
     ($($path:ident::$connector:ident),*) => {
@@ -201,7 +269,13 @@ macro_rules! default_imp_for_reject {
     };
 }
 
-default_imp_for_reject!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_reject!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_webhook_source_verification {
     ($($path:ident::$connector:ident),*) => {
@@ -218,7 +292,13 @@ macro_rules! default_imp_for_webhook_source_verification {
     };
 }
 
-default_imp_for_webhook_source_verification!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_webhook_source_verification!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_accept_dispute {
     ($($path:ident::$connector:ident),*) => {
@@ -236,7 +316,13 @@ macro_rules! default_imp_for_accept_dispute {
     };
 }
 
-default_imp_for_accept_dispute!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_accept_dispute!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_submit_evidence {
     ($($path:ident::$connector:ident),*) => {
@@ -253,7 +339,13 @@ macro_rules! default_imp_for_submit_evidence {
     };
 }
 
-default_imp_for_submit_evidence!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_submit_evidence!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_defend_dispute {
     ($($path:ident::$connector:ident),*) => {
@@ -270,7 +362,13 @@ macro_rules! default_imp_for_defend_dispute {
     };
 }
 
-default_imp_for_defend_dispute!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_defend_dispute!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_file_upload {
     ($($path:ident::$connector:ident),*) => {
@@ -296,7 +394,13 @@ macro_rules! default_imp_for_file_upload {
     };
 }
 
-default_imp_for_file_upload!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_file_upload!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_create {
@@ -315,7 +419,13 @@ macro_rules! default_imp_for_payouts_create {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_create!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_create!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_retrieve {
@@ -334,7 +444,13 @@ macro_rules! default_imp_for_payouts_retrieve {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_retrieve!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_retrieve!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_eligibility {
@@ -353,7 +469,13 @@ macro_rules! default_imp_for_payouts_eligibility {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_eligibility!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_eligibility!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_fulfill {
@@ -372,7 +494,13 @@ macro_rules! default_imp_for_payouts_fulfill {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_fulfill!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_fulfill!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_cancel {
@@ -391,7 +519,13 @@ macro_rules! default_imp_for_payouts_cancel {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_cancel!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_cancel!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_quote {
@@ -410,7 +544,13 @@ macro_rules! default_imp_for_payouts_quote {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_quote!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_quote!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_recipient {
@@ -429,7 +569,13 @@ macro_rules! default_imp_for_payouts_recipient {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_recipient!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "payouts")]
 macro_rules! default_imp_for_payouts_recipient_account {
@@ -448,7 +594,13 @@ macro_rules! default_imp_for_payouts_recipient_account {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient_account!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_payouts_recipient_account!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_sale {
@@ -467,7 +619,13 @@ macro_rules! default_imp_for_frm_sale {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_sale!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_frm_sale!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_checkout {
@@ -486,7 +644,13 @@ macro_rules! default_imp_for_frm_checkout {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_checkout!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_frm_checkout!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_transaction {
@@ -505,7 +669,13 @@ macro_rules! default_imp_for_frm_transaction {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_transaction!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_frm_transaction!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_fulfillment {
@@ -524,7 +694,13 @@ macro_rules! default_imp_for_frm_fulfillment {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_fulfillment!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_frm_fulfillment!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 #[cfg(feature = "frm")]
 macro_rules! default_imp_for_frm_record_return {
@@ -543,7 +719,13 @@ macro_rules! default_imp_for_frm_record_return {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_record_return!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_frm_record_return!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
 
 macro_rules! default_imp_for_revoking_mandates {
     ($($path:ident::$connector:ident),*) => {
@@ -559,4 +741,10 @@ macro_rules! default_imp_for_revoking_mandates {
     };
 }
 
-default_imp_for_revoking_mandates!(connectors::Fiserv, connectors::Helcim);
+default_imp_for_revoking_mandates!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);

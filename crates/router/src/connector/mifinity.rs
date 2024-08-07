@@ -1,12 +1,12 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use error_stack::{report, Report, ResultExt};
 use masking::ExposeInterface;
 use transformers as mifinity;
 
 use self::transformers::auth_headers;
+use super::utils::convert_amount;
 use crate::{
     configs::settings,
     consts,
@@ -26,8 +26,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Mifinity;
+#[derive(Clone)]
+pub struct Mifinity {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Mifinity {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Mifinity {}
 impl api::PaymentSession for Mifinity {}
@@ -224,12 +234,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = mifinity::MifinityRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = mifinity::MifinityRouterData::from((amount, req));
         let connector_req = mifinity::MifinityPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

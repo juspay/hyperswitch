@@ -26,6 +26,7 @@ use crate::{
 pub async fn retrieve_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     req: disputes::DisputeId,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
@@ -43,6 +44,7 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id_list: Option<Vec<String>>,
     constraints: api_models::disputes::DisputeListConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
     let disputes = state
@@ -62,6 +64,7 @@ pub async fn retrieve_disputes_list(
 pub async fn accept_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
@@ -164,6 +167,7 @@ pub async fn accept_dispute(
 pub async fn submit_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
@@ -329,6 +333,7 @@ pub async fn submit_evidence(
 pub async fn attach_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
@@ -406,6 +411,7 @@ pub async fn attach_evidence(
 pub async fn retrieve_dispute_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     req: disputes::DisputeId,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
     let dispute = state

@@ -5,14 +5,16 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     id_type,
     pii::{self, Email, IpAddress},
+    types::{AmountConvertor, MinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
-        AuthenticationData, BrowserInformation, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -129,6 +131,16 @@ where
 {
     let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+pub(crate) fn convert_amount<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<T, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
@@ -1094,6 +1106,54 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
 }
 
+pub trait PaymentsCompleteAuthorizeRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
+    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn is_mandate_payment(&self) -> bool;
+}
+
+impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
+    }
+    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+        self.complete_authorize_url
+            .clone()
+            .ok_or_else(missing_field_err("complete_authorize_url"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == FutureUsage::OffSession
+            }))
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
+                .is_some()
+    }
+}
+
 pub trait BrowserInformationData {
     fn get_accept_header(&self) -> Result<String, Error>;
     fn get_language(&self) -> Result<String, Error>;
@@ -1153,4 +1213,20 @@ impl BrowserInformationData for BrowserInformation {
         self.java_script_enabled
             .ok_or_else(missing_field_err("browser_info.java_script_enabled"))
     }
+}
+
+#[macro_export]
+macro_rules! unimplemented_payment_method {
+    ($payment_method:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} through {}",
+            $payment_method, $connector
+        ))
+    };
+    ($payment_method:expr, $flow:expr, $connector:expr) => {
+        errors::ConnectorError::NotImplemented(format!(
+            "{} {} through {}",
+            $payment_method, $flow, $connector
+        ))
+    };
 }

@@ -14,6 +14,10 @@ describe("Connector Account Create flow test", () => {
   });
 
   it("connector-create-call-test", () => {
-    cy.createPayoutConnectorCallTest(fixtures.createConnectorBody, globalState);
+    cy.createPayoutConnectorCallTest(
+      "payout_processor",
+      fixtures.createConnectorBody,
+      globalState
+    );
   });
 });

@@ -1,3 +1,4 @@
+use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
@@ -19,7 +20,7 @@ pub struct UserRole {
     pub last_modified: PrimitiveDateTime,
     pub profile_id: Option<String>,
     pub entity_id: Option<String>,
-    pub entity_type: Option<String>,
+    pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
 }
 
@@ -37,7 +38,7 @@ pub struct UserRoleNew {
     pub last_modified: PrimitiveDateTime,
     pub profile_id: Option<String>,
     pub entity_id: Option<String>,
-    pub entity_type: Option<String>,
+    pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
 }
 

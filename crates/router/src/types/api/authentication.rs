@@ -148,7 +148,7 @@ impl AuthenticationConnectorData {
                 Ok(ConnectorEnum::Old(Box::new(&connector::Netcetera)))
             }
             enums::AuthenticationConnectors::Gpayments => {
-                Ok(ConnectorEnum::Old(Box::new(&connector::Gpayments)))
+                Ok(ConnectorEnum::Old(Box::new(connector::Gpayments::new())))
             }
         }
     }

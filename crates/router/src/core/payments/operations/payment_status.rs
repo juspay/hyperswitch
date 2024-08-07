@@ -190,7 +190,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest>> {
         get_tracker_for_sync(
             payment_id,

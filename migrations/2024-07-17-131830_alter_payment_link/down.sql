@@ -1,0 +1,1 @@
+ALTER table payment_link DROP COLUMN IF EXISTS secure_link;

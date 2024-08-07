@@ -708,7 +708,7 @@ mod tests {
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
-            connector_id: "something".to_string(),
+            id: "something".to_string(),
             connector_label: Some("something".to_string()),
             connector_account_details: masking::Secret::new(serde_json::json!({})),
             disabled: None,

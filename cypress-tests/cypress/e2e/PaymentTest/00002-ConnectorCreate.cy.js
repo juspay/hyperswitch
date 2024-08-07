@@ -16,6 +16,7 @@ describe("Connector Account Create flow test", () => {
 
   it("connector-create-call-test", () => {
     cy.createConnectorCallTest(
+      "payment_processor",
       fixtures.createConnectorBody,
       payment_methods_enabled,
       globalState
