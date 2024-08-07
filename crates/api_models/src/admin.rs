@@ -168,15 +168,6 @@ impl MerchantAccountCreate {
             .transpose()
     }
 
-    pub fn get_webhook_details_as_value(
-        &self,
-    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
-        self.webhook_details
-            .as_ref()
-            .map(|webhook_details| webhook_details.encode_to_value())
-            .transpose()
-    }
-
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
@@ -249,7 +240,7 @@ impl MerchantAccountCreate {
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     #[schema(value_type = Vec<AuthenticationConnectors>)]
-    pub authentication_connectors: Vec<api_enums::AuthenticationConnectors>,
+    pub authentication_connectors: Vec<common_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
 }
@@ -261,6 +252,11 @@ pub struct MerchantAccountMetadata {
     #[serde(flatten)]
     pub data: Option<pii::SecretSerdeValue>,
 }
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
@@ -311,7 +307,7 @@ pub struct MerchantAccountUpdate {
     #[schema(default = false, example = true)]
     pub redirect_to_merchant_with_http_post: Option<bool>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -338,6 +334,110 @@ pub struct MerchantAccountUpdate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+impl MerchantAccountUpdate {
+    pub fn get_primary_details_as_value(
+        &self,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+        self.primary_business_details
+            .as_ref()
+            .map(|primary_business_details| primary_business_details.encode_to_value())
+            .transpose()
+    }
+
+    pub fn get_pm_link_config_as_value(
+        &self,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+        self.pm_collect_link_config
+            .as_ref()
+            .map(|pm_collect_link_config| pm_collect_link_config.encode_to_value())
+            .transpose()
+    }
+
+    pub fn get_merchant_details_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.merchant_details
+            .as_ref()
+            .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_metadata_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.metadata
+            .as_ref()
+            .map(|metadata| metadata.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_webhook_details_as_value(
+        &self,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
+        self.webhook_details
+            .as_ref()
+            .map(|webhook_details| webhook_details.encode_to_value())
+            .transpose()
+    }
+
+    pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
+        match self.routing_algorithm {
+            Some(ref routing_algorithm) => {
+                let _: routing::RoutingAlgorithm =
+                    routing_algorithm.clone().parse_value("RoutingAlgorithm")?;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
+
+    // Get the enable payment response hash as a boolean, where the default value is true
+    pub fn get_enable_payment_response_hash(&self) -> bool {
+        self.enable_payment_response_hash.unwrap_or(true)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantAccountUpdate {
+    /// Name of the Merchant Account
+    #[schema(example = "NewAge Retailer")]
+    pub merchant_name: Option<String>,
+
+    /// Details about the merchant
+    pub merchant_details: Option<MerchantDetails>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+impl MerchantAccountUpdate {
+    pub fn get_merchant_details_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.merchant_details
+            .as_ref()
+            .map(|merchant_details| merchant_details.encode_to_value().map(Secret::new))
+            .transpose()
+    }
+
+    pub fn get_metadata_as_secret(
+        &self,
+    ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
+        self.metadata
+            .as_ref()
+            .map(|metadata| metadata.encode_to_value().map(Secret::new))
+            .transpose()
+    }
 }
 
 #[cfg(all(
@@ -375,8 +475,7 @@ pub struct MerchantAccountResponse {
     pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
     /// Webhook related details
-    #[schema(value_type = Option<WebhookDetails>)]
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[serde(skip)]
@@ -462,9 +561,6 @@ pub struct MerchantAccountResponse {
     /// The id of the organization which the merchant is associated with
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
     pub organization_id: id_type::OrganizationId,
-
-    ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
-    pub is_recon_enabled: bool,
 
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
@@ -637,7 +733,7 @@ pub struct MerchantConnectorCreate {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -767,7 +863,7 @@ pub struct MerchantConnectorCreate {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1002,7 +1098,7 @@ pub struct MerchantConnectorResponse {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1109,7 +1205,7 @@ pub struct MerchantConnectorResponse {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1221,7 +1317,7 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1330,7 +1426,7 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1425,7 +1521,7 @@ pub struct MerchantConnectorUpdate {
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1723,7 +1819,7 @@ pub struct MerchantConnectorDetails {
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: pii::SecretSerdeValue,
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
@@ -1753,7 +1849,7 @@ pub struct BusinessProfileCreate {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1843,10 +1939,9 @@ pub struct BusinessProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
-    #[schema(value_type = Option<WebhookDetails>)]
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
@@ -1875,7 +1970,8 @@ pub struct BusinessProfileResponse {
     pub session_expiry: Option<i64>,
 
     /// Default Payment Link config for all payment links created under this business profile
-    pub payment_link_config: Option<serde_json::Value>,
+    #[schema(value_type = Option<BusinessPaymentLinkConfig>)]
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
@@ -1934,7 +2030,7 @@ pub struct BusinessProfileUpdate {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 

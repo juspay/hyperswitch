@@ -119,6 +119,10 @@ pub async fn update_merchant_routing_dictionary(
 
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn update_merchant_active_algorithm_ref(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -152,6 +156,7 @@ pub async fn update_merchant_active_algorithm_ref(
         payment_link_config: None,
         pm_collect_link_config: None,
     };
+
     let db = &*state.store;
     db.update_specific_fields_in_merchant(
         &state.into(),
@@ -170,7 +175,19 @@ pub async fn update_merchant_active_algorithm_ref(
 
     Ok(())
 }
-// TODO: Move it to business_profile
+
+#[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2"))]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn update_merchant_active_algorithm_ref(
+    _state: &SessionState,
+    _key_store: &domain::MerchantKeyStore,
+    _config_key: cache::CacheKind<'_>,
+    _algorithm_id: routing_types::RoutingAlgorithmRef,
+) -> RouterResult<()> {
+    // TODO: handle updating the active routing algorithm for v2 in merchant account
+    Ok(())
+}
+
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     current_business_profile: BusinessProfile,

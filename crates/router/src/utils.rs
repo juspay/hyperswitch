@@ -28,6 +28,7 @@ pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
+    id_type,
     validation::validate_email,
 };
 use error_stack::ResultExt;
@@ -51,7 +52,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        utils, webhooks as webhooks_core,
+        webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -441,20 +442,14 @@ pub async fn get_mca_from_payment_intent(
             }
         }
         None => {
-            let profile_id = match payment_intent.profile_id {
-                Some(profile_id) => profile_id,
-                None => utils::get_profile_id_from_business_details(
-                    payment_intent.business_country,
-                    payment_intent.business_label.as_ref(),
-                    merchant_account,
-                    payment_intent.profile_id.as_ref(),
-                    db,
-                    false,
-                )
-                .await
+            let profile_id = payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")?,
-            };
+                .attach_printable("profile_id is not set in payment_intent")?
+                .clone();
+
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
                 not(feature = "merchant_connector_account_v2")
@@ -579,7 +574,17 @@ pub async fn get_mca_from_object_reference_id(
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
-    match merchant_account.default_profile.as_ref() {
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
+    let default_profile_id = merchant_account.default_profile.as_ref();
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let default_profile_id = Option::<&String>::None;
+
+    match default_profile_id {
         Some(profile_id) => {
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
@@ -601,8 +606,8 @@ pub async fn get_mca_from_object_reference_id(
             }
             #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
             {
-                let _ = db;
-                let _ = profile_id;
+                let _db = db;
+                let _profile_id = profile_id;
                 todo!()
             }
         }
@@ -764,15 +769,15 @@ pub trait CustomerAddress {
         address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
         &self,
         state: &SessionState,
         address_details: payments::AddressDetails,
-        merchant_id: &common_utils::id_type::MerchantId,
-        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
@@ -787,7 +792,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
         let encrypted_data = batch_encrypt(
             &state.into(),
@@ -823,8 +828,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         &self,
         state: &SessionState,
         address_details: payments::AddressDetails,
-        merchant_id: &common_utils::id_type::MerchantId,
-        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
@@ -871,7 +876,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 pub fn add_apple_pay_flow_metrics(
     apple_pay_flow: &Option<domain::ApplePayFlow>,
     connector: Option<String>,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
@@ -905,7 +910,7 @@ pub fn add_apple_pay_payment_status_metrics(
     payment_attempt_status: enums::AttemptStatus,
     apple_pay_flow: Option<domain::ApplePayFlow>,
     connector: Option<String>,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) {
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {

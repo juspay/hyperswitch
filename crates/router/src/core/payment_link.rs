@@ -532,39 +532,33 @@ pub fn extract_payment_link_config(
 
 pub fn get_payment_link_config_based_on_priority(
     payment_create_link_config: Option<api_models::payments::PaymentCreatePaymentLinkConfig>,
-    business_link_config: Option<serde_json::Value>,
+    business_link_config: Option<diesel_models::business_profile::BusinessPaymentLinkConfig>,
     merchant_name: String,
     default_domain_name: String,
     payment_link_config_id: Option<String>,
 ) -> Result<(PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>> {
     let (domain_name, business_theme_configs, allowed_domains) =
         if let Some(business_config) = business_link_config {
-            let extracted_value: api_models::admin::BusinessPaymentLinkConfig = business_config
-                .parse_value("BusinessPaymentLinkConfig")
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config",
-                })
-                .attach_printable("Invalid payment_link_config given in business config")?;
             logger::info!(
                 "domain name set to custom domain https://{:?}",
-                extracted_value.domain_name
+                business_config.domain_name
             );
 
             (
-                extracted_value
+                business_config
                     .domain_name
                     .clone()
                     .map(|d_name| format!("https://{}", d_name))
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id
                     .and_then(|id| {
-                        extracted_value
+                        business_config
                             .business_specific_configs
                             .as_ref()
                             .and_then(|specific_configs| specific_configs.get(&id).cloned())
                     })
-                    .or(extracted_value.default_config),
-                extracted_value.allowed_domains,
+                    .or(business_config.default_config),
+                business_config.allowed_domains,
             )
         } else {
             (default_domain_name, None, None)

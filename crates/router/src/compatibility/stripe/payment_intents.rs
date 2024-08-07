@@ -2,18 +2,25 @@ pub mod types;
 
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
-use router_env::{instrument, tracing, Flow, Tag};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use router_env::Tag;
+use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{api_locking::GetLockingInput, payments},
-    logger,
-    routes::{self, payments::get_or_generate_payment_id},
+    core::payments,
+    routes::{self},
     services::{api, authentication as auth},
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::api_locking::GetLockingInput, logger, routes::payments::get_or_generate_payment_id,
     types::api as api_types,
 };
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
@@ -78,6 +85,8 @@ pub async fn payment_intents_create(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
@@ -139,6 +148,8 @@ pub async fn payment_intents_retrieve(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow))]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
@@ -210,6 +221,8 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn payment_intents_update(
     state: web::Data<routes::AppState>,
@@ -277,6 +290,8 @@ pub async fn payment_intents_update(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
@@ -350,6 +365,8 @@ pub async fn payment_intents_confirm(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
@@ -412,6 +429,8 @@ pub async fn payment_intents_capture(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,

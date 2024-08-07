@@ -1,7 +1,8 @@
 use std::{borrow::Cow, str::FromStr};
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
-    customers::CustomerRequestWithEmail,
     mandates::RecurringDetails,
     payments::{AddressDetailsWithPhone, CardToken, GetPaymentMethodType, RequestSurchargeDetails},
 };
@@ -20,9 +21,11 @@ use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
@@ -51,7 +54,7 @@ use crate::{
         mandate::helpers::MandateGenericData,
         payment_methods::{
             self,
-            cards::{self, create_encrypted_data},
+            cards::{self},
             vault,
         },
         payments,
@@ -66,9 +69,7 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{
-            self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
-        },
+        storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
         MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
@@ -79,6 +80,10 @@ use crate::{
         crypto::{self, SignMessage},
         OptionExt, StringExt,
     },
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
 pub fn create_identity_from_certificate_and_key(
@@ -1534,6 +1539,22 @@ pub async fn get_connector_default(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
+pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+    _state: &SessionState,
+    _operation: BoxedOperation<'a, F, R>,
+    _payment_data: &mut PaymentData<F>,
+    _req: Option<CustomerDetails>,
+    _merchant_id: &id_type::MerchantId,
+    _key_store: &domain::MerchantKeyStore,
+    _storage_scheme: common_enums::enums::MerchantStorageScheme,
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
@@ -1689,6 +1710,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
+                        version: common_enums::ApiVersion::V1,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -2942,6 +2964,10 @@ pub async fn verify_payment_intent_time_and_client_secret(
         .transpose()
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 /// Check whether the business details are configured in the merchant account
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
@@ -2972,41 +2998,6 @@ pub fn validate_business_details(
         .transpose()?;
 
     Ok(())
-}
-
-/// Do lazy parsing of primary business details
-/// If both country and label are passed, no need to parse business details from merchant_account
-/// If any one is missing, get it from merchant_account
-/// If there is more than one label or country configured in merchant account, then
-/// passing business details for payment is mandatory to avoid ambiguity
-pub fn get_business_details(
-    business_country: Option<api_enums::CountryAlpha2>,
-    business_label: Option<&String>,
-    merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(api_enums::CountryAlpha2, String)> {
-    let primary_business_details = merchant_account
-        .primary_business_details
-        .clone()
-        .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to parse primary business details")?;
-
-    match business_country.zip(business_label) {
-        Some((business_country, business_label)) => {
-            Ok((business_country.to_owned(), business_label.to_owned()))
-        }
-        _ => match primary_business_details.first() {
-            Some(business_details) if primary_business_details.len() == 1 => Ok((
-                business_country.unwrap_or_else(|| business_details.country.to_owned()),
-                business_label
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| business_details.business.to_owned()),
-            )),
-            _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "business_country, business_label"
-            })),
-        },
-    }
 }
 
 #[inline]
