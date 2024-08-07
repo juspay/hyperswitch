@@ -15,6 +15,7 @@ function normalise(input) {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
     paypal: "Paypal",
+    wellsfargo: "Wellsfargo"
     // Add more known exceptions here
   };
 
