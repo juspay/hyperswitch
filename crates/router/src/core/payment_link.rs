@@ -631,7 +631,6 @@ pub fn get_payment_link_config_based_on_priority(
         enabled_saved_payment_method,
         allowed_domains,
     };
-    router_env::logger::debug!("payment_link_config : {:?}", payment_link_config.clone());
 
     Ok((payment_link_config, domain_name))
 }
