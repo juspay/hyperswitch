@@ -267,6 +267,7 @@ impl<F, T>
                         connector_response_reference_id: Some(trace_id),
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     }),
                     ..item.data
                 })
@@ -282,6 +283,7 @@ impl<F, T>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             }),
@@ -351,6 +353,7 @@ impl<F, T>
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 charge_id: None,
+                                connector_customer_id: None,
                             }),
                             ..item.data
                         })
@@ -366,6 +369,7 @@ impl<F, T>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            connector_customer_id: None,
                         }),
                         ..item.data
                     }),
@@ -382,6 +386,7 @@ impl<F, T>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             }),

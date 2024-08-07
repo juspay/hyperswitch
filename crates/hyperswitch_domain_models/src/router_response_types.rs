@@ -24,6 +24,7 @@ pub enum PaymentsResponseData {
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         charge_id: Option<String>,
+        connector_customer_id: Option<String>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,

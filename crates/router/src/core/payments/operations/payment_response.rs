@@ -21,6 +21,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
         payments::{
+            customers,
             helpers::{
                 self as payments_helpers,
                 update_additional_payment_data_with_connector_response_pm_data,
@@ -260,6 +261,35 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Ok(())
         }
     }
+
+    async fn update_connector_customer<'b>(
+        &self,
+        state: &SessionState,
+        router_data: &types::RouterData<
+            F,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
+        customer: Option<domain::Customer>,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync
+        {
+            update_connector_customer_from_router_data(
+                state,
+                router_data,
+                merchant_account,
+                merchant_connector_account,
+                customer,
+                key_store ,
+                payment_data,
+            ).await?;
+            Ok(()) 
+        }
 }
 
 #[async_trait]
@@ -447,6 +477,31 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         .await?;
         Ok(())
     }
+
+    async fn update_connector_customer<'b>(
+        &self,
+        state: &SessionState,
+        router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
+        customer: Option<domain::Customer>,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+        {
+            update_connector_customer_from_router_data(
+                state,
+                router_data,
+                merchant_account,
+                merchant_connector_account,
+                customer,
+                key_store ,
+                payment_data,
+            ).await?;
+            Ok(()) 
+        }
 }
 
 #[async_trait]
@@ -695,6 +750,35 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         payment_data.payment_attempt.mandate_id = mandate_id;
         Ok(())
     }
+
+    async fn update_connector_customer<'b>(
+        &self,
+        state: &SessionState,
+        router_data: &types::RouterData<
+            F,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
+        customer: Option<domain::Customer>,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+        {
+            update_connector_customer_from_router_data(
+                state,
+                router_data,
+                merchant_account,
+                merchant_connector_account,
+                customer,
+                key_store ,
+                payment_data,
+            ).await?;
+            Ok(()) 
+        }
 }
 
 #[async_trait]
@@ -747,6 +831,34 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         .await?;
         Ok(())
     }
+    async fn update_connector_customer<'b>(
+        &self,
+        state: &SessionState,
+        router_data: &types::RouterData<
+            F,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
+        customer: Option<domain::Customer>,
+        key_store: &domain::MerchantKeyStore,
+        payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+        {
+            update_connector_customer_from_router_data(
+                state,
+                router_data,
+                merchant_account,
+                merchant_connector_account,
+                customer,
+                key_store ,
+                payment_data,
+            ).await?;
+            Ok(()) 
+        }
 }
 
 #[instrument(skip_all)]
@@ -1395,6 +1507,117 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         }
     }
 }
+
+async fn update_connector_customer_from_router_data<F, T>(
+    state: &SessionState,
+    router_data: &types::RouterData<
+        F,
+        T,
+        types::PaymentsResponseData,
+    >,
+    merchant_account: &domain::MerchantAccount,
+    merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
+    customer: Option<domain::Customer>,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone + Send + Sync,
+    T: Clone + Send + Sync,
+{
+    let connector_name = payment_data.payment_attempt.connector.clone();
+
+    let updated_customer = match connector_name {
+        Some(connector_name) => {
+            let connector_label = core_utils::get_connector_label(
+                payment_data.payment_intent.business_country,
+                payment_data.payment_intent.business_label.as_ref(),
+                payment_data.payment_attempt.business_sub_label.as_ref(),
+                &connector_name,
+            );
+
+            let connector_label = if let Some(connector_label) =
+                merchant_connector_account.get_mca_id().or(connector_label)
+            {
+                connector_label
+            } else {
+                let profile_id = core_utils::get_profile_id_from_business_details(
+                    payment_data.payment_intent.business_country,
+                    payment_data.payment_intent.business_label.as_ref(),
+                    merchant_account,
+                    payment_data.payment_intent.profile_id.as_ref(),
+                    &*state.store,
+                    false,
+                )
+                .await
+                .attach_printable("Could not find profile id from business details")?;
+
+                format!("{connector_name}_{profile_id}")
+            };
+
+            let connector_customer_id = match router_data.response.clone() {
+                Ok(connector_response) => match connector_response {
+                    types::PaymentsResponseData::TransactionResponse {
+                        connector_customer_id,
+                        ..
+                    } => connector_customer_id,
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            let customer_update = customers::update_connector_customer_in_customers(
+                &connector_label,
+                customer.as_ref(),
+                &connector_customer_id,
+            )
+            .await;
+
+            payment_data.connector_customer_id = connector_customer_id;
+            customer_update
+        }
+        None => None,
+    };
+
+    let customer_fut =
+        if let (Some(updated_customer), Some(customer)) = (updated_customer, customer) {
+            let m_customer_customer_id = customer.customer_id.to_owned();
+            let m_customer_merchant_id = customer.merchant_id.to_owned();
+            let m_key_store = key_store.clone();
+            let m_updated_customer = updated_customer.clone();
+            let session_state = state.clone();
+            let m_db = session_state.store.clone();
+            let m_storage_scheme = merchant_account.storage_scheme.clone();
+            let key_manager_state = state.into();
+            tokio::spawn(
+                async move {
+                    m_db.update_customer_by_customer_id_merchant_id(
+                        &key_manager_state,
+                        m_customer_customer_id,
+                        m_customer_merchant_id,
+                        customer,
+                        m_updated_customer,
+                        &m_key_store,
+                        m_storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update CustomerConnector in customer")?;
+
+                    Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
+                }
+                .in_current_span(),
+            )
+        } else {
+            tokio::spawn(
+                async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) }
+                    .in_current_span(),
+            )
+        };
+    let _ = utils::flatten_join_error(customer_fut).await?;
+    Ok(())
+}
+
 
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,

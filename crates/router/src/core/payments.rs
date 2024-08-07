@@ -328,6 +328,19 @@ where
                         )
                         .await?;
 
+                    operation
+                        .to_post_update_tracker()?
+                        .update_connector_customer(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &mca,
+                            customer.clone(),
+                            &key_store,
+                            &mut payment_data,
+                        )
+                        .await?;
+
                     let mut payment_data = operation
                         .to_post_update_tracker()?
                         .update_tracker(
@@ -448,6 +461,19 @@ where
                             &key_store,
                             &mut payment_data,
                             &business_profile,
+                        )
+                        .await?;
+
+                    operation
+                        .to_post_update_tracker()?
+                        .update_connector_customer(
+                            state,
+                            &router_data,
+                            &merchant_account,
+                            &mca,
+                            customer.clone(),
+                            &key_store,
+                            &mut payment_data,
                         )
                         .await?;
 

@@ -386,6 +386,7 @@ fn get_iatpay_response(
                 connector_response_reference_id: connector_response_reference_id.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }
         }
         None => types::PaymentsResponseData::TransactionResponse {
@@ -397,6 +398,7 @@ fn get_iatpay_response(
             connector_response_reference_id: connector_response_reference_id.clone(),
             incremental_authorization_allowed: None,
             charge_id: None,
+            connector_customer_id: None,
         },
     };
 

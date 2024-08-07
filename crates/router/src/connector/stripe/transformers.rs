@@ -2431,6 +2431,7 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id,
+                connector_customer_id: None,
             })
         };
 
@@ -2627,6 +2628,7 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id,
+                connector_customer_id: None,
             })
         };
 
@@ -2705,6 +2707,7 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             })
         };
 
@@ -3406,6 +3409,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: Some(item.response.id),
+                connector_customer_id: None,
             })
         };
 

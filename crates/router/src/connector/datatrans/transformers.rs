@@ -298,6 +298,7 @@ impl<F>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 })
             }
         };
@@ -416,6 +417,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     }),
                     ..item.data
                 })

@@ -280,6 +280,7 @@ fn get_payment_response(
             connector_response_reference_id: response.reference,
             incremental_authorization_allowed: None,
             charge_id: None,
+            connector_customer_id: None,
         }),
     }
 }

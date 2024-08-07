@@ -166,6 +166,11 @@ pub struct BankOfAmericaPaymentInstrument {
     id: Secret<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankOfAmericaCustomer {
+    id: Secret<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardPaymentInformation {
@@ -421,6 +426,7 @@ impl<F, T>
                             ),
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            connector_customer_id: None,
                         }),
                     },
                     connector_response,
@@ -1502,6 +1508,7 @@ fn get_payment_response(
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             })
         }
     }
@@ -1813,6 +1820,7 @@ impl<F>
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            connector_customer_id: None,
                         }),
                         connector_response,
                         ..item.data
@@ -1832,6 +1840,7 @@ impl<F>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             }),

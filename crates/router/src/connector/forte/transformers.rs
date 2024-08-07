@@ -281,6 +281,7 @@ impl<F, T>
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -330,6 +331,7 @@ impl<F, T>
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -399,6 +401,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -468,6 +471,7 @@ impl<F, T>
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })

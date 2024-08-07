@@ -170,6 +170,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BitpayPaymentsResponse, T, PaymentsResp
                     .or(Some(item.response.data.id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })

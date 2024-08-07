@@ -378,6 +378,7 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -429,6 +430,7 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -478,6 +480,7 @@ impl<F>
                     connector_response_reference_id: item.response.invoice_number.clone(),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
                 ..item.data
@@ -558,6 +561,7 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data
@@ -615,6 +619,7 @@ impl<F>
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status: enums::AttemptStatus::from(item.response),
             ..item.data

@@ -247,6 +247,22 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     {
         Ok(())
     }
+
+    async fn update_connector_customer<'b>(
+        &self,
+        _state: &SessionState,
+        _router_data: &types::RouterData<F, R, PaymentsResponseData>,
+        _merchant_account: &domain::MerchantAccount,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _customer: Option<domain::Customer>,
+        _key_store: &domain::MerchantKeyStore,
+        _payment_data: &mut PaymentData<F>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        F: 'b + Clone + Send + Sync,
+    {
+        Ok(())
+    }
 }
 
 #[async_trait]

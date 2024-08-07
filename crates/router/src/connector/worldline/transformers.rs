@@ -586,6 +586,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, PaymentsResponseData
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -641,6 +642,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, PaymentsResp
                 connector_response_reference_id: Some(item.response.payment.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })

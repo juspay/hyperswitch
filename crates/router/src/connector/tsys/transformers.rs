@@ -221,6 +221,7 @@ fn get_payments_response(connector_response: TsysResponse) -> types::PaymentsRes
         connector_response_reference_id: Some(connector_response.transaction_id),
         incremental_authorization_allowed: None,
         charge_id: None,
+        connector_customer_id: None,
     }
 }
 
@@ -246,6 +247,7 @@ fn get_payments_sync_response(
         ),
         incremental_authorization_allowed: None,
         charge_id: None,
+        connector_customer_id: None,
     }
 }
 

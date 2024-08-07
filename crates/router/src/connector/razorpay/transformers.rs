@@ -794,6 +794,7 @@ impl<F, T>
                     connector_response_reference_id: Some(second_factor.txn_id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             }),
@@ -1015,6 +1016,7 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.second_factor.txn_id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
