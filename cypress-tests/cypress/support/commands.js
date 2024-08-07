@@ -83,12 +83,14 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
 Cypress.Commands.add(
   "createNamedConnectorCallTest",
   (
+    connectorType,
     createConnectorBody,
     payment_methods_enabled,
     globalState,
     connectorName
   ) => {
     const merchantId = globalState.get("merchantId");
+    createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
@@ -134,8 +136,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "createConnectorCallTest",
-  (createConnectorBody, payment_methods_enabled, globalState) => {
+  (
+    connectorType,
+    createConnectorBody,
+    payment_methods_enabled,
+    globalState
+  ) => {
     const merchantId = globalState.get("merchantId");
+    createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = globalState.get("connectorId");
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
@@ -191,9 +199,10 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "createPayoutConnectorCallTest",
-  (createConnectorBody, globalState) => {
+  (connectorType, createConnectorBody, globalState) => {
     const merchantId = globalState.get("merchantId");
     let connectorName = globalState.get("connectorId");
+    createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_type = "payout_processor";
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
