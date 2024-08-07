@@ -247,10 +247,12 @@ pub async fn delete_merchant_account(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 struct HeaderMapStruct<'a> {
     headers: &'a actix_http::header::HeaderMap,
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 impl<'a> HeaderMapStruct<'a> {
     pub fn get_mandatory_header_value_by_key(
         &self,
