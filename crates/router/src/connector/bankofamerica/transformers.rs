@@ -375,7 +375,7 @@ impl<F, T>
                 let error_response =
                     get_error_response_if_failure((&info_response, mandate_status, item.http_code));
 
-                    let connector_customer_id =
+                let connector_customer_id =
                     info_response
                         .token_information
                         .clone()
@@ -1362,7 +1362,7 @@ pub struct MerchantInitiatedTransactionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaTokenInformation {
     payment_instrument: Option<BankOfAmericaPaymentInstrument>,
-    customer: Option<BankOfAmericaCustomer>
+    customer: Option<BankOfAmericaCustomer>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1511,14 +1511,14 @@ fn get_payment_response(
                     });
 
             let connector_customer_id =
-                    info_response
-                        .token_information
-                        .clone()
-                        .and_then(|token_information| {
-                            token_information
-                                .customer
-                                .map(|customer| customer.id.expose())
-                        });
+                info_response
+                    .token_information
+                    .clone()
+                    .and_then(|token_information| {
+                        token_information
+                            .customer
+                            .map(|customer| customer.id.expose())
+                    });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
