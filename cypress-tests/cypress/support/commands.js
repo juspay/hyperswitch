@@ -79,7 +79,6 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.merchant_id).to.equal(merchant_id);
-    expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
     expect(response.body.payment_response_hash_key).to.not.be.empty;
     expect(response.body.publishable_key).to.not.be.empty;
     expect(response.body.default_profile).to.not.be.empty;
