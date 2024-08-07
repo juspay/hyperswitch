@@ -2030,7 +2030,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     }
 
     // TODO: Handle case where payment method and token both are present in request properly.
-    let (payment_method, pm_id) = match (request.clone(), payment_data.token_data.as_ref()) {
+    let (payment_method, pm_id) = match (&request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
             let pm_data = payment_methods::retrieve_payment_method_with_token(
                 state,
@@ -2061,7 +2061,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
         (Some(_), _) => {
             let (payment_method_data, payment_token) = payment_methods::retrieve_payment_method(
-                &request.map(Into::into),
+                &request,
                 state,
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,

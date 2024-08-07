@@ -10,10 +10,7 @@ pub use diesel_models::payment_method::{
     TokenizeCoreWorkflow,
 };
 
-use crate::types::{
-    api::{self},
-    domain::{self},
-};
+use crate::types::{api, domain};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]

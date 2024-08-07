@@ -1099,7 +1099,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) 
+            | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("braintree"),
@@ -1710,7 +1710,7 @@ fn get_braintree_redirect_form(
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) 
+            | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::NetworkToken(_) => Err(
                 errors::ConnectorError::NotImplemented("given payment method".to_owned()),
             )?,
