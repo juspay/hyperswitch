@@ -4855,22 +4855,31 @@ impl From<AdyenStatus> for storage_enums::PayoutStatus {
     }
 }
 
+fn get_merchant_account_code(
+    auth_type: &types::ConnectorAuthType,
+) -> errors::CustomResult<Secret<String>, errors::ConnectorError> {
+    let auth = AdyenAuthType::try_from(auth_type)
+        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    Ok(auth.merchant_account.clone())
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAcceptDisputeRequest {
     dispute_psp_reference: String,
-    merchant_account_code: String,
-}
-#[derive(Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdyenMetaData {
-    merchant_account_code: String,
+    merchant_account_code: Secret<String>,
 }
 
-impl TryFrom<(&types::AcceptDisputeRouterData, String)> for AdyenAcceptDisputeRequest {
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenDisputeResponse {
+    pub error_message: Option<String>,
+    pub success: bool,
+}
+impl TryFrom<&types::AcceptDisputeRouterData> for AdyenAcceptDisputeRequest {
     type Error = Error;
-    fn try_from(data: (&types::AcceptDisputeRouterData, String)) -> Result<Self, Self::Error> {
-        let (item, merchant_account_code) = data;
+    fn try_from(item: &types::AcceptDisputeRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
         Ok(Self {
             dispute_psp_reference: item.clone().request.connector_dispute_id,
             merchant_account_code,
@@ -4882,14 +4891,14 @@ impl TryFrom<(&types::AcceptDisputeRouterData, String)> for AdyenAcceptDisputeRe
 #[serde(rename_all = "camelCase")]
 pub struct AdyenDefendDisputeRequest {
     dispute_psp_reference: String,
-    merchant_account_code: String,
+    merchant_account_code: Secret<String>,
     defense_reason_code: String,
 }
 
-impl TryFrom<(&types::DefendDisputeRouterData, String)> for AdyenDefendDisputeRequest {
+impl TryFrom<&types::DefendDisputeRouterData> for AdyenDefendDisputeRequest {
     type Error = Error;
-    fn try_from(data: (&types::DefendDisputeRouterData, String)) -> Result<Self, Self::Error> {
-        let (item, merchant_account_code) = data.clone();
+    fn try_from(item: &types::DefendDisputeRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
         Ok(Self {
             dispute_psp_reference: item.request.connector_dispute_id.clone(),
             merchant_account_code,
@@ -4903,7 +4912,7 @@ impl TryFrom<(&types::DefendDisputeRouterData, String)> for AdyenDefendDisputeRe
 
 pub struct Evidence {
     defense_documents: Vec<DefenseDocuments>,
-    merchant_account_code: String,
+    merchant_account_code: Secret<String>,
     dispute_psp_reference: String,
 }
 
@@ -4916,11 +4925,10 @@ pub struct DefenseDocuments {
     defense_document_type_code: String,
 }
 
-impl TryFrom<(&types::SubmitEvidenceRouterData, String)> for Evidence {
+impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(data: (&types::SubmitEvidenceRouterData, String)) -> Result<Self, Self::Error> {
-        let (item, merchant_account_code) = data;
-
+    fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
         let submit_evidence_request_data = item.request.clone();
         Ok(Self {
             defense_documents: get_defence_documents(submit_evidence_request_data).ok_or(
@@ -4939,14 +4947,14 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     if let Some(shipping_documentation) = item.shipping_documentation {
         defense_documents.push(DefenseDocuments {
             content: get_content(shipping_documentation),
-            content_type: item.receipt_type,
+            content_type: item.receipt_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(receipt) = item.receipt {
         defense_documents.push(DefenseDocuments {
             content: get_content(receipt),
-            content_type: item.shipping_documentation_type,
+            content_type: item.shipping_documentation_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
@@ -4954,28 +4962,28 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     {
         defense_documents.push(DefenseDocuments {
             content: get_content(invoice_showing_distinct_transactions),
-            content_type: item.invoice_showing_distinct_transactions_type,
+            content_type: item.invoice_showing_distinct_transactions_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(customer_communication) = item.customer_communication {
         defense_documents.push(DefenseDocuments {
             content: get_content(customer_communication),
-            content_type: item.customer_communication_type,
+            content_type: item.customer_communication_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(refund_policy) = item.refund_policy {
         defense_documents.push(DefenseDocuments {
             content: get_content(refund_policy),
-            content_type: item.refund_policy_type,
+            content_type: item.refund_policy_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(recurring_transaction_agreement) = item.recurring_transaction_agreement {
         defense_documents.push(DefenseDocuments {
             content: get_content(recurring_transaction_agreement),
-            content_type: item.recurring_transaction_agreement_type,
+            content_type: item.recurring_transaction_agreement_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
@@ -4989,21 +4997,21 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     if let Some(cancellation_policy) = item.cancellation_policy {
         defense_documents.push(DefenseDocuments {
             content: get_content(cancellation_policy),
-            content_type: item.cancellation_policy_type,
+            content_type: item.cancellation_policy_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(customer_signature) = item.customer_signature {
         defense_documents.push(DefenseDocuments {
             content: get_content(customer_signature),
-            content_type: item.customer_signature_type,
+            content_type: item.customer_signature_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(service_documentation) = item.service_documentation {
         defense_documents.push(DefenseDocuments {
             content: get_content(service_documentation),
-            content_type: item.service_documentation_type,
+            content_type: item.service_documentation_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }

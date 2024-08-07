@@ -7,7 +7,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
 
@@ -49,11 +49,6 @@ impl Adyen {
             amount_converter: &MinorUnitForConnector,
         }
     }
-}
-fn get_key(auth_type: &types::ConnectorAuthType) -> CustomResult<String, errors::ConnectorError> {
-    let auth = adyen::AdyenAuthType::try_from(auth_type)
-        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-    Ok(auth.merchant_account.peek().clone())
 }
 impl ConnectorCommon for Adyen {
     fn id(&self) -> &'static str {
@@ -1949,7 +1944,10 @@ impl
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}acceptDispute", endpoint))
+      Ok(format!(
+            "{}ca/services/DisputeService/v30/acceptDispute",
+            endpoint
+        ))
     }
 
     fn build_request(
@@ -1976,9 +1974,7 @@ impl
         req: &types::AcceptDisputeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let merchant_account_code = get_key(&req.connector_auth_type)?;
-        let connector_req =
-            adyen::AdyenAcceptDisputeRequest::try_from((req, merchant_account_code))?;
+        let connector_req = adyen::AdyenAcceptDisputeRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1986,15 +1982,29 @@ impl
         &self,
         data: &types::AcceptDisputeRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
+        res: types::Response,
     ) -> CustomResult<types::AcceptDisputeRouterData, errors::ConnectorError> {
-        Ok(types::AcceptDisputeRouterData {
-            response: Ok(types::AcceptDisputeResponse {
-                dispute_status: api::enums::DisputeStatus::DisputeAccepted,
-                connector_status: None,
-            }),
-            ..data.clone()
-        })
+        let response: adyen::AdyenDisputeResponse = res
+            .response
+            .parse_struct("AdyenDisputeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if response.success {
+            Ok(types::AcceptDisputeRouterData {
+                response: Ok(types::AcceptDisputeResponse {
+                    dispute_status: api::enums::DisputeStatus::DisputeAccepted,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::AcceptDisputeRouterData {
+                response: Ok(types::AcceptDisputeResponse {
+                    dispute_status: api::enums::DisputeStatus::DisputeCancelled,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        }
     }
 
     fn get_error_response(
@@ -2039,7 +2049,10 @@ impl
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}defendDispute", endpoint))
+        Ok(format!(
+            "{}ca/services/DisputeService/v30/defendDispute",
+            endpoint
+        ))
     }
 
     fn build_request(
@@ -2067,9 +2080,7 @@ impl
         req: &types::DefendDisputeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let merchant_account_code = get_key(&req.connector_auth_type)?;
-        let connector_req =
-            adyen::AdyenDefendDisputeRequest::try_from((req, merchant_account_code))?;
+        let connector_req = adyen::AdyenDefendDisputeRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -2077,15 +2088,30 @@ impl
         &self,
         data: &types::DefendDisputeRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
+        res: types::Response,
     ) -> CustomResult<types::DefendDisputeRouterData, errors::ConnectorError> {
-        Ok(types::DefendDisputeRouterData {
-            response: Ok(types::DefendDisputeResponse {
-                dispute_status: api::enums::DisputeStatus::DisputeChallenged,
-                connector_status: None,
-            }),
-            ..data.clone()
-        })
+        let response: adyen::AdyenDisputeResponse = res
+            .response
+            .parse_struct("AdyenDisputeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if response.success {
+            Ok(types::DefendDisputeRouterData {
+                response: Ok(types::DefendDisputeResponse {
+                    dispute_status: api::enums::DisputeStatus::DisputeChallenged,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::DefendDisputeRouterData {
+                response: Ok(types::DefendDisputeResponse {
+                    dispute_status: api::enums::DisputeStatus::DisputeCancelled,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        }
     }
 
     fn get_error_response(
@@ -2130,7 +2156,10 @@ impl
             req.test_mode,
             &req.connector_meta_data,
         )?;
-        Ok(format!("{}supplyDefenseDocument", endpoint))
+        Ok(format!(
+            "{}ca/services/DisputeService/v30/supplyDefenseDocument",
+            endpoint
+        ))
     }
 
     fn get_request_body(
@@ -2138,8 +2167,7 @@ impl
         req: &types::SubmitEvidenceRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let merchant_account_code = get_key(&req.connector_auth_type)?;
-        let connector_req = adyen::Evidence::try_from((req, merchant_account_code))?;
+        let connector_req = adyen::Evidence::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -2166,15 +2194,30 @@ impl
         &self,
         data: &types::SubmitEvidenceRouterData,
         _event_builder: Option<&mut ConnectorEvent>,
-        _res: types::Response,
+        res: types::Response,
     ) -> CustomResult<types::SubmitEvidenceRouterData, errors::ConnectorError> {
-        Ok(types::SubmitEvidenceRouterData {
-            response: Ok(types::SubmitEvidenceResponse {
-                dispute_status: api_models::enums::DisputeStatus::DisputeChallenged,
-                connector_status: None,
-            }),
-            ..data.clone()
-        })
+        let response: adyen::AdyenDisputeResponse = res
+            .response
+            .parse_struct("AdyenDisputeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        if response.success {
+            Ok(types::SubmitEvidenceRouterData {
+                response: Ok(types::SubmitEvidenceResponse {
+                    dispute_status: api::enums::DisputeStatus::DisputeChallenged,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::SubmitEvidenceRouterData {
+                response: Ok(types::SubmitEvidenceResponse {
+                    dispute_status: api::enums::DisputeStatus::DisputeCancelled,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        }
     }
 
     fn get_error_response(
@@ -2215,17 +2258,24 @@ impl api::FileUpload for Adyen {
             api::FilePurpose::DisputeEvidence => {
                 let supported_file_types =
                     ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-                // 4 Megabytes (MB)
-                if file_size > 4000000 {
-                    Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_size exceeded the max file size of 4MB".to_owned(),
-                    })?
-                }
                 if !supported_file_types.contains(&file_type.to_string().as_str()) {
                     Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
                     })?
                 }
+                //10 MB
+                if (file_type.to_string().as_str()=="image/jpeg" || file_type.to_string().as_str()=="image/jpeg") && file_size > 10000000 {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 10MB for Image formats".to_owned(),
+                    })?
+                }
+                //2 MB
+                if file_type.to_string().as_str()=="application/pdf"  && file_size > 2000000 {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 2MB for PDF formats".to_owned(),
+                    })?
+                }
+
             }
         }
         Ok(())
