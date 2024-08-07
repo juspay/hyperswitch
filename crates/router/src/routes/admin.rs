@@ -246,6 +246,31 @@ pub async fn delete_merchant_account(
     )
     .await
 }
+
+struct HeaderMapStruct<'a> {
+    headers: &'a actix_http::header::HeaderMap,
+}
+
+impl<'a> HeaderMapStruct<'a> {
+    pub fn get_mandatory_header_value_by_key(
+        &self,
+        key: String,
+    ) -> Result<&str, error_stack::Report<ApiErrorResponse>> {
+        self.headers
+            .get(&key)
+            .ok_or(ApiErrorResponse::InvalidRequestData {
+                message: format!("Missing header key: {}", key),
+            })
+            .attach_printable(format!("Failed to find header key: {}", key))?
+            .to_str()
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Failed to convert header value to string for header key: {}",
+                key
+            ))
+    }
+}
+
 /// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -422,21 +447,25 @@ pub async fn connector_retrieve(
     let id = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
 
-    let merchant_id =
-        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
-            .map(|val| val.to_owned())
-            .and_then(|merchant_id| {
-                common_utils::id_type::MerchantId::wrap(merchant_id)
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Error while converting MerchantId from merchant_id string header",
-                    )
-            }) {
-            Ok(val) => val,
-            Err(err) => {
-                return api::log_and_return_error_response(err);
-            }
-        };
+    let header_map = HeaderMapStruct {
+        headers: req.headers(),
+    };
+
+    let merchant_id = match header_map
+        .get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
+        .map(|val| val.to_owned())
+        .and_then(|merchant_id| {
+            common_utils::id_type::MerchantId::wrap(merchant_id)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Error while converting MerchantId from merchant_id string header",
+                )
+        }) {
+        Ok(val) => val,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
     api::server_wrap(
         flow,
         state,
@@ -687,21 +716,24 @@ pub async fn connector_delete(
     let id = path.into_inner();
 
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
-    let merchant_id =
-        match auth::get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into(), req.headers())
-            .map(|val| val.to_owned())
-            .and_then(|merchant_id| {
-                common_utils::id_type::MerchantId::wrap(merchant_id)
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Error while converting MerchantId from merchant_id string header",
-                    )
-            }) {
-            Ok(val) => val,
-            Err(err) => {
-                return api::log_and_return_error_response(err);
-            }
-        };
+    let header_map = HeaderMapStruct {
+        headers: req.headers(),
+    };
+    let merchant_id = match header_map
+        .get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
+        .map(|val| val.to_owned())
+        .and_then(|merchant_id| {
+            common_utils::id_type::MerchantId::wrap(merchant_id)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Error while converting MerchantId from merchant_id string header",
+                )
+        }) {
+        Ok(val) => val,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
     Box::pin(api::server_wrap(
         flow,
         state,
