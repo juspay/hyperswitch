@@ -62,4 +62,19 @@ extend-exclude = [
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
+    "crates/router/locales/ar.yml",
+    "crates/router/locales/ca.yml",
+    "crates/router/locales/de.yml",
+    "crates/router/locales/es.yml",
+    "crates/router/locales/fr-BE.yml",
+    "crates/router/locales/fr.yml",
+    "crates/router/locales/he.yml",
+    "crates/router/locales/it.yml",
+    "crates/router/locales/ja.yml",
+    "crates/router/locales/nl.yml",
+    "crates/router/locales/pl.yml",
+    "crates/router/locales/pt.yml",
+    "crates/router/locales/ru.yml",
+    "crates/router/locales/sv.yml",
+    "crates/router/locales/zh.yml",
 ]
