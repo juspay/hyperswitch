@@ -861,7 +861,9 @@ impl PaymentCreate {
         let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
-            .and_then(|payment_method_data_request| payment_method_data_request.payment_method_data.clone())
+            .and_then(|payment_method_data_request| {
+                payment_method_data_request.payment_method_data.clone()
+            })
             .async_and_then(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     &payment_method_data.into(),
