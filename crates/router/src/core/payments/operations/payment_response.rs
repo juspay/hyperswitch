@@ -1407,7 +1407,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
-        println!("update pmm");
         let payment_method = match state.store.find_payment_method(id, storage_scheme).await {
             Ok(payment_method) => payment_method,
             Err(error) => {
@@ -1424,8 +1423,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                 }
             }
         };
-
-        println!("updatedddd");
 
         let pm_resp_network_transaction_id = payment_response
             .map(|resp| if let types::PaymentsResponseData::TransactionResponse { network_txn_id: network_transaction_id, .. } = resp {
