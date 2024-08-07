@@ -1558,7 +1558,7 @@ where
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     connector_customer_id,
                     ..
-                }) =>  connector_customer_id,
+                }) => connector_customer_id,
                 _ => None,
             };
 
