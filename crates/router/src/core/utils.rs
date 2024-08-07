@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     router_data::ErrorResponse,
 };
 #[cfg(feature = "payouts")]
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -131,8 +131,14 @@ pub async fn construct_payout_router_data<'a, F>(
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
-        .and_then(|cc| cc.get(connector_label))
-        .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
+        .and_then(|connector_customer_value| {
+            connector_customer_value
+                .clone()
+                .expose()
+                .get(connector_label)
+                .cloned()
+        })
+        .and_then(|id| serde_json::from_value::<String>(id).ok());
 
     let vendor_details: Option<PayoutVendorAccountDetails> =
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
@@ -154,7 +160,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
-        customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        customer_id: customer_details.to_owned().map(|c| c.get_customer_id()),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
         payment_id: "".to_string(),
@@ -185,7 +191,7 @@ pub async fn construct_payout_router_data<'a, F>(
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
-                    customer_id: Some(c.customer_id),
+                    customer_id: Some(c.get_customer_id()),
                     name: c.name.map(Encryptable::into_inner),
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),

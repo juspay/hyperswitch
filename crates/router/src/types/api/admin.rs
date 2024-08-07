@@ -17,12 +17,16 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     core::errors,
     routes::SessionState,
-    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
+    types::{
+        domain, storage,
+        transformers::{ForeignInto, ForeignTryFrom},
+        ForeignFrom,
+    },
 };
 
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
@@ -63,7 +67,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             merchant_details: item.merchant_details,
-            webhook_details: item.webhook_details,
+            webhook_details: item.webhook_details.clone().map(ForeignInto::foreign_into),
             routing_algorithm: item.routing_algorithm,
             sub_merchants_enabled: item.sub_merchants_enabled,
             parent_merchant_id: item.parent_merchant_id,
@@ -141,7 +145,7 @@ pub async fn business_profile_response(
         enable_payment_response_hash: item.enable_payment_response_hash,
         payment_response_hash_key: item.payment_response_hash_key,
         redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-        webhook_details: item.webhook_details.map(Secret::new),
+        webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
         metadata: item.metadata,
         routing_algorithm: item.routing_algorithm,
         intent_fulfillment_time: item.intent_fulfillment_time,
@@ -149,18 +153,12 @@ pub async fn business_profile_response(
         #[cfg(feature = "payouts")]
         payout_routing_algorithm: item.payout_routing_algorithm,
         applepay_verified_domains: item.applepay_verified_domains,
-        payment_link_config: item.payment_link_config,
+        payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),
         session_expiry: item.session_expiry,
         authentication_connector_details: item
             .authentication_connector_details
-            .map(|authentication_connector_details| {
-                authentication_connector_details.parse_value("AuthenticationDetails")
-            })
-            .transpose()?,
-        payout_link_config: item
-            .payout_link_config
-            .map(|payout_link_config| payout_link_config.parse_value("BusinessPayoutLinkConfig"))
-            .transpose()?,
+            .map(ForeignInto::foreign_into),
+        payout_link_config: item.payout_link_config.map(ForeignInto::foreign_into),
         use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
         extended_card_info_config: item
             .extended_card_info_config
@@ -201,7 +199,7 @@ pub async fn create_business_profile(
     storage::business_profile::BusinessProfileNew,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
-    use common_utils::ext_traits::{AsyncExt, Encode};
+    use common_utils::ext_traits::AsyncExt;
 
     use crate::core;
 
@@ -211,33 +209,14 @@ pub async fn create_business_profile(
 
     let current_time = common_utils::date_time::now();
 
-    let webhook_details = request
-        .webhook_details
-        .as_ref()
-        .map(|webhook_details| {
-            webhook_details.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "webhook details",
-                },
-            )
-        })
-        .transpose()?;
+    let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
 
     let payment_response_hash_key = request
         .payment_response_hash_key
         .or(merchant_account.payment_response_hash_key)
         .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
-    let payment_link_config_value = request
-        .payment_link_config
-        .map(|pl_config| {
-            pl_config
-                .encode_to_value()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_config_value",
-                })
-        })
-        .transpose()?;
+    let payment_link_config_value = request.payment_link_config.map(ForeignInto::foreign_into);
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| {
@@ -250,13 +229,8 @@ pub async fn create_business_profile(
 
     let payout_link_config = request
         .payout_link_config
-        .as_ref()
         .map(|payout_conf| match payout_conf.config.validate() {
-            Ok(_) => payout_conf.encode_to_value().change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payout_link_config",
-                },
-            ),
+            Ok(_) => Ok(payout_conf.foreign_into()),
             Err(e) => Err(error_stack::report!(
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: e.to_string()
@@ -311,12 +285,7 @@ pub async fn create_business_profile(
             .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
         authentication_connector_details: request
             .authentication_connector_details
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "authentication_connector_details",
-            })?,
+            .map(ForeignInto::foreign_into),
         payout_link_config,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
         is_extended_card_info_enabled: None,
