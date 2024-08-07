@@ -1512,9 +1512,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
-async fn update_connector_customer_from_router_data<F, T>(
+async fn update_connector_customer_from_router_data<F, R>(
     state: &SessionState,
-    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
+    router_data: &types::RouterData<F, R, types::PaymentsResponseData>,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
     customer: Option<domain::Customer>,
@@ -1523,7 +1523,6 @@ async fn update_connector_customer_from_router_data<F, T>(
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone + Send + Sync,
-    T: Clone + Send + Sync,
 {
     let connector_name = payment_data.payment_attempt.connector.clone();
 
@@ -1556,13 +1555,10 @@ where
             };
 
             let connector_customer_id = match router_data.response.clone() {
-                Ok(connector_response) => match connector_response {
-                    types::PaymentsResponseData::TransactionResponse {
-                        connector_customer_id,
-                        ..
-                    } => connector_customer_id,
-                    _ => None,
-                },
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    connector_customer_id,
+                    ..
+                }) =>  connector_customer_id,
                 _ => None,
             };
 
@@ -1585,9 +1581,9 @@ where
             let m_customer_merchant_id = customer.merchant_id.to_owned();
             let m_key_store = key_store.clone();
             let m_updated_customer = updated_customer.clone();
+            let m_storage_scheme = merchant_account.storage_scheme;
             let session_state = state.clone();
             let m_db = session_state.store.clone();
-            let m_storage_scheme = merchant_account.storage_scheme.clone();
             let key_manager_state = state.into();
             tokio::spawn(
                 async move {
@@ -1614,7 +1610,7 @@ where
                     .in_current_span(),
             )
         };
-    let _ = utils::flatten_join_error(customer_fut).await?;
+    utils::flatten_join_error(customer_fut).await?;
     Ok(())
 }
 

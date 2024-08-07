@@ -2373,7 +2373,7 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::Card)> for BankOfAmericaPa
             .map(|id| id.get_string_repr().to_string());
 
         let buyer_information = Some(BuyerInformation {
-            email: email,
+            email,
             merchant_customer_id,
         });
         let order_information = OrderInformationWithBill::try_from(item)?;
@@ -2409,7 +2409,7 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
             .map(|id| id.get_string_repr().to_string());
 
         let buyer_information = Some(BuyerInformation {
-            email: email,
+            email,
             merchant_customer_id,
         });
         let order_information = OrderInformationWithBill::try_from(item)?;
@@ -2478,7 +2478,7 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::GooglePayWalletData)>
             .map(|id| id.get_string_repr().to_string());
 
         let buyer_information = Some(BuyerInformation {
-            email: email,
+            email,
             merchant_customer_id,
         });
         let order_information = OrderInformationWithBill::try_from(item)?;
