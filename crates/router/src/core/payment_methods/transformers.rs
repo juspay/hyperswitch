@@ -1,12 +1,5 @@
-use crate::{
-    configs::settings,
-    core::errors::{self, CustomResult},
-    headers,
-    pii::{prelude::*, Secret},
-    services::{api as services, encryption},
-    types::{api, storage},
-    utils::OptionExt,
-};
+use std::str::FromStr;
+
 use api_models::{enums as api_enums, payment_methods::Card};
 use common_utils::{
     ext_traits::{Encode, StringExt},
@@ -17,7 +10,16 @@ use common_utils::{
 use error_stack::ResultExt;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+
+use crate::{
+    configs::settings,
+    core::errors::{self, CustomResult},
+    headers,
+    pii::{prelude::*, Secret},
+    services::{api as services, encryption},
+    types::{api, storage},
+    utils::OptionExt,
+};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]

@@ -1,9 +1,10 @@
+use std::str::FromStr;
+
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 use crate::{
     core::{
