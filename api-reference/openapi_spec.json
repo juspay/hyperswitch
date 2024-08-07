@@ -13978,7 +13978,7 @@
             "uniqueItems": true,
             "nullable": true
           },
-          "merchant_details": {
+          "transaction_details": {
             "type": "string",
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
@@ -14030,7 +14030,7 @@
             "example": true,
             "nullable": true
           },
-          "merchant_details": {
+          "transaction_details": {
             "type": "object",
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
