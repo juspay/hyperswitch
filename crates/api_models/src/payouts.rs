@@ -744,5 +744,4 @@ pub struct PayoutLinkStatusDetails {
     pub error_message: Option<String>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
-    pub locale: String,
 }

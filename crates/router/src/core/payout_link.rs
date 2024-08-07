@@ -6,7 +6,6 @@ use std::{
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
-    consts::DEFAULT_LOCALE,
     ext_traits::{Encode, OptionExt},
     link_utils,
     types::{AmountConvertor, StringMajorUnitForConnector},
@@ -20,9 +19,8 @@ use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
     core::{payments::helpers, payouts::validator},
     errors,
-    headers::ACCEPT_LANGUAGE,
     routes::{app::StorageInterface, SessionState},
-    services::{self, authentication::get_header_value_by_key},
+    services::{self},
     types::domain,
 };
 
@@ -32,6 +30,7 @@ pub async fn initiate_payout_link(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
+    locale: String,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -87,11 +86,6 @@ pub async fn initiate_payout_link(
             .clone()
             .unwrap_or(default_ui_config.theme.clone()),
     };
-    let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)
-        .ok()
-        .flatten()
-        .map(|val| val.to_string())
-        .unwrap_or(DEFAULT_LOCALE.to_string());
     match (has_expired, &status) {
         // Send back generic expired page
         (true, _) | (_, &link_utils::PayoutLinkStatus::Invalidated) => {
@@ -241,7 +235,6 @@ pub async fn initiate_payout_link(
                 error_code: payout_attempt.error_code,
                 error_message: payout_attempt.error_message,
                 ui_config: ui_config_data,
-                locale: locale.clone(),
             };
 
             let serialized_css_content = String::new();

@@ -24,8 +24,8 @@ payout_link:
       success: "الدفع ناجح"
 
 time:
-  am: "ص"
-  pm: "م"
+  am: "صباحا"
+  pm: "مساء"
 
 months:
   january: "يناير"
