@@ -64,7 +64,13 @@ pub async fn customers_retrieve(
         &req,
         payload,
         |state, auth, req, _| {
-            retrieve_customer(state, auth.merchant_account, None, auth.key_store, req)
+            retrieve_customer(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

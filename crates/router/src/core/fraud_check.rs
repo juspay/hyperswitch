@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use api_models::{admin::FrmConfigs, enums as api_enums};
 use common_enums::CaptureMethod;
+use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{
@@ -21,7 +22,6 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{self, flows::ConstructFlowSpecificData, operations::BoxedOperation},
-        utils as core_utils,
     },
     db::StorageInterface,
     routes::{app::ReqState, SessionState},
@@ -145,16 +145,14 @@ where
                 })
                 .attach_printable("Data field not found in frm_routing_algorithm")?;
 
-            let profile_id = core_utils::get_profile_id_from_business_details(
-                payment_data.payment_intent.business_country,
-                payment_data.payment_intent.business_label.as_ref(),
-                merchant_account,
-                payment_data.payment_intent.profile_id.as_ref(),
-                db,
-                false,
-            )
-            .await
-            .attach_printable("Could not find profile id from business details")?;
+            let profile_id = payment_data
+                .payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")?
+                .clone();
 
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),

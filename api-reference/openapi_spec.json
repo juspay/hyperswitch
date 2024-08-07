@@ -7059,7 +7059,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "routing_algorithm": {
@@ -7221,7 +7221,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "routing_algorithm": {
@@ -7945,6 +7945,7 @@
           "trustpay",
           "tsys",
           "volt",
+          "wellsfargo",
           "wise",
           "worldline",
           "worldpay",
@@ -11757,7 +11758,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "publishable_key": {
@@ -11889,7 +11890,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "test_mode": {
@@ -11999,7 +12000,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         }
@@ -12118,7 +12119,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "test_mode": {
@@ -12285,7 +12286,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "test_mode": {
@@ -12436,7 +12437,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "test_mode": {
@@ -20134,6 +20135,7 @@
           "trustpay",
           "tsys",
           "volt",
+          "wellsfargo",
           "wise",
           "worldline",
           "worldpay",

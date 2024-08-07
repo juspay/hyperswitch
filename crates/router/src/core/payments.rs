@@ -1967,16 +1967,14 @@ where
             {
                 connector_label
             } else {
-                let profile_id = utils::get_profile_id_from_business_details(
-                    payment_data.payment_intent.business_country,
-                    payment_data.payment_intent.business_label.as_ref(),
-                    merchant_account,
-                    payment_data.payment_intent.profile_id.as_ref(),
-                    &*state.store,
-                    false,
-                )
-                .await
-                .attach_printable("Could not find profile id from business details")?;
+                let profile_id = payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("profile_id is not set in payment_intent")?
+                    .clone();
 
                 format!("{connector_name}_{profile_id}")
             };
@@ -2243,22 +2241,19 @@ pub async fn construct_profile_id_and_get_mca<'a, F>(
     connector_name: &str,
     merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,
-    should_validate: bool,
+    _should_validate: bool,
 ) -> RouterResult<helpers::MerchantConnectorAccountType>
 where
     F: Clone,
 {
-    let profile_id = utils::get_profile_id_from_business_details(
-        payment_data.payment_intent.business_country,
-        payment_data.payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_data.payment_intent.profile_id.as_ref(),
-        &*state.store,
-        should_validate,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_data
+        .payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
