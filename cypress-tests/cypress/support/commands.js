@@ -1214,6 +1214,16 @@ Cypress.Commands.add(
             `Invalid capture method ${response.body.capture_method}`
           );
         }
+      } else if (response.status === 400) {
+        if (response.body.error.message === "Mandate Validation Failed") {
+          expect(response.body.error.code).to.equal("HE_03");
+          expect(response.body.error.message).to.equal(
+            "Mandate Validation Failed"
+          );
+          expect(response.body.error.reason).to.equal(
+            "request amount is greater than mandate amount"
+          );
+        }
       } else {
         throw new Error(
           `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
