@@ -625,6 +625,7 @@ impl<F>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     })
                 };
                 Ok(Self {
@@ -1284,6 +1285,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     })
                 };
                 Ok(Self {
@@ -1500,6 +1502,7 @@ impl<F, T>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     })
                 };
                 Ok(Self {

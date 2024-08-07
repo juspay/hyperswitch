@@ -2045,20 +2045,126 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let item = data.0;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
-                connector_customer_id: None,
-            }),
+            response: match item.response.error_information {
+                Some(error) => Ok(
+                    types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: common_enums::AuthorizationStatus::Failure,
+                        error_code: error.reason,
+                        error_message: error.message,
+                        connector_authorization_id: None,
+                    },
+                ),
+                _ => Ok(
+                    types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                        status: item.response.status.into(),
+                        error_code: None,
+                        error_message: None,
+                        connector_authorization_id: None,
+                    },
+                ),
+            },
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WellsfargoTransactionResponse {
+    id: String,
+    application_information: ApplicationInformation,
+    client_reference_information: Option<ClientReferenceInformation>,
+    error_information: Option<WellsfargoErrorInformation>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplicationInformation {
+    status: Option<WellsfargoPaymentStatus>,
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            WellsfargoTransactionResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            WellsfargoTransactionResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response.application_information.status {
+            Some(status) => {
+                let status = enums::AttemptStatus::foreign_from((
+                    status,
+                    item.data.request.is_auto_capture()?,
+                ));
+                let incremental_authorization_allowed =
+                    Some(status == enums::AttemptStatus::Authorized);
+                let risk_info: Option<ClientRiskInformation> = None;
+                if utils::is_payment_failure(status) {
+                    Ok(Self {
+                        response: Err(types::ErrorResponse::foreign_from((
+                            &item.response.error_information,
+                            &risk_info,
+                            Some(status),
+                            item.http_code,
+                            item.response.id.clone(),
+                        ))),
+                        status: enums::AttemptStatus::Failure,
+                        ..item.data
+                    })
+                } else {
+                    Ok(Self {
+                        status,
+                        response: Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                item.response.id.clone(),
+                            ),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: item
+                                .response
+                                .client_reference_information
+                                .map(|cref| cref.code)
+                                .unwrap_or(Some(item.response.id)),
+                            incremental_authorization_allowed,
+                            charge_id: None,
+                            connector_customer_id: None,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
+            None => Ok(Self {
+                status: item.data.status,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(item.response.id),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                    connector_customer_id: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
