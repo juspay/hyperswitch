@@ -19,7 +19,6 @@ all_commands=()
 features_to_run() {
   local crate_name=$1
   cargo metadata --format-version 1 --no-deps | jq --raw-output --arg crate_name "${crate_name}" --arg v2_features "${v2_feature_set}" '[ .packages[] | select(.name == $crate_name) | .features | keys[] | select( IN( .; ( $v2_features | split(",") )[] ) ) ] | join(",")'
-  rm metadata.json
 }
 
 # If we are running this on a pull request, then only check for packages that are modified
