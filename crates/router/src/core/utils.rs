@@ -1338,6 +1338,19 @@ impl<A> GetProfileId for (storage::PaymentIntent, A) {
     }
 }
 
+impl GetProfileId for diesel_models::Dispute {
+    fn get_profile_id(&self) -> Option<&String> {
+        self.profile_id.as_ref()
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl GetProfileId for PayoutData {
+    fn get_profile_id(&self) -> Option<&String> {
+        Some(&self.profile_id)
+    }
+}
+
 /// Filter Objects based on profile ids
 pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     profile_id_list_auth_layer: Option<Vec<String>>,
@@ -1363,11 +1376,13 @@ pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     }
 }
 
-pub(super) fn validate_profile_id_from_auth_layer(
+pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId>(
     profile_id_auth_layer: Option<&String>,
-    profile_id: Option<&String>,
+    object: &T,
 ) -> RouterResult<()> {
-    if profile_id_auth_layer != profile_id {
+    if profile_id_auth_layer
+        .is_some_and(|auth_profile_id| Some(auth_profile_id) == object.get_profile_id())
+    {
         return Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "Profile id authentication failed. Please use the correct JWT token"
                 .to_string(),

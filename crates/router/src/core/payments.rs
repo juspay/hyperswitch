@@ -164,8 +164,8 @@ where
         .await?;
 
     utils::validate_profile_id_from_auth_layer(
-        payment_data.payment_intent.profile_id.as_ref(),
         profile_id_from_auth_layer.as_ref(),
+        &payment_data.payment_intent,
     )?;
 
     let (operation, customer) = operation
