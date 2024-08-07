@@ -1441,7 +1441,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             && pm.status != attempt_status.into()
         {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
-            println!("ENTERHERE1{:?}", updated_pm_status);
             payment_data
                 .payment_method_info
                 .as_mut()
