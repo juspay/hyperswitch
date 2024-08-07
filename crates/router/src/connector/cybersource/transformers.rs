@@ -61,6 +61,8 @@ pub struct CybersourceZeroMandateRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    buyer_information: Option<BuyerInformation>,
 }
 
 impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
@@ -68,6 +70,15 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
         let bill_to = build_bill_to(item.get_optional_billing(), email.clone())?;
+        let merchant_customer_id = item
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
@@ -236,6 +247,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             payment_information,
             order_information,
             client_reference_information,
+            buyer_information,
         })
     }
 }
@@ -1313,7 +1325,6 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &CybersourceRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        crate::logger::debug!("aaaaaaaaaaaa{:?}", item);
         match item.router_data.request.connector_mandate_id() {
             Some(connector_mandate_id) => Self::try_from((item, connector_mandate_id)),
             None => {
