@@ -4,12 +4,10 @@ use common_utils::{crypto::Encryptable, types::Description};
 use common_utils::{
     errors::ReportSwitchExt,
     ext_traits::{AsyncExt, OptionExt},
-    id_type,
+    id_type, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::{report, ResultExt};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use hyperswitch_domain_models::type_encryption::encrypt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
@@ -143,17 +141,21 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .encrypt_customer_address_and_set_to_db(db)
             .await?;
 
-        let encrypted_data = types::batch_encrypt(
+        let encrypted_data = types::crypto_operation(
             key_manager_state,
-            CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                name: self.name.clone(),
-                email: self.email.clone(),
-                phone: self.phone.clone(),
-            }),
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: self.name.clone(),
+                    email: self.email.clone(),
+                    phone: self.phone.clone(),
+                },
+            )),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .switch()
         .attach_printable("Failed while encrypting Customer")?;
 
@@ -225,17 +227,21 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let merchant_id = merchant_account.get_id().clone();
         let key = key_store.key.get_inner().peek();
 
-        let encrypted_data = types::batch_encrypt(
+        let encrypted_data = types::crypto_operation(
             key_state,
-            CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                name: Some(self.name.clone()),
-                email: Some(self.email.clone()),
-                phone: self.phone.clone(),
-            }),
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: Some(self.name.clone()),
+                    email: Some(self.email.clone()),
+                    phone: self.phone.clone(),
+                },
+            )),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .switch()
         .attach_printable("Failed while encrypting Customer")?;
 
@@ -506,13 +512,15 @@ pub async fn delete_customer(
 
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let redacted_encrypted_value: Encryptable<Secret<_>> = encrypt(
+    let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
         key_manager_state,
-        REDACTED.to_string().into(),
+        type_name!(storage::Address),
+        types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
         identifier.clone(),
         key,
     )
     .await
+    .and_then(|val| val.try_into_operation())
     .switch()?;
 
     let redacted_encrypted_email = Encryptable::new(
@@ -564,13 +572,15 @@ pub async fn delete_customer(
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(redacted_encrypted_value.clone()),
         email: Some(
-            encrypt(
+            types::crypto_operation(
                 key_manager_state,
-                REDACTED.to_string().into(),
+                type_name!(storage::Customer),
+                types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
                 identifier,
                 key,
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .switch()?,
         ),
         phone: Box::new(Some(redacted_encrypted_value.clone())),
@@ -846,17 +856,21 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let key = key_store.key.get_inner().peek();
 
-        let encrypted_data = types::batch_encrypt(
+        let encrypted_data = types::crypto_operation(
             key_manager_state,
-            CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                name: self.name.clone(),
-                email: self.email.clone(),
-                phone: self.phone.clone(),
-            }),
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: self.name.clone(),
+                    email: self.email.clone(),
+                    phone: self.phone.clone(),
+                },
+            )),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .switch()?;
 
         let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
@@ -932,17 +946,21 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let key = key_store.key.get_inner().peek();
 
-        let encrypted_data = types::batch_encrypt(
+        let encrypted_data = types::crypto_operation(
             key_manager_state,
-            CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                name: self.name.clone(),
-                email: self.email.clone(),
-                phone: self.phone.clone(),
-            }),
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: update_customer.name.clone(),
+                    email: update_customer.email.clone(),
+                    phone: update_customer.phone.clone(),
+                },
+            )),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .switch()?;
 
         let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)

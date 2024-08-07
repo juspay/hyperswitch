@@ -62,4 +62,5 @@ extend-exclude = [
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
+    "crates/router/src/core/payment_link/locale.js" # this file contains converision of static strings in various languages 
 ]

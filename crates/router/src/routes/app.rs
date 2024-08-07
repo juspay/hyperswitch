@@ -1183,8 +1183,10 @@ impl MerchantConnectorAccount {
             use super::admin::*;
 
             route = route
-                .service(web::resource("").route(web::post().to(payment_connector_create)))
-                .service(web::resource("/{id}").route(web::post().to(payment_connector_update)));
+                .service(web::resource("").route(web::post().to(connector_create)))
+                .service(web::resource("/{id}").route(web::post().to(connector_update)))
+                .service(web::resource("/{id}").route(web::get().to(connector_retrieve)))
+                .service(web::resource("/{id}").route(web::delete().to(connector_delete)));
         }
         route
     }
@@ -1210,14 +1212,14 @@ impl MerchantConnectorAccount {
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors")
-                        .route(web::post().to(payment_connector_create))
+                        .route(web::post().to(connector_create))
                         .route(web::get().to(payment_connector_list)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
-                        .route(web::get().to(payment_connector_retrieve))
-                        .route(web::post().to(payment_connector_update))
-                        .route(web::delete().to(payment_connector_delete)),
+                        .route(web::get().to(connector_retrieve))
+                        .route(web::post().to(connector_update))
+                        .route(web::delete().to(connector_delete)),
                 );
         }
         #[cfg(feature = "oltp")]

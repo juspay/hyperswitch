@@ -1177,14 +1177,14 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-    async fn find_by_merchant_connector_account_id(
+    async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
         id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         self.diesel_store
-            .find_by_merchant_connector_account_id(state, id, key_store)
+            .find_merchant_connector_account_by_id(state, id, key_store)
             .await
     }
 
