@@ -1,6 +1,6 @@
 use api_models::customers::CustomerRequestWithEmail;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{crypto::Encryptable, ext_traits::OptionExt};
+use common_utils::{crypto::Encryptable, ext_traits::OptionExt, types::Description};
 use common_utils::{
     errors::ReportSwitchExt,
     ext_traits::AsyncExt,
@@ -14,7 +14,10 @@ use hyperswitch_domain_models::type_encryption::encrypt;
 use masking::{Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use crate::core::payment_methods::cards::create_encrypted_data;
 use crate::{
+    consts::API_VERSION,
     core::errors::{self, StorageErrorExt},
     db::StorageInterface,
     pii::PeekInterface,
@@ -176,6 +179,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
+            version: API_VERSION,
         })
     }
 
@@ -202,10 +206,24 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         merchant_account: &'a domain::MerchantAccount,
         key_state: &'a KeyManagerState,
-        _state: &'a SessionState,
+        state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
-        let _default_customer_billing_address = self.get_default_customer_billing_address();
-        let _default_customer_shipping_address = self.get_default_customer_shipping_address();
+        let default_customer_billing_address = self.get_default_customer_billing_address();
+        let encrypted_customer_billing_address = default_customer_billing_address
+            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer billing address")?;
+        let default_customer_shipping_address = self.get_default_customer_shipping_address();
+
+        let encrypted_customer_shipping_address = default_customer_shipping_address
+            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer shipping address")?;
+
         let merchant_id = merchant_account.get_id().clone();
         let key = key_store.key.get_inner().peek();
 
@@ -227,9 +245,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         Ok(domain::Customer {
-            customer_id: merchant_reference_id
-                .to_owned()
-                .ok_or(errors::CustomersErrorResponse::InternalServerError)?, // doing this to make it compile, will remove once we start moving to domain models
+            id: common_utils::generate_time_ordered_id("cus"),
+            merchant_reference_id: merchant_reference_id.to_owned(),
             merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email,
@@ -238,15 +255,14 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             phone_country_code: self.phone_country_code.clone(),
             metadata: self.metadata.clone(),
             connector_customer: None,
-            address_id: None,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-            // default_billing_address: default_customer_billing_address,
-            // default_shipping_address: default_customer_shipping_address,
-            // merchant_reference_id,
+            default_billing_address: encrypted_customer_billing_address.map(Into::into),
+            default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
             // status: Some(customer_domain::SoftDeleteStatus::Active)
+            version: API_VERSION,
         })
     }
 
@@ -560,7 +576,7 @@ pub async fn delete_customer(
             .switch()?,
         ),
         phone: Box::new(Some(redacted_encrypted_value.clone())),
-        description: Some(REDACTED.to_string()),
+        description: Some(Description::new(REDACTED.to_string())),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
         connector_customer: None,
