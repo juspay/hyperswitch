@@ -1,6 +1,6 @@
 use common_utils::id_type;
 use diesel_models::{enums, user_role as storage};
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::MockDb;
@@ -180,7 +180,7 @@ impl UserRoleInterface for Store {
 impl UserRoleInterface for MockDb {
     async fn insert_user_role(
         &self,
-        user_role: storage::NewUserRole,
+        user_role_new: storage::NewUserRole,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
         let v1_role = user_role_new.clone().to_v1_role();

@@ -6,7 +6,7 @@ use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, types::keymanager::Identifier,
 };
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 
@@ -17,7 +17,7 @@ use crate::{
     routes::SessionState,
     services::{
         authentication::{AuthToken, UserFromToken},
-        authorization::roles::{self, RoleInfo},
+        authorization::roles::RoleInfo,
     },
     types::{
         domain::{self, MerchantAccount, UserFromStorage},

@@ -9,7 +9,7 @@ use router_env::logger;
 
 use crate::{
     consts,
-    core::errors::{StorageErrorExt, UserErrors, UserResult},
+    core::errors::{UserErrors, UserResult},
     routes::SessionState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
