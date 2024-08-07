@@ -1762,26 +1762,13 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
             // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
             // from payment_method_data.card_token object
-            let name_on_card = if let Some(name) = card.nick_name.clone() {
-                //todo!
-                if name.clone().expose().is_empty() {
-                    card_token_data
-                        .and_then(|token_data| {
-                            is_card_updated = true;
-                            token_data.card_holder_name.clone()
-                        })
-                        .or(Some(name))
-                } else {
-                    card.nick_name.clone() //todo!
-                }
-            } else {
-                card_token_data.and_then(|token_data| {
+            let name_on_card = card_token_data
+                .and_then(|token_data| {
                     is_card_updated = true;
                     token_data.card_holder_name.clone()
-                })
-            };
+                });
 
-            updated_card.nick_name = name_on_card; //todo!
+            updated_card.nick_name = name_on_card;
 
             if let Some(token_data) = card_token_data {
                 if let Some(cvc) = token_data.card_cvc.clone() {
