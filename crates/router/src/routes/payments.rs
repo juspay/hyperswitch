@@ -1015,7 +1015,7 @@ pub async fn payments_list_by_filter(
             payments::apply_filters_on_payments(
                 state,
                 auth.merchant_account,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                None,
                 auth.key_store,
                 req,
             )
