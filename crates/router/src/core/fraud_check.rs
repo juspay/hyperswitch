@@ -172,7 +172,7 @@ where
                 .ok();
             let enabled_merchant_connector_account_from_db_option =
                 merchant_connector_account_from_db_option.and_then(|mca| {
-                    if mca.disabled.unwrap_or(true) {
+                    if mca.disabled.unwrap_or(false) {
                         None
                     } else {
                         Some(mca)
