@@ -419,7 +419,7 @@ pub async fn refund_retrieve_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
-
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
     let payment_id = refund.payment_id.as_str();
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
