@@ -28,7 +28,7 @@ pub async fn ephemeral_key_create(
                 auth.merchant_account.get_id().to_owned(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -48,7 +48,7 @@ pub async fn ephemeral_key_delete(
         &req,
         payload,
         |state, _, req, _| helpers::delete_ephemeral_key(state, req),
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     )
     .await

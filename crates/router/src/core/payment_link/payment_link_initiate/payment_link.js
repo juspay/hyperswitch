@@ -179,6 +179,8 @@ var unifiedCheckout = null;
 var pub_key = window.__PAYMENT_DETAILS.pub_key;
 var hyper = null;
 
+const translations = getTranslations(window.__PAYMENT_DETAILS.locale);
+
 /**
  * Trigger - init function invoked once the script tag is loaded
  * Use
@@ -211,8 +213,8 @@ function boot() {
       orderDetails.push({
         "amount": (paymentDetails.amount - charges).toFixed(2),
         "product_img_link": "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png",
-        "product_name": "Miscellaneous charges\n" +
-                        "(includes taxes, shipping, discounts, offers etc.)",
+        "product_name": translations.miscellaneousCharges+"\n" +
+                        translations.miscellaneousChargesDetail,
         "quantity": null
       });
     }
@@ -291,6 +293,13 @@ function initializeEventListeners(paymentDetails) {
   if (submitButtonLoaderNode instanceof HTMLSpanElement) {
     submitButtonLoaderNode.style.borderBottomColor = contrastingTone;
   }
+
+   // Get locale for pay now
+   var payNowButtonText = document.createElement("div");
+   var payNowButtonText = document.getElementById('submit-button-text');
+   if (payNowButtonText) {
+     payNowButtonText.textContent = translations.payNow;
+   }
 
   if (submitButtonNode instanceof HTMLButtonElement) {
     submitButtonNode.style.color = contrastBWColor;
@@ -380,75 +389,6 @@ function showSDK(display_sdk_only) {
 }
 
 /**
- * Trigger - post downloading SDK
- * Uses
- *  - Instantiate SDK
- *  - Create a payment widget
- *  - Decide whether or not to show SDK (based on status)
- **/
-function initializeSDK() {
-  // @ts-ignore
-  var paymentDetails = window.__PAYMENT_DETAILS;
-  var client_secret = paymentDetails.client_secret;
-  var appearance = {
-    variables: {
-      colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
-      fontFamily: "Work Sans, sans-serif",
-      fontSizeBase: "16px",
-      colorText: "rgb(51, 65, 85)",
-      colorTextSecondary: "#334155B3",
-      colorPrimaryText: "rgb(51, 65, 85)",
-      colorTextPlaceholder: "#33415550",
-      borderColor: "#33415550",
-      colorBackground: "rgb(255, 255, 255)",
-    },
-  };
-  // @ts-ignore
-  hyper = window.Hyper(pub_key, {
-    isPreloadEnabled: false,
-  });
-  widgets = hyper.widgets({
-    appearance: appearance,
-    clientSecret: client_secret,
-  });
-  var type =
-    paymentDetails.sdk_layout === "spaced_accordion" ||
-    paymentDetails.sdk_layout === "accordion"
-      ? "accordion"
-      : paymentDetails.sdk_layout;
-
-  var enableSavedPaymentMethod = paymentDetails.enabled_saved_payment_method;
-  var unifiedCheckoutOptions = {
-    displaySavedPaymentMethodsCheckbox: enableSavedPaymentMethod,
-    displaySavedPaymentMethods: enableSavedPaymentMethod,
-    layout: {
-      type: type, //accordion , tabs, spaced accordion
-      spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
-    },
-    branding: "never",
-    wallets: {
-      walletReturnUrl: paymentDetails.return_url,
-      style: {
-        theme: "dark",
-        type: "default",
-        height: 55,
-      },
-    },
-  };
-  unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
-  mountUnifiedCheckout("#unified-checkout");
-  showSDK(paymentDetails.display_sdk_only);
-
-  let shimmer = document.getElementById("payment-details-shimmer");
-  shimmer.classList.add("reduce-opacity")
-
-  setTimeout(() => {
-    document.body.removeChild(shimmer);
-  }, 500)
-}
-
-
-/**
  * Use - mount payment widget on the passed element
  * @param {String} id
  **/
@@ -494,7 +434,7 @@ function handleSubmit(e) {
         if (error.type === "validation_error") {
           showMessage(error.message);
         } else {
-          showMessage("An unexpected error occurred.");
+          showMessage(translations.unexpectedError);
         }
       } else {
         redirectToStatus();
@@ -523,17 +463,6 @@ function hide(id) {
 function showMessage(msg) {
   show("#payment-message");
   addText("#payment-message", msg);
-}
-
-/**
- * Use - redirect to /payment_link/status
- */
-function redirectToStatus() {
-  var arr = window.location.pathname.split("/");
-  arr.splice(0, 2);
-  arr.unshift("status");
-  arr.unshift("payment_link");
-  window.location.href = window.location.origin + "/" + arr.join("/");
 }
 
 function addText(id, msg) {
@@ -630,12 +559,12 @@ function renderPaymentDetails(paymentDetails) {
   // Create merchant name's node
   var merchantNameNode = document.createElement("div");
   merchantNameNode.className = "hyper-checkout-payment-merchant-name";
-  merchantNameNode.innerText = "Requested by " + paymentDetails.merchant_name;
+  merchantNameNode.innerText = translations.requestedBy + paymentDetails.merchant_name;
 
   // Create payment ID node
   var paymentIdNode = document.createElement("div");
   paymentIdNode.className = "hyper-checkout-payment-ref";
-  paymentIdNode.innerText = "Ref Id: " + paymentDetails.payment_id;
+  paymentIdNode.innerText = translations.refId + paymentDetails.payment_id;
 
   // Create merchant logo's node
   var merchantLogoNode = document.createElement("img");
@@ -648,7 +577,7 @@ function renderPaymentDetails(paymentDetails) {
   paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
   var expiryDate = new Date(paymentDetails.session_expiry);
   var formattedDate = formatDate(expiryDate);
-  paymentExpiryNode.innerText = "Link expires on: " + formattedDate;
+  paymentExpiryNode.innerText = translations.expiresOn + formattedDate;
 
   // Append information to DOM
   var paymentContextNode = document.getElementById(
@@ -692,6 +621,11 @@ function renderCart(paymentDetails) {
     var cartItemsNode = document.getElementById("hyper-checkout-cart-items");
     var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
       paymentDetails.max_items_visible_after_collapse;
+    var yourCartText = document.createElement("span");
+    var yourCartText = document.getElementById('your-cart-text');
+    if (yourCartText) {
+      yourCartText.textContent = translations.yourCart;
+    }
 
     orderDetails.map(function (item, index) {
       if (index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
@@ -723,7 +657,7 @@ function renderCart(paymentDetails) {
       buttonTextNode.id = "hyper-checkout-cart-button-text";
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-      buttonTextNode.innerText = "Show More (" + hiddenItemsCount + ")";
+      buttonTextNode.innerText = translations.showMore+" (" + hiddenItemsCount + ")";
       expandButtonNode.append(buttonTextNode, buttonImageNode);
       if (cartNode instanceof HTMLDivElement) {
         cartNode.insertBefore(expandButtonNode, cartNode.lastElementChild);
@@ -787,7 +721,7 @@ function renderCartItem(
   if (item.quantity !== null) {
     var quantityNode = document.createElement("div");
     quantityNode.className = "hyper-checkout-card-item-quantity";
-    quantityNode.innerText = "Qty: " + item.quantity;
+    quantityNode.innerText = translations.quantity+": " + item.quantity;
   }  
   // Product price
   var priceNode = document.createElement("div");
@@ -862,7 +796,7 @@ function handleCartView(paymentDetails) {
     }
 
     if (cartButtonTextNode instanceof HTMLSpanElement) {
-      cartButtonTextNode.innerText = "Show Less";
+      cartButtonTextNode.innerText = translations.showLess;
     }
 
     var arrowUpImage = document.getElementById("arrow-up");
@@ -900,7 +834,7 @@ function handleCartView(paymentDetails) {
       var hiddenItemsCount =
         orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
       if (cartButtonTextNode instanceof HTMLSpanElement) {
-        cartButtonTextNode.innerText = "Show More (" + hiddenItemsCount + ")";
+        cartButtonTextNode.innerText = translations.showMore+" (" + hiddenItemsCount + ")";
       }
       var arrowDownImage = document.getElementById("arrow-down");
       if (

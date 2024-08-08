@@ -37,6 +37,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -53,6 +54,7 @@ export const connectorDetails = {
     }),
     "3DSAutoCapture": {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -69,6 +71,7 @@ export const connectorDetails = {
     },
     No3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -85,6 +88,7 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -105,6 +109,7 @@ export const connectorDetails = {
     },
     PartialCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -138,6 +143,7 @@ export const connectorDetails = {
     },
     Refund: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -153,6 +159,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -169,6 +176,7 @@ export const connectorDetails = {
     },
     SyncRefund: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -184,6 +192,7 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -211,6 +220,7 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -245,7 +255,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -281,7 +291,7 @@ export const connectorDetails = {
         },
       },
     },
-    giropay: {
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -319,7 +329,7 @@ export const connectorDetails = {
         },
       },
     },
-    sofort: {
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -354,7 +364,7 @@ export const connectorDetails = {
         },
       },
     },
-    eps: {
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -390,7 +400,7 @@ export const connectorDetails = {
         },
       },
     },
-    blik: {
+    Blik: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",

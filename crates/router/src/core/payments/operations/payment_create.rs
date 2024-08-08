@@ -6,6 +6,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
+    type_name,
     types::{keymanager::Identifier, MinorUnit},
 };
 use diesel_models::{ephemeral_key, PaymentMethod};
@@ -13,7 +14,7 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
-    type_encryption::decrypt_optional,
+    type_encryption::{crypto_operation, CryptoOperation},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -66,7 +67,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
@@ -80,6 +81,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_account_v2")
+        ))]
         helpers::validate_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -87,6 +92,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )?;
 
         // If profile id is not passed, get it from the business_country and business_label
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_account_v2")
+        ))]
         let profile_id = core_utils::get_profile_id_from_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -97,6 +106,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
+        // Profile id will be mandatory in v2 in the request / headers
+        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        let profile_id = request
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .attach_printable("Profile id is a mandatory parameter")?;
+
+        // TODO: eliminate a redundant db call to fetch the business profile
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         let business_profile = if let Some(business_profile) =
             core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)
@@ -244,6 +262,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     profile_id.clone(),
                     domain_name,
                     session_expiry,
+                    header_payload.locale.clone(),
                 )
                 .await?
             }
@@ -848,13 +867,15 @@ impl PaymentCreate {
             additional_pm_data = payment_method_info
                 .as_ref()
                 .async_map(|pm_info| async {
-                    decrypt_optional::<serde_json::Value, masking::WithType>(
+                    crypto_operation::<serde_json::Value, masking::WithType>(
                         &state.into(),
-                        pm_info.payment_method_data.clone(),
+                        type_name!(PaymentMethod),
+                        CryptoOperation::DecryptOptional(pm_info.payment_method_data.clone()),
                         Identifier::Merchant(key_store.merchant_id.clone()),
                         key_store.key.get_inner().peek(),
                     )
                     .await
+                    .and_then(|val| val.try_into_optionaloperation())
                     .map_err(|err| logger::error!("Failed to decrypt card details: {:?}", err))
                     .ok()
                     .flatten()
@@ -1215,15 +1236,28 @@ async fn create_payment_link(
     profile_id: String,
     domain_name: String,
     session_expiry: PrimitiveDateTime,
+    locale: Option<String>,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
-    let payment_link = format!(
-        "{}/payment_link/{}/{}",
+    let locale_str = locale.unwrap_or("en".to_owned());
+    let open_payment_link = format!(
+        "{}/payment_link/{}/{}?locale={}",
         domain_name,
         merchant_id.get_string_repr(),
-        payment_id.clone()
+        payment_id.clone(),
+        locale_str.clone(),
     );
+
+    let secure_link = payment_link_config.allowed_domains.as_ref().map(|_| {
+        format!(
+            "{}/payment_link/s/{}/{}?locale={}",
+            domain_name,
+            merchant_id.get_string_repr(),
+            payment_id.clone(),
+            locale_str,
+        )
+    });
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
@@ -1235,7 +1269,7 @@ async fn create_payment_link(
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
-        link_to_pay: payment_link.clone(),
+        link_to_pay: open_payment_link.clone(),
         amount: MinorUnit::from(amount),
         currency: request.currency,
         created_at,
@@ -1245,6 +1279,7 @@ async fn create_payment_link(
         description,
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
+        secure_link,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)
@@ -1254,7 +1289,8 @@ async fn create_payment_link(
         })?;
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
-        link: payment_link_db.link_to_pay,
+        link: payment_link_db.link_to_pay.clone(),
+        secure_link: payment_link_db.secure_link,
         payment_link_id: payment_link_db.payment_link_id,
     }))
 }
