@@ -4876,6 +4876,7 @@ pub struct AdyenDisputeResponse {
     pub error_message: Option<String>,
     pub success: bool,
 }
+
 impl TryFrom<&types::AcceptDisputeRouterData> for AdyenAcceptDisputeRequest {
     type Error = Error;
     fn try_from(item: &types::AcceptDisputeRouterData) -> Result<Self, Self::Error> {

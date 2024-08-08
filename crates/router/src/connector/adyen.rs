@@ -1944,7 +1944,7 @@ impl
             req.test_mode,
             &req.connector_meta_data,
         )?;
-      Ok(format!(
+        Ok(format!(
             "{}ca/services/DisputeService/v30/acceptDispute",
             endpoint
         ))
@@ -1998,9 +1998,19 @@ impl
             })
         } else {
             Ok(types::AcceptDisputeRouterData {
-                response: Ok(types::AcceptDisputeResponse {
-                    dispute_status: api::enums::DisputeStatus::DisputeCancelled,
-                    connector_status: None,
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: res.status_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..data.clone()
             })
@@ -2094,7 +2104,6 @@ impl
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         if response.success {
             Ok(types::DefendDisputeRouterData {
                 response: Ok(types::DefendDisputeResponse {
@@ -2105,9 +2114,19 @@ impl
             })
         } else {
             Ok(types::DefendDisputeRouterData {
-                response: Ok(types::DefendDisputeResponse {
-                    dispute_status: api::enums::DisputeStatus::DisputeCancelled,
-                    connector_status: None,
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: res.status_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..data.clone()
             })
@@ -2211,9 +2230,19 @@ impl
             })
         } else {
             Ok(types::SubmitEvidenceRouterData {
-                response: Ok(types::SubmitEvidenceResponse {
-                    dispute_status: api::enums::DisputeStatus::DisputeCancelled,
-                    connector_status: None,
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: res.status_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
                 }),
                 ..data.clone()
             })
@@ -2264,18 +2293,22 @@ impl api::FileUpload for Adyen {
                     })?
                 }
                 //10 MB
-                if (file_type.to_string().as_str()=="image/jpeg" || file_type.to_string().as_str()=="image/jpeg") && file_size > 10000000 {
+                if (file_type.to_string().as_str() == "image/jpeg"
+                    || file_type.to_string().as_str() == "image/jpeg")
+                    && file_size > 10000000
+                {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_size exceeded the max file size of 10MB for Image formats".to_owned(),
+                        reason: "file_size exceeded the max file size of 10MB for Image formats"
+                            .to_owned(),
                     })?
                 }
                 //2 MB
-                if file_type.to_string().as_str()=="application/pdf"  && file_size > 2000000 {
+                if file_type.to_string().as_str() == "application/pdf" && file_size > 2000000 {
                     Err(errors::ConnectorError::FileValidationFailed {
-                        reason: "file_size exceeded the max file size of 2MB for PDF formats".to_owned(),
+                        reason: "file_size exceeded the max file size of 2MB for PDF formats"
+                            .to_owned(),
                     })?
                 }
-
             }
         }
         Ok(())
