@@ -250,7 +250,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
-            | Flow::GetRoleAuthorizationInfo
+            | Flow::GetRolesInfo
             | Flow::AcceptInvitation
             | Flow::MerchantSelect
             | Flow::DeleteUserRole

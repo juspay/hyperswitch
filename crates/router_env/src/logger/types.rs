@@ -354,8 +354,8 @@ pub enum Flow {
     SwitchMerchant,
     /// Get permission info
     GetAuthorizationInfo,
-    /// Get Role info
-    GetRoleAuthorizationInfo,
+    /// Get Roles info
+    GetRolesInfo,
     /// List roles
     ListRoles,
     /// Get role

@@ -24,7 +24,7 @@ pub async fn get_authorization_info(
     http_req: HttpRequest,
     query: web::Query<role_api::GetGroupsQueryParam>,
 ) -> HttpResponse {
-    let flow = Flow::GetRoleAuthorizationInfo;
+    let flow = Flow::GetAuthorizationInfo;
     let respond_with_groups = query.into_inner().groups.unwrap_or(false);
     Box::pin(api::server_wrap(
         flow,
@@ -273,7 +273,7 @@ pub async fn get_role_information(
     state: web::Data<AppState>,
     http_req: HttpRequest,
 ) -> HttpResponse {
-    let flow = Flow::GetAuthorizationInfo;
+    let flow = Flow::GetRolesInfo;
 
     Box::pin(api::server_wrap(
         flow,
