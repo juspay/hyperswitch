@@ -17,6 +17,7 @@ use crate::utils::ValueExt;
 use crate::{
     consts,
     core::{
+        admin,
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
     },
@@ -139,7 +140,7 @@ pub async fn create_routing_config(
 
     let name_mca_id_set = helpers::ConnectNameAndMCAIdForProfile(
         all_mcas.filter_by_profile(&business_profile.profile_id, |mca| {
-            (&mca.connector_name, &mca.merchant_connector_id)
+            (&mca.connector_name, mca.get_id())
         }),
     );
 
@@ -310,15 +311,10 @@ pub async fn link_routing_config(
             })
         },
     )?;
+    admin::BusinessProfileWrapper::new(business_profile)
+        .update_business_profile_active_algorithm_id(db, algorithm_id, transaction_type)
+        .await?;
 
-    // TODO move to business profile
-    helpers::update_business_profile_active_algorithm_ref(
-        db,
-        business_profile,
-        routing_algorithm.0.algorithm_id.clone(),
-        transaction_type,
-    )
-    .await?;
     metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_algorithm.0.foreign_into(),
@@ -498,14 +494,9 @@ pub async fn unlink_routing_config(
         )
         .await?;
         let response = record.0.foreign_into();
-        helpers::update_business_profile_active_algorithm_ref(
-            db,
-            business_profile,
-            algorithm_id,
-            transaction_type,
-        )
-        .await?;
-
+        admin::BusinessProfileWrapper::new(business_profile)
+            .update_business_profile_active_algorithm_id(db, algorithm_id, transaction_type)
+            .await?;
         metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         Ok(service_api::ApplicationResponse::Json(response))
     } else {
@@ -667,6 +658,70 @@ pub async fn retrieve_default_routing_config(
         metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
         service_api::ApplicationResponse::Json(conn_choice)
     })
+}
+
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+pub async fn retrieve_linked_routing_config(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    query_params: RoutingRetrieveLinkQuery,
+    transaction_type: &enums::TransactionType,
+) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    let db = state.store.as_ref();
+
+    let business_profiles = if let Some(profile_id) = query_params.profile_id {
+        core_utils::validate_and_get_business_profile(
+            db,
+            Some(&profile_id),
+            merchant_account.get_id(),
+        )
+        .await?
+        .map(|profile| vec![profile])
+        .get_required_value("BusinessProfile")
+        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?
+    } else {
+        db.list_business_profile_by_merchant_id(merchant_account.get_id())
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
+    };
+
+    let mut active_algorithms = Vec::new();
+
+    for business_profile in business_profiles {
+        let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+            enums::TransactionType::Payment => business_profile.routing_algorithm,
+            #[cfg(feature = "payouts")]
+            enums::TransactionType::Payout => business_profile.payout_routing_algorithm,
+        }
+        .clone()
+        .map(|val| val.parse_value("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
+        .unwrap_or_default();
+
+        if let Some(algorithm_id) = routing_ref.algorithm_id {
+            let record = db
+                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
+                    &algorithm_id,
+                    &business_profile.profile_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+            active_algorithms.push(record.foreign_into());
+        }
+    }
+
+    metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    Ok(service_api::ApplicationResponse::Json(
+        routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
+    ))
 }
 
 #[cfg(all(

@@ -1,5 +1,19 @@
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 use std::collections::HashMap;
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
+use crate::core::payment_methods::cards::create_encrypted_data;
+use crate::{
+    core::errors,
+    routes::SessionState,
+    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
+};
 pub use api_models::{
     admin::{
         BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
@@ -11,22 +25,31 @@ pub use api_models::{
     },
     organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     types::keymanager::Identifier,
 };
 use diesel_models::organization::OrganizationBridge;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
+use hyperswitch_domain_models::type_encryption::decrypt_optional;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 use masking::{ExposeInterface, PeekInterface, Secret};
-
-use crate::{
-    core::{errors, payment_methods::cards::create_encrypted_data},
-    routes::SessionState,
-    types::{domain, storage, transformers::ForeignTryFrom, ForeignFrom},
-};
 
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
     fn foreign_from(org: diesel_models::organization::Organization) -> Self {

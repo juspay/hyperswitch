@@ -1,5 +1,6 @@
 // #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 // use common_enums::OrderFulfillmentTimeOrigin;
+use crate::type_encryption::{decrypt_optional, AsyncLift};
 use common_utils::{
     crypto::OptionalEncryptableValue,
     date_time,
@@ -11,8 +12,6 @@ use common_utils::{
 use diesel_models::business_profile::BusinessProfileUpdateInternal;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-
-use crate::type_encryption::{decrypt_optional, AsyncLift};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),

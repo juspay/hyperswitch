@@ -4,16 +4,14 @@
 //! routing dict, configs, defaults
 use api_models::routing as routing_types;
 use common_utils::ext_traits::Encode;
-use diesel_models::{
-    business_profile::{BusinessProfile, BusinessProfileUpdate},
-    configs,
-};
+use diesel_models::configs;
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 use crate::types::domain::MerchantConnectorAccount;
+
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
@@ -21,6 +19,11 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
+use diesel_models::business_profile::{BusinessProfile, BusinessProfileUpdate};
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -221,51 +224,6 @@ pub async fn update_business_profile_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
-pub async fn update_business_profile_active_algorithm_ref(
-    db: &dyn StorageInterface,
-    current_business_profile: BusinessProfile,
-    algorithm_id: String,
-    transaction_type: &storage::enums::TransactionType,
-) -> RouterResult<()> {
-    let merchant_id = current_business_profile.merchant_id.clone();
-
-    let profile_id = current_business_profile.profile_id.clone();
-
-    let routing_cache_key = cache::CacheKind::Routing(
-        format!(
-            "routing_config_{}_{profile_id}",
-            merchant_id.get_string_repr()
-        )
-        .into(),
-    );
-
-    let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
-        storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
-        #[cfg(feature = "payouts")]
-        storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
-    };
-
-    let business_profile_update = BusinessProfileUpdate::RoutingAlgorithmUpdate {
-        routing_algorithm_id,
-        payout_routing_algorithm_id,
-    };
-
-    db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update routing algorithm ref in business profile")?;
-
-    cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to invalidate routing cache")?;
-    Ok(())
-}
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 #[derive(Clone, Debug)]
 pub struct RoutingAlgorithmHelpers<'h> {
@@ -275,7 +233,7 @@ pub struct RoutingAlgorithmHelpers<'h> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, &'a String)>);
+pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, String)>);
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
@@ -343,7 +301,7 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id)),
+                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
                             "connector with name '{}' and merchant connector account id '{}' not found for the given profile",

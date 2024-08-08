@@ -268,75 +268,7 @@ where
         mandate: mandate_data,
     })
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
-pub async fn perform_static_routing_v1<F: Clone>(
-    state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-    algorithm_ref: routing_types::RoutingAlgorithmRef,
-    transaction_data: &routing::TransactionData<'_, F>,
-) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let profile_id = match transaction_data {
-        routing::TransactionData::Payment(payment_data) => payment_data
-            .payment_intent
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::RoutingError::ProfileIdMissing)?,
-        #[cfg(feature = "payouts")]
-        routing::TransactionData::Payout(payout_data) => &payout_data.payout_attempt.profile_id,
-    };
-    let algorithm_id = if let Some(id) = algorithm_ref.algorithm_id {
-        id
-    } else {
-        let fallback_config = routing_helpers::get_merchant_default_config(
-            &*state.clone().store,
-            profile_id,
-            &api_enums::TransactionType::from(transaction_data),
-        )
-        .await
-        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
 
-        return Ok(fallback_config);
-    };
-    let cached_algorithm = ensure_algorithm_cached_v1(
-        state,
-        merchant_id,
-        &algorithm_id,
-        Some(profile_id).cloned(),
-        &api_enums::TransactionType::from(transaction_data),
-    )
-    .await?;
-
-    Ok(match cached_algorithm.as_ref() {
-        CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
-
-        CachedAlgorithm::Priority(plist) => plist.clone(),
-
-        CachedAlgorithm::VolumeSplit(splits) => perform_volume_split(splits.to_vec(), None)
-            .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
-
-        CachedAlgorithm::Advanced(interpreter) => {
-            let backend_input = match transaction_data {
-                routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
-                #[cfg(feature = "payouts")]
-                routing::TransactionData::Payout(payout_data) => {
-                    make_dsl_input_for_payouts(payout_data)?
-                }
-            };
-
-            execute_dsl_and_get_connector_v1(backend_input, interpreter)?
-        }
-    })
-}
-
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
 pub async fn perform_static_routing_v1<F: Clone>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -396,6 +328,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         }
     })
 }
+
 async fn ensure_algorithm_cached_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,

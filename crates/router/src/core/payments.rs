@@ -3923,9 +3923,8 @@ where
         feature = "routing_v2",
         feature = "business_profile_v2"
     ))]
-    let (profile_id, connectors) = {
-        #[allow(unused_variables)]
-        let (profile_id, routing_algorithm_id) = match &transaction_data {
+    let (profile_id, routing_algorithm_id) = {
+        match &transaction_data {
             TransactionData::Payment(payment_data) => (
                 payment_data.payment_intent.profile_id.clone(),
                 business_profile.routing_algorithm_id.clone(),
@@ -3935,26 +3934,14 @@ where
                 Some(payout_data.payout_attempt.profile_id.clone()),
                 business_profile.payout_routing_algorithm_id.clone(),
             ),
-        };
-
-        let connectors = routing::perform_static_routing_v1(
-            state,
-            merchant_account.get_id(),
-            routing_algorithm_id,
-            &transaction_data,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        (profile_id, connectors)
+        }
     };
 
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(any(feature = "routing_v2", feature = "business_profile_v2"))
     ))]
-    let (profile_id, connectors) = {
-        #[allow(unused_variables)]
+    let (profile_id, routing_algorithm_id) = {
         let (profile_id, routing_algorithm) = match &transaction_data {
             TransactionData::Payment(payment_data) => (
                 payment_data.payment_intent.profile_id.clone(),
@@ -3973,18 +3960,17 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not decode merchant routing algorithm ref")?
             .unwrap_or_default();
-
-        let connectors = routing::perform_static_routing_v1(
-            state,
-            merchant_account.get_id(),
-            algorithm_ref,
-            &transaction_data,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        (profile_id, connectors)
+        (profile_id, algorithm_ref.algorithm_id)
     };
 
+    let connectors = routing::perform_static_routing_v1(
+        state,
+        merchant_account.get_id(),
+        routing_algorithm_id,
+        &transaction_data,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
