@@ -101,7 +101,7 @@ while IFS= read -r crate && [[ -n "${crate}" ]]; do
 done <<< "${crates_without_v1_feature}"
 
 if ((${#all_commands[@]} == 0)); then
-  echo "There are no commands to be be executed"
+  echo "There are no commands to be executed"
   exit 0
 fi
 

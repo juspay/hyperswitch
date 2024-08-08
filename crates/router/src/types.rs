@@ -479,14 +479,14 @@ impl Default for PollConfig {
 #[derive(Clone, Debug)]
 pub struct RedirectPaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
-    pub business_profile: diesel_models::business_profile::BusinessProfile,
+    pub business_profile: domain::BusinessProfile,
 }
 
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
     pub poll_config: PollConfig,
-    pub business_profile: diesel_models::business_profile::BusinessProfile,
+    pub business_profile: domain::BusinessProfile,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
