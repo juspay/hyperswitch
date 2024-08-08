@@ -16,7 +16,6 @@ use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
-use common_utils::type_name;
 use crate::type_encryption as types;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -212,7 +211,7 @@ impl super::behaviour::Conversion for Customer {
     {
         let decrypted = types::crypto_operation(
             state,
-            type_name!(Self::DstType),
+            common_utils::type_name!(Self::DstType),
             types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
                 CustomerRequestWithEncryption {
                     name: item.name.clone(),
