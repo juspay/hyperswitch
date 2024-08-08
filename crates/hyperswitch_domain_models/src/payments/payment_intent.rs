@@ -332,6 +332,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: value.billing_details,
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details,
+                is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {

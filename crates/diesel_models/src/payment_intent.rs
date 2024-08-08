@@ -504,7 +504,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 surcharge_applicable: None,
                 incremental_authorization_allowed: None,
                 authorization_count: None,
-                is_payment_processor_token_flow: None,
+                is_payment_processor_token_flow: value.is_payment_processor_token_flow,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
