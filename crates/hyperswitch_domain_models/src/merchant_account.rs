@@ -506,6 +506,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: self.modified_at,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
+            version: crate::consts::API_VERSION,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -585,6 +586,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: now,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
+            version: crate::consts::API_VERSION,
         })
     }
 }
@@ -626,6 +628,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            version: crate::consts::API_VERSION,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -739,6 +742,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            version: crate::consts::API_VERSION,
         })
     }
 }

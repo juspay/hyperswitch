@@ -1,7 +1,6 @@
 use api_models::customers::CustomerRequestWithEncryption;
 // #[cfg(all(feature = "v2", feature = "customer_v2"))]
 // use common_enums::SoftDeleteStatus;
-use common_enums::ApiVersion;
 use common_utils::{
     crypto, date_time,
     encryption::Encryption,
@@ -36,7 +35,6 @@ pub struct Customer {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -54,7 +52,6 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: ApiVersion,
     pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -97,7 +94,7 @@ impl super::behaviour::Conversion for Customer {
             address_id: self.address_id,
             default_payment_method_id: self.default_payment_method_id,
             updated_by: self.updated_by,
-            version: self.version,
+            version: crate::consts::API_VERSION,
         })
     }
 
@@ -148,7 +145,6 @@ impl super::behaviour::Conversion for Customer {
             address_id: item.address_id,
             default_payment_method_id: item.default_payment_method_id,
             updated_by: item.updated_by,
-            version: item.version,
         })
     }
 
@@ -168,7 +164,7 @@ impl super::behaviour::Conversion for Customer {
             connector_customer: self.connector_customer,
             address_id: self.address_id,
             updated_by: self.updated_by,
-            version: self.version,
+            version: crate::consts::API_VERSION,
         })
     }
 }
@@ -196,8 +192,8 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address.map(Encryption::from),
             default_shipping_address: self.default_shipping_address.map(Encryption::from),
+            version: crate::consts::API_VERSION,
             // status: self.status,
-            version: self.version,
         })
     }
 
@@ -212,7 +208,7 @@ impl super::behaviour::Conversion for Customer {
     {
         let decrypted = types::crypto_operation(
             state,
-            type_name!(Self::DstType),
+            common_utils::type_name!(Self::DstType),
             types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
                 CustomerRequestWithEncryption {
                     name: item.name.clone(),
@@ -251,7 +247,6 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: item.default_billing_address,
             default_shipping_address: item.default_shipping_address,
             // status: item.status,
-            version: item.version,
         })
     }
 
@@ -275,7 +270,7 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
             // status: self.status,
-            version: self.version,
+            version: crate::consts::API_VERSION,
         })
     }
 }

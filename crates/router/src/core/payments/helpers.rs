@@ -1709,7 +1709,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: common_enums::ApiVersion::V1,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)

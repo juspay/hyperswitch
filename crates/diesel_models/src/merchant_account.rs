@@ -56,6 +56,7 @@ pub struct MerchantAccount {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -90,6 +91,7 @@ pub struct MerchantAccountSetter {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -126,6 +128,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             recon_status: item.recon_status,
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
+            version: item.version,
         }
     }
 }
@@ -155,6 +158,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
+    pub version: common_enums::ApiVersion,
     pub id: common_utils::id_type::MerchantId,
 }
 
@@ -172,6 +176,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             modified_at: item.modified_at,
             organization_id: item.organization_id,
             recon_status: item.recon_status,
+            version: item.version,
         }
     }
 }
@@ -188,6 +193,7 @@ pub struct MerchantAccountSetter {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
+    pub version: common_enums::ApiVersion,
 }
 
 impl MerchantAccount {
@@ -239,6 +245,7 @@ pub struct MerchantAccountNew {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -254,6 +261,7 @@ pub struct MerchantAccountNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub id: common_utils::id_type::MerchantId,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
