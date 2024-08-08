@@ -723,6 +723,7 @@ async fn handle_invitation(
             request,
             invitee_user.into(),
             auth_id,
+            role_info,
         )
         .await
     } else if invitee_user
@@ -738,6 +739,7 @@ async fn handle_invitation(
             req_state.clone(),
             is_token_only,
             auth_id,
+            role_info,
         )
         .await
     } else {
@@ -752,6 +754,7 @@ async fn handle_existing_user_invitation(
     request: &user_api::InviteUserRequest,
     invitee_user_from_db: domain::UserFromStorage,
     auth_id: &Option<String>,
+    role_info: roles::RoleInfo,
 ) -> UserResult<InviteMultipleUserResponse> {
     let now = common_utils::date_time::now();
     state
@@ -773,7 +776,7 @@ async fn handle_existing_user_invitation(
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
             last_modified: now,
-            entity_type: EntityType::Merchant,
+            entity_type: role_info.get_entity_type(),
         })
         .await
         .map_err(|e| {
@@ -829,6 +832,7 @@ async fn handle_new_user_invitation(
     req_state: ReqState,
     is_token_only: Option<bool>,
     auth_id: &Option<String>,
+    role_info: roles::RoleInfo,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -857,7 +861,7 @@ async fn handle_new_user_invitation(
             profile_id: user_from_token.profile_id.clone(),
             created_at: now,
             last_modified: now,
-            entity_type: EntityType::Merchant,
+            entity_type: role_info.get_entity_type(),
         })
         .await
         .map_err(|e| {
