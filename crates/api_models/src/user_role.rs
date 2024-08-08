@@ -97,7 +97,7 @@ pub struct GroupInfo {
 pub struct ParentInfo {
     pub name: ParentGroup,
     pub description: &'static str,
-    pub groups: Vec<String>,
+    pub groups: Vec<PermissionGroup>,
 }
 
 #[derive(Debug, serde::Serialize)]

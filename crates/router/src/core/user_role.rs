@@ -48,7 +48,6 @@ pub async fn get_authorization_info_with_groups(
     ))
 }
 pub async fn get_authorization_info_with_group_tag(
-    _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     Ok(ApplicationResponse::Json(
         user_role_api::AuthorizationInfoResponse(

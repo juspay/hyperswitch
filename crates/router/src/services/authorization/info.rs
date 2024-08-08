@@ -19,14 +19,15 @@ pub fn get_group_authorization_info() -> Vec<GroupInfo> {
 }
 
 pub fn get_group_authorization_info_with_group_tag() -> Vec<ParentInfo> {
-    let parent_info_hash_map: HashMap<ParentGroup, Vec<String>> = PermissionGroup::iter()
+    PermissionGroup::iter()
         .map(|value| (get_parent_name(value), value))
-        .fold(HashMap::new(), |mut acc, (key, value)| {
-            acc.entry(key).or_default().push(value.to_string());
-            acc
-        });
-
-    parent_info_hash_map
+        .fold(
+            HashMap::new(),
+            |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
+                acc.entry(key).or_default().push(value);
+                acc
+            },
+        )
         .into_iter()
         .map(|(name, value)| ParentInfo {
             name: name.clone(),

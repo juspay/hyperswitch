@@ -280,8 +280,8 @@ pub async fn get_role_information(
         state.clone(),
         &http_req,
         (),
-        |state, _: (), _, _| async move {
-            user_role_core::get_authorization_info_with_group_tag(state).await
+        |_, _: (), _, _| async move {
+            user_role_core::get_authorization_info_with_group_tag().await
         },
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
