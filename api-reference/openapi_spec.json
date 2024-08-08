@@ -14663,17 +14663,6 @@
           {
             "type": "object",
             "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "bank_redirect"
             ],
             "properties": {

@@ -2985,7 +2985,6 @@ where
                 | PaymentMethodDataResponse::MandatePayment {}
                 | PaymentMethodDataResponse::GiftCard {}
                 | PaymentMethodDataResponse::PayLater(_)
-                | PaymentMethodDataResponse::Paypal {}
                 | PaymentMethodDataResponse::RealTimePayment {}
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
@@ -3012,7 +3011,6 @@ pub enum PaymentMethodDataResponse {
     BankTransfer {},
     Wallet {},
     PayLater(Box<PaylaterResponse>),
-    Paypal {},
     BankRedirect {},
     Crypto {},
     BankDebit {},
