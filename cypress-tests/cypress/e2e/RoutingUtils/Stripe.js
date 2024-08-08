@@ -1,19 +1,36 @@
-import { getCustomExchange } from "./Commons";
+import {} from "./Commons";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4200000000000000",
+  card_number: "4242424242424242",
   card_exp_month: "10",
   card_exp_year: "25",
-  card_holder_name: "joseph Doe",
-  card_cvc: "123",
+  card_holder_name: "morino",
+  card_cvc: "737",
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "4200000000000067",
-  card_exp_month: "03",
-  card_exp_year: "2030",
-  card_holder_name: "John Doe",
+  card_number: "4000002500003155",
+  card_exp_month: "10",
+  card_exp_year: "25",
+  card_holder_name: "morino",
   card_cvc: "737",
+};
+
+const singleUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
 };
 
 const multiUseMandateData = {
@@ -35,9 +52,10 @@ const multiUseMandateData = {
 
 export const connectorDetails = {
   card_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: {
       Request: {
         currency: "USD",
+        amount: 1100,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -47,7 +65,24 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }),
+    },
+    "3DSManualCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
@@ -65,7 +100,7 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSAutoCapture: {
+    No3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -78,7 +113,27 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    No3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 1100,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
           status: "succeeded",
+          connector: "stripe",
         },
       },
     },
@@ -92,39 +147,24 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be captured because it has a payment.status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, processing",
-            code: "IR_14",
-          },
+          status: "succeeded",
+          amount: 6500,
+          amount_capturable: 0,
+          amount_received: 6500,
         },
       },
     },
     PartialCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        paymentSuccessfulStatus: "succeeded",
-        paymentSyncStatus: "succeeded",
-        refundStatus: "succeeded",
-        refundSyncStatus: "succeeded",
-        customer_acceptance: null,
-      },
+      Request: {},
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be captured because it has a payment.status of requires_payment_method. The expected state is requires_capture, partially_captured_and_capturable, processing",
-            code: "IR_14",
-          },
+          status: "partially_captured",
+          amount: 6500,
+          amount_capturable: 0,
+          amount_received: 100,
         },
       },
     },
@@ -137,14 +177,14 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: {
+    MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
@@ -153,36 +193,83 @@ export const connectorDetails = {
         },
       },
     },
-    PartialRefund: {
+    MandateSingleUse3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
         body: {
-          error_code: "1",
-          error_message: "transaction declined (invalid amount)",
+          status: "requires_customer_action",
         },
       },
     },
-    SyncRefund: {
+    MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
@@ -198,19 +285,39 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUse3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Trustpay is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -238,9 +345,33 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
   },
   bank_redirect_pm: {
-    PaymentIntent: getCustomExchange({
+    PaymentIntent: {
       Request: {
         currency: "EUR",
       },
@@ -250,8 +381,8 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    }),
-    Ideal: {
+    },
+    ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -287,17 +418,13 @@ export const connectorDetails = {
         },
       },
     },
-    Giropay: {
+    giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
         payment_method_data: {
           bank_redirect: {
-            giropay: {
-              bank_name: "",
-              bank_account_bic: "",
-              bank_account_iban: "",
-            },
+            giropay: {},
           },
         },
         billing: {
@@ -321,11 +448,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "Giropay is deprecated and can no longer be used for payment acceptance. Please refer to https://docs.stripe.com/payments/giropay",
         },
       },
     },
-    Sofort: {
+    sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -355,19 +485,18 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "1133001",
+          status: "requires_customer_action",
         },
       },
     },
-    Eps: {
+    eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
         payment_method_data: {
           bank_redirect: {
             eps: {
-              bank_name: "ing",
+              bank_name: "bank_austria",
             },
           },
         },
@@ -393,32 +522,42 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          connector: "stripe",
         },
       },
     },
-    Blik: {
+    blik: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
         payment_method_data: {
           bank_redirect: {
             blik: {
-              name: "John Doe",
-              email: "example@email.com",
+              blik_code: "777987",
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "PL",
-            first_name: "john",
-            last_name: "doe",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_intent_invalid_parameter",
+        },
+      },
+    },
+    przelewy24: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "przelewy24",
+        payment_method_data: {
+          bank_redirect: {
+            przelewy24: {
+              bank_name: "citi",
+              billing_details: {
+                email: "guest@juspay.in",
+              },
+            },
           },
         },
       },
