@@ -313,7 +313,6 @@ describe("Card - SaveCard payment flow test", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log(res_data);
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
