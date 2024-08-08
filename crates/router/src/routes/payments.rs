@@ -1061,11 +1061,7 @@ pub async fn get_payment_filters(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(
-                state,
-                auth.merchant_account,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
-            )
+            payments::get_payment_filters(state, auth.merchant_account, None)
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
