@@ -1394,18 +1394,27 @@ pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     }
 }
 
-pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId>(
+pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
     profile_id_auth_layer: Option<String>,
     object: &T,
 ) -> RouterResult<()> {
-    if profile_id_auth_layer
-        .is_some_and(|auth_profile_id| Some(&auth_profile_id) == object.get_profile_id())
-    {
-        return Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Profile id authentication failed. Please use the correct JWT token"
-                .to_string(),
+    match (profile_id_auth_layer, object.get_profile_id()) {
+        (Some(auth_profile_id), Some(object_profile_id)) => {
+            auth_profile_id.eq(object_profile_id).then_some(()).ok_or(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Profile id authentication failed. Please use the correct JWT token"
+                        .to_string(),
+                }
+                .into(),
+            )
         }
-        .into());
+        (Some(_auth_profile_id), None) => RouterResult::Err(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Couldn't find profile_id in record for authentication".to_string(),
+            }
+            .into(),
+        )
+        .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
+        (None, None) | (None, Some(_)) => Ok(()),
     }
-    Ok(())
 }
