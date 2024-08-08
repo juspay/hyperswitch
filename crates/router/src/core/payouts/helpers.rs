@@ -1,16 +1,20 @@
-use api_models::{customers::CustomerRequestWithEmail, enums, payment_methods::Card, payouts};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use api_models::customers::CustomerRequestWithEmail;
+use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    fp_utils, generate_customer_id_of_default_length, id_type,
+    fp_utils, id_type, type_name,
     types::{
-        keymanager::{Identifier, KeyManagerState, ToEncryptable},
+        keymanager::{Identifier, KeyManagerState},
         MinorUnit,
     },
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::type_encryption::batch_encrypt;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 
@@ -34,10 +38,7 @@ use crate::{
     services,
     types::{
         api::{self, enums as api_enums},
-        domain::{
-            self,
-            types::{self as domain_types, AsyncLift},
-        },
+        domain::{self, types::AsyncLift},
         storage,
         transformers::ForeignFrom,
     },
@@ -247,13 +248,16 @@ pub async fn save_payout_data_to_locker(
                             let secret: Secret<String> = Secret::new(v.to_string());
                             secret
                         })
-                        .async_lift(|inner| {
-                            domain_types::encrypt_optional(
+                        .async_lift(|inner| async {
+                            crypto_operation(
                                 &key_manager_state,
-                                inner,
+                                type_name!(storage::PaymentMethod),
+                                CryptoOperation::EncryptOptional(inner),
                                 Identifier::Merchant(key_store.merchant_id.clone()),
                                 key,
                             )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await
                 }
@@ -598,6 +602,17 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn get_or_create_customer_details(
+    _state: &SessionState,
+    _customer_details: &CustomerDetails,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<domain::Customer>> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,
@@ -628,17 +643,21 @@ pub async fn get_or_create_customer_details(
     {
         Some(customer) => Ok(Some(customer)),
         None => {
-            let encrypted_data = batch_encrypt(
+            let encrypted_data = crypto_operation(
                 &state.into(),
-                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                    name: customer_details.name.clone(),
-                    email: customer_details.email.clone(),
-                    phone: customer_details.phone.clone(),
-                }),
+                type_name!(domain::Customer),
+                CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                    CustomerRequestWithEmail {
+                        name: customer_details.name.clone(),
+                        email: customer_details.email.clone(),
+                        phone: customer_details.phone.clone(),
+                    },
+                )),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
             .await
+            .and_then(|val| val.try_into_batchoperation())
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let encryptable_customer =
                 CustomerRequestWithEmail::from_encryptable(encrypted_data)
@@ -659,6 +678,7 @@ pub async fn get_or_create_customer_details(
                 address_id: None,
                 default_payment_method_id: None,
                 updated_by: None,
+                version: common_enums::ApiVersion::V1,
             };
 
             Ok(Some(
@@ -823,10 +843,10 @@ pub async fn get_default_payout_connector(
 }
 
 pub fn should_call_payout_connector_create_customer<'a>(
-    state: &SessionState,
-    connector: &api::ConnectorData,
+    state: &'a SessionState,
+    connector: &'a api::ConnectorData,
     customer: &'a Option<domain::Customer>,
-    connector_label: &str,
+    connector_label: &'a str,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
     match enums::PayoutConnectors::try_from(connector.connector_name) {
