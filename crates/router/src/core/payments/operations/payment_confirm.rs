@@ -65,6 +65,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         auth_flow: services::AuthFlow,
         header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
+        let key_manager_state = &state.into();
+
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (currency, amount);
@@ -80,7 +82,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         // Parallel calls - level 0
         let mut payment_intent = store
             .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
+                key_manager_state,
                 &payment_id,
                 &m_merchant_id,
                 key_store,
@@ -145,11 +147,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let store = state.store.clone();
+        let key_manager_state_clone = key_manager_state.clone();
+        let key_store_clone = key_store.clone();
 
         let business_profile_fut = tokio::spawn(
             async move {
                 store
-                    .find_business_profile_by_profile_id(&profile_id)
+                    .find_business_profile_by_profile_id(
+                        &key_manager_state_clone,
+                        &key_store_clone,
+                        &profile_id,
+                    )
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
                             errors::ApiErrorResponse::BusinessProfileNotFound {
@@ -739,7 +747,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         storage_scheme: storage_enums::MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<domain::PaymentMethodData>,
@@ -823,7 +831,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
         connector_call_type: &ConnectorCallType,
-        business_profile: &storage::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let external_authentication_flow =
@@ -925,7 +933,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         &'a self,
         state: &SessionState,
         payment_id: &str,
-        business_profile: &storage::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         if let (Some(true), Some(domain::PaymentMethodData::Card(card)), Some(merchant_config)) = (
