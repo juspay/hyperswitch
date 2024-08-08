@@ -53,7 +53,7 @@ pub async fn check_existence_and_add_domain_to_db(
         todo!()
     };
     utils::validate_profile_id_from_auth_layer(
-        profile_id_from_auth_layer.as_ref(),
+        profile_id_from_auth_layer,
         &merchant_connector_account,
     )?;
     let mut already_verified_domains = merchant_connector_account

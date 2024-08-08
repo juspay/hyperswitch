@@ -36,7 +36,7 @@ pub async fn retrieve_dispute(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &dispute)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
@@ -77,7 +77,7 @@ pub async fn accept_dispute(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &dispute)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
@@ -181,7 +181,7 @@ pub async fn submit_evidence(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id.clone(),
         })?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &dispute)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
@@ -352,7 +352,7 @@ pub async fn attach_evidence(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),
         })?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &dispute)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     common_utils::fp_utils::when(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
             && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
@@ -425,7 +425,7 @@ pub async fn retrieve_dispute_evidence(
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &dispute)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_evidence: api::DisputeEvidence = dispute
         .evidence
         .clone()

@@ -493,7 +493,7 @@ pub async fn payouts_retrieve_core(
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
     )
     .await?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &payout_data)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &payout_data)?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 

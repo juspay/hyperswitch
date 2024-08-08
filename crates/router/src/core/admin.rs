@@ -2786,7 +2786,7 @@ pub async fn retrieve_payment_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.clone(),
         })?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &mca)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     let mca: domain::MerchantConnectorAccount = {
@@ -2877,7 +2877,7 @@ pub async fn update_payment_connector(
             key_manager_state,
         )
         .await?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id.as_ref(), &mca)?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
     let payment_connector = req
         .clone()
