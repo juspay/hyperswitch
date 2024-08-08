@@ -40,7 +40,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
       if [[ "${package_name}" == "storage_impl" ]]; then
         all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2' -p storage_impl")
       else
-        valid_features=$(features_to_run "$package_name")
+        valid_features="$(features_to_run "$package_name")"
         all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${valid_features}' --package '${package_name}'")
       fi
       printf '::debug::Checking `%s` since it was modified %s\n' "${package_name}"
@@ -58,10 +58,9 @@ else
   common_command="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 '"
   while IFS= read -r crate; do
     if [[ "${crate}" != "storage_impl" ]]; then
-      crates_to_include=""
-      valid_features=$(features_to_run "$crate")
-      crates_to_include+="--include-features '${valid_features}' --package '${crate}' "
-      all_commands+=("${common_command} ${crates_to_include}")
+      valid_features="$(features_to_run "$crate")"
+      crate_with_features="--include-features '${valid_features}' --package '${crate}' "
+      all_commands+=("${common_command} ${crate_with_features}")
     fi
   done <<< "${crates_to_check}"
 fi
