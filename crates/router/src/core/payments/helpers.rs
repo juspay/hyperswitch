@@ -1,7 +1,8 @@
 use std::{borrow::Cow, str::FromStr};
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
-    customers::CustomerRequestWithEmail,
     mandates::RecurringDetails,
     payments::{AddressDetailsWithPhone, CardToken, GetPaymentMethodType, RequestSurchargeDetails},
 };
@@ -10,7 +11,7 @@ use common_enums::ConnectorType;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, id_type, pii,
+    fp_utils, generate_id, id_type, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
         MinorUnit,
@@ -20,9 +21,11 @@ use diesel_models::enums::{self};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData, PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
@@ -51,7 +54,7 @@ use crate::{
         mandate::helpers::MandateGenericData,
         payment_methods::{
             self,
-            cards::{self, create_encrypted_data},
+            cards::{self},
             vault,
         },
         payments,
@@ -66,9 +69,7 @@ use crate::{
             self,
             types::{self, AsyncLift},
         },
-        storage::{
-            self, enums as storage_enums, ephemeral_key, CardTokenData, CustomerUpdate::Update,
-        },
+        storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
         MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
@@ -79,6 +80,10 @@ use crate::{
         crypto::{self, SignMessage},
         OptionExt, StringExt,
     },
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
 pub fn create_identity_from_certificate_and_key(
@@ -116,31 +121,18 @@ pub fn create_certificate(
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
-pub fn filter_mca_based_on_business_profile(
+pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<String>,
-) -> Vec<domain::MerchantConnectorAccount> {
-    if let Some(profile_id) = profile_id {
-        merchant_connector_accounts
-            .into_iter()
-            .filter(|mca| {
-                mca.profile_id.as_ref() == Some(&profile_id)
-                    && mca.connector_type == ConnectorType::PaymentProcessor
-            })
-            .collect::<Vec<_>>()
-    } else {
-        merchant_connector_accounts
-    }
-}
-
-pub fn filter_mca_based_on_connector_type(
-    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+    profile_id: Option<&String>,
     connector_type: ConnectorType,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
         .into_iter()
-        .filter(|mca| mca.connector_type == connector_type)
-        .collect::<Vec<_>>()
+        .filter(|mca| {
+            profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
+                && mca.connector_type == connector_type
+        })
+        .collect()
 }
 
 #[instrument(skip_all)]
@@ -161,20 +153,24 @@ pub async fn create_or_update_address_for_payment_by_request(
     Ok(match address_id {
         Some(id) => match req_address {
             Some(address) => {
-                let encrypted_data = types::batch_encrypt(
+                let encrypted_data = types::crypto_operation(
                     &session_state.into(),
-                    AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                        address: address.address.clone(),
-                        phone_number: address
-                            .phone
-                            .as_ref()
-                            .and_then(|phone| phone.number.clone()),
-                        email: address.email.clone(),
-                    }),
+                    type_name!(domain::Address),
+                    types::CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                        AddressDetailsWithPhone {
+                            address: address.address.clone(),
+                            phone_number: address
+                                .phone
+                                .as_ref()
+                                .and_then(|phone| phone.number.clone()),
+                            email: address.email.clone(),
+                        },
+                    )),
                     Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                     key,
                 )
                 .await
+                .and_then(|val| val.try_into_batchoperation())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting address")?;
                 let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
@@ -348,20 +344,24 @@ pub async fn get_domain_address(
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         let address_details = &address.address.as_ref();
-        let encrypted_data = types::batch_encrypt(
+        let encrypted_data = types::crypto_operation(
             &session_state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: address_details.cloned(),
-                phone_number: address
-                    .phone
-                    .as_ref()
-                    .and_then(|phone| phone.number.clone()),
-                email: address.email.clone(),
-            }),
+            type_name!(domain::Address),
+            types::CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: address_details.cloned(),
+                    phone_number: address
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    email: address.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
@@ -446,6 +446,20 @@ pub async fn get_token_pm_type_mandate_details(
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
                 Some(recurring_details) => match recurring_details {
+                    RecurringDetails::ProcessorPaymentToken(processor_payment_token) => (
+                        None,
+                        request.payment_method,
+                        None,
+                        None,
+                        None,
+                        Some(payments::MandateConnectorDetails {
+                            connector: processor_payment_token.connector.to_string(),
+                            merchant_connector_id: Some(
+                                processor_payment_token.merchant_connector_id.clone(),
+                            ),
+                        }),
+                        None,
+                    ),
                     RecurringDetails::MandateId(mandate_id) => {
                         let mandate_generic_data = get_token_for_recurring_mandate(
                             state,
@@ -1168,26 +1182,31 @@ pub fn create_complete_authorize_url(
 }
 
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
-    req.recurring_details
-        .check_value_present("recurring_details")?;
+    let recurring_details = req
+        .recurring_details
+        .get_required_value("recurring_details")?;
 
-    req.customer_id.check_value_present("customer_id")?;
+    match recurring_details {
+        RecurringDetails::ProcessorPaymentToken(_) => Ok(()),
+        _ => {
+            req.customer_id.check_value_present("customer_id")?;
 
-    let confirm = req.confirm.get_required_value("confirm")?;
-    if !confirm {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`confirm` must be `true` for mandates".into()
-        }))?
+            let confirm = req.confirm.get_required_value("confirm")?;
+            if !confirm {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "`confirm` must be `true` for mandates".into()
+                }))?
+            }
+
+            let off_session = req.off_session.get_required_value("off_session")?;
+            if !off_session {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "`off_session` should be `true` for mandates".into()
+                }))?
+            }
+            Ok(())
+        }
     }
-
-    let off_session = req.off_session.get_required_value("off_session")?;
-    if !off_session {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`off_session` should be `true` for mandates".into()
-        }))?
-    }
-
-    Ok(())
 }
 
 pub fn verify_mandate_details(
@@ -1534,6 +1553,22 @@ pub async fn get_connector_default(
     ))
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+#[allow(clippy::type_complexity)]
+pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+    _state: &SessionState,
+    _operation: BoxedOperation<'a, F, R>,
+    _payment_data: &mut PaymentData<F>,
+    _req: Option<CustomerDetails>,
+    _merchant_id: &id_type::MerchantId,
+    _key_store: &domain::MerchantKeyStore,
+    _storage_scheme: common_enums::enums::MerchantStorageScheme,
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
 pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
@@ -1624,17 +1659,21 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 )
                 .await?;
             let key = key_store.key.get_inner().peek();
-            let encrypted_data = types::batch_encrypt(
+            let encrypted_data = types::crypto_operation(
                 key_manager_state,
-                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                    name: request_customer_details.name.clone(),
-                    email: request_customer_details.email.clone(),
-                    phone: request_customer_details.phone.clone(),
-                }),
+                type_name!(domain::Customer),
+                types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                    CustomerRequestWithEmail {
+                        name: request_customer_details.name.clone(),
+                        email: request_customer_details.email.clone(),
+                        phone: request_customer_details.phone.clone(),
+                    },
+                )),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
             .await
+            .and_then(|val| val.try_into_batchoperation())
             .change_context(errors::StorageError::SerializationFailed)
             .attach_printable("Failed while encrypting Customer while Update")?;
             let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
@@ -1689,6 +1728,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
+                        version: common_enums::ApiVersion::V1,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -1985,7 +2025,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
     Option<api::PaymentMethodData>,
@@ -2085,7 +2125,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -2127,7 +2167,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method: enums::PaymentMethod,
     payment_method_data: &api::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -2545,7 +2585,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -2566,7 +2606,7 @@ pub fn get_handle_response_url(
 }
 
 pub fn make_merchant_url_with_response(
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
@@ -2675,7 +2715,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3048,6 +3088,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3112,6 +3153,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3174,6 +3216,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4164,13 +4207,16 @@ pub async fn get_encrypted_apple_pay_connector_wallets_details(
         .map(masking::Secret::new);
     let key_manager_state: KeyManagerState = state.into();
     let encrypted_connector_apple_pay_details = connector_apple_pay_details
-        .async_lift(|wallets_details| {
-            types::encrypt_optional(
+        .async_lift(|wallets_details| async {
+            types::crypto_operation(
                 &key_manager_state,
-                wallets_details,
+                type_name!(domain::MerchantConnectorAccount),
+                types::CryptoOperation::EncryptOptional(wallets_details),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key_store.key.get_inner().peek(),
             )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
         })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4262,10 +4308,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
-            merchant_connector_account_list,
-            Some(profile_id.to_string()),
-        );
+        let profile_specific_merchant_connector_account_list =
+            filter_mca_based_on_profile_and_connector_type(
+                merchant_connector_account_list,
+                Some(profile_id),
+                ConnectorType::PaymentProcessor,
+            );
 
         let mut connector_data_list = vec![pre_decided_connector_data_first.clone()];
 
@@ -4953,7 +5001,7 @@ pub enum PaymentExternalAuthenticationFlow {
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {

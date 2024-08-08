@@ -303,6 +303,7 @@ diesel::table! {
         default_payment_method_id -> Nullable<Varchar>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        version -> ApiVersion,
     }
 }
 
@@ -897,6 +898,7 @@ diesel::table! {
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
         shipping_details -> Nullable<Bytea>,
+        is_payment_processor_token_flow -> Nullable<Bool>,
     }
 }
 

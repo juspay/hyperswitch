@@ -117,6 +117,7 @@ pub struct ConnectorTomlConfig {
     pub bank_transfer: Option<Vec<Provider>>,
     pub bank_redirect: Option<Vec<Provider>>,
     pub bank_debit: Option<Vec<Provider>>,
+    pub open_banking: Option<Vec<Provider>>,
     pub pay_later: Option<Vec<Provider>>,
     pub wallet: Option<Vec<Provider>>,
     pub crypto: Option<Vec<Provider>>,
@@ -199,6 +200,7 @@ pub struct ConnectorConfig {
     pub netcetera: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
+    pub wellsfargo: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub wise_payout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
@@ -331,6 +333,7 @@ impl ConnectorConfig {
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Volt => Ok(connector_data.volt),
+            Connector::Wellsfargo => Ok(connector_data.wellsfargo),
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),

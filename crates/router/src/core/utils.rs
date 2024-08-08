@@ -10,7 +10,7 @@ use common_utils::{errors::CustomResult, ext_traits::AsyncExt, types::MinorUnit}
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
 #[cfg(feature = "payouts")]
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -128,8 +128,14 @@ pub async fn construct_payout_router_data<'a, F>(
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
-        .and_then(|cc| cc.get(connector_label))
-        .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
+        .and_then(|connector_customer_value| {
+            connector_customer_value
+                .clone()
+                .expose()
+                .get(connector_label)
+                .cloned()
+        })
+        .and_then(|id| serde_json::from_value::<String>(id).ok());
 
     let vendor_details: Option<PayoutVendorAccountDetails> =
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
@@ -151,7 +157,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
-        customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        customer_id: customer_details.to_owned().map(|c| c.get_customer_id()),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
         payment_id: "".to_string(),
@@ -182,7 +188,7 @@ pub async fn construct_payout_router_data<'a, F>(
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
-                    customer_id: Some(c.customer_id),
+                    customer_id: Some(c.get_customer_id()),
                     name: c.name.map(Encryptable::into_inner),
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),
@@ -1004,16 +1010,22 @@ pub fn get_connector_request_reference_id(
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
+    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    merchant_key_store: &domain::MerchantKeyStore,
     profile_id: Option<&String>,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> RouterResult<Option<storage::business_profile::BusinessProfile>> {
+) -> RouterResult<Option<domain::BusinessProfile>> {
     profile_id
         .async_map(|profile_id| async {
-            db.find_business_profile_by_profile_id(profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.to_owned(),
-                })
+            db.find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_owned(),
+            })
         })
         .await
         .transpose()?
@@ -1076,7 +1088,10 @@ pub fn get_connector_label(
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
 /// or return a `MissingRequiredField` error
+#[allow(clippy::too_many_arguments)]
 pub async fn get_profile_id_from_business_details(
+    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    merchant_key_store: &domain::MerchantKeyStore,
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
     merchant_account: &domain::MerchantAccount,
@@ -1090,6 +1105,8 @@ pub async fn get_profile_id_from_business_details(
             if should_validate {
                 let _ = validate_and_get_business_profile(
                     db,
+                    key_manager_state,
+                    merchant_key_store,
                     Some(profile_id),
                     merchant_account.get_id(),
                 )
@@ -1102,6 +1119,8 @@ pub async fn get_profile_id_from_business_details(
                 let profile_name = format!("{business_country}_{business_label}");
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
+                        key_manager_state,
+                        merchant_key_store,
                         &profile_name,
                         merchant_account.get_id(),
                     )

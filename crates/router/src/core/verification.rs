@@ -12,6 +12,7 @@ pub async fn verify_merchant_creds_for_applepay(
     state: SessionState,
     body: verifications::ApplepayMerchantVerificationRequest,
     merchant_id: common_utils::id_type::MerchantId,
+    _profile_id: Option<String>,
 ) -> CustomResult<services::ApplicationResponse<ApplepayMerchantResponse>, errors::ApiErrorResponse>
 {
     let applepay_merchant_configs = state.conf.applepay_merchant_configs.get_inner();

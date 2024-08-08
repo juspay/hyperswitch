@@ -135,7 +135,7 @@ pub enum Connector {
     // Tsys,
     Tsys,
     Volt,
-    // Wellsfargo,
+    Wellsfargo,
     Wise,
     Worldline,
     Worldpay,
@@ -255,7 +255,7 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
-            // | Self::Wellsfargo
+            | Self::Wellsfargo
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
@@ -299,36 +299,6 @@ impl Connector {
             .into())
         } else {
             Ok(())
-        }
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthenticationConnectors {
-    Threedsecureio,
-    Netcetera,
-    Gpayments,
-}
-
-impl AuthenticationConnectors {
-    pub fn is_separate_version_call_required(&self) -> bool {
-        match self {
-            Self::Threedsecureio | Self::Netcetera => false,
-            Self::Gpayments => true,
         }
     }
 }

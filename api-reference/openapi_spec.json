@@ -7265,7 +7265,11 @@
             "nullable": true
           },
           "payment_link_config": {
-            "description": "Default Payment Link config for all payment links created under this business profile",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BusinessPaymentLinkConfig"
+              }
+            ],
             "nullable": true
           },
           "authentication_connector_details": {
@@ -7945,6 +7949,7 @@
           "trustpay",
           "tsys",
           "volt",
+          "wellsfargo",
           "wise",
           "worldline",
           "worldpay",
@@ -13972,6 +13977,11 @@
             "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
             "uniqueItems": true,
             "nullable": true
+          },
+          "transaction_details": {
+            "type": "string",
+            "description": "Dynamic details related to merchant to be rendered in payment link",
+            "nullable": true
           }
         }
       },
@@ -14018,6 +14028,11 @@
             "description": "Enable saved payment method option for payment link",
             "default": false,
             "example": true,
+            "nullable": true
+          },
+          "transaction_details": {
+            "type": "object",
+            "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
           }
         }
@@ -19244,6 +19259,26 @@
         },
         "additionalProperties": false
       },
+      "ProcessorPaymentToken": {
+        "type": "object",
+        "description": "Processor payment token for MIT payments where payment_method_data is not available",
+        "required": [
+          "processor_payment_token",
+          "connector",
+          "merchant_connector_id"
+        ],
+        "properties": {
+          "processor_payment_token": {
+            "type": "string"
+          },
+          "connector": {
+            "$ref": "#/components/schemas/Connector"
+          },
+          "merchant_connector_id": {
+            "type": "string"
+          }
+        }
+      },
       "ProductType": {
         "type": "string",
         "enum": [
@@ -19411,6 +19446,24 @@
               },
               "data": {
                 "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "processor_payment_token"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/ProcessorPaymentToken"
               }
             }
           }
@@ -20130,6 +20183,7 @@
           "trustpay",
           "tsys",
           "volt",
+          "wellsfargo",
           "wise",
           "worldline",
           "worldpay",

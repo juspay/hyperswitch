@@ -24,11 +24,13 @@ customer_v2 = []
 merchant_account_v2 = []
 merchant_connector_account_v2 = []
 payment_v2 = []
+payment_methods_v2 = []
 routing_v2 = []
 
 [dependencies]
 actix-web = { version = "4.5.1", optional = true }
 error-stack = "0.4.1"
+indexmap = "2.3.0"
 mime = "0.3.17"
 reqwest = { version = "0.11.27", optional = true }
 serde = { version = "1.0.197", features = ["derive"] }

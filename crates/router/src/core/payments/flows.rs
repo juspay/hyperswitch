@@ -21,7 +21,7 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -57,7 +57,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>
     where
@@ -230,8 +230,8 @@ default_imp_for_complete_authorize!(
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
-    connector::Wellsfargo,
     connector::Wise,
+    connector::Wellsfargo,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
@@ -2792,7 +2792,6 @@ default_imp_for_incremental_authorization!(
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -2882,7 +2881,6 @@ default_imp_for_revoking_mandates!(
     connector::Trustpay,
     connector::Tsys,
     connector::Volt,
-    connector::Wellsfargo,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,

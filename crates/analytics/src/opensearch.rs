@@ -493,7 +493,7 @@ impl OpenSearchQueryBuilder {
             let range = json!(time_range);
             filter_array.push(json!({
                 "range": {
-                    "timestamp": range
+                    "@timestamp": range
                 }
             }));
         }

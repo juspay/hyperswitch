@@ -106,6 +106,13 @@ pub async fn payments_create(
         return api::log_and_return_error_response(err);
     }
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
     tracing::Span::current().record(
         "payment_id",
         payload
@@ -130,9 +137,9 @@ pub async fn payments_create(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
-                HeaderPayload::default(),
+                header_payload.clone(),
                 req,
                 api::AuthFlow::Merchant,
             )
@@ -423,7 +430,7 @@ pub async fn payments_update(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 HeaderPayload::default(),
                 req,
@@ -502,7 +509,7 @@ pub async fn payments_confirm(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 header_payload.clone(),
                 req,
