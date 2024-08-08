@@ -1,14 +1,18 @@
-mod address;
 pub mod behaviour {
     pub use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 }
 
-pub mod merchant_account {
+mod merchant_account {
     pub use hyperswitch_domain_models::merchant_account::*;
 }
 
-pub use merchant_account::*;
+mod business_profile {
+    pub use hyperswitch_domain_models::business_profile::{
+        BusinessProfile, BusinessProfileGeneralUpdate, BusinessProfileUpdate,
+    };
+}
 
+mod address;
 mod customer;
 mod event;
 mod merchant_connector_account;
@@ -22,8 +26,10 @@ pub mod user;
 pub mod user_key_store;
 
 pub use address::*;
+pub use business_profile::*;
 pub use customer::*;
 pub use event::*;
+pub use merchant_account::*;
 pub use merchant_connector_account::*;
 pub use merchant_key_store::*;
 pub use payments::*;

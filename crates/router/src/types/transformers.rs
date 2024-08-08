@@ -1774,6 +1774,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             sdk_layout: item.sdk_layout,
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
+            transaction_details: None,
         }
     }
 }
