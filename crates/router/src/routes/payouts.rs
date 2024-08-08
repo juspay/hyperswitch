@@ -279,13 +279,7 @@ pub async fn payouts_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_list_core(
-                state,
-                auth.merchant_account,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
-                auth.key_store,
-                req,
-            )
+            payouts_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -325,13 +319,7 @@ pub async fn payouts_list_by_filter(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_filtered_list_core(
-                state,
-                auth.merchant_account,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
-                auth.key_store,
-                req,
-            )
+            payouts_filtered_list_core(state, auth.merchant_account, None, auth.key_store, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
