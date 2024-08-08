@@ -8,8 +8,7 @@ use common_utils::{
     types::keymanager::{self},
 };
 use diesel_models::{
-    business_profile::WebhookDetails, enums::MerchantStorageScheme,
-    merchant_account::MerchantAccountUpdateInternal,
+    enums::MerchantStorageScheme, merchant_account::MerchantAccountUpdateInternal,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -30,7 +29,7 @@ pub struct MerchantAccount {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: OptionalEncryptableName,
     pub merchant_details: OptionalEncryptableValue,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
@@ -66,7 +65,7 @@ pub struct MerchantAccountSetter {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: OptionalEncryptableName,
     pub merchant_details: OptionalEncryptableValue,
-    pub webhook_details: Option<WebhookDetails>,
+    pub webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
@@ -227,7 +226,7 @@ pub enum MerchantAccountUpdate {
         merchant_name: OptionalEncryptableName,
         merchant_details: OptionalEncryptableValue,
         return_url: Option<String>,
-        webhook_details: Option<WebhookDetails>,
+        webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
         sub_merchants_enabled: Option<bool>,
         parent_merchant_id: Option<common_utils::id_type::MerchantId>,
         enable_payment_response_hash: Option<bool>,

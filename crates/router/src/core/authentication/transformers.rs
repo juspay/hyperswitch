@@ -11,7 +11,7 @@ use crate::{
         payments::helpers as payments_helpers,
     },
     types::{
-        self, storage,
+        self, domain, storage,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
@@ -77,7 +77,7 @@ pub fn construct_authentication_router_data(
 
 pub fn construct_post_authentication_router_data(
     authentication_connector: String,
-    business_profile: storage::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: &storage::Authentication,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {

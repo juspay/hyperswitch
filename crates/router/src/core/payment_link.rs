@@ -68,6 +68,8 @@ pub async fn form_payment_link_data(
     locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
+    let key_manager_state = &state.into();
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &(state).into(),
@@ -119,7 +121,7 @@ pub async fn form_payment_link_data(
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(&profile_id)
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
@@ -660,9 +662,11 @@ pub async fn get_payment_link_status(
     let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
         .map(|val| val.to_string());
     let db = &*state.store;
+    let key_manager_state = &(&state).into();
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
-            &(&state).into(),
+            key_manager_state,
             &payment_id,
             &merchant_id,
             &key_store,
@@ -739,7 +743,7 @@ pub async fn get_payment_link_status(
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(&profile_id)
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
