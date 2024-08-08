@@ -406,7 +406,7 @@ pub async fn connector_retrieve(
         &req,
         payload,
         |state, auth, req, _| {
-            retrieve_payment_connector(
+            retrieve_connector(
                 state,
                 req.merchant_id,
                 auth.profile_id,
@@ -582,7 +582,7 @@ pub async fn connector_update(
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| {
-            update_payment_connector(
+            update_connector(
                 state,
                 &merchant_id,
                 auth.profile_id,
