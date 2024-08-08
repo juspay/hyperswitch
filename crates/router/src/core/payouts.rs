@@ -61,7 +61,7 @@ use crate::{
 #[derive(Clone)]
 pub struct PayoutData {
     pub billing_address: Option<domain::Address>,
-    pub business_profile: storage::BusinessProfile,
+    pub business_profile: domain::BusinessProfile,
     pub customer_details: Option<domain::Customer>,
     pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
     pub payouts: storage::Payouts,
@@ -2182,7 +2182,7 @@ pub async fn payout_create_db_entries(
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
-        validate_and_get_business_profile(state, profile_id, merchant_id).await?;
+        validate_and_get_business_profile(state, key_store, profile_id, merchant_id).await?;
 
     let payout_link = match req.payout_link {
         Some(true) => Some(
@@ -2389,7 +2389,7 @@ pub async fn make_payout_data(
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
-        validate_and_get_business_profile(state, &profile_id, merchant_id).await?;
+        validate_and_get_business_profile(state, key_store, &profile_id, merchant_id).await?;
     let payout_method_data = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
@@ -2479,16 +2479,25 @@ pub async fn add_external_account_addition_task(
 
 async fn validate_and_get_business_profile(
     state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
     profile_id: &String,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> RouterResult<storage::BusinessProfile> {
+) -> RouterResult<domain::BusinessProfile> {
     let db = &*state.store;
-    if let Some(business_profile) =
-        core_utils::validate_and_get_business_profile(db, Some(profile_id), merchant_id).await?
+    let key_manager_state = &state.into();
+
+    if let Some(business_profile) = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        merchant_key_store,
+        Some(profile_id),
+        merchant_id,
+    )
+    .await?
     {
         Ok(business_profile)
     } else {
-        db.find_business_profile_by_profile_id(profile_id)
+        db.find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
@@ -2499,7 +2508,7 @@ async fn validate_and_get_business_profile(
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payout_link(
     state: &SessionState,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     customer_id: &CustomerId,
     merchant_id: &common_utils::id_type::MerchantId,
     req: &payouts::PayoutCreateRequest,

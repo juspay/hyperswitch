@@ -46,7 +46,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 // Load i18n macro, for using `t!` macro anywhere
 #[macro_use]
-extern crate rust_i18n;
+use rust_i18n::i18n;
 pub mod locale;
 use crate::locale::_rust_i18n_translate;
 

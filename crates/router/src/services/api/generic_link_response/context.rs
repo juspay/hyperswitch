@@ -1,4 +1,5 @@
 use tera::Context;
+use rust_i18n::t;
 
 pub fn insert_locales_in_context_for_payout_link(context: &mut Context, locale: &str) {
     let i18n_payout_link_title = t!("payout_link.initiate.title", locale = locale);

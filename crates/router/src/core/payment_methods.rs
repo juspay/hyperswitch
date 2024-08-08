@@ -51,7 +51,7 @@ pub async fn retrieve_payment_method(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)> {
     match pm_data {
         pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)) => {

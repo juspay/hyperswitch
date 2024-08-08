@@ -446,6 +446,20 @@ pub async fn get_token_pm_type_mandate_details(
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
                 Some(recurring_details) => match recurring_details {
+                    RecurringDetails::ProcessorPaymentToken(processor_payment_token) => (
+                        None,
+                        request.payment_method,
+                        None,
+                        None,
+                        None,
+                        Some(payments::MandateConnectorDetails {
+                            connector: processor_payment_token.connector.to_string(),
+                            merchant_connector_id: Some(
+                                processor_payment_token.merchant_connector_id.clone(),
+                            ),
+                        }),
+                        None,
+                    ),
                     RecurringDetails::MandateId(mandate_id) => {
                         let mandate_generic_data = get_token_for_recurring_mandate(
                             state,
@@ -1168,26 +1182,31 @@ pub fn create_complete_authorize_url(
 }
 
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
-    req.recurring_details
-        .check_value_present("recurring_details")?;
+    let recurring_details = req
+        .recurring_details
+        .get_required_value("recurring_details")?;
 
-    req.customer_id.check_value_present("customer_id")?;
+    match recurring_details {
+        RecurringDetails::ProcessorPaymentToken(_) => Ok(()),
+        _ => {
+            req.customer_id.check_value_present("customer_id")?;
 
-    let confirm = req.confirm.get_required_value("confirm")?;
-    if !confirm {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`confirm` must be `true` for mandates".into()
-        }))?
+            let confirm = req.confirm.get_required_value("confirm")?;
+            if !confirm {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "`confirm` must be `true` for mandates".into()
+                }))?
+            }
+
+            let off_session = req.off_session.get_required_value("off_session")?;
+            if !off_session {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "`off_session` should be `true` for mandates".into()
+                }))?
+            }
+            Ok(())
+        }
     }
-
-    let off_session = req.off_session.get_required_value("off_session")?;
-    if !off_session {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`off_session` should be `true` for mandates".into()
-        }))?
-    }
-
-    Ok(())
 }
 
 pub fn verify_mandate_details(
@@ -2006,7 +2025,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
     Option<api::PaymentMethodData>,
@@ -2106,7 +2125,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -2148,7 +2167,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method: enums::PaymentMethod,
     payment_method_data: &api::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -2566,7 +2585,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -2587,7 +2606,7 @@ pub fn get_handle_response_url(
 }
 
 pub fn make_merchant_url_with_response(
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
@@ -2696,7 +2715,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3069,6 +3088,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3133,6 +3153,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3195,6 +3216,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -4979,7 +5001,7 @@ pub enum PaymentExternalAuthenticationFlow {
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
