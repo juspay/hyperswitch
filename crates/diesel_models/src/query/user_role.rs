@@ -138,9 +138,9 @@ impl UserRole {
         profile_id: Option<String>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-        // Cheking in user roles, for a user in token hierarchy only one of the relation will be true, either org level, merchant level or profile level
+        // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
         // Find from user_roles where user_id = ?
-        // && ((org_id = ? && merchnat_id = null && profile_id = null)  || (org_id = ? && merchnat_id = ? && profile_id = null) || (org_id = ? && merchnat_id = ? && profile_id = ?))
+        // && ((org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?))
         // && version = ?
         let predicate = dsl::user_id
             .eq(user_id)
@@ -172,9 +172,9 @@ impl UserRole {
         profile_id: Option<String>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-        // Cheking in user roles, for a user in token hierarchy only one of the relation will be true, either org level, merchant level or profile level
+        // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
         // Find from user_roles where user_id = ?
-        // && ((org_id = ? && merchnat_id = null && profile_id = null)  || (org_id = ? && merchnat_id = ? && profile_id = null) || (org_id = ? && merchnat_id = ? && profile_id = ?))
+        // && ((org_id = ? && merchant_id = null && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?))
         // && version = ?
         let predicate = dsl::user_id
             .eq(user_id)
