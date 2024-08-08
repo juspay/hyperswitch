@@ -79,7 +79,6 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
 
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body.merchant_id).to.equal(merchant_id);
-    expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
     expect(response.body.payment_response_hash_key).to.not.be.empty;
     expect(response.body.publishable_key).to.not.be.empty;
     expect(response.body.default_profile).to.not.be.empty;
@@ -282,11 +281,13 @@ Cypress.Commands.add(
     createConnectorBody,
     payment_methods_enabled,
     globalState,
-    connectorName
+    connectorName,
+    connectorLabel
   ) => {
     const merchantId = globalState.get("merchantId");
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
+    createConnectorBody.connector_label = connectorLabel;
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code

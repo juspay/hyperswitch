@@ -11,11 +11,12 @@ pub use api_models::{
     },
     organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
-use common_utils::{ext_traits::ValueExt, types::keymanager::Identifier};
+use common_utils::{ext_traits::ValueExt, type_name, types::keymanager::Identifier};
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore, type_encryption::decrypt_optional,
+    merchant_key_store::MerchantKeyStore,
+    type_encryption::{crypto_operation, CryptoOperation},
 };
 use masking::{ExposeInterface, PeekInterface};
 
@@ -118,13 +119,15 @@ pub async fn business_profile_response(
     key_store: &MerchantKeyStore,
 ) -> Result<BusinessProfileResponse, error_stack::Report<errors::ParsingError>> {
     let outgoing_webhook_custom_http_headers =
-        decrypt_optional::<serde_json::Value, masking::WithType>(
+        crypto_operation::<serde_json::Value, masking::WithType>(
             &state.into(),
-            item.outgoing_webhook_custom_http_headers.clone(),
+            type_name!(storage::business_profile::BusinessProfile),
+            CryptoOperation::DecryptOptional(item.outgoing_webhook_custom_http_headers.clone()),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key_store.key.get_inner().peek(),
         )
         .await
+        .and_then(|val| val.try_into_optionaloperation())
         .change_context(errors::ParsingError::StructParseFailure(
             "Outgoing webhook custom HTTP headers",
         ))

@@ -5,7 +5,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    fp_utils, id_type,
+    fp_utils, id_type, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
         MinorUnit,
@@ -15,7 +15,7 @@ use common_utils::{
 use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use hyperswitch_domain_models::type_encryption::batch_encrypt;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 
@@ -39,10 +39,7 @@ use crate::{
     services,
     types::{
         api::{self, enums as api_enums},
-        domain::{
-            self,
-            types::{self as domain_types, AsyncLift},
-        },
+        domain::{self, types::AsyncLift},
         storage,
         transformers::ForeignFrom,
     },
@@ -252,13 +249,16 @@ pub async fn save_payout_data_to_locker(
                             let secret: Secret<String> = Secret::new(v.to_string());
                             secret
                         })
-                        .async_lift(|inner| {
-                            domain_types::encrypt_optional(
+                        .async_lift(|inner| async {
+                            crypto_operation(
                                 &key_manager_state,
-                                inner,
+                                type_name!(storage::PaymentMethod),
+                                CryptoOperation::EncryptOptional(inner),
                                 Identifier::Merchant(key_store.merchant_id.clone()),
                                 key,
                             )
+                            .await
+                            .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await
                 }
@@ -644,17 +644,21 @@ pub async fn get_or_create_customer_details(
     {
         Some(customer) => Ok(Some(customer)),
         None => {
-            let encrypted_data = batch_encrypt(
+            let encrypted_data = crypto_operation(
                 &state.into(),
-                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                    name: customer_details.name.clone(),
-                    email: customer_details.email.clone(),
-                    phone: customer_details.phone.clone(),
-                }),
+                type_name!(domain::Customer),
+                CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                    CustomerRequestWithEmail {
+                        name: customer_details.name.clone(),
+                        email: customer_details.email.clone(),
+                        phone: customer_details.phone.clone(),
+                    },
+                )),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
             .await
+            .and_then(|val| val.try_into_batchoperation())
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let encryptable_customer =
                 CustomerRequestWithEmail::from_encryptable(encrypted_data)

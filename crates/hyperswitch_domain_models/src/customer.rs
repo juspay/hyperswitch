@@ -110,17 +110,21 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
-        let decrypted = types::batch_decrypt(
+        let decrypted = types::crypto_operation(
             state,
-            CustomerRequestWithEncryption::to_encryptable(CustomerRequestWithEncryption {
-                name: item.name.clone(),
-                phone: item.phone.clone(),
-                email: item.email.clone(),
-            }),
+            common_utils::type_name!(Self::DstType),
+            types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
+                CustomerRequestWithEncryption {
+                    name: item.name.clone(),
+                    phone: item.phone.clone(),
+                    email: item.email.clone(),
+                },
+            )),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
             key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
         })?;
@@ -206,17 +210,21 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
-        let decrypted = types::batch_decrypt(
+        let decrypted = types::crypto_operation(
             state,
-            CustomerRequestWithEncryption::to_encryptable(CustomerRequestWithEncryption {
-                name: item.name.clone(),
-                phone: item.phone.clone(),
-                email: item.email.clone(),
-            }),
+            type_name!(Self::DstType),
+            types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
+                CustomerRequestWithEncryption {
+                    name: item.name.clone(),
+                    phone: item.phone.clone(),
+                    email: item.email.clone(),
+                },
+            )),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
             key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
         })?;
