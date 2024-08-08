@@ -1,0 +1,9 @@
+{
+  "connector_label": "updated_connector_label",
+  "test_mode": true,
+  "disabled": false,
+  "metadata": {
+    "city": "LA",
+    "unit": "246"
+  }
+}

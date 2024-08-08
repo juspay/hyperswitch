@@ -28,7 +28,7 @@ const connectorDetails = {
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
-  wellsfargo: wellsfargoConnectorDetails
+  wellsfargo: wellsfargoConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {

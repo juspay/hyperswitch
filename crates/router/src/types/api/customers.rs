@@ -45,7 +45,7 @@ impl ForeignFrom<(domain::Customer, Option<payments::AddressDetails>)> for Custo
 impl ForeignFrom<customer::Customer> for CustomerResponse {
     fn foreign_from(cust: domain::Customer) -> Self {
         customers::CustomerResponse {
-            merchant_reference_id: Some(cust.customer_id),
+            merchant_reference_id: Some(cust.get_customer_id()),
             name: cust.name,
             email: cust.email,
             phone: cust.phone,
