@@ -69,7 +69,7 @@ impl UserRoleInterface for Store {
 
         let v1_role = user_role
             .clone()
-            .to_v2_role()
+            .to_v1_role()
             .map_err(|error| report!(errors::StorageError::from(error)))?;
         v1_role
             .insert(&conn)
