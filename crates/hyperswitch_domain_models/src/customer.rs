@@ -6,7 +6,7 @@ use common_utils::{
     crypto, date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    id_type, pii, type_name,
+    id_type, pii,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
         Description,
