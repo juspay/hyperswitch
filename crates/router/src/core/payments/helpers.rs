@@ -11,7 +11,7 @@ use common_enums::ConnectorType;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id, id_type, pii,
+    fp_utils, generate_id, id_type, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
         MinorUnit,
@@ -121,31 +121,18 @@ pub fn create_certificate(
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
-pub fn filter_mca_based_on_business_profile(
+pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<String>,
-) -> Vec<domain::MerchantConnectorAccount> {
-    if let Some(profile_id) = profile_id {
-        merchant_connector_accounts
-            .into_iter()
-            .filter(|mca| {
-                mca.profile_id.as_ref() == Some(&profile_id)
-                    && mca.connector_type == ConnectorType::PaymentProcessor
-            })
-            .collect::<Vec<_>>()
-    } else {
-        merchant_connector_accounts
-    }
-}
-
-pub fn filter_mca_based_on_connector_type(
-    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+    profile_id: Option<&String>,
     connector_type: ConnectorType,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
         .into_iter()
-        .filter(|mca| mca.connector_type == connector_type)
-        .collect::<Vec<_>>()
+        .filter(|mca| {
+            profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
+                && mca.connector_type == connector_type
+        })
+        .collect()
 }
 
 #[instrument(skip_all)]
@@ -166,20 +153,24 @@ pub async fn create_or_update_address_for_payment_by_request(
     Ok(match address_id {
         Some(id) => match req_address {
             Some(address) => {
-                let encrypted_data = types::batch_encrypt(
+                let encrypted_data = types::crypto_operation(
                     &session_state.into(),
-                    AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                        address: address.address.clone(),
-                        phone_number: address
-                            .phone
-                            .as_ref()
-                            .and_then(|phone| phone.number.clone()),
-                        email: address.email.clone(),
-                    }),
+                    type_name!(domain::Address),
+                    types::CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                        AddressDetailsWithPhone {
+                            address: address.address.clone(),
+                            phone_number: address
+                                .phone
+                                .as_ref()
+                                .and_then(|phone| phone.number.clone()),
+                            email: address.email.clone(),
+                        },
+                    )),
                     Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                     key,
                 )
                 .await
+                .and_then(|val| val.try_into_batchoperation())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting address")?;
                 let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
@@ -353,20 +344,24 @@ pub async fn get_domain_address(
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         let address_details = &address.address.as_ref();
-        let encrypted_data = types::batch_encrypt(
+        let encrypted_data = types::crypto_operation(
             &session_state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: address_details.cloned(),
-                phone_number: address
-                    .phone
-                    .as_ref()
-                    .and_then(|phone| phone.number.clone()),
-                email: address.email.clone(),
-            }),
+            type_name!(domain::Address),
+            types::CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: address_details.cloned(),
+                    phone_number: address
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    email: address.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
@@ -1645,17 +1640,21 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 )
                 .await?;
             let key = key_store.key.get_inner().peek();
-            let encrypted_data = types::batch_encrypt(
+            let encrypted_data = types::crypto_operation(
                 key_manager_state,
-                CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-                    name: request_customer_details.name.clone(),
-                    email: request_customer_details.email.clone(),
-                    phone: request_customer_details.phone.clone(),
-                }),
+                type_name!(domain::Customer),
+                types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                    CustomerRequestWithEmail {
+                        name: request_customer_details.name.clone(),
+                        email: request_customer_details.email.clone(),
+                        phone: request_customer_details.phone.clone(),
+                    },
+                )),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
             .await
+            .and_then(|val| val.try_into_batchoperation())
             .change_context(errors::StorageError::SerializationFailed)
             .attach_printable("Failed while encrypting Customer while Update")?;
             let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
@@ -2007,7 +2006,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
     Option<api::PaymentMethodData>,
@@ -2107,7 +2106,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -2149,7 +2148,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method: enums::PaymentMethod,
     payment_method_data: &api::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -2567,7 +2566,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -2588,7 +2587,7 @@ pub fn get_handle_response_url(
 }
 
 pub fn make_merchant_url_with_response(
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
@@ -2697,7 +2696,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4186,13 +4185,16 @@ pub async fn get_encrypted_apple_pay_connector_wallets_details(
         .map(masking::Secret::new);
     let key_manager_state: KeyManagerState = state.into();
     let encrypted_connector_apple_pay_details = connector_apple_pay_details
-        .async_lift(|wallets_details| {
-            types::encrypt_optional(
+        .async_lift(|wallets_details| async {
+            types::crypto_operation(
                 &key_manager_state,
-                wallets_details,
+                type_name!(domain::MerchantConnectorAccount),
+                types::CryptoOperation::EncryptOptional(wallets_details),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key_store.key.get_inner().peek(),
             )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
         })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4284,10 +4286,12 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
-            merchant_connector_account_list,
-            Some(profile_id.to_string()),
-        );
+        let profile_specific_merchant_connector_account_list =
+            filter_mca_based_on_profile_and_connector_type(
+                merchant_connector_account_list,
+                Some(profile_id),
+                ConnectorType::PaymentProcessor,
+            );
 
         let mut connector_data_list = vec![pre_decided_connector_data_first.clone()];
 
@@ -4975,7 +4979,7 @@ pub enum PaymentExternalAuthenticationFlow {
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {

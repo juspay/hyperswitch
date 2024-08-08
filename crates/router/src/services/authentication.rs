@@ -1033,6 +1033,7 @@ where
     }
 }
 
+/*
 pub struct JWTAuthMerchantOrProfileFromRoute {
     pub merchant_id_or_profile_id: String,
     pub required_permission: Permission,
@@ -1094,6 +1095,7 @@ where
         }
     }
 }
+*/
 
 pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
 where
