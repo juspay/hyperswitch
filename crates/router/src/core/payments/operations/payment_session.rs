@@ -40,7 +40,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest>> {
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -375,8 +375,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("profile_id is not set in payment_intent")?;
 
-        let filtered_connector_accounts =
-            helpers::filter_mca_based_on_business_profile(all_connector_accounts, Some(profile_id));
+        let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
+            all_connector_accounts,
+            Some(&profile_id),
+            common_enums::ConnectorType::PaymentProcessor,
+        );
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();

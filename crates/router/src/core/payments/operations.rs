@@ -107,7 +107,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        payment_confirm_source: Option<enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R>>;
 }
 

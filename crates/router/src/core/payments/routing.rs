@@ -560,10 +560,18 @@ pub async fn refresh_cgraph_cache<'a>(
         }
     };
 
-    let merchant_connector_accounts = payments_oss::helpers::filter_mca_based_on_business_profile(
-        merchant_connector_accounts,
-        profile_id,
-    );
+    let connector_type = match transaction_type {
+        api_enums::TransactionType::Payment => common_enums::ConnectorType::PaymentProcessor,
+        #[cfg(feature = "payouts")]
+        api_enums::TransactionType::Payout => common_enums::ConnectorType::PayoutProcessor,
+    };
+
+    let merchant_connector_accounts =
+        payments_oss::helpers::filter_mca_based_on_profile_and_connector_type(
+            merchant_connector_accounts,
+            profile_id.as_ref(),
+            connector_type,
+        );
 
     let api_mcas = merchant_connector_accounts
         .into_iter()
