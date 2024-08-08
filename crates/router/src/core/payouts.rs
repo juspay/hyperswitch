@@ -708,7 +708,7 @@ pub async fn payouts_fulfill_core(
 pub async fn payouts_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -723,6 +723,7 @@ pub async fn payouts_list_core(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
 
     let collected_futures = payouts.into_iter().map(|payouts| async {
         match db
@@ -807,7 +808,7 @@ pub async fn payouts_list_core(
 pub async fn payouts_filtered_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -826,7 +827,7 @@ pub async fn payouts_filtered_list_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-
+    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PayoutCreateResponse> = join_all(list.into_iter().map(|(p, pa, c)| async {
         match domain::Customer::convert_back(
             &(&state).into(),

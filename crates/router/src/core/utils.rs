@@ -1350,6 +1350,18 @@ impl GetProfileId for PayoutData {
         Some(&self.profile_id)
     }
 }
+#[cfg(feature = "payouts")]
+impl GetProfileId for storage::Payouts {
+    fn get_profile_id(&self) -> Option<&String> {
+        Some(&self.profile_id)
+    }
+}
+#[cfg(feature = "payouts")]
+impl<T,F> GetProfileId for (storage::Payouts, T, F) {
+    fn get_profile_id(&self) -> Option<&String> {
+        self.0.get_profile_id()
+    }
+}
 
 /// Filter Objects based on profile ids
 pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
