@@ -212,7 +212,7 @@ impl super::behaviour::Conversion for Customer {
     {
         let decrypted = types::crypto_operation(
             state,
-            type_name!(Self::DstType),
+            common_utils::type_name!(Self::DstType),
             types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
                 CustomerRequestWithEncryption {
                     name: item.name.clone(),

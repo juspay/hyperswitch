@@ -70,6 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
@@ -97,6 +98,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             not(feature = "merchant_account_v2")
         ))]
         let profile_id = core_utils::get_profile_id_from_business_details(
+            key_manager_state,
+            merchant_key_store,
             request.business_country,
             request.business_label.as_ref(),
             merchant_account,
@@ -117,16 +120,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         // TODO: eliminate a redundant db call to fetch the business profile
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         let business_profile = if let Some(business_profile) =
-            core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)
-                .await?
+            core_utils::validate_and_get_business_profile(
+                db,
+                key_manager_state,
+                merchant_key_store,
+                Some(&profile_id),
+                merchant_id,
+            )
+            .await?
         {
             business_profile
         } else {
-            db.find_business_profile_by_profile_id(&profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            db.find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(
+                errors::ApiErrorResponse::BusinessProfileNotFound {
                     id: profile_id.to_string(),
-                })?
+                },
+            )?
         };
         let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
@@ -535,7 +550,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         Option<api::PaymentMethodData>,

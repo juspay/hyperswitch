@@ -21,7 +21,7 @@ use crate::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KeyManagerState {
     pub enabled: Option<bool>,
     pub url: String,
