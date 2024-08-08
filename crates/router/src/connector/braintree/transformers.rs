@@ -1203,12 +1203,6 @@ pub struct CaptureInputData {
     transaction: CaptureTransactionBody,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PsyncInputData {
-    transaction_id: String,
-}
-
 impl TryFrom<&BraintreeRouterData<&types::PaymentsCaptureRouterData>> for BraintreeCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
