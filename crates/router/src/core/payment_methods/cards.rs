@@ -31,7 +31,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::{business_profile::BusinessProfile, payment_method};
+use diesel_models::payment_method;
 use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
 use euclid::{
@@ -76,7 +76,7 @@ use crate::{
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
-        domain,
+        domain::{self, BusinessProfile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
@@ -2351,7 +2351,7 @@ pub async fn list_payment_methods(
 
     let profile_id = payment_intent
         .as_ref()
-        .async_map(|payment_intent| async {
+        .map(|payment_intent| {
             payment_intent
                 .profile_id
                 .clone()
@@ -2359,10 +2359,11 @@ pub async fn list_payment_methods(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("profile_id is not set in payment_intent")
         })
-        .await
         .transpose()?;
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
+        key_manager_state,
+        &key_store,
         profile_id.as_ref(),
         merchant_account.get_id(),
     )
@@ -3768,6 +3769,7 @@ pub async fn list_customer_payment_method(
     limit: Option<i64>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
+    let key_manager_state = &state.into();
     let off_session_payment_flag = payment_intent
         .as_ref()
         .map(|pi| {
@@ -3814,7 +3816,7 @@ pub async fn list_customer_payment_method(
 
     let profile_id = payment_intent
         .as_ref()
-        .async_map(|payment_intent| async {
+        .map(|payment_intent| {
             payment_intent
                 .profile_id
                 .clone()
@@ -3822,11 +3824,12 @@ pub async fn list_customer_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("profile_id is not set in payment_intent")
         })
-        .await
         .transpose()?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
+        key_manager_state,
+        &key_store,
         profile_id.as_ref(),
         merchant_account.get_id(),
     )
@@ -4141,10 +4144,16 @@ impl SavedPMLPaymentsInfo {
         payment_intent: storage::PaymentIntent,
         merchant_account: &domain::MerchantAccount,
         db: &dyn db::StorageInterface,
+        key_manager_state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
     ) -> errors::RouterResult<Self> {
         let requires_cvv = db
             .find_config_by_key_unwrap_or(
-                format!("{}_requires_cvv", merchant_account.get_id()).as_str(),
+                format!(
+                    "{}_requires_cvv",
+                    merchant_account.get_id().get_string_repr()
+                )
+                .as_str(),
                 Some("true".to_string()),
             )
             .await
@@ -4158,19 +4167,18 @@ impl SavedPMLPaymentsInfo {
             Some(common_enums::FutureUsage::OffSession)
         );
 
-        let profile_id = core_utils::get_profile_id_from_business_details(
-            payment_intent.business_country,
-            payment_intent.business_label.as_ref(),
-            merchant_account,
-            payment_intent.profile_id.as_ref(),
-            db,
-            false,
-        )
-        .await
-        .attach_printable("Could not find profile id from business details")?;
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("profile_id is not set in payment_intent")?
+            .clone();
 
         let business_profile = core_utils::validate_and_get_business_profile(
             db,
+            key_manager_state,
+            key_store,
             Some(profile_id).as_ref(),
             merchant_account.get_id(),
         )
@@ -4273,7 +4281,15 @@ pub async fn list_customer_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let payments_info = payment_intent
-        .async_map(|pi| SavedPMLPaymentsInfo::form_payments_info(pi, &merchant_account, db))
+        .async_map(|pi| {
+            SavedPMLPaymentsInfo::form_payments_info(
+                pi,
+                &merchant_account,
+                db,
+                key_manager_state,
+                &key_store,
+            )
+        })
         .await
         .transpose()?;
 

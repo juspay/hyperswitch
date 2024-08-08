@@ -130,6 +130,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     WebhookResponseTracker,
     serde_json::Value,
 )> {
+    let key_manager_state = &(&state).into();
+
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
         1,
@@ -354,7 +356,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
         let business_profile = state
             .store
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
@@ -501,7 +503,7 @@ async fn payments_incoming_webhook_flow(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
@@ -643,7 +645,7 @@ async fn payments_incoming_webhook_flow(
 async fn payouts_incoming_webhook_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     event_type: webhooks::IncomingWebhookEvent,
@@ -768,7 +770,7 @@ async fn payouts_incoming_webhook_flow(
 async fn refunds_incoming_webhook_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     connector_name: &str,
@@ -911,7 +913,7 @@ async fn get_or_update_dispute_object(
     merchant_id: &common_utils::id_type::MerchantId,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     event_type: webhooks::IncomingWebhookEvent,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
     let db = &*state.store;
@@ -991,7 +993,7 @@ async fn external_authentication_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     connector: &ConnectorEnum,
     object_ref_id: api::ObjectReferenceId,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
@@ -1160,7 +1162,7 @@ async fn external_authentication_incoming_webhook_flow(
 async fn mandates_incoming_webhook_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
@@ -1253,7 +1255,7 @@ async fn frm_incoming_webhook_flow(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
     object_ref_id: api::ObjectReferenceId,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let payment_attempt =
@@ -1362,7 +1364,7 @@ async fn frm_incoming_webhook_flow(
 async fn disputes_incoming_webhook_flow(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
@@ -1434,7 +1436,7 @@ async fn bank_transfer_webhook_flow(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
