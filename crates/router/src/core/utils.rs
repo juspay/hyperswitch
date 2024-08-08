@@ -1351,12 +1351,6 @@ impl GetProfileId for diesel_models::Refund {
 }
 
 #[cfg(feature = "payouts")]
-impl GetProfileId for PayoutData {
-    fn get_profile_id(&self) -> Option<&String> {
-        Some(&self.profile_id)
-    }
-}
-#[cfg(feature = "payouts")]
 impl GetProfileId for storage::Payouts {
     fn get_profile_id(&self) -> Option<&String> {
         Some(&self.profile_id)

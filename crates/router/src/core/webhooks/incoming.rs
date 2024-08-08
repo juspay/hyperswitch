@@ -704,7 +704,8 @@ async fn payouts_incoming_webhook_flow(
             });
 
         let payout_data =
-            payouts::make_payout_data(&state, &merchant_account, &key_store, &action_req).await?;
+            payouts::make_payout_data(&state, &merchant_account, None, &key_store, &action_req)
+                .await?;
 
         let updated_payout_attempt = db
             .update_payout_attempt(

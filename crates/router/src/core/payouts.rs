@@ -358,6 +358,7 @@ pub async fn payouts_confirm_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
     )
@@ -422,6 +423,7 @@ pub async fn payouts_update_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
     )
@@ -489,11 +491,11 @@ pub async fn payouts_retrieve_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        profile_id,
         &key_store,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
     )
     .await?;
-    core_utils::validate_profile_id_from_auth_layer(profile_id, &payout_data)?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
@@ -533,6 +535,7 @@ pub async fn payouts_cancel_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
     )
@@ -628,6 +631,7 @@ pub async fn payouts_fulfill_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
     )
@@ -2328,6 +2332,7 @@ pub async fn payout_create_db_entries(
 pub async fn make_payout_data(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    auth_profile_id: Option<String>,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
@@ -2347,6 +2352,7 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
 
     let payout_attempt_id = utils::get_payment_attempt_id(payout_id, payouts.attempt_count);
 

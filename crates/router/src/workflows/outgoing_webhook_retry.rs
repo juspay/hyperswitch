@@ -504,7 +504,8 @@ async fn get_outgoing_webhook_content_and_event_type(
             );
 
             let payout_data =
-                payouts::make_payout_data(&state, &merchant_account, &key_store, &request).await?;
+                payouts::make_payout_data(&state, &merchant_account, None, &key_store, &request)
+                    .await?;
 
             let router_response =
                 payouts::response_handler(&merchant_account, &payout_data).await?;
