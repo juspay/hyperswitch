@@ -17,11 +17,6 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use masking::{ExposeInterface, Secret};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
-use crate::core::payment_methods::cards::create_encrypted_data;
 use crate::{
     core::errors,
     routes::SessionState,

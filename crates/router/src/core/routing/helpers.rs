@@ -4,11 +4,6 @@
 //! routing dict, configs, defaults
 use api_models::routing as routing_types;
 use common_utils::{ext_traits::Encode, types::keymanager::KeyManagerState};
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
-use diesel_models::business_profile::{BusinessProfile, BusinessProfileUpdate};
 use diesel_models::configs;
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;

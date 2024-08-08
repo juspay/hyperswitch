@@ -17,7 +17,6 @@ use crate::utils::ValueExt;
 use crate::{
     consts,
     core::{
-        admin,
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
     },
@@ -30,7 +29,10 @@ use crate::{
     utils::{self, OptionExt},
 };
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{core::errors::RouterResult, db::StorageInterface};
+use crate::{
+    core::{admin, errors::RouterResult},
+    db::StorageInterface,
+};
 pub enum TransactionData<'a, F>
 where
     F: Clone,

@@ -19,7 +19,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
 use router_env::metrics::add_attributes;
-use storage_impl::redis::cache;
+
 use uuid::Uuid;
 
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -3636,7 +3636,7 @@ impl BusinessProfileWrapper {
     pub fn new(profile: domain::BusinessProfile) -> Self {
         Self { profile }
     }
-    fn get_cache_key(self) -> cache::CacheKind<'static> {
+    fn get_cache_key(self) -> storage_impl::redis::cache::CacheKind<'static> {
         let merchant_id = self.profile.merchant_id.clone();
 
         let profile_id = self.profile.profile_id.clone();
@@ -3683,10 +3683,13 @@ impl BusinessProfileWrapper {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-        cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to invalidate routing cache")?;
+        storage_impl::redis::cache::publish_into_redact_channel(
+            db.get_cache_store().as_ref(),
+            [routing_cache_key],
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate routing cache")?;
         Ok(())
     }
 }
