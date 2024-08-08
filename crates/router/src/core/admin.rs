@@ -3641,7 +3641,7 @@ impl BusinessProfileWrapper {
 
         let profile_id = self.profile.profile_id.clone();
 
-        cache::CacheKind::Routing(
+        storage_impl::redis::cache::CacheKind::Routing(
             format!(
                 "routing_config_{}_{profile_id}",
                 merchant_id.get_string_repr()

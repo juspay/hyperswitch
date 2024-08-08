@@ -3,7 +3,7 @@ pub mod transformers;
 
 use api_models::{
     enums,
-    routing::{self as routing_types, RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
+    routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
@@ -722,62 +722,37 @@ pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    query_params: RoutingRetrieveLinkQuery,
+    query_params: RoutingRetrieveQuery,
+    profile_id: String,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profiles = if let Some(profile_id) = query_params.profile_id {
-        core_utils::validate_and_get_business_profile(
-            db,
-            key_manager_state,
-            &key_store,
-            Some(&profile_id),
-            merchant_account.get_id(),
-        )
-        .await?
-        .map(|profile| vec![profile])
-        .get_required_value("BusinessProfile")
-        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?
-    } else {
-        db.list_business_profile_by_merchant_id(
-            key_manager_state,
-            &key_store,
-            merchant_account.get_id(),
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")?;
+
+    let record = db
+        .list_routing_algorithm_metadata_by_profile_id(
+            &business_profile.profile_id,
+            i64::from(query_params.limit.unwrap_or_default()),
+            i64::from(query_params.offset.unwrap_or_default()),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
-    };
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-    let mut active_algorithms = Vec::new();
-
-    for business_profile in business_profiles {
-        let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-            enums::TransactionType::Payment => business_profile.routing_algorithm,
-            #[cfg(feature = "payouts")]
-            enums::TransactionType::Payout => business_profile.payout_routing_algorithm,
-        }
-        .clone()
-        .map(|val| val.parse_value("RoutingAlgorithmRef"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
-        .unwrap_or_default();
-
-        if let Some(algorithm_id) = routing_ref.algorithm_id {
-            let record = db
-                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
-                    &algorithm_id,
-                    &business_profile.profile_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-            active_algorithms.push(record.foreign_into());
-        }
-    }
+    let active_algorithms = record
+        .into_iter()
+        .map(|routing_algo| routing_algo.foreign_into())
+        .collect::<Vec<_>>();
 
     metrics::ROUTING_RETRIEVE_LINK_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
@@ -793,7 +768,7 @@ pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    query_params: RoutingRetrieveLinkQuery,
+    query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
