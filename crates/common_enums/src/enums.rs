@@ -1413,8 +1413,8 @@ pub enum PaymentMethodStatus {
 impl From<AttemptStatus> for PaymentMethodStatus {
     fn from(attempt_status: AttemptStatus) -> Self {
         match attempt_status {
-            AttemptStatus::Failure => Self::Inactive,
-            AttemptStatus::Voided
+            AttemptStatus::Failure
+            | AttemptStatus::Voided
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved
@@ -1434,9 +1434,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Charged
-            | AttemptStatus::Authorized => Self::Active,
+            | AttemptStatus::DeviceDataCollectionPending => Self::Inactive,
+            AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
 }
