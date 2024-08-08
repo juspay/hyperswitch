@@ -617,8 +617,8 @@ pub fn get_payment_link_config_based_on_priority(
                         },
                     ) {
                         Ok(details) => Some(details),
-                        Err(_) => {
-                            logger::error!("Failed to serialize transaction details");
+                        Err(err) => {
+                            logger::error!("Failed to serialize transaction details: {:?}", err);
                             None
                         }
                     }
