@@ -2666,6 +2666,42 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
+    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.find_user_role_by_user_id_org_id_merchant_id_profile_id(
+            user_id,
+            org_id,
+            merchant_id,
+            profile_id,
+            version,
+        )
+        .await
+    }
+
+    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+            user_id,
+            org_id,
+            merchant_id,
+            profile_id,
+            version,
+        )
+        .await
+    }
+
     async fn transfer_org_ownership_between_users(
         &self,
         from_user_id: &str,

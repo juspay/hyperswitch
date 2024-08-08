@@ -129,4 +129,73 @@ impl UserRole {
         )
         .await
     }
+
+    pub async fn find_by_user_id_org_id_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        user_id: String,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: Option<String>,
+        version: UserRoleVersion,
+    ) -> StorageResult<Self> {
+        // Cheking in user roles, for a user in token hierarchy only one of the relation will be true, either org level, merchant level or profile level
+        // Find from user_roles where user_id = ?
+        // && ((org_id = ? && merchnat_id = null && profile_id = null)  || (org_id = ? && merchnat_id = ? && profile_id = null) || (org_id = ? && merchnat_id = ? && profile_id = ?))
+        // && version = ?
+        let predicate = dsl::user_id
+            .eq(user_id)
+            .and(
+                (dsl::org_id
+                    .eq(org_id.clone())
+                    .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null())))
+                .or(dsl::org_id.eq(org_id.clone()).and(
+                    dsl::merchant_id
+                        .eq(merchant_id.clone())
+                        .and(dsl::profile_id.is_null()),
+                ))
+                .or(dsl::org_id.eq(org_id).and(
+                    dsl::merchant_id
+                        .eq(merchant_id)
+                        .and(dsl::profile_id.eq(profile_id)),
+                )),
+            )
+            .and(dsl::version.eq(version));
+
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
+    }
+
+    pub async fn delete_by_user_id_org_id_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        user_id: String,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: Option<String>,
+        version: UserRoleVersion,
+    ) -> StorageResult<Self> {
+        // Cheking in user roles, for a user in token hierarchy only one of the relation will be true, either org level, merchant level or profile level
+        // Find from user_roles where user_id = ?
+        // && ((org_id = ? && merchnat_id = null && profile_id = null)  || (org_id = ? && merchnat_id = ? && profile_id = null) || (org_id = ? && merchnat_id = ? && profile_id = ?))
+        // && version = ?
+        let predicate = dsl::user_id
+            .eq(user_id)
+            .and(
+                (dsl::org_id
+                    .eq(org_id.clone())
+                    .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null())))
+                .or(dsl::org_id.eq(org_id.clone()).and(
+                    dsl::merchant_id
+                        .eq(merchant_id.clone())
+                        .and(dsl::profile_id.is_null()),
+                ))
+                .or(dsl::org_id.eq(org_id).and(
+                    dsl::merchant_id
+                        .eq(merchant_id)
+                        .and(dsl::profile_id.eq(profile_id)),
+                )),
+            )
+            .and(dsl::version.eq(version));
+
+        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(conn, predicate)
+            .await
+    }
 }
