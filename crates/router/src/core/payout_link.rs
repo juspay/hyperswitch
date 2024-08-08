@@ -293,13 +293,13 @@ pub async fn filter_payout_methods(
         })
         .await
         .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while fetching address [id - {:?}] for payout [id - {}]",
                 payout.address_id, payout.payout_id
             )
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        })?;
 
     let mut response: Vec<link_utils::EnabledPaymentMethod> = vec![];
     let mut payment_method_list_hm: HashMap<

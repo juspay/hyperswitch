@@ -1037,53 +1037,45 @@ pub async fn update_payouts_and_payout_attempt(
         }));
     }
 
-    // Fetch customer details from request and create new if it wasn't created during payout creation
-    let customer_id = if let Some(customer_id) = &payout_data.payouts.customer_id {
-        Some(customer_id.clone())
+    // Fetch customer details from request and create new or else use existing customer that was attached
+    let customer = get_customer_details_from_request(req);
+    let customer_id = if customer.customer_id.is_some()
+        || customer.name.is_some()
+        || customer.email.is_some()
+        || customer.phone.is_some()
+        || customer.phone_country_code.is_some()
+    {
+        payout_data.customer_details =
+            get_or_create_customer_details(state, &customer, merchant_account, merchant_key_store)
+                .await?;
+        payout_data
+            .customer_details
+            .as_ref()
+            .map(|customer| customer.get_customer_id())
     } else {
-        let customer = get_customer_details_from_request(req);
-        if customer.customer_id.is_some()
-            || customer.name.is_some()
-            || customer.email.is_some()
-            || customer.phone.is_some()
-            || customer.phone_country_code.is_some()
-        {
-            payout_data.customer_details = get_or_create_customer_details(
-                state,
-                &customer,
-                merchant_account,
-                merchant_key_store,
-            )
-            .await?;
-            payout_data
-                .customer_details
-                .as_ref()
-                .map(|customer| customer.get_customer_id())
-        } else {
-            None
-        }
+        payout_data.payouts.customer_id.clone()
     };
 
-    // Fetch address details from request and create new if it wasn't already created
-    let address_id = if let Some(address_id) = &payout_data.payouts.address_id {
-        Some(address_id.clone())
-    } else {
-        payout_data.billing_address =
-            payment_helpers::create_or_find_address_for_payment_by_request(
-                state,
-                req.billing.as_ref(),
-                None,
-                merchant_account.get_id(),
-                customer_id.as_ref(),
-                merchant_key_store,
-                &payout_id,
-                merchant_account.storage_scheme,
-            )
-            .await?;
+    // Fetch address details from request and create new or else use existing address that was attached
+    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+        state,
+        req.billing.as_ref(),
+        None,
+        merchant_account.get_id(),
+        customer_id.as_ref(),
+        merchant_key_store,
+        &payout_id,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+    let address_id = if billing_address.is_some() {
+        payout_data.billing_address = billing_address;
         payout_data
             .billing_address
             .as_ref()
             .map(|address| address.address_id.clone())
+    } else {
+        payout_data.payouts.address_id.clone()
     };
 
     // Update DB with new data
@@ -1149,8 +1141,8 @@ pub async fn update_payouts_and_payout_attempt(
             });
     if updated_business_country.is_some()
         || updated_business_label.is_some()
-        || (payout_attempt.customer_id.is_none() && customer_id.is_some())
-        || (payout_attempt.address_id.is_none() && address_id.is_some())
+        || customer_id.is_some()
+        || address_id.is_some()
     {
         let payout_attempt = &payout_data.payout_attempt;
         let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {

@@ -253,7 +253,9 @@ pub async fn make_connector_decision(
 
             Ok(())
         }
-        _ => Err(errors::ApiErrorResponse::InternalServerError)?,
+        _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable({
+            "only PreDetermined and Retryable ConnectorCallTypes are supported".to_string()
+        })?,
     }
 }
 
@@ -2149,6 +2151,12 @@ pub async fn response_handler(
         billing: address,
         auto_fulfill: payouts.auto_fulfill,
         customer_id,
+        email: customer_details.as_ref().and_then(|c| c.email.clone()),
+        name: customer_details.as_ref().and_then(|c| c.name.clone()),
+        phone: customer_details.as_ref().and_then(|c| c.phone.clone()),
+        phone_country_code: customer_details
+            .as_ref()
+            .and_then(|c| c.phone_country_code.clone()),
         customer: customer_details
             .as_ref()
             .map(payment_api_types::CustomerDetailsResponse::foreign_from),
@@ -2207,7 +2215,9 @@ pub async fn payout_create_db_entries(
             create_payout_link(
                 state,
                 &business_profile,
-                &customer_id.clone().get_required_value("customer_id")?,
+                &customer_id
+                    .clone()
+                    .get_required_value("customer.id when payout_link is true")?,
                 merchant_id,
                 req,
                 payout_id,
@@ -2370,40 +2380,41 @@ pub async fn make_payout_data(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
+    let customer_id = payouts.customer_id.as_ref();
+    let payout_id = &payouts.payout_id;
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         state,
         None,
         payouts.address_id.as_deref(),
         merchant_id,
-        payouts.customer_id.as_ref(),
+        customer_id,
         key_store,
-        &payouts.payout_id,
+        payout_id,
         merchant_account.storage_scheme,
     )
     .await?;
 
-    let customer_details = payouts
-        .customer_id
-        .clone()
+    let customer_details = customer_id
         .async_map(|customer_id| async move {
             db.find_customer_optional_by_customer_id_merchant_id(
                 &state.into(),
-                &customer_id,
+                customer_id,
                 merchant_id,
                 key_store,
                 merchant_account.storage_scheme,
             )
             .await
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed while fetching optional customer [id - {:?}] for payout [id - {}]",
+                    customer_id,
+                    payout_id
+                )
+            })
         })
         .await
-        .transpose()
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while fetching optional customer [id - {:?}] for payout [id - {}]",
-                payouts.customer_id, payouts.payout_id
-            )
-        })?
+        .transpose()?
         .and_then(|c| c);
 
     let profile_id = payout_attempt.profile_id.clone();
@@ -2419,7 +2430,7 @@ pub async fn make_payout_data(
                     let customer_id = customer_details
                         .as_ref()
                         .map(|cd| cd.get_customer_id().to_owned())
-                        .get_required_value("customer_id")?;
+                        .get_required_value("customer_id when payout_token is sent")?;
                     helpers::make_payout_method_data(
                         state,
                         None,

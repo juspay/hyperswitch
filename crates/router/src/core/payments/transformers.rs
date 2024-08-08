@@ -1160,6 +1160,16 @@ impl
             billing: None,
             client_secret: None,
             payout_link: None,
+            email: customer
+                .as_ref()
+                .and_then(|customer| customer.email.clone()),
+            name: customer.as_ref().and_then(|customer| customer.name.clone()),
+            phone: customer
+                .as_ref()
+                .and_then(|customer| customer.phone.clone()),
+            phone_country_code: customer
+                .as_ref()
+                .and_then(|customer| customer.phone_country_code.clone()),
         }
     }
 }
