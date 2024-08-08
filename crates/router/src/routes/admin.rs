@@ -405,7 +405,6 @@ pub async fn connector_retrieve(
         state,
         &req,
         payload,
-<<<<<<< HEAD
         |state, auth, req, _| {
             retrieve_payment_connector(
                 state,
@@ -413,10 +412,6 @@ pub async fn connector_retrieve(
                 auth.profile_id,
                 req.merchant_connector_id,
             )
-=======
-        |state, _, req, _| {
-            retrieve_connector(state, req.merchant_id, None, req.merchant_connector_id)
->>>>>>> origin/main
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -586,7 +581,6 @@ pub async fn connector_update(
         state,
         &req,
         json_payload.into_inner(),
-<<<<<<< HEAD
         |state, auth, req, _| {
             update_payment_connector(
                 state,
@@ -596,9 +590,6 @@ pub async fn connector_update(
                 req,
             )
         },
-=======
-        |state, _, req, _| update_connector(state, &merchant_id, None, &merchant_connector_id, req),
->>>>>>> origin/main
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuthMerchantFromRoute {
