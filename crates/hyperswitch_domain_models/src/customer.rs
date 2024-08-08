@@ -6,7 +6,7 @@ use common_utils::{
     crypto, date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    id_type, pii,
+    id_type, pii, type_name,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
         Description,
@@ -16,7 +16,7 @@ use diesel_models::customers::CustomerUpdateInternal;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
-use common_utils::type_name;
+
 use crate::type_encryption as types;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
