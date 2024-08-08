@@ -1357,7 +1357,7 @@ impl GetProfileId for storage::Payouts {
     }
 }
 #[cfg(feature = "payouts")]
-impl<T,F> GetProfileId for (storage::Payouts, T, F) {
+impl<T, F> GetProfileId for (storage::Payouts, T, F) {
     fn get_profile_id(&self) -> Option<&String> {
         self.0.get_profile_id()
     }

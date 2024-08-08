@@ -990,8 +990,12 @@ pub async fn get_filters_for_refunds(
     profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant_account.get_id().to_owned(), profile_id_list)
-            .await?
+        super::admin::list_payment_connectors(
+            state,
+            merchant_account.get_id().to_owned(),
+            profile_id_list,
+        )
+        .await?
     {
         data
     } else {
