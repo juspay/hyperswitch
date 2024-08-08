@@ -19,7 +19,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
 use router_env::metrics::add_attributes;
-
 use uuid::Uuid;
 
 #[cfg(any(feature = "v1", feature = "v2"))]
