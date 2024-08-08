@@ -2408,8 +2408,7 @@ pub async fn make_payout_data(
             .attach_printable_lazy(|| {
                 format!(
                     "Failed while fetching optional customer [id - {:?}] for payout [id - {}]",
-                    customer_id,
-                    payout_id
+                    customer_id, payout_id
                 )
             })
         })
