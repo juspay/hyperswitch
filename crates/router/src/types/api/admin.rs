@@ -15,7 +15,7 @@ use common_utils::ext_traits::ValueExt;
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
     core::errors,
@@ -120,7 +120,9 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 headers
                     .into_inner()
                     .expose()
-                    .parse_value::<HashMap<String, String>>("HashMap<String,String>")
+                    .parse_value::<HashMap<String, Secret<String>>>(
+                        "HashMap<String, Secret<String>>",
+                    )
             })
             .transpose()?;
 
