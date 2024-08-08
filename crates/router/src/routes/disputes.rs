@@ -93,7 +93,12 @@ pub async fn retrieve_disputes_list(
         &req,
         payload,
         |state, auth, req, _| {
-            disputes::retrieve_disputes_list(state, auth.merchant_account, None, req)
+            disputes::retrieve_disputes_list(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
