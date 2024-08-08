@@ -71,11 +71,7 @@ use crate::{
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
     services::{authentication, kafka::KafkaProducer, Store},
-    types::{
-        domain,
-        storage::{self, business_profile},
-        AccessToken,
-    },
+    types::{domain, storage, AccessToken},
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -2254,29 +2250,40 @@ impl MerchantKeyStoreInterface for KafkaStore {
 impl BusinessProfileInterface for KafkaStore {
     async fn insert_business_profile(
         &self,
-        business_profile: business_profile::BusinessProfileNew,
-    ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        business_profile: domain::BusinessProfile,
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.diesel_store
-            .insert_business_profile(business_profile)
+            .insert_business_profile(key_manager_state, merchant_key_store, business_profile)
             .await
     }
 
     async fn find_business_profile_by_profile_id(
         &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &str,
-    ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.diesel_store
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
             .await
     }
 
     async fn update_business_profile_by_profile_id(
         &self,
-        current_state: business_profile::BusinessProfile,
-        business_profile_update: business_profile::BusinessProfileUpdate,
-    ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        current_state: domain::BusinessProfile,
+        business_profile_update: domain::BusinessProfileUpdate,
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.diesel_store
-            .update_business_profile_by_profile_id(current_state, business_profile_update)
+            .update_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                current_state,
+                business_profile_update,
+            )
             .await
     }
 
@@ -2292,20 +2299,33 @@ impl BusinessProfileInterface for KafkaStore {
 
     async fn list_business_profile_by_merchant_id(
         &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Vec<business_profile::BusinessProfile>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::BusinessProfile>, errors::StorageError> {
         self.diesel_store
-            .list_business_profile_by_merchant_id(merchant_id)
+            .list_business_profile_by_merchant_id(
+                key_manager_state,
+                merchant_key_store,
+                merchant_id,
+            )
             .await
     }
 
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
         profile_name: &str,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.diesel_store
-            .find_business_profile_by_profile_name_merchant_id(profile_name, merchant_id)
+            .find_business_profile_by_profile_name_merchant_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_name,
+                merchant_id,
+            )
             .await
     }
 }
