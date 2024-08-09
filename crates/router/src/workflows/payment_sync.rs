@@ -67,6 +67,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 state,
                 state.get_req_state(),
                 merchant_account.clone(),
+                None,
                 key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),

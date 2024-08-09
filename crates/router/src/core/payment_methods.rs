@@ -9,9 +9,9 @@ pub mod vault;
 use std::{borrow::Cow, collections::HashSet};
 
 pub use api_models::enums::Connector;
+use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use api_models::{payment_methods, payments::CardToken};
 use common_utils::{consts::DEFAULT_LOCALE, ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -35,10 +35,7 @@ use crate::{
     },
     routes::{app::StorageInterface, SessionState},
     services,
-    types::{
-        api::{self, payments},
-        domain, storage,
-    },
+    types::{domain, storage},
 };
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
@@ -46,15 +43,15 @@ const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
-    pm_data: &Option<payments::PaymentMethodData>,
+    pm_data: &Option<domain::PaymentMethodData>,
     state: &SessionState,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
     business_profile: Option<&domain::BusinessProfile>,
-) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)> {
+) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
-        pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)) => {
+        pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -68,17 +65,17 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
-        pm @ Some(api::PaymentMethodData::PayLater(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Crypto(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::BankDebit(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
-        pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)) => {
+        pm @ Some(domain::PaymentMethodData::PayLater(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Crypto(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::BankDebit(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
+        pm_opt @ Some(pm @ domain::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -92,7 +89,7 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
-        pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)) => {
+        pm_opt @ Some(pm @ domain::PaymentMethodData::Wallet(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -106,7 +103,7 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
-        pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)) => {
+        pm_opt @ Some(pm @ domain::PaymentMethodData::BankRedirect(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -435,7 +432,7 @@ pub async fn retrieve_payment_method_with_token(
     merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     payment_intent: &PaymentIntent,
-    card_token_data: Option<&CardToken>,
+    card_token_data: Option<&domain::CardToken>,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
