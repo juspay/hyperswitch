@@ -74,6 +74,7 @@ pub async fn validate_create_request(
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
+    let key_manager_state = &state.into();
     let payout_id = core_utils::get_or_generate_uuid("payout_id", req.payout_id.as_ref())?;
     match validate_uniqueness_of_payout_id_against_merchant_id(
         db,
@@ -118,8 +119,13 @@ pub async fn validate_create_request(
         None => None,
     };
 
-    // Profile ID
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let profile_id = core_utils::get_profile_id_from_business_details(
+        key_manager_state,
+        merchant_key_store,
         req.business_country,
         req.business_label.as_ref(),
         merchant_account,
@@ -128,6 +134,16 @@ pub async fn validate_create_request(
         false,
     )
     .await?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    // Profile id will be mandatory in v2 in the request / headers
+    let profile_id = req
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .attach_printable("Profile id is a mandatory parameter")?;
 
     Ok((payout_id, payout_method_data, profile_id))
 }

@@ -12,6 +12,7 @@ pub async fn verify_merchant_creds_for_applepay(
     state: SessionState,
     body: verifications::ApplepayMerchantVerificationRequest,
     merchant_id: common_utils::id_type::MerchantId,
+    profile_id: Option<String>,
 ) -> CustomResult<services::ApplicationResponse<ApplepayMerchantResponse>, errors::ApiErrorResponse>
 {
     let applepay_merchant_configs = state.conf.applepay_merchant_configs.get_inner();
@@ -61,6 +62,7 @@ pub async fn verify_merchant_creds_for_applepay(
             utils::check_existence_and_add_domain_to_db(
                 &state,
                 merchant_id,
+                profile_id,
                 body.merchant_connector_account_id.clone(),
                 body.domain_names.clone(),
             )

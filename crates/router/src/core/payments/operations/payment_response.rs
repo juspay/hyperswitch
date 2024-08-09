@@ -92,7 +92,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -431,7 +431,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -640,7 +640,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -731,7 +731,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -1404,12 +1404,25 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     storage_scheme: enums::MerchantStorageScheme,
     is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<()> {
+    // If the payment_method is deleted then ignore the error related to retrieving payment method
+    // This should be handled when the payment method is soft deleted
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
-        let pm = state
-            .store
-            .find_payment_method(id, storage_scheme)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        let payment_method = match state.store.find_payment_method(id, storage_scheme).await {
+            Ok(payment_method) => payment_method,
+            Err(error) => {
+                if error.current_context().is_db_not_found() {
+                    logger::info!(
+                        "Payment Method not found in db and skipping payment method update {:?}",
+                        error
+                    );
+                    return Ok(());
+                } else {
+                    Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db in update_payment_method_status_and_ntid")?
+                }
+            }
+        };
 
         let pm_resp_network_transaction_id = payment_response
             .map(|resp| if let types::PaymentsResponseData::TransactionResponse { network_txn_id: network_transaction_id, .. } = resp {
@@ -1420,7 +1433,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     })
     .ok()
     .flatten();
-
         let network_transaction_id =
             if let Some(network_transaction_id) = pm_resp_network_transaction_id {
                 if is_connector_agnostic_mit_enabled == Some(true)
@@ -1436,11 +1448,10 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                 None
             };
 
-        let pm_update = if pm.status != common_enums::PaymentMethodStatus::Active
-            && pm.status != attempt_status.into()
+        let pm_update = if payment_method.status != common_enums::PaymentMethodStatus::Active
+            && payment_method.status != attempt_status.into()
         {
             let updated_pm_status = common_enums::PaymentMethodStatus::from(attempt_status);
-
             payment_data
                 .payment_method_info
                 .as_mut()
@@ -1458,7 +1469,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(pm, pm_update, storage_scheme)
+            .update_payment_method(payment_method, pm_update, storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
