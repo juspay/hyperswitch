@@ -982,7 +982,10 @@ where
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
             let link_type = boxed_generic_link_data.data.to_string();
-            match build_generic_link_html(boxed_generic_link_data.data) {
+            match build_generic_link_html(
+                boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
+            ) {
                 Ok(rendered_html) => {
                     let headers = if !boxed_generic_link_data.allowed_domains.is_empty() {
                         let domains_str = boxed_generic_link_data

@@ -11,6 +11,7 @@ pub mod core;
 pub mod cors;
 pub mod db;
 pub mod env;
+pub mod locale;
 pub(crate) mod macros;
 
 pub mod routes;
@@ -43,6 +44,9 @@ use crate::{configs::settings, core::errors};
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+// Import translate fn in root
+use crate::locale::{_rust_i18n_t, _rust_i18n_try_translate};
 
 /// Header Constants
 pub mod headers {

@@ -28,6 +28,7 @@ pub mod metrics;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
 pub mod payout_link;
 #[cfg(feature = "payouts")]
 pub mod payouts;

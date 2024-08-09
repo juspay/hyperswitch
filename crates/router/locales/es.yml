@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "No tienes permiso para ver este contenido"
+    title: "Enlaces de Pago"
+  status:
+    title: "Estado del Pago"
+    info:
+      ref_id: "ID de Referencia"
+      error_code: "Código de Error"
+      error_message: "Mensaje de Error"
+    message:
+      failed: "No se pudo procesar tu pago. Consulta con tu proveedor para más detalles."
+      processing: "Tu pago debería ser procesado en 2-3 días hábiles."
+      success: "Tu pago se realizó al método de pago seleccionado."
+    redirection_text:
+      redirecting: "Redirigiendo..."
+      redirecting_in: "Redirigiendo en"
+      seconds: "segundos..."
+    text:
+      failed: "Fallo en el Pago"
+      processing: "Pago en Proceso"
+      success: "Pago Exitoso"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Enero"
+  february: "Febrero"
+  march: "Marzo"
+  april: "Abril"
+  may: "Mayo"
+  june: "Junio"
+  july: "Julio"
+  august: "Agosto"
+  september: "Septiembre"
+  october: "Octubre"
+  november: "Noviembre"
+  december: "Diciembre"

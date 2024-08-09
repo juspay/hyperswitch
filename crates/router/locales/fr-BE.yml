@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Vous n'êtes pas autorisé à voir ce contenu"
+    title: "Liens de paiement"
+  status:
+    title: "Statut du paiement"
+    info:
+      ref_id: "ID de référence"
+      error_code: "Code d'erreur"
+      error_message: "Message d'erreur"
+    message:
+      failed: "Échec du traitement de votre paiement. Veuillez vérifier auprès de votre fournisseur pour plus de détails."
+      processing: "Votre paiement devrait être traité dans les 2 à 3 jours ouvrables."
+      success: "Votre paiement a été effectué sur le mode de paiement sélectionné."
+    redirection_text:
+      redirecting: "Redirection..."
+      redirecting_in: "Redirection dans"
+      seconds: "secondes..."
+    text:
+      failed: "Échec du paiement"
+      processing: "Paiement en cours"
+      success: "Paiement réussi"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Janvier"
+  february: "Février"
+  march: "Mars"
+  april: "Avril"
+  may: "Mai"
+  june: "Juin"
+  july: "Juillet"
+  august: "Août"
+  september: "Septembre"
+  october: "Octobre"
+  november: "Novembre"
+  december: "Décembre"

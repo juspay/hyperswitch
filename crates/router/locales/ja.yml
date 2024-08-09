@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "このコンテンツを見ることはできません"
+    title: "支払いリンク"
+  status:
+    title: "支払いステータス"
+    info:
+      ref_id: "参照ID"
+      error_code: "エラーコード"
+      error_message: "エラーメッセージ"
+    message:
+      failed: "支払いの処理に失敗しました。詳細については提供者に確認してください。"
+      processing: "支払いは2〜3営業日以内に処理される予定です。"
+      success: "支払いが選択した支払い方法に対して行われました。"
+    redirection_text:
+      redirecting: "リダイレクト中..."
+      redirecting_in: "リダイレクトまで"
+      seconds: "秒..."
+    text:
+      failed: "支払い失敗"
+      processing: "支払い処理中"
+      success: "支払い成功"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "1月"
+  february: "2月"
+  march: "3月"
+  april: "4月"
+  may: "5月"
+  june: "6月"
+  july: "7月"
+  august: "8月"
+  september: "9月"
+  october: "10月"
+  november: "11月"
+  december: "12月"
