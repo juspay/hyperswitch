@@ -180,6 +180,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
+            version: hyperswitch_domain_models::consts::API_VERSION,
         })
     }
 
@@ -266,7 +267,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             default_billing_address: encrypted_customer_billing_address.map(Into::into),
             default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
             // status: Some(customer_domain::SoftDeleteStatus::Active)
-            version: API_VERSION,
+            version: hyperswitch_domain_models::consts::API_VERSION,
         })
     }
 

@@ -50,6 +50,7 @@ pub struct MerchantAccount {
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -86,6 +87,7 @@ pub struct MerchantAccountSetter {
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -122,6 +124,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             recon_status: item.recon_status,
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
+            version: item.version,
         }
     }
 }
@@ -628,7 +631,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
-            version: crate::consts::API_VERSION,
+            version: self.version,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -705,6 +708,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 recon_status: item.recon_status,
                 payment_link_config: item.payment_link_config,
                 pm_collect_link_config: item.pm_collect_link_config,
+                version: item.version,
             })
         }
         .await

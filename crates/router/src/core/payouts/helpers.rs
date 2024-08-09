@@ -14,7 +14,6 @@ use common_utils::{
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{PeekInterface, Secret};
 use router_env::logger;
@@ -679,6 +678,7 @@ pub async fn get_or_create_customer_details(
                 address_id: None,
                 default_payment_method_id: None,
                 updated_by: None,
+                version: hyperswitch_domain_models::consts::API_VERSION,
             };
 
             Ok(Some(

@@ -35,6 +35,7 @@ pub struct Customer {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -57,6 +58,7 @@ pub struct Customer {
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -94,7 +96,7 @@ impl super::behaviour::Conversion for Customer {
             address_id: self.address_id,
             default_payment_method_id: self.default_payment_method_id,
             updated_by: self.updated_by,
-            version: crate::consts::API_VERSION,
+            version: self.version,
         })
     }
 
@@ -145,6 +147,7 @@ impl super::behaviour::Conversion for Customer {
             address_id: item.address_id,
             default_payment_method_id: item.default_payment_method_id,
             updated_by: item.updated_by,
+            version: item.version,
         })
     }
 
@@ -164,7 +167,7 @@ impl super::behaviour::Conversion for Customer {
             connector_customer: self.connector_customer,
             address_id: self.address_id,
             updated_by: self.updated_by,
-            version: crate::consts::API_VERSION,
+            version: self.version,
         })
     }
 }
@@ -192,7 +195,7 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address.map(Encryption::from),
             default_shipping_address: self.default_shipping_address.map(Encryption::from),
-            version: crate::consts::API_VERSION,
+            version: self.version,
             // status: self.status,
         })
     }
@@ -246,6 +249,7 @@ impl super::behaviour::Conversion for Customer {
             updated_by: item.updated_by,
             default_billing_address: item.default_billing_address,
             default_shipping_address: item.default_shipping_address,
+            version: item.version,
             // status: item.status,
         })
     }
