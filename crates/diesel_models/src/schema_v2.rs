@@ -210,6 +210,8 @@ diesel::table! {
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
+        always_collect_billing_details_from_wallet_connector -> Nullable<Bool>,
+        always_collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
     }
 }
 
