@@ -257,3 +257,6 @@ api_secret = "Secret key"
 
 [paybox]
 api_key="API Key"
+
+[fiservemea]
+api_key="API Key"
