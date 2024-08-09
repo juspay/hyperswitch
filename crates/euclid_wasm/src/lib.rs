@@ -327,6 +327,14 @@ pub fn get_authentication_connector_config(key: &str) -> JsResult {
     Ok(serde_wasm_bindgen::to_value(&res)?)
 }
 
+#[wasm_bindgen(js_name = getPMAuthenticationProcessorConfig)]
+pub fn get_pm_authentication_processor_config(key: &str) -> JsResult {
+    let key: api_model_enums::PmAuthConnectors = api_model_enums::PmAuthConnectors::from_str(key)
+        .map_err(|_| "Invalid key received".to_string())?;
+    let res = connector::ConnectorConfig::get_pm_authentication_processor_config(key)?;
+    Ok(serde_wasm_bindgen::to_value(&res)?)
+}
+
 #[wasm_bindgen(js_name = getRequestPayload)]
 pub fn get_request_payload(input: JsValue, response: JsValue) -> JsResult {
     let input: DashboardRequestPayload = serde_wasm_bindgen::from_value(input)?;

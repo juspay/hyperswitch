@@ -22,18 +22,22 @@ use api_models::{
 };
 use base64::Engine;
 use common_utils::types::keymanager::KeyManagerState;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::types::keymanager::{Identifier, ToEncryptable};
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
+    id_type,
     validation::validate_email,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{
+    type_name,
+    types::keymanager::{Identifier, ToEncryptable},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use hyperswitch_domain_models::type_encryption::batch_encrypt;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use image::Luma;
 use nanoid::nanoid;
 use qrcode;
@@ -768,15 +772,15 @@ pub trait CustomerAddress {
         address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
         &self,
         state: &SessionState,
         address_details: payments::AddressDetails,
-        merchant_id: &common_utils::id_type::MerchantId,
-        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError>;
@@ -791,19 +795,23 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         address_details: payments::AddressDetails,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
-        merchant_id: common_utils::id_type::MerchantId,
+        merchant_id: id_type::MerchantId,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
-        let encrypted_data = batch_encrypt(
+        let encrypted_data = crypto_operation(
             &state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: Some(address_details.clone()),
-                phone_number: self.phone.clone(),
-                email: self.email.clone(),
-            }),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: Some(address_details.clone()),
+                    phone_number: self.phone.clone(),
+                    email: self.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(storage::AddressUpdate::Update {
@@ -827,22 +835,26 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         &self,
         state: &SessionState,
         address_details: payments::AddressDetails,
-        merchant_id: &common_utils::id_type::MerchantId,
-        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
-        let encrypted_data = batch_encrypt(
+        let encrypted_data = crypto_operation(
             &state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: Some(address_details.clone()),
-                phone_number: self.phone.clone(),
-                email: self.email.clone(),
-            }),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: Some(address_details.clone()),
+                    phone_number: self.phone.clone(),
+                    email: self.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         let address = domain::Address {
@@ -875,7 +887,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
 pub fn add_apple_pay_flow_metrics(
     apple_pay_flow: &Option<domain::ApplePayFlow>,
     connector: Option<String>,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
@@ -909,7 +921,7 @@ pub fn add_apple_pay_payment_status_metrics(
     payment_attempt_status: enums::AttemptStatus,
     apple_pay_flow: Option<domain::ApplePayFlow>,
     connector: Option<String>,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: id_type::MerchantId,
 ) {
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
@@ -988,7 +1000,7 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op>(
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     customer: Option<domain::Customer>,

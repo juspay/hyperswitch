@@ -12,6 +12,7 @@ use common_utils::{
     not(feature = "merchant_account_v2")
 ))]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
+use indexmap::IndexMap;
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -167,15 +168,6 @@ impl MerchantAccountCreate {
             .transpose()
     }
 
-    pub fn get_webhook_details_as_value(
-        &self,
-    ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
-        self.webhook_details
-            .as_ref()
-            .map(|webhook_details| webhook_details.encode_to_value())
-            .transpose()
-    }
-
     pub fn parse_routing_algorithm(&self) -> CustomResult<(), errors::ParsingError> {
         match self.routing_algorithm {
             Some(ref routing_algorithm) => {
@@ -248,7 +240,7 @@ impl MerchantAccountCreate {
 pub struct AuthenticationConnectorDetails {
     /// List of authentication connectors
     #[schema(value_type = Vec<AuthenticationConnectors>)]
-    pub authentication_connectors: Vec<api_enums::AuthenticationConnectors>,
+    pub authentication_connectors: Vec<common_enums::AuthenticationConnectors>,
     /// URL of the (customer service) website that will be shown to the shopper in case of technical errors during the 3D Secure 2 process.
     pub three_ds_requestor_url: String,
 }
@@ -483,8 +475,7 @@ pub struct MerchantAccountResponse {
     pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
     /// Webhook related details
-    #[schema(value_type = Option<WebhookDetails>)]
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
     #[serde(skip)]
@@ -673,11 +664,20 @@ pub struct MerchantId {
     pub merchant_id: id_type::MerchantId,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     pub merchant_connector_id: String,
+}
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
+pub struct MerchantConnectorId {
+    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -1738,6 +1738,10 @@ pub enum AcceptedCountries {
     AllAccepted,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_connector_account_v2")
+))]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorDeleteResponse {
     /// The identifier for the Merchant Account
@@ -1746,6 +1750,20 @@ pub struct MerchantConnectorDeleteResponse {
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: String,
+    /// If the connector is deleted or not
+    #[schema(example = false)]
+    pub deleted: bool,
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct MerchantConnectorDeleteResponse {
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// Unique ID of the connector
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub id: String,
     /// If the connector is deleted or not
     #[schema(example = false)]
     pub deleted: bool,
@@ -1948,8 +1966,7 @@ pub struct BusinessProfileResponse {
     pub redirect_to_merchant_with_http_post: bool,
 
     /// Webhook related details
-    #[schema(value_type = Option<WebhookDetails>)]
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
@@ -1980,7 +1997,8 @@ pub struct BusinessProfileResponse {
     pub session_expiry: Option<i64>,
 
     /// Default Payment Link config for all payment links created under this business profile
-    pub payment_link_config: Option<serde_json::Value>,
+    #[schema(value_type = Option<BusinessPaymentLinkConfig>)]
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
@@ -2011,7 +2029,7 @@ pub struct BusinessProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
+    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -2218,6 +2236,9 @@ pub struct PaymentLinkConfigRequest {
     /// Enable saved payment method option for payment link
     #[schema(default = false, example = true)]
     pub enabled_saved_payment_method: Option<bool>,
+    /// Dynamic details related to merchant to be rendered in payment link
+    #[schema(value_type = Option<Object>, example = r#"{ "value1": "some-value", "value2": "some-value" }"#)]
+    pub transaction_details: Option<IndexMap<String, String>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
@@ -2236,6 +2257,8 @@ pub struct PaymentLinkConfig {
     pub enabled_saved_payment_method: bool,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
+    /// Dynamic details related to merchant to be rendered in payment link
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

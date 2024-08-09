@@ -33,6 +33,7 @@ pub use hyperswitch_domain_models::{
         GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
         RedirectionFormData,
     },
+    payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
 };
 pub use hyperswitch_interfaces::{
@@ -1251,7 +1252,7 @@ impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
-    payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    payment_method_data: Option<PaymentMethodData>,
     amount: String,
     currency: String,
     config: Settings,
@@ -1326,17 +1327,16 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details =
-                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
-                    format!(
-                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
-                        ccard.card_cvc.peek(),
-                        amount,
-                        currency
-                    )
-                } else {
-                    "".to_string()
-                };
+            let card_details = if let Some(PaymentMethodData::Card(ccard)) = payment_method_data {
+                format!(
+                    "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                    ccard.card_cvc.peek(),
+                    amount,
+                    currency
+                )
+            } else {
+                "".to_string()
+            };
             let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
@@ -1820,6 +1820,8 @@ fn build_payment_link_template(
     // Logging template
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+    //Locale template
+    let locale_template = include_str!("../core/payment_link/locale.js").to_string();
 
     // Modify Html template with rendered js and rendered css files
     let html_template =
@@ -1838,6 +1840,7 @@ fn build_payment_link_template(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
+    context.insert("locale_template", &locale_template);
     context.insert("rendered_css", &rendered_css);
     context.insert("rendered_js", &rendered_js);
 
@@ -1914,6 +1917,9 @@ pub fn get_payment_link_status(
         }
     };
 
+    //Locale template
+    let locale_template = include_str!("../core/payment_link/locale.js");
+
     // Logging template
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
@@ -1938,6 +1944,7 @@ pub fn get_payment_link_status(
     let _ = tera.add_raw_template("payment_link_status", &html_template);
 
     context.insert("rendered_css", &rendered_css);
+    context.insert("locale_template", &locale_template);
 
     context.insert("rendered_js", &rendered_js);
     context.insert("logging_template", &logging_template);

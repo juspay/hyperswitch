@@ -4,7 +4,7 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     ext_traits::ValueExt,
-    pii,
+    pii, type_name,
     types::keymanager::{self},
 };
 use diesel_models::{
@@ -14,7 +14,7 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 
-use crate::type_encryption::{decrypt_optional, AsyncLift};
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -29,7 +29,7 @@ pub struct MerchantAccount {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: OptionalEncryptableName,
     pub merchant_details: OptionalEncryptableValue,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
@@ -65,7 +65,7 @@ pub struct MerchantAccountSetter {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: OptionalEncryptableName,
     pub merchant_details: OptionalEncryptableValue,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: String,
@@ -226,7 +226,7 @@ pub enum MerchantAccountUpdate {
         merchant_name: OptionalEncryptableName,
         merchant_details: OptionalEncryptableValue,
         return_url: Option<String>,
-        webhook_details: Option<serde_json::Value>,
+        webhook_details: Option<diesel_models::business_profile::WebhookDetails>,
         sub_merchants_enabled: Option<bool>,
         parent_merchant_id: Option<common_utils::id_type::MerchantId>,
         enable_payment_response_hash: Option<bool>,
@@ -564,14 +564,30 @@ impl super::behaviour::Conversion for MerchantAccount {
                 id,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| {
-                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| {
-                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
                 publishable_key,
@@ -678,14 +694,30 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| {
-                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| {
-                        decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek())
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
                 webhook_details: item.webhook_details,

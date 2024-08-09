@@ -69,7 +69,7 @@ pub async fn save_payment_method<FData>(
     currency: Option<storage_enums::Currency>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
-    business_profile: &storage::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -321,7 +321,7 @@ where
                                             pm_data_encrypted.map(Into::into),
                                             key_store,
                                             connector_mandate_details,
-                                            None,
+                                            pm_status,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
                                             encrypted_payment_method_billing_address
@@ -406,21 +406,28 @@ where
                                     }
                                     Err(err) => {
                                         if err.current_context().is_db_not_found() {
-                                            payment_methods::cards::insert_payment_method(
+                                            payment_methods::cards::create_payment_method(
                                                 state,
-                                                &resp,
-                                                &payment_method_create_request.clone(),
-                                                key_store,
-                                                merchant_account.get_id(),
+                                                &payment_method_create_request,
                                                 &customer_id,
+                                                &resp.payment_method_id,
+                                                locker_id,
+                                                merchant_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
-                                                locker_id,
+                                                pm_data_encrypted.map(Into::into),
+                                                key_store,
                                                 connector_mandate_details,
+                                                pm_status,
                                                 network_transaction_id,
                                                 merchant_account.storage_scheme,
                                                 encrypted_payment_method_billing_address
                                                     .map(Into::into),
+                                                resp.card.and_then(|card| {
+                                                    card.card_network.map(|card_network| {
+                                                        card_network.to_string()
+                                                    })
+                                                }),
                                             )
                                             .await
                                         } else {
@@ -610,7 +617,7 @@ where
                                 pm_data_encrypted.map(Into::into),
                                 key_store,
                                 connector_mandate_details,
-                                None,
+                                pm_status,
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
                                 encrypted_payment_method_billing_address.map(Into::into),

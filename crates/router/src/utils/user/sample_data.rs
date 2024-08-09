@@ -58,6 +58,8 @@ pub async fn generate_sample_data(
         let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
         let profile_id = crate::core::utils::get_profile_id_from_business_details(
+            key_manager_state,
+            &key_store,
             business_country_default,
             business_label_default.as_ref(),
             &merchant_from_db,
@@ -89,7 +91,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_business_profile_by_merchant_id(merchant_id)
+                .list_business_profile_by_merchant_id(key_manager_state, &key_store, merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
@@ -249,6 +251,7 @@ pub async fn generate_sample_data(
             billing_details: None,
             merchant_order_reference_id: Default::default(),
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
