@@ -17,7 +17,7 @@ describe("Card - SaveCard payment flow test", () => {
   });
 
   context(
-    "Save card for NoThreeDS automatic capture payment- Create+Confirm[on_session]",
+    "Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session]",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -95,7 +95,7 @@ describe("Card - SaveCard payment flow test", () => {
   );
 
   context(
-    "Save card for NoThreeDS manual full capture payment- Create+Confirm[on_session]",
+    "Save card for NoThreeDS manual full capture payment- Create+Confirm [on_session]",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -194,7 +194,7 @@ describe("Card - SaveCard payment flow test", () => {
   );
 
   context(
-    "Save card for NoThreeDS manual partial capture payment- Create + Confirm[on_session]",
+    "Save card for NoThreeDS manual partial capture payment- Create + Confirm [on_session]",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -371,7 +371,7 @@ describe("Card - SaveCard payment flow test", () => {
   );
 
   context(
-    "Save card for NoThreeDS manual capture payment- Create+Confirm[off_session]",
+    "Save card for NoThreeDS manual capture payment- Create+Confirm [off_session]",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 

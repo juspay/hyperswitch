@@ -460,7 +460,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
         setup_future_usage: "off_session",
         customer_acceptance: {
           acceptance_type: "offline",
@@ -484,7 +483,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
         setup_future_usage: "off_session",
         customer_acceptance: {
           acceptance_type: "offline",
@@ -504,7 +502,6 @@ export const connectorDetails = {
     },
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
-        currency: "USD",
         setup_future_usage: "off_session",
       },
       Response: {
@@ -518,7 +515,6 @@ export const connectorDetails = {
     },
     SaveCardConfirmManualCaptureOffSession: {
       Request: {
-        currency: "USD",
         setup_future_usage: "off_session",
       },
       Response: {
