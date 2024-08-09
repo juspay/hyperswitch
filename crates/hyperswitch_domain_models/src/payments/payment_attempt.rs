@@ -541,6 +541,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
     async fn convert_back(
@@ -622,6 +623,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .shipping_details
                     .async_lift(inner_decrypt)
                     .await?,
+                is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
             })
         }
         .await
@@ -679,6 +681,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
 }
@@ -738,6 +741,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
 
@@ -820,6 +824,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .shipping_details
                     .async_lift(inner_decrypt)
                     .await?,
+                is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
             })
         }
         .await
@@ -877,6 +882,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
 }
