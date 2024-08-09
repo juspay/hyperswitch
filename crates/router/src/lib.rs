@@ -46,8 +46,7 @@ use crate::{configs::settings, core::errors};
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 // Import translate fn in root
-use crate::locale::_rust_i18n_t;
-use crate::locale::_rust_i18n_try_translate;
+use crate::locale::{_rust_i18n_t, _rust_i18n_try_translate};
 
 /// Header Constants
 pub mod headers {
