@@ -11,4 +11,5 @@ tracing = { version = "0.1.40" }
 [profile.release]
 strip = true
 lto = true
-codegen-units = 1
+codegen-units = 1  
+
