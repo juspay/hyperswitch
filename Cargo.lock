@@ -1489,6 +1489,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23ce669cd6c8588f79e15cf450314f9638f967fc5770ff1c7c1deb0925ea7cfa"
 
 [[package]]
+name = "base62"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f879ef8fc74665ed7f0e6127cb106315888fc2744f68e14b74f83edbb2a08992"
+
+[[package]]
 name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4322,6 +4328,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "libyml"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64804cc6a5042d4f05379909ba25b503ec04e2c082151d62122d5dcaa274b961"
+
+[[package]]
 name = "libz-sys"
 version = "1.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4383,9 +4395,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.21"
+version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "lru-cache"
@@ -4474,9 +4486,9 @@ checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 
 [[package]]
 name = "memchr"
-version = "2.7.2"
+version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
+checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "memoffset"
@@ -5332,7 +5344,7 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
 dependencies = [
- "siphasher",
+ "siphasher 0.3.11",
 ]
 
 [[package]]
@@ -6241,9 +6253,8 @@ dependencies = [
 
 [[package]]
 name = "rust-i18n"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dcd94370631e5658a0a23635f7f47e43d06a00ad948e0bb5de79b00d85b880c"
+version = "3.1.1"
+source = "git+https://github.com/kashif-m/rust-i18n?rev=f2d8096aaaff7a87a847c35a5394c269f75e077a#f2d8096aaaff7a87a847c35a5394c269f75e077a"
 dependencies = [
  "globwalk",
  "once_cell",
@@ -6255,9 +6266,8 @@ dependencies = [
 
 [[package]]
 name = "rust-i18n-macro"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "355763801dcf287e777e42def7c578410783477b804b1107852119e0b2518396"
+version = "3.1.1"
+source = "git+https://github.com/kashif-m/rust-i18n?rev=f2d8096aaaff7a87a847c35a5394c269f75e077a#f2d8096aaaff7a87a847c35a5394c269f75e077a"
 dependencies = [
  "glob",
  "once_cell",
@@ -6266,18 +6276,19 @@ dependencies = [
  "rust-i18n-support",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yml",
  "syn 2.0.57",
 ]
 
 [[package]]
 name = "rust-i18n-support"
-version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "399801f4d955abf1c3ce3ce2215dc76bd40beb4ae39e3a84936b21a79ce2caa5"
+version = "3.1.1"
+source = "git+https://github.com/kashif-m/rust-i18n?rev=f2d8096aaaff7a87a847c35a5394c269f75e077a#f2d8096aaaff7a87a847c35a5394c269f75e077a"
 dependencies = [
  "arc-swap",
+ "base62",
  "globwalk",
+ "itertools 0.11.0",
  "lazy_static",
  "normpath",
  "once_cell",
@@ -6285,7 +6296,8 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yml",
+ "siphasher 1.0.1",
  "toml 0.7.8",
  "triomphe",
 ]
@@ -6526,9 +6538,9 @@ dependencies = [
 
 [[package]]
 name = "ryu"
-version = "1.0.17"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e86697c916019a8588c99b5fac3cead74ec0b4b819707a682fd4d23fa0ce1ba1"
+checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "same-file"
@@ -6668,9 +6680,9 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.197"
+version = "1.0.205"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fb1c873e1b9b056a4dc4c0c198b24c3ffa059243875552b2bd0933b1aee4ce2"
+checksum = "e33aedb1a7135da52b7c21791455563facbbcc43d0f0f66165b42c21b3dfb150"
 dependencies = [
  "serde_derive",
 ]
@@ -6709,9 +6721,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.197"
+version = "1.0.205"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7eb0b34b42edc17f6b7cac84a52a1c5f0e1bb2227e997ca9011ea3dd34e8610b"
+checksum = "692d6f5ac90220161d6774db30c662202721e64aed9058d2c394f451261420c1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6720,12 +6732,13 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.115"
+version = "1.0.122"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12dc5c46daa8e9fdf4f5e71b6cf9a53f2487da0e86e55808e2d35539666497dd"
+checksum = "784b6203951c57ff748476b126ccb5e8e2959a5c19e5c617ab1956be3dbc68da"
 dependencies = [
  "indexmap 2.3.0",
  "itoa",
+ "memchr",
  "ryu",
  "serde",
 ]
@@ -6823,15 +6836,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml"
-version = "0.8.26"
+name = "serde_yml"
+version = "0.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "578a7433b776b56a35785ed5ce9a7e777ac0598aac5a6dd1b4b18a307c7fc71b"
+checksum = "48e76bab63c3fd98d27c17f9cbce177f64a91f5e69ac04cafe04e1bb25d1dc3c"
 dependencies = [
- "indexmap 1.9.3",
+ "indexmap 2.3.0",
+ "itoa",
+ "libyml",
+ "log",
+ "memchr",
  "ryu",
  "serde",
- "yaml-rust",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -6960,6 +6978,12 @@ name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
+
+[[package]]
+name = "siphasher"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
 name = "skeptic"
