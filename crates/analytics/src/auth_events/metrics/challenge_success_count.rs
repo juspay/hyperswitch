@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::analytics::{
-    auth_events::{AuthEventFlows, AuthEventMetricsBucketIdentifier},
-    Granularity, TimeRange,
+    auth_events::AuthEventMetricsBucketIdentifier, Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
@@ -30,17 +29,17 @@ where
     async fn load_metrics(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        _publishable_key: &str,
+
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::ApiEventsAnalytics);
+            QueryBuilder::new(AnalyticsCollection::Authentications);
 
         query_builder
             .add_select_column(Aggregate::Count {
-                field: None,
+                field: Some("authentication_id"),
                 alias: Some("count"),
             })
             .switch()?;
@@ -56,11 +55,11 @@ where
             .switch()?;
 
         query_builder
-            .add_filter_clause("api_flow", AuthEventFlows::IncomingWebhookReceive)
+            .add_filter_clause("authentication_status", "success")
             .switch()?;
 
         query_builder
-            .add_filter_clause("visitParamExtractRaw(request, 'transStatus')", "\"Y\"")
+            .add_filter_clause("trans_status", "C")
             .switch()?;
 
         time_range

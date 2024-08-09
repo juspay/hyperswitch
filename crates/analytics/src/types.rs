@@ -34,6 +34,7 @@ pub enum AnalyticsCollection {
     PaymentIntent,
     ConnectorEvents,
     OutgoingWebhookEvent,
+    Authentications,
     Dispute,
     ApiEventsAnalytics,
     ActivePaymentsAnalytics,

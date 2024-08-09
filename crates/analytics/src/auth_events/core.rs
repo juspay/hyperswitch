@@ -18,7 +18,7 @@ use crate::{
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &common_utils::id_type::MerchantId,
-    publishable_key: &String,
+    _publishable_key: &String,
     req: GetAuthEventMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -30,14 +30,12 @@ pub async fn get_metrics(
     for metric_type in req.metrics.iter().cloned() {
         let req = req.clone();
         let merchant_id_scoped = merchant_id.to_owned();
-        let publishable_key_scoped = publishable_key.to_owned();
         let pool = pool.clone();
         set.spawn(async move {
             let data = pool
                 .get_auth_event_metrics(
                     &metric_type,
                     &merchant_id_scoped,
-                    &publishable_key_scoped,
                     &req.time_series.map(|t| t.granularity),
                     &req.time_range,
                 )

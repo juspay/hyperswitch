@@ -797,7 +797,7 @@ impl AnalyticsProvider {
         &self,
         metric: &AuthEventMetrics,
         merchant_id: &common_utils::id_type::MerchantId,
-        publishable_key: &str,
+
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
@@ -805,14 +805,13 @@ impl AnalyticsProvider {
             Self::Sqlx(_pool) => Err(report!(MetricsError::NotImplemented)),
             Self::Clickhouse(pool) => {
                 metric
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::CombinedCkh(_sqlx_pool, ckh_pool) | Self::CombinedSqlx(_sqlx_pool, ckh_pool) => {
                 metric
                     .load_metrics(
                         merchant_id,
-                        publishable_key,
                         granularity,
                         // Since API events are ckh only use ckh here
                         time_range,

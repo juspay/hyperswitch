@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::analytics::{
-    auth_events::AuthEventMetricsBucketIdentifier, sdk_events::SdkEventNames, Granularity,
-    TimeRange,
+    auth_events::AuthEventMetricsBucketIdentifier, Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
@@ -30,17 +29,17 @@ where
     async fn load_metrics(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
-        publishable_key: &str,
+
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         let mut query_builder: QueryBuilder<T> =
-            QueryBuilder::new(AnalyticsCollection::SdkEventsAnalytics);
+            QueryBuilder::new(AnalyticsCollection::Authentications);
 
         query_builder
             .add_select_column(Aggregate::Count {
-                field: None,
+                field: Some("authentication_id"),
                 alias: Some("count"),
             })
             .switch()?;
@@ -52,26 +51,12 @@ where
         }
 
         query_builder
-            .add_filter_clause("merchant_id", publishable_key)
+            .add_filter_clause("merchant_id", _merchant_id)
             .switch()?;
 
         query_builder
-            .add_bool_filter_clause("first_event", 1)
+            .add_filter_clause("trans_status", "C")
             .switch()?;
-
-        query_builder
-            .add_filter_clause("category", "USER_EVENT")
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("log_type", "INFO")
-            .switch()?;
-
-        query_builder
-            .add_filter_clause("event_name", SdkEventNames::DisplayThreeDsSdk)
-            .switch()?;
-
-        query_builder.add_filter_clause("value", "C").switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)
