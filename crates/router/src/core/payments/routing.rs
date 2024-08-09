@@ -801,7 +801,11 @@ pub async fn perform_session_flow_routing(
         let business_profile = session_input
             .state
             .store
-            .find_business_profile_by_profile_id(&profile_id)
+            .find_business_profile_by_profile_id(
+                &session_input.state.into(),
+                session_input.key_store,
+                &profile_id,
+            )
             .await
             .change_context(errors::RoutingError::ProfileNotFound)?;
 

@@ -1010,16 +1010,22 @@ pub fn get_connector_request_reference_id(
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
+    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    merchant_key_store: &domain::MerchantKeyStore,
     profile_id: Option<&String>,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> RouterResult<Option<storage::business_profile::BusinessProfile>> {
+) -> RouterResult<Option<domain::BusinessProfile>> {
     profile_id
         .async_map(|profile_id| async {
-            db.find_business_profile_by_profile_id(profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.to_owned(),
-                })
+            db.find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.to_owned(),
+            })
         })
         .await
         .transpose()?
@@ -1082,7 +1088,10 @@ pub fn get_connector_label(
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
 /// or return a `MissingRequiredField` error
+#[allow(clippy::too_many_arguments)]
 pub async fn get_profile_id_from_business_details(
+    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    merchant_key_store: &domain::MerchantKeyStore,
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
     merchant_account: &domain::MerchantAccount,
@@ -1096,6 +1105,8 @@ pub async fn get_profile_id_from_business_details(
             if should_validate {
                 let _ = validate_and_get_business_profile(
                     db,
+                    key_manager_state,
+                    merchant_key_store,
                     Some(profile_id),
                     merchant_account.get_id(),
                 )
@@ -1108,6 +1119,8 @@ pub async fn get_profile_id_from_business_details(
                 let profile_name = format!("{business_country}_{business_label}");
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
+                        key_manager_state,
+                        merchant_key_store,
                         &profile_name,
                         merchant_account.get_id(),
                     )

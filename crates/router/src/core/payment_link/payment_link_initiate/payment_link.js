@@ -238,6 +238,7 @@ function boot() {
   }
   else{
     renderPaymentDetails(paymentDetails);
+    renderDynamicMerchantDetails(paymentDetails);
     renderCart(paymentDetails);
     renderSDKHeader(paymentDetails);
   }
@@ -602,6 +603,42 @@ function renderPaymentDetails(paymentDetails) {
   var footerNode = document.getElementById("hyper-checkout-payment-footer");
   if (footerNode instanceof HTMLDivElement) {
     footerNode.append(paymentExpiryNode);
+  }
+}
+
+function renderDynamicMerchantDetails(paymentDetails) {
+  var merchantDynamicDetails = document.getElementById(
+    "hyper-checkout-payment-merchant-dynamic-details"
+  );
+  if (merchantDynamicDetails instanceof HTMLDivElement) {
+    // add dynamic merchant details in the payment details section if present
+    appendMerchantDetails(paymentDetails, merchantDynamicDetails);
+  }
+}
+
+function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
+  if (Object.keys(paymentDetails.transaction_details).length === 0) {
+    return;
+  }
+
+  // render a horizontal line above dynamic merchant details
+  let horizontalLineContainer = document.getElementById("hyper-checkout-payment-horizontal-line-container");
+  let horizontalLine = document.createElement("hr");
+  horizontalLine.className = "hyper-checkout-payment-horizontal-line";
+  horizontalLineContainer.append(horizontalLine);
+
+  // max number of items to show in the merchant details
+  let maxItemsInDetails = 5;
+  let merchantDetailsObject = JSON.parse(paymentDetails.transaction_details);
+  for(const key in merchantDetailsObject) {
+    var merchantData = document.createElement("div");
+    merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
+    merchantData.innerHTML = key+": "+merchantDetailsObject[key].bold();
+
+    merchantDynamicDetails.append(merchantData);
+    if(--maxItemsInDetails === 0) {
+      break;
+    }
   }
 }
 
