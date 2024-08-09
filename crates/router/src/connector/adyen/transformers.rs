@@ -4,6 +4,7 @@ use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{errors::ParsingError, ext_traits::Encode, id_type, pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_request_types::SubmitEvidenceRequestData;
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -4854,4 +4855,177 @@ impl From<AdyenStatus> for storage_enums::PayoutStatus {
             _ => Self::Ineligible,
         }
     }
+}
+
+fn get_merchant_account_code(
+    auth_type: &types::ConnectorAuthType,
+) -> errors::CustomResult<Secret<String>, errors::ConnectorError> {
+    let auth = AdyenAuthType::try_from(auth_type)
+        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    Ok(auth.merchant_account.clone())
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenAcceptDisputeRequest {
+    dispute_psp_reference: String,
+    merchant_account_code: Secret<String>,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenDisputeResponse {
+    pub error_message: Option<String>,
+    pub success: bool,
+}
+
+impl TryFrom<&types::AcceptDisputeRouterData> for AdyenAcceptDisputeRequest {
+    type Error = Error;
+    fn try_from(item: &types::AcceptDisputeRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
+        Ok(Self {
+            dispute_psp_reference: item.clone().request.connector_dispute_id,
+            merchant_account_code,
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenDefendDisputeRequest {
+    dispute_psp_reference: String,
+    merchant_account_code: Secret<String>,
+    defense_reason_code: String,
+}
+
+impl TryFrom<&types::DefendDisputeRouterData> for AdyenDefendDisputeRequest {
+    type Error = Error;
+    fn try_from(item: &types::DefendDisputeRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
+        Ok(Self {
+            dispute_psp_reference: item.request.connector_dispute_id.clone(),
+            merchant_account_code,
+            defense_reason_code: "SupplyDefenseMaterial".into(),
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct Evidence {
+    defense_documents: Vec<DefenseDocuments>,
+    merchant_account_code: Secret<String>,
+    dispute_psp_reference: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct DefenseDocuments {
+    content: String,
+    content_type: Option<String>,
+    defense_document_type_code: String,
+}
+
+impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
+        let submit_evidence_request_data = item.request.clone();
+        Ok(Self {
+            defense_documents: get_defence_documents(submit_evidence_request_data).ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "Missing Defence Documents",
+                },
+            )?,
+            merchant_account_code,
+            dispute_psp_reference: item.request.connector_dispute_id.clone(),
+        })
+    }
+}
+
+fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseDocuments>> {
+    let mut defense_documents: Vec<DefenseDocuments> = Vec::new();
+    if let Some(shipping_documentation) = item.shipping_documentation {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(shipping_documentation),
+            content_type: item.receipt_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(receipt) = item.receipt {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(receipt),
+            content_type: item.shipping_documentation_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(invoice_showing_distinct_transactions) = item.invoice_showing_distinct_transactions
+    {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(invoice_showing_distinct_transactions),
+            content_type: item.invoice_showing_distinct_transactions_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(customer_communication) = item.customer_communication {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(customer_communication),
+            content_type: item.customer_communication_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(refund_policy) = item.refund_policy {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(refund_policy),
+            content_type: item.refund_policy_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(recurring_transaction_agreement) = item.recurring_transaction_agreement {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(recurring_transaction_agreement),
+            content_type: item.recurring_transaction_agreement_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(uncategorized_file) = item.uncategorized_file {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(uncategorized_file),
+            content_type: item.uncategorized_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(cancellation_policy) = item.cancellation_policy {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(cancellation_policy),
+            content_type: item.cancellation_policy_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(customer_signature) = item.customer_signature {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(customer_signature),
+            content_type: item.customer_signature_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(service_documentation) = item.service_documentation {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(service_documentation),
+            content_type: item.service_documentation_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+
+    if defense_documents.is_empty() {
+        None
+    } else {
+        Some(defense_documents)
+    }
+}
+
+fn get_content(item: Vec<u8>) -> String {
+    String::from_utf8_lossy(&item).to_string()
 }

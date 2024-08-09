@@ -110,22 +110,22 @@ pub async fn files_retrieve_core(
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)
         .attach_printable("Unable to retrieve file_metadata")?;
-    let (received_data, _provider_file_id) =
-        helpers::retrieve_file_and_provider_file_id_from_file_id(
-            &state,
-            Some(req.file_id),
-            &merchant_account,
-            &key_store,
-            api::FileDataRequired::Required,
-        )
-        .await?;
+    let file_info = helpers::retrieve_file_and_provider_file_id_from_file_id(
+        &state,
+        Some(req.file_id),
+        &merchant_account,
+        &key_store,
+        api::FileDataRequired::Required,
+    )
+    .await?;
     let content_type = file_metadata_object
         .file_type
         .parse::<mime::Mime>()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse file content type")?;
     Ok(ApplicationResponse::FileData((
-        received_data
+        file_info
+            .file_data
             .ok_or(errors::ApiErrorResponse::FileNotAvailable)
             .attach_printable("File data not found")?,
         content_type,
