@@ -336,3 +336,20 @@ services:
       envSdkUrl: http://localhost:9050
       envBackendUrl: http://localhost:8080
       envLoggingUrl: http://localhost:8207
+
+  vector:
+    image: timberio/vector:latest-debian
+    ports:
+      - "8686"
+      - "9598"
+      - "3103:3103"
+    profiles:
+      - olap
+    environment:
+      KAFKA_HOST: 'kafka0:29092'
+    networks:
+      - router_net
+    volumes:
+      - ./logs:/var/log/router
+      - ./config/vector.yaml:/etc/vector/vector.yaml
+      - /var/run/docker.sock:/var/run/docker.sock
