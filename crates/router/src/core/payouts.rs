@@ -367,6 +367,7 @@ pub async fn payouts_confirm_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
     )
@@ -437,6 +438,7 @@ pub async fn payouts_update_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
     )
@@ -510,18 +512,18 @@ pub async fn payouts_update_core(
 pub async fn payouts_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        profile_id,
         &key_store,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
     )
     .await?;
-
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
@@ -561,6 +563,7 @@ pub async fn payouts_cancel_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
     )
@@ -656,6 +659,7 @@ pub async fn payouts_fulfill_core(
     let mut payout_data = make_payout_data(
         &state,
         &merchant_account,
+        None,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
     )
@@ -741,7 +745,7 @@ pub async fn payouts_fulfill_core(
 pub async fn payouts_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -756,6 +760,7 @@ pub async fn payouts_list_core(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
 
     let collected_futures = payouts.into_iter().map(|payout| async {
         match db
@@ -847,7 +852,7 @@ pub async fn payouts_list_core(
 pub async fn payouts_filtered_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -866,7 +871,7 @@ pub async fn payouts_filtered_list_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-
+    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PayoutCreateResponse> = join_all(list.into_iter().map(|(p, pa, c)| async {
         let domain_cust = c
             .async_and_then(|cust| async {
@@ -2350,6 +2355,7 @@ pub async fn payout_create_db_entries(
 pub async fn make_payout_data(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    auth_profile_id: Option<String>,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
@@ -2369,6 +2375,7 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
 
     let payout_attempt_id = utils::get_payment_attempt_id(payout_id, payouts.attempt_count);
 

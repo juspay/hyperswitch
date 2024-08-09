@@ -103,6 +103,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
+    profile_id_from_auth_layer: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -161,6 +162,11 @@ where
             &header_payload,
         )
         .await?;
+
+    utils::validate_profile_id_from_auth_layer(
+        profile_id_from_auth_layer,
+        &payment_data.payment_intent,
+    )?;
 
     let (operation, customer) = operation
         .to_domain()?
@@ -788,7 +794,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -825,6 +831,7 @@ where
             &state,
             req_state,
             merchant_account,
+            profile_id,
             key_store,
             operation.clone(),
             req,
@@ -1516,15 +1523,20 @@ where
     )
     .await?;
 
-    let merchant_recipient_data = payment_data
-        .get_merchant_recipient_data(
-            state,
-            merchant_account,
-            key_store,
-            &merchant_connector_account,
-            &connector,
-        )
-        .await?;
+    let merchant_recipient_data =
+        if let Some(true) = payment_data.payment_intent.is_payment_processor_token_flow {
+            None
+        } else {
+            payment_data
+                .get_merchant_recipient_data(
+                    state,
+                    merchant_account,
+                    key_store,
+                    &merchant_connector_account,
+                    &connector,
+                )
+                .await?
+        };
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -1563,24 +1575,18 @@ where
             payment_processing_details,
         ) => {
             let apple_pay_data = match payment_data.payment_method_data.clone() {
-                Some(payment_method_data) => {
-                    let domain_data = domain::PaymentMethodData::from(payment_method_data);
-                    match domain_data {
-                        domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
-                            wallet_data,
-                        )) => Some(
-                            ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .decrypt(
-                                    &payment_processing_details.payment_processing_certificate,
-                                    &payment_processing_details.payment_processing_certificate_key,
-                                )
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        ),
-                        _ => None,
-                    }
-                }
+                Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                    wallet_data,
+                ))) => Some(
+                    ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                        .decrypt(
+                            &payment_processing_details.payment_processing_certificate,
+                            &payment_processing_details.payment_processing_certificate_key,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                ),
                 _ => None,
             };
 
@@ -2056,9 +2062,9 @@ where
     }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
-        Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
-            api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+        Some(domain::PaymentMethodData::BankTransfer(data)) => match data.deref() {
+            domain::BankTransferData::AchBankTransfer { .. }
+            | domain::BankTransferData::MultibancoBankTransfer { .. }
                 if connector.connector_name == router_types::Connector::Stripe =>
             {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
@@ -2072,7 +2078,7 @@ where
             }
             _ => (router_data, should_continue_payment),
         },
-        Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+        Some(domain::PaymentMethodData::Wallet(_)) => {
             if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                 (
                     router_data.preprocessing_steps(state, connector).await?,
@@ -2082,7 +2088,7 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+        Some(domain::PaymentMethodData::Card(_)) => {
             if connector.connector_name == router_types::Connector::Payme
                 && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
             {
@@ -2131,7 +2137,7 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(api_models::payments::PaymentMethodData::GiftCard(_)) => {
+        Some(domain::PaymentMethodData::GiftCard(_)) => {
             if connector.connector_name == router_types::Connector::Adyen {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
@@ -2142,7 +2148,7 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
+        Some(domain::PaymentMethodData::BankDebit(_)) => {
             if connector.connector_name == router_types::Connector::Gocardless {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 let is_error_in_response = router_data.response.is_err();
@@ -2205,9 +2211,9 @@ where
         .await?;
 
     match payment_data.payment_method_data.clone() {
-        Some(api_models::payments::PaymentMethodData::OpenBanking(
-            api_models::payments::OpenBankingData::OpenBankingPIS { .. },
-        )) => {
+        Some(domain::PaymentMethodData::OpenBanking(domain::OpenBankingData::OpenBankingPIS {
+            ..
+        })) => {
             if connector.connector_name == router_types::Connector::Plaid {
                 router_data = router_data.postprocessing_steps(state, connector).await?;
                 let token = if let Ok(ref res) = router_data.response {
@@ -2694,7 +2700,7 @@ where
     pub token_data: Option<storage::PaymentTokenData>,
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
-    pub payment_method_data: Option<api::PaymentMethodData>,
+    pub payment_method_data: Option<domain::PaymentMethodData>,
     pub payment_method_info: Option<storage::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
@@ -2872,7 +2878,7 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
@@ -2889,6 +2895,8 @@ pub async fn list_payments(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_intents =
+        utils::filter_objects_based_on_profile_id_list(profile_id_list, payment_intents);
 
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
@@ -2945,7 +2953,7 @@ pub async fn list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
@@ -2962,7 +2970,7 @@ pub async fn apply_filters_on_payments(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
+    let list = utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
@@ -3043,10 +3051,11 @@ pub async fn get_filters_for_payments(
 pub async fn get_payment_filters(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), None).await?
+        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), profile_id_list)
+            .await?
     {
         data
     } else {

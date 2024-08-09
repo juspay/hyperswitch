@@ -1,8 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData,
-    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
+    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest,
+    PaymentChargeResponse, RequestSurchargeDetails,
 };
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
@@ -135,11 +135,6 @@ where
         Some(merchant_connector_account),
     );
 
-    let payment_method_data_billing = payment_data
-        .payment_method_data
-        .as_ref()
-        .and_then(|payment_method_data| payment_method_data.get_billing_address());
-
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -152,9 +147,7 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        address: payment_data
-            .address
-            .unify_with_payment_method_data_billing(payment_method_data_billing),
+        address: payment_data.address.clone(),
         auth_type: payment_data
             .payment_attempt
             .authentication_type
@@ -582,7 +575,7 @@ where
 
         services::ApplicationResponse::Form(Box::new(services::RedirectionFormData {
             redirect_form: form,
-            payment_method_data: payment_data.payment_method_data,
+            payment_method_data: payment_data.payment_method_data.map(Into::into),
             amount,
             currency: currency.to_string(),
         }))
@@ -1292,7 +1285,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {
-                Some(api_models::payments::PaymentMethodData::MandatePayment)
+                Some(domain::PaymentMethodData::MandatePayment)
             } else {
                 None
             }
@@ -1334,9 +1327,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
 
         Ok(Self {
-            payment_method_data: From::from(
-                payment_method_data.get_required_value("payment_method_data")?,
-            ),
+            payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -1690,11 +1681,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             confirm: true,
             amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
             minor_amount: Some(amount),
-            payment_method_data: From::from(
-                payment_data
-                    .payment_method_data
-                    .get_required_value("payment_method_data")?,
-            ),
+            payment_method_data: (payment_data
+                .payment_method_data
+                .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             off_session: payment_data.mandate_id.as_ref().map(|_| true),

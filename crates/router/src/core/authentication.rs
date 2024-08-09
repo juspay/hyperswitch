@@ -22,7 +22,7 @@ pub async fn perform_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
-    payment_method_data: payments::PaymentMethodData,
+    payment_method_data: domain::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
     billing_address: payments::Address,
     shipping_address: Option<payments::Address>,
