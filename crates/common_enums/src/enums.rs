@@ -255,6 +255,7 @@ pub enum RoutableConnectors {
     Zen,
     Plaid,
     Zsl,
+    Taxjar,
 }
 
 impl AttemptStatus {
@@ -485,6 +486,8 @@ pub enum ConnectorType {
     PaymentMethodAuth,
     /// 3DS Authentication Service Providers
     AuthenticationProcessor,
+    /// Tax Calculators
+    TaxCalculator,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -2544,6 +2547,26 @@ impl AuthenticationConnectors {
             Self::Gpayments => true,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TaxationConnectors {
+    Taxjar,
+    Avalara,
 }
 
 #[derive(

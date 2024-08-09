@@ -1266,7 +1266,8 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
             | api_enums::Connector::DummyConnector4
             | api_enums::Connector::DummyConnector5
             | api_enums::Connector::DummyConnector6
-            | api_enums::Connector::DummyConnector7 => {
+            | api_enums::Connector::DummyConnector7
+            | api_enums::Connector::Taxjar => {
                 dummyconnector::transformers::DummyConnectorAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
@@ -3582,6 +3583,7 @@ pub async fn update_business_profile(
             authentication_connector_details: request
                 .authentication_connector_details
                 .map(ForeignInto::foreign_into),
+            tax_connector_id: request.tax_connector_id,
             payout_link_config,
             extended_card_info_config,
             use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,

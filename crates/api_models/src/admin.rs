@@ -1910,6 +1910,9 @@ pub struct BusinessProfileCreate {
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 
+    /// Merchant Connector id to be stored for tax_calculator connector
+    pub tax_connector_id: Option<String>,
+
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
@@ -2003,6 +2006,9 @@ pub struct BusinessProfileResponse {
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
 
+    /// Merchant Connector id to be stored for tax_calculator connector
+    pub tax_connector_id: Option<String>,
+
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
@@ -2090,6 +2096,9 @@ pub struct BusinessProfileUpdate {
 
     /// External 3DS authentication details
     pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+
+    /// Merchant Connector id to be stored for tax_calculator connector
+    pub tax_connector_id: Option<String>,
 
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
