@@ -4,10 +4,7 @@
 //! of Routing configs.
 
 use actix_web::{web, HttpRequest, Responder};
-use api_models::{
-    enums, routing as routing_types,
-    routing::{RoutingRetrieveLinkQuery, RoutingRetrieveQuery},
-};
+use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -535,12 +532,16 @@ pub async fn retrieve_decision_manager_config(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<RoutingRetrieveLinkQuery>,
+    query: web::Query<routing_types::RoutingRetrieveLinkQuery>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     use crate::services::authentication::AuthenticationData;
@@ -556,6 +557,54 @@ pub async fn routing_retrieve_linked_config(
                 auth.merchant_account,
                 auth.key_store,
                 query_params,
+                transaction_type,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RoutingRead),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+#[instrument(skip_all)]
+pub async fn routing_retrieve_linked_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<RoutingRetrieveQuery>,
+    path: web::Path<String>,
+    transaction_type: &enums::TransactionType,
+) -> impl Responder {
+    use crate::services::authentication::AuthenticationData;
+    let flow = Flow::RoutingRetrieveActiveConfig;
+    let wrapper = routing_types::RoutingRetrieveLinkQueryWrapper {
+        routing_query: query.into_inner(),
+        profile_id: path.into_inner(),
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        wrapper,
+        |state, auth: AuthenticationData, wrapper, _| {
+            routing::retrieve_linked_routing_config(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                wrapper.routing_query,
+                wrapper.profile_id,
                 transaction_type,
             )
         },
