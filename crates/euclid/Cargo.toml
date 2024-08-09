@@ -36,3 +36,6 @@ criterion = "0.5"
 name = "backends"
 harness = false
 required-features = ["ast_parser", "valued_jit"]
+
+[lints]
+workspace = true

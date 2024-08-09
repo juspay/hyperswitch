@@ -172,3 +172,6 @@ path = "src/bin/router.rs"
 [[bin]]
 name = "scheduler"
 path = "src/bin/scheduler.rs"
+
+[lints]
+workspace = true
