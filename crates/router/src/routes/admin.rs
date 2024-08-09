@@ -523,7 +523,7 @@ pub async fn payment_connector_list(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, auth, merchant_id, _| list_payment_connectors(state, merchant_id, None),
+        |state, _auth, merchant_id, _| list_payment_connectors(state, merchant_id, None),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuthMerchantFromRoute {
