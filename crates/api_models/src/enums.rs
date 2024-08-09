@@ -144,6 +144,7 @@ pub enum Connector {
     Riskified,
     Zen,
     Zsl,
+    Taxjar,
 }
 
 impl Connector {
@@ -234,6 +235,7 @@ impl Connector {
             | Self::Iatapay
             | Self::Itaubank
             | Self::Klarna
+            | Self::Taxjar
             | Self::Mifinity
             | Self::Mollie
             | Self::Multisafepay
@@ -641,6 +643,10 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_taxation_connector(connector_name: &str) -> Option<TaxationConnectors> {
+    TaxationConnectors::from_str(connector_name).ok()
 }
 
 #[derive(

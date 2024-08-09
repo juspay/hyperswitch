@@ -147,6 +147,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             authentication_connector_details: item
                 .authentication_connector_details
                 .map(ForeignInto::foreign_into),
+            tax_connector_id: item.tax_connector_id,
             payout_link_config: item.payout_link_config.map(ForeignInto::foreign_into),
             use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
             extended_card_info_config: item
@@ -269,6 +270,7 @@ pub async fn create_business_profile(
         authentication_connector_details: request
             .authentication_connector_details
             .map(ForeignInto::foreign_into),
+        tax_connector_id: request.tax_connector_id,
         payout_link_config,
         is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
         is_extended_card_info_enabled: None,

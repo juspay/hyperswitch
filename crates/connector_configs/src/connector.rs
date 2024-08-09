@@ -355,6 +355,7 @@ impl ConnectorConfig {
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
             // Connector::Paybox => Ok(connector_data.paybox), added for future usage
+            Connector::Taxjar => Ok(connector_data.dummy_connector),
         }
     }
 }
