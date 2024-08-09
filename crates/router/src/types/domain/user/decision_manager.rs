@@ -1,6 +1,6 @@
 use common_enums::TokenPurpose;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use masking::Secret;
 
 use super::UserFromStorage;
@@ -8,6 +8,7 @@ use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::SessionState,
     services::authentication as auth,
+    types::domain,
     utils,
 };
 
@@ -107,18 +108,18 @@ impl JWTFlow {
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
+        let merchant_id =
+            domain::UserRoleMerchantAccount::get_single_merchant_id(user_role, state).await?;
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
-            user_role
-                .merchant_id
-                .clone()
-                .ok_or(report!(UserErrors::InternalServerError))?,
+            merchant_id,
             user_role.role_id.clone(),
             &state.conf,
             user_role
                 .org_id
                 .clone()
-                .ok_or(report!(UserErrors::InternalServerError))?,
+                .ok_or(report!(UserErrors::InternalServerError))
+                .attach_printable("org_id not found")?,
             None,
         )
         .await

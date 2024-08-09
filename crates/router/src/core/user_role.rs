@@ -7,7 +7,6 @@ use error_stack::{report, ResultExt};
 use router_env::logger;
 
 use crate::{
-    consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::{app::ReqState, SessionState},
     services::{
@@ -104,10 +103,7 @@ pub async fn update_user_role(
         .store
         .update_user_role_by_user_id_merchant_id(
             user_to_be_updated.get_user_id(),
-            &user_role_to_be_updated
-                .merchant_id
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("merchant_id not found in user_role")?,
+            &user_from_token.merchant_id,
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
@@ -121,61 +117,6 @@ pub async fn update_user_role(
     auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
 
     Ok(ApplicationResponse::StatusOk)
-}
-
-pub async fn transfer_org_ownership(
-    state: SessionState,
-    user_from_token: auth::UserFromToken,
-    req: user_role_api::TransferOrgOwnershipRequest,
-    _req_state: ReqState,
-) -> UserResponse<user_api::DashboardEntryResponse> {
-    if user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "role_id = {} is not org_admin",
-            user_from_token.role_id
-        ));
-    }
-
-    let user_to_be_updated =
-        utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleOperation)
-            .attach_printable("User not found in our records".to_string())?;
-
-    if user_from_token.user_id == user_to_be_updated.get_user_id() {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User transferring ownership to themselves".to_string());
-    }
-
-    state
-        .store
-        .transfer_org_ownership_between_users(
-            &user_from_token.user_id,
-            user_to_be_updated.get_user_id(),
-            &user_from_token.org_id,
-            UserRoleVersion::V1,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
-    auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
-
-    let user_from_db = user_from_token.get_user_from_db(&state).await?;
-    let user_role = user_from_db
-        .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
-
-    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
-
-    let token =
-        utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-            .await?;
-    let response =
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
-
-    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn accept_invitation(
@@ -248,13 +189,25 @@ pub async fn merchant_select(
 
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-        let token =
-            utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-                .await?;
+        let merchant_id =
+            domain::UserRoleMerchantAccount::get_single_merchant_id(&user_role, &state).await?;
+
+        let token = utils::user::generate_jwt_auth_token_without_profile(
+            &state,
+            &user_from_db,
+            &merchant_id,
+            &user_role
+                .org_id
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("org_id not found")?,
+            &user_role.role_id,
+        )
+        .await?;
         let response = utils::user::get_dashboard_entry_response(
             &state,
             user_from_db,
-            user_role,
+            merchant_id,
+            user_role.role_id,
             token.clone(),
         )?;
         return auth::cookies::set_cookie_response(

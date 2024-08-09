@@ -9,7 +9,7 @@ use router_env::logger;
 
 use crate::{
     consts,
-    core::errors::{StorageErrorExt, UserErrors, UserResult},
+    core::errors::{UserErrors, UserResult},
     routes::SessionState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
@@ -102,6 +102,8 @@ pub async fn validate_role_name(
     Ok(())
 }
 
+// This will currently not cache org level roles as we don't have org level custom roles
+// TODO: remove the usage of merchant_id in the following function
 pub async fn set_role_permissions_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,
@@ -149,26 +151,4 @@ pub async fn set_role_permissions_in_cache_if_required(
     .await
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Error setting permissions in redis")
-}
-
-pub async fn get_multiple_role_info_for_user_roles(
-    state: &SessionState,
-    user_roles: &[UserRole],
-) -> UserResult<Vec<roles::RoleInfo>> {
-    futures::future::try_join_all(user_roles.iter().map(|user_role| async {
-        let Some(merchant_id) = &user_role.merchant_id else {
-            return Err(report!(UserErrors::InternalServerError))
-                .attach_printable("merchant_id not found for user_role");
-        };
-        let Some(org_id) = &user_role.org_id else {
-            return Err(report!(UserErrors::InternalServerError)
-                .attach_printable("org_id not found in user_role"));
-        };
-        let role = roles::RoleInfo::from_role_id(state, &user_role.role_id, merchant_id, org_id)
-            .await
-            .to_not_found_response(UserErrors::InternalServerError)
-            .attach_printable("Role for user role doesn't exist")?;
-        Ok::<_, error_stack::Report<UserErrors>>(role)
-    }))
-    .await
 }

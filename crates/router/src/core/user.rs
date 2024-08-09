@@ -4,6 +4,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse},
 };
+use common_enums::EntityType;
 use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -11,7 +12,7 @@ use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
-    user_role::UserRoleNew,
+    user_role::NewUserRole,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
@@ -62,6 +63,7 @@ pub async fn signup_with_merchant_id(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await?;
 
@@ -126,6 +128,7 @@ pub async fn signup(
         .get_new_organization()
         .insert_org_in_db(state.clone())
         .await?;
+
     let user_from_db = new_user
         .insert_user_and_merchant_in_db(state.clone())
         .await?;
@@ -134,15 +137,32 @@ pub async fn signup(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    let token =
-        utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-            .await?;
-    let response =
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
+    let merchant_id = new_user.get_new_merchant().get_merchant_id();
+    let org_id = new_user
+        .get_new_merchant()
+        .get_new_organization()
+        .get_organization_id();
+
+    let token = utils::user::generate_jwt_auth_token_without_profile(
+        &state,
+        &user_from_db,
+        &merchant_id,
+        &org_id,
+        &user_role.role_id,
+    )
+    .await?;
+    let response = utils::user::get_dashboard_entry_response(
+        &state,
+        user_from_db,
+        merchant_id,
+        user_role.role_id,
+        token.clone(),
+    )?;
 
     auth::cookies::set_cookie_response(user_api::TokenOrPayloadResponse::Payload(response), token)
 }
@@ -165,6 +185,7 @@ pub async fn signup_token_only_flow(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await?;
 
@@ -316,6 +337,7 @@ pub async fn connect_account(
                 state.clone(),
                 consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
+                EntityType::Organization,
             )
             .await?;
 
@@ -701,6 +723,7 @@ async fn handle_invitation(
             request,
             invitee_user.into(),
             auth_id,
+            role_info,
         )
         .await
     } else if invitee_user
@@ -716,6 +739,7 @@ async fn handle_invitation(
             req_state.clone(),
             is_token_only,
             auth_id,
+            role_info,
         )
         .await
     } else {
@@ -730,15 +754,16 @@ async fn handle_existing_user_invitation(
     request: &user_api::InviteUserRequest,
     invitee_user_from_db: domain::UserFromStorage,
     auth_id: &Option<String>,
+    role_info: roles::RoleInfo,
 ) -> UserResult<InviteMultipleUserResponse> {
     let now = common_utils::date_time::now();
     state
         .store
-        .insert_user_role(UserRoleNew {
+        .insert_user_role(NewUserRole {
             user_id: invitee_user_from_db.get_user_id().to_owned(),
-            merchant_id: Some(user_from_token.merchant_id.clone()),
+            merchant_id: user_from_token.merchant_id.clone(),
             role_id: request.role_id.clone(),
-            org_id: Some(user_from_token.org_id.clone()),
+            org_id: user_from_token.org_id.clone(),
             status: {
                 if cfg!(feature = "email") {
                     UserStatus::InvitationSent
@@ -746,14 +771,12 @@ async fn handle_existing_user_invitation(
                     UserStatus::Active
                 }
             },
+            profile_id: user_from_token.profile_id.clone(),
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id.clone(),
             created_at: now,
             last_modified: now,
-            profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
+            entity_type: role_info.get_entity_type(),
         })
         .await
         .map_err(|e| {
@@ -809,6 +832,7 @@ async fn handle_new_user_invitation(
     req_state: ReqState,
     is_token_only: Option<bool>,
     auth_id: &Option<String>,
+    role_info: roles::RoleInfo,
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
@@ -826,20 +850,18 @@ async fn handle_new_user_invitation(
     let now = common_utils::date_time::now();
     state
         .store
-        .insert_user_role(UserRoleNew {
+        .insert_user_role(NewUserRole {
             user_id: new_user.get_user_id().to_owned(),
-            merchant_id: Some(user_from_token.merchant_id.clone()),
+            merchant_id: user_from_token.merchant_id.clone(),
             role_id: request.role_id.clone(),
-            org_id: Some(user_from_token.org_id.clone()),
+            org_id: user_from_token.org_id.clone(),
             status: invitation_status,
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id.clone(),
+            profile_id: user_from_token.profile_id.clone(),
             created_at: now,
             last_modified: now,
-            profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
+            entity_type: role_info.get_entity_type(),
         })
         .await
         .map_err(|e| {
@@ -1042,7 +1064,13 @@ pub async fn accept_invite_from_email(
     let token = utils::user::generate_jwt_auth_token_without_profile(
         &state,
         &user_from_db,
-        &update_status_result,
+        merchant_id,
+        update_status_result
+            .org_id
+            .as_ref()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("org_id not found")?,
+        &update_status_result.role_id,
     )
     .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &update_status_result)
@@ -1051,7 +1079,8 @@ pub async fn accept_invite_from_email(
     let response = utils::user::get_dashboard_entry_response(
         &state,
         user_from_db,
-        update_status_result,
+        merchant_id.to_owned(),
+        update_status_result.role_id,
         token.clone(),
     )?;
 
@@ -1201,6 +1230,7 @@ pub async fn create_internal_user(
             state,
             consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             UserStatus::Active,
+            EntityType::Internal,
         )
         .await?;
 
@@ -1287,27 +1317,31 @@ pub async fn switch_merchant_id(
             .filter(|role| role.status == UserStatus::Active)
             .collect::<Vec<_>>();
 
-        let user_role = active_user_roles
-            .iter()
-            .find_map(|role| {
-                let Some(ref merchant_id) = role.merchant_id else {
-                    return Some(Err(report!(UserErrors::InternalServerError)));
-                };
-                if merchant_id == &request.merchant_id {
-                    Some(Ok(role))
-                } else {
-                    None
-                }
-            })
-            .transpose()?
-            .ok_or(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User doesn't have access to switch")?;
+        let mut res = None;
 
-        let token =
-            utils::user::generate_jwt_auth_token_without_profile(&state, &user, user_role).await?;
-        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, user_role).await;
+        for role in active_user_roles {
+            let merchant_id =
+                domain::UserRoleMerchantAccount::get_single_merchant_id(&role, &state).await?;
+            if merchant_id == request.merchant_id {
+                let token = utils::user::generate_jwt_auth_token_without_profile(
+                    &state,
+                    &user,
+                    &merchant_id,
+                    role.org_id
+                        .as_ref()
+                        .ok_or(UserErrors::InternalServerError)
+                        .attach_printable("org_id not found")?,
+                    &role.role_id,
+                )
+                .await?;
+                utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &role).await;
 
-        (token, user_role.role_id.clone())
+                res.replace((token, role.role_id));
+            }
+        }
+
+        res.ok_or(UserErrors::InvalidRoleOperation)
+            .attach_printable("User doesn't have access to switch")?
     };
 
     let response = user_api::DashboardEntryResponse {
@@ -1341,6 +1375,7 @@ pub async fn create_merchant_account(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            EntityType::Organization,
         )
         .await;
     if let Err(e) = role_insertion_res {
@@ -1364,31 +1399,8 @@ pub async fn list_merchants_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let merchant_accounts = state
-        .store
-        .list_multiple_merchant_accounts(
-            &(&state).into(),
-            user_roles
-                .iter()
-                .map(|role| {
-                    role.merchant_id
-                        .clone()
-                        .ok_or(UserErrors::InternalServerError)
-                })
-                .collect::<Result<Vec<_>, _>>()?,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let roles =
-        utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
-
     Ok(ApplicationResponse::Json(
-        utils::user::get_multiple_merchant_details_with_status(
-            user_roles,
-            merchant_accounts,
-            roles,
-        )?,
+        utils::user::get_multiple_merchant_details_with_status(&state, user_roles).await?,
     ))
 }
 
@@ -1475,14 +1487,8 @@ pub async fn list_users_for_merchant_account(
                 roles::RoleInfo::from_role_id(
                     &state,
                     &user_role.role_id.clone(),
-                    user_role
-                        .merchant_id
-                        .as_ref()
-                        .ok_or(UserErrors::InternalServerError)?,
-                    user_role
-                        .org_id
-                        .as_ref()
-                        .ok_or(UserErrors::InternalServerError)?,
+                    &user_from_token.merchant_id,
+                    &user_from_token.org_id,
                 )
                 .await
                 .map(|role_info| (user, user_role, role_info))
