@@ -1,4 +1,6 @@
 #[cfg(feature = "olap")]
+use api_models::enums::PayoutConnectors;
+#[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(all(
@@ -11,7 +13,7 @@ use diesel::JoinOnDsl;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 #[cfg(feature = "olap")]
 use diesel_models::{
-    customers::Customer as DieselCustomer, query::generics::db_metrics,
+    customers::Customer as DieselCustomer, enums as storage_enums, query::generics::db_metrics,
     schema::payouts::dsl as po_dsl,
 };
 use diesel_models::{
@@ -337,6 +339,26 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         self.router_store
             .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: Option<Vec<PayoutConnectors>>,
+        currency: Option<Vec<storage_enums::Currency>>,
+        status: Option<Vec<storage_enums::PayoutStatus>>,
+        payout_method: Option<Vec<storage_enums::PayoutType>>,
+    ) -> error_stack::Result<i64, StorageError> {
+        self.router_store
+            .get_total_count_of_filtered_payouts(
+                merchant_id,
+                connector,
+                currency,
+                status,
+                payout_method,
+            )
             .await
     }
 }
@@ -691,6 +713,43 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let payout_filters = (*time_range).into();
         self.filter_payouts_by_constraints(merchant_id, &payout_filters, storage_scheme)
             .await
+    }
+
+    #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: Option<Vec<PayoutConnectors>>,
+        currency: Option<Vec<storage_enums::Currency>>,
+        status: Option<Vec<storage_enums::PayoutStatus>>,
+        payout_type: Option<Vec<storage_enums::PayoutType>>,
+    ) -> error_stack::Result<i64, StorageError> {
+        let conn = self
+            .db_store
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(StorageError::DatabaseConnectionError)?;
+        let connector_strings = connector.as_ref().map(|connectors| {
+            connectors
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<String>>()
+        });
+        DieselPayouts::get_total_count_of_payouts(
+            &conn,
+            merchant_id,
+            connector_strings,
+            currency,
+            status,
+            payout_type,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(er.current_context());
+            er.change_context(new_err)
+        })
     }
 }
 

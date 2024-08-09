@@ -65,6 +65,16 @@ pub trait PayoutsInterface {
         time_range: &api_models::payments::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        connector: Option<Vec<api_models::enums::PayoutConnectors>>,
+        currency: Option<Vec<storage_enums::Currency>>,
+        status: Option<Vec<storage_enums::PayoutStatus>>,
+        payout_method: Option<Vec<storage_enums::PayoutType>>,
+    ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

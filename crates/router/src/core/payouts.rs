@@ -815,7 +815,7 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
-) -> RouterResponse<payouts::PayoutListResponse> {
+) -> RouterResponse<payouts::PayoutListResponseV2> {
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
     let db = state.store.as_ref();
@@ -858,10 +858,28 @@ pub async fn payouts_filtered_list_core(
     .map(ForeignFrom::foreign_from)
     .collect();
 
+    let total_count = db
+        .get_total_count_of_filtered_payouts(
+            merchant_account.get_id(),
+            filters.connector.clone(),
+            filters.currency.clone(),
+            filters.status.clone(),
+            filters.payout_method.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to fetch total count of filtered payouts for the given constraints - {:?}",
+                filters
+            )
+        })?;
+
     Ok(services::ApplicationResponse::Json(
-        api::PayoutListResponse {
+        api::PayoutListResponseV2 {
             size: data.len(),
             data,
+            total_count,
         },
     ))
 }

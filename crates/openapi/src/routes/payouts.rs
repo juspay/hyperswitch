@@ -103,7 +103,7 @@ pub async fn payouts_list() {}
     post,
     path = "/payouts/list",
     responses(
-        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 200, description = "Payouts filtered", body = PayoutListResponseV2),
         (status = 404, description = "Payout not found")
     ),
     tag = "Payouts",
