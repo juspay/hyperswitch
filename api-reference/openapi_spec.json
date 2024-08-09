@@ -20120,6 +20120,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "fiservemea",
           "adyenplatform",
           "phonypay",
           "fauxpay",
