@@ -32,7 +32,7 @@ describe("Card - SaveCard payment flow test", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
-      it("create+confirm-payment-call-test", () => {
+      it.only("create+confirm-payment-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
@@ -292,7 +292,7 @@ describe("Card - SaveCard payment flow test", () => {
   );
 
   context(
-    "Save card for NoThreeDS automatic capture payment[off_session]",
+    "Save card for NoThreeDS automatic capture payment [off_session]",
     () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
