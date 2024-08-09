@@ -11,6 +11,7 @@ pub mod core;
 pub mod cors;
 pub mod db;
 pub mod env;
+pub mod locale;
 pub(crate) mod macros;
 
 pub mod routes;
@@ -44,11 +45,9 @@ use crate::{configs::settings, core::errors};
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-// Load i18n macro, for using `t!` macro anywhere
-#[macro_use]
-use rust_i18n::i18n;
-pub mod locale;
-use crate::locale::_rust_i18n_translate;
+// Import translate fn in root
+use crate::locale::_rust_i18n_t;
+use crate::locale::_rust_i18n_try_translate;
 
 /// Header Constants
 pub mod headers {
