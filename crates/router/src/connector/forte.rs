@@ -1,14 +1,16 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as forte;
 
+use super::utils::convert_amount;
 use crate::{
     configs::settings,
     connector::{
@@ -31,9 +33,18 @@ use crate::{
     },
     utils::BytesExt,
 };
+#[derive(Clone)]
+pub struct Forte {
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
 
-#[derive(Debug, Clone)]
-pub struct Forte;
+impl Forte {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Forte {}
 impl api::PaymentSession for Forte {}
@@ -225,7 +236,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = forte::FortePaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = forte::ForteRouterData::from((amount, req));
+        let connector_req = forte::FortePaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -562,7 +580,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = forte::ForteRefundRequest::try_from(req)?;
+        let refund_amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = forte::ForteRouterData::from((refund_amount, req));
+        let connector_req = forte::ForteRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
