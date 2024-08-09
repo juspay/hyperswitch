@@ -33,18 +33,6 @@
                 "$ref": "#/components/schemas/MerchantConnectorCreate"
               },
               "examples": {
-                "Create a merchant account with custom connector label": {
-                  "value": {
-                    "connector_account_details": {
-                      "api_key": "{{adyen-api-key}}",
-                      "auth_type": "BodyKey",
-                      "key1": "{{adyen_merchant_account}}"
-                    },
-                    "connector_label": "EU_adyen",
-                    "connector_name": "adyen",
-                    "connector_type": "fiz_operations"
-                  }
-                },
                 "Create a merchant connector account under a specific business profile": {
                   "value": {
                     "connector_account_details": {

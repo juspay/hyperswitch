@@ -11,7 +11,7 @@
             (
                 "Create a merchant connector account with minimal fields" = (
                     value = json!({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "connector_name": "adyen",
                         "connector_account_details": {
                           "auth_type": "BodyKey",
@@ -24,7 +24,7 @@
             (
                 "Create a merchant connector account under a specific business profile" = (
                     value = json!({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "connector_name": "adyen",
                         "connector_account_details": {
                           "auth_type": "BodyKey",
@@ -38,7 +38,7 @@
             (
                 "Create a merchant account with custom connector label" = (
                     value = json!({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "connector_name": "adyen",
                         "connector_label": "EU_adyen",
                         "connector_account_details": {
@@ -71,7 +71,7 @@ pub async fn connector_create() {}
             (
                 "Create a merchant connector account with minimal fields" = (
                     value = json!({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "connector_name": "adyen",
                         "connector_account_details": {
                           "auth_type": "BodyKey",
@@ -84,7 +84,7 @@ pub async fn connector_create() {}
             (
                 "Create a merchant connector account under a specific business profile" = (
                     value = json!({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "connector_name": "adyen",
                         "connector_account_details": {
                           "auth_type": "BodyKey",
@@ -98,7 +98,7 @@ pub async fn connector_create() {}
             (
                 "Create a merchant account with custom connector label" = (
                     value = json!({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "connector_name": "adyen",
                         "connector_label": "EU_adyen",
                         "connector_account_details": {
@@ -194,7 +194,7 @@ pub async fn payment_connector_list() {}
             (
                 "Enable card payment method" = (
                     value = json! ({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "payment_methods_enabled": [
                           {
                             "payment_method": "card"
@@ -239,7 +239,7 @@ pub async fn connector_update() {}
             (
                 "Enable card payment method" = (
                     value = json! ({
-                        "connector_type": "fiz_operations",
+                        "connector_type": "payment_processor",
                         "payment_methods_enabled": [
                           {
                             "payment_method": "card"
