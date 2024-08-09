@@ -9,6 +9,8 @@ const connectorId = process.env.CYPRESS_CONNECTOR;
 module.exports = defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
+      require("cypress-mochawesome-reporter/plugin")(on);
+
       on("task", {
         setGlobalState: (val) => {
           return (globalState = val || {});
@@ -48,14 +50,16 @@ module.exports = defineConfig({
       });
     },
     experimentalRunAllSpecs: true,
-    reporter: "mochawesome",
+
+    reporter: "cypress-mochawesome-reporter",
     reporterOptions: {
       reportDir: "cypress/reports",
-      reportFilename: "report",
+      reportFilename: `${connectorId}_report`,
+      reportPageTitle: "Cypress Test Report",
+      embeddedScreenshots: true,
       overwrite: false,
-      html: false,
-      json: true,
-      charts: true,
+      inlineAssets: true,
+      saveJson: true,
     },
   },
   chromeWebSecurity: false,
