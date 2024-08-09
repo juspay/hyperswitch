@@ -79,6 +79,8 @@ pub struct BankOfAmericaPaymentsRequest {
     consumer_authentication_information: Option<BankOfAmericaConsumerAuthInformation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    buyer_information: Option<BuyerInformation>,
 }
 
 #[derive(Debug, Serialize)]
@@ -145,6 +147,13 @@ pub struct MerchantDefinedInformation {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BuyerInformation {
+    email: Option<pii::Email>,
+    merchant_customer_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaConsumerAuthInformation {
     ucaf_collection_indicator: Option<String>,
     cavv: Option<String>,
@@ -163,6 +172,11 @@ pub struct CaptureOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BankOfAmericaPaymentInstrument {
+    id: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankOfAmericaCustomer {
     id: Secret<String>,
 }
 
@@ -211,6 +225,7 @@ pub enum PaymentInformation {
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
     payment_instrument: BankOfAmericaPaymentInstrument,
+    customer: BankOfAmericaCustomer,
 }
 
 #[derive(Debug, Serialize)]
@@ -369,6 +384,16 @@ impl<F, T>
                 let error_response =
                     get_error_response_if_failure((&info_response, mandate_status, item.http_code));
 
+                let connector_customer_id =
+                    info_response
+                        .token_information
+                        .clone()
+                        .and_then(|token_information| {
+                            token_information
+                                .customer
+                                .map(|customer| customer.id.expose())
+                        });
+
                 let connector_response = match item.data.payment_method {
                     common_enums::PaymentMethod::Card => info_response
                         .processor_information
@@ -421,6 +446,7 @@ impl<F, T>
                             ),
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            connector_customer_id,
                         }),
                     },
                     connector_response,
@@ -814,7 +840,17 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::try_from(&ccard)?;
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
@@ -833,6 +869,7 @@ impl
             client_reference_information,
             merchant_defined_information,
             consumer_authentication_information: None,
+            buyer_information,
         })
     }
 }
@@ -853,7 +890,17 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let processing_information = ProcessingInformation::try_from((
             item,
@@ -891,6 +938,7 @@ impl
                 directory_server_transaction_id: None,
                 specification_version: None,
             }),
+            buyer_information,
         })
     }
 }
@@ -909,7 +957,17 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let payment_information = PaymentInformation::from(&google_pay_data);
         let processing_information =
@@ -929,6 +987,7 @@ impl
             client_reference_information,
             merchant_defined_information,
             consumer_authentication_information: None,
+            buyer_information,
         })
     }
 }
@@ -964,8 +1023,18 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                     let email = item.router_data.request.get_email()?;
                                     let bill_to = build_bill_to(
                                         item.router_data.get_optional_billing(),
-                                        email,
+                                        email.clone(),
                                     )?;
+                                    let merchant_customer_id = item
+                                        .router_data
+                                        .customer_id
+                                        .clone()
+                                        .map(|id| id.get_string_repr().to_string());
+
+                                    let buyer_information = Some(BuyerInformation {
+                                        email: Some(email),
+                                        merchant_customer_id,
+                                    });
                                     let order_information: OrderInformationWithBill =
                                         OrderInformationWithBill::from((item, Some(bill_to)));
                                     let processing_information =
@@ -1009,6 +1078,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                                                 specification_version: None,
                                             },
                                         ),
+                                        buyer_information,
                                     })
                                 }
                             }
@@ -1104,14 +1174,27 @@ impl
         let payment_instrument = BankOfAmericaPaymentInstrument {
             id: connector_mandate_id.into(),
         };
+        let customer = BankOfAmericaCustomer {
+            id: item
+                .router_data
+                .connector_customer
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
+                    "Missing Connector Customer".to_owned(),
+                ))?
+                .into(),
+        };
+
         let bill_to =
             item.router_data.request.get_email().ok().and_then(|email| {
                 build_bill_to(item.router_data.get_optional_billing(), email).ok()
             });
+
         let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
+                customer,
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
@@ -1127,6 +1210,7 @@ impl
             client_reference_information,
             merchant_defined_information,
             consumer_authentication_information: None,
+            buyer_information: None,
         })
     }
 }
@@ -1340,6 +1424,7 @@ pub struct MerchantInitiatedTransactionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaTokenInformation {
     payment_instrument: Option<BankOfAmericaPaymentInstrument>,
+    customer: Option<BankOfAmericaCustomer>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1487,6 +1572,16 @@ fn get_payment_response(
                         payment_method_id: None,
                     });
 
+            let connector_customer_id =
+                info_response
+                    .token_information
+                    .clone()
+                    .and_then(|token_information| {
+                        token_information
+                            .customer
+                            .map(|customer| customer.id.expose())
+                    });
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: None,
@@ -1502,6 +1597,7 @@ fn get_payment_response(
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id,
             })
         }
     }
@@ -1813,6 +1909,7 @@ impl<F>
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            connector_customer_id: None,
                         }),
                         connector_response,
                         ..item.data
@@ -1832,6 +1929,7 @@ impl<F>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             }),
@@ -2268,6 +2366,16 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::Card)> for BankOfAmericaPa
     fn try_from(
         (item, ccard): (&types::SetupMandateRouterData, domain::Card),
     ) -> Result<Self, Self::Error> {
+        let email = item.request.get_email().ok();
+        let merchant_customer_id = item
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email,
+            merchant_customer_id,
+        });
         let order_information = OrderInformationWithBill::try_from(item)?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item.request.metadata.clone().map(|metadata| {
@@ -2282,6 +2390,7 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::Card)> for BankOfAmericaPa
             client_reference_information,
             consumer_authentication_information: None,
             merchant_defined_information,
+            buyer_information,
         })
     }
 }
@@ -2293,6 +2402,16 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
     fn try_from(
         (item, apple_pay_data): (&types::SetupMandateRouterData, domain::ApplePayWalletData),
     ) -> Result<Self, Self::Error> {
+        let email = item.request.get_email().ok();
+        let merchant_customer_id = item
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email,
+            merchant_customer_id,
+        });
         let order_information = OrderInformationWithBill::try_from(item)?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item.request.metadata.clone().map(|metadata| {
@@ -2340,6 +2459,7 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::ApplePayWalletData)>
             client_reference_information,
             merchant_defined_information,
             consumer_authentication_information,
+            buyer_information,
         })
     }
 }
@@ -2351,6 +2471,16 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::GooglePayWalletData)>
     fn try_from(
         (item, google_pay_data): (&types::SetupMandateRouterData, domain::GooglePayWalletData),
     ) -> Result<Self, Self::Error> {
+        let email = item.request.get_email().ok();
+        let merchant_customer_id = item
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email,
+            merchant_customer_id,
+        });
         let order_information = OrderInformationWithBill::try_from(item)?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item.request.metadata.clone().map(|metadata| {
@@ -2367,6 +2497,7 @@ impl TryFrom<(&types::SetupMandateRouterData, domain::GooglePayWalletData)>
             client_reference_information,
             merchant_defined_information,
             consumer_authentication_information: None,
+            buyer_information,
         })
     }
 }
@@ -2398,7 +2529,7 @@ impl TryFrom<&types::SetupMandateRouterData> for OrderInformationWithBill {
 
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let bill_to = build_bill_to(item.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.get_optional_billing(), email.clone())?;
 
         Ok(Self {
             amount_details: Amount {

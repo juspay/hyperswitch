@@ -256,6 +256,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charge_id: None,
+            connector_customer_id: None,
         })
     }
 }
@@ -323,6 +324,7 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             charge_id: None,
+            connector_customer_id: None,
         }
     }
 }
@@ -539,6 +541,7 @@ impl<F>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            connector_customer_id: None,
                         }),
                         ..item.data
                     }),
@@ -1102,6 +1105,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             })
         };
         Ok(Self {

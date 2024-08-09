@@ -61,13 +61,24 @@ pub struct CybersourceZeroMandateRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    buyer_information: Option<BuyerInformation>,
 }
 
 impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let bill_to = build_bill_to(item.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.get_optional_billing(), email.clone())?;
+        let merchant_customer_id = item
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
@@ -236,6 +247,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             payment_information,
             order_information,
             client_reference_information,
+            buyer_information,
         })
     }
 }
@@ -251,6 +263,15 @@ pub struct CybersourcePaymentsRequest {
     consumer_authentication_information: Option<CybersourceConsumerAuthInformation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    buyer_information: Option<BuyerInformation>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuyerInformation {
+    email: Option<pii::Email>,
+    merchant_customer_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -381,7 +402,8 @@ pub struct ApplePayPaymentInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentInformation {
-    payment_instrument: CybersoucrePaymentInstrument,
+    payment_instrument: CybersourcePaymentInstrument,
+    customer: CybersourceCustomer,
 }
 
 #[derive(Debug, Serialize)]
@@ -411,7 +433,12 @@ pub enum PaymentInformation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CybersoucrePaymentInstrument {
+pub struct CybersourcePaymentInstrument {
+    id: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CybersourceCustomer {
     id: Secret<String>,
 }
 #[derive(Debug, Serialize)]
@@ -985,8 +1012,17 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
 
         let card_issuer = ccard.get_card_issuer();
         let card_type = match card_issuer {
@@ -1047,6 +1083,7 @@ impl
             client_reference_information,
             consumer_authentication_information,
             merchant_defined_information,
+            buyer_information,
         })
     }
 }
@@ -1065,8 +1102,17 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
 
         let card_issuer = ccard.get_card_issuer();
         let card_type = match card_issuer {
@@ -1128,6 +1174,7 @@ impl
             client_reference_information,
             consumer_authentication_information,
             merchant_defined_information,
+            buyer_information,
         })
     }
 }
@@ -1148,8 +1195,18 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
+
         let processing_information = ProcessingInformation::try_from((
             item,
             Some(PaymentSolution::ApplePay),
@@ -1199,6 +1256,7 @@ impl
                 veres_enrolled: None,
             }),
             merchant_defined_information,
+            buyer_information,
         })
     }
 }
@@ -1217,8 +1275,17 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let email = item.router_data.request.get_email()?;
-        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+        let bill_to = build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+        let buyer_information = Some(BuyerInformation {
+            email: Some(email),
+            merchant_customer_id,
+        });
 
         let payment_information =
             PaymentInformation::GooglePay(Box::new(GooglePayPaymentInformation {
@@ -1246,6 +1313,7 @@ impl
             client_reference_information,
             consumer_authentication_information: None,
             merchant_defined_information,
+            buyer_information,
         })
     }
 }
@@ -1281,10 +1349,19 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                     let email = item.router_data.request.get_email()?;
                                     let bill_to = build_bill_to(
                                         item.router_data.get_optional_billing(),
-                                        email,
+                                        email.clone(),
                                     )?;
                                     let order_information =
                                         OrderInformationWithBill::from((item, Some(bill_to)));
+                                    let merchant_customer_id = item
+                                        .router_data
+                                        .customer_id
+                                        .clone()
+                                        .map(|id| id.get_string_repr().to_string());
+                                    let buyer_information = Some(BuyerInformation {
+                                        email: Some(email),
+                                        merchant_customer_id,
+                                    });
                                     let processing_information =
                                         ProcessingInformation::try_from((
                                             item,
@@ -1337,6 +1414,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                                 veres_enrolled: None,
                                             },
                                         ),
+                                        buyer_information,
                                     })
                                 }
                             }
@@ -1426,17 +1504,37 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let processing_information = ProcessingInformation::try_from((item, None, None))?;
-        let payment_instrument = CybersoucrePaymentInstrument {
+        let payment_instrument = CybersourcePaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let bill_to =
-            item.router_data.request.get_email().ok().and_then(|email| {
-                build_bill_to(item.router_data.get_optional_billing(), email).ok()
-            });
+        let customer = CybersourceCustomer {
+            id: item
+                .router_data
+                .connector_customer
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailedWithReason(
+                    "Missing Connector Customer".to_owned(),
+                ))?
+                .into(),
+        };
+        let email = item.router_data.request.get_email().ok();
+        let bill_to = email.clone().and_then(|email| {
+            build_bill_to(item.router_data.get_optional_billing(), email.clone()).ok()
+        });
+        let merchant_customer_id = item
+            .router_data
+            .customer_id
+            .clone()
+            .map(|id| id.get_string_repr().to_string());
+        let buyer_information = Some(BuyerInformation {
+            email,
+            merchant_customer_id,
+        });
         let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
                 payment_instrument,
+                customer,
             }));
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = item
@@ -1452,6 +1550,7 @@ impl
             client_reference_information,
             merchant_defined_information,
             consumer_authentication_information: None,
+            buyer_information,
         })
     }
 }
@@ -1862,7 +1961,8 @@ pub struct ClientRiskInformationRules {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
-    payment_instrument: Option<CybersoucrePaymentInstrument>,
+    payment_instrument: Option<CybersourcePaymentInstrument>,
+    customer: Option<CybersourceCustomer>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1975,6 +2075,16 @@ fn get_payment_response(
                         payment_method_id: None,
                     });
 
+            let connector_customer_id =
+                info_response
+                    .token_information
+                    .clone()
+                    .and_then(|token_information| {
+                        token_information
+                            .customer
+                            .map(|customer| customer.id.expose())
+                    });
+
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
                 redirection_data: None,
@@ -1992,6 +2102,7 @@ fn get_payment_response(
                 ),
                 incremental_authorization_allowed,
                 charge_id: None,
+                connector_customer_id,
             })
         }
     }
@@ -2087,6 +2198,7 @@ impl<F>
                     ),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             }),
@@ -2254,7 +2366,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     .1
                     .to_string();
                 let email = item.router_data.request.get_email()?;
-                let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
+                let bill_to =
+                    build_bill_to(item.router_data.get_optional_billing(), email.clone())?;
                 let order_information = OrderInformationWithBill {
                     amount_details,
                     bill_to: Some(bill_to),
@@ -2483,6 +2596,7 @@ impl<F>
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             charge_id: None,
+                            connector_customer_id: None,
                         }),
                         ..item.data
                     })
@@ -2696,6 +2810,16 @@ impl
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
         ));
+        let connector_customer_id =
+            item.response
+                .token_information
+                .clone()
+                .and_then(|token_information| {
+                    token_information
+                        .customer
+                        .map(|customer| customer.id.expose())
+                });
+
         if matches!(mandate_status, enums::AttemptStatus::Authorized) {
             //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
             mandate_status = enums::AttemptStatus::Charged
@@ -2738,6 +2862,7 @@ impl
                         mandate_status == enums::AttemptStatus::Authorized,
                     ),
                     charge_id: None,
+                    connector_customer_id,
                 }),
             },
             connector_response,
@@ -2867,6 +2992,7 @@ impl<F>
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed,
                             charge_id: None,
+                            connector_customer_id: None,
                         }),
                         ..item.data
                     })
@@ -2885,6 +3011,7 @@ impl<F>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             }),

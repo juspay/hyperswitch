@@ -212,6 +212,7 @@ impl<F, T>
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -266,6 +267,7 @@ impl<F, T>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -353,6 +355,7 @@ impl<F, T>
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -488,6 +491,7 @@ impl<F, T>
                     .or(Some(order.order_id.clone())),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             amount_captured: Some(
                 order

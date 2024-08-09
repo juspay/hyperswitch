@@ -279,6 +279,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status: enums::AttemptStatus::foreign_from((
                 item.response.fraud_status,
@@ -404,6 +405,7 @@ impl<F, T>
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -481,6 +483,7 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status,
             ..item.data

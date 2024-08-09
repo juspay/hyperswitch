@@ -685,6 +685,7 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
             ),
             incremental_authorization_allowed: None,
             charge_id: None,
+            connector_customer_id: None,
         };
         Ok(Self {
             status,
@@ -738,6 +739,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
             ),
             incremental_authorization_allowed: None,
             charge_id: None,
+            connector_customer_id: None,
         };
         Ok(Self {
             status,
@@ -814,6 +816,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status: response.into(),
             ..item.data
@@ -915,6 +918,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             status,
             amount_captured,

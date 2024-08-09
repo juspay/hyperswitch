@@ -754,6 +754,7 @@ impl TryFrom<types::PaymentsPreprocessingResponseRouterData<Shift4ThreeDsRespons
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -797,6 +798,7 @@ impl<T, F>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })

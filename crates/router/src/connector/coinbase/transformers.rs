@@ -150,6 +150,7 @@ impl<F, T>
                 connector_response_reference_id: Some(item.response.data.id.clone()),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{

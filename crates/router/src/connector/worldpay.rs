@@ -234,6 +234,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     }),
                     ..data.clone()
                 })
@@ -339,6 +340,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..data.clone()
         })
@@ -403,6 +405,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     }),
                     ..data.clone()
                 })

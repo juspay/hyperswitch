@@ -337,6 +337,7 @@ impl<F, T>
                         connector_response_reference_id: Some(item.response.mer_ref.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
+                        connector_customer_id: None,
                     }),
                     ..item.data
                 })
@@ -456,6 +457,7 @@ impl<F>
                     connector_response_reference_id: Some(item.response.mer_ref.clone()),
                     incremental_authorization_allowed: None,
                     charge_id: None,
+                    connector_customer_id: None,
                 }),
                 ..item.data
             })

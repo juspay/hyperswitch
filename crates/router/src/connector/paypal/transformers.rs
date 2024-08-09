@@ -1149,6 +1149,7 @@ impl<F, T>
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -1273,6 +1274,7 @@ impl<F, T>
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -1331,6 +1333,7 @@ impl<F, T>
                 ),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -1369,6 +1372,7 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -1421,6 +1425,7 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -1490,6 +1495,7 @@ impl<F, T>
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
@@ -1829,6 +1835,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -1881,6 +1888,7 @@ impl<F, T>
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
                 charge_id: None,
+                connector_customer_id: None,
             }),
             ..item.data
         })
