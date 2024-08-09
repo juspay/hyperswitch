@@ -7122,7 +7122,7 @@
           },
           "tax_connector_id": {
             "type": "string",
-            "description": "The identifier for merchant connector for tax connectors",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
             "nullable": true
           },
           "use_billing_as_payment_method_billing": {
@@ -7287,7 +7287,7 @@
           },
           "tax_connector_id": {
             "type": "string",
-            "description": "The identifier for merchant connector for tax connectors",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
             "nullable": true
           },
           "use_billing_as_payment_method_billing": {
@@ -7967,7 +7967,8 @@
           "plaid",
           "riskified",
           "zen",
-          "zsl"
+          "zsl",
+          "taxjar"
         ]
       },
       "ConnectorMetadata": {
@@ -8069,7 +8070,8 @@
           "non_banking_finance",
           "payout_processor",
           "payment_method_auth",
-          "authentication_processor"
+          "authentication_processor",
+          "tax_calculator"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -20189,7 +20191,8 @@
           "worldpay",
           "zen",
           "plaid",
-          "zsl"
+          "zsl",
+          "taxjar"
         ]
       },
       "RoutingAlgorithm": {
