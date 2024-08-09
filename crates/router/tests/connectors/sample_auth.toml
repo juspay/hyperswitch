@@ -257,3 +257,5 @@ api_secret = "Secret key"
 
 [paybox]
 api_key="API Key"
+
+[wellsfargopayout]
