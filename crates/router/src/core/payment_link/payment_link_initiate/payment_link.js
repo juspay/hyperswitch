@@ -617,7 +617,7 @@ function renderDynamicMerchantDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
-  if (Object.keys(paymentDetails.transaction_details).length === 0) {
+  if (paymentDetails.transaction_details === null || paymentDetails.transaction_details === undefined || paymentDetails.transaction_details === "") {
     return;
   }
 
