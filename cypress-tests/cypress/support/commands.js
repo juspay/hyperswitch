@@ -59,6 +59,10 @@ Cypress.Commands.add(
       // Handle the response as needed
       globalState.set("publishableKey", response.body.publishable_key);
       globalState.set("merchantDetails", response.body.merchant_details);
+      globalState.set(
+        "hyperswitchVersion",
+        response.headers["x-hyperswitch-version"]
+      );
     });
   }
 );

@@ -9,18 +9,14 @@
     "cypress:ci": "npx cypress run --headless",
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/PaymentTest/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/PayoutTest/**/*'",
-    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'",
-    "generate:report": "npx mochawesome-merge \"cypress/reports/*.json\" > merged_report.json && npx marge merged_report.json --reportDir \"cypress/reports/merged_report\" --reportTitle \"Cypress Test Report\" && rm merged_report.json",
-    "cypress:ci_report": "npm run cypress:ci && npm run generate:report"
+    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "cypress": "^13.13.0",
-    "jsqr": "^1.4.0",
-    "mochawesome": "^7.1.3",
-    "mochawesome-merge": "^4.3.0",
-    "mochawesome-report-generator": "^6.2.0"
+    "cypress-mochawesome-reporter": "^3.8.2",
+    "jsqr": "^1.4.0"
   },
   "dependencies": {
     "prettier": "^3.3.2"
