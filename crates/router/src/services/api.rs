@@ -33,6 +33,7 @@ pub use hyperswitch_domain_models::{
         GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
         RedirectionFormData,
     },
+    payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
 };
 pub use hyperswitch_interfaces::{
@@ -1251,7 +1252,7 @@ impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
-    payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    payment_method_data: Option<PaymentMethodData>,
     amount: String,
     currency: String,
     config: Settings,
@@ -1326,17 +1327,16 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details =
-                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
-                    format!(
-                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
-                        ccard.card_cvc.peek(),
-                        amount,
-                        currency
-                    )
-                } else {
-                    "".to_string()
-                };
+            let card_details = if let Some(PaymentMethodData::Card(ccard)) = payment_method_data {
+                format!(
+                    "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                    ccard.card_cvc.peek(),
+                    amount,
+                    currency
+                )
+            } else {
+                "".to_string()
+            };
             let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
