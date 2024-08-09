@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.09.0
+
+### Features
+
+- **core:** [Payment Link] add dynamic merchant fields ([#5512](https://github.com/juspay/hyperswitch/pull/5512)) ([`03f0ea1`](https://github.com/juspay/hyperswitch/commit/03f0ea1582c76f1ed9dc4ff2215e80d659e5591a))
+- Payment processor token for recurring payments ([#5508](https://github.com/juspay/hyperswitch/pull/5508)) ([`0cbbc92`](https://github.com/juspay/hyperswitch/commit/0cbbc92a4319cb51864f443462545ab6e1ec75b6))
+
+### Refactors
+
+- Use business profile domain models instead of diesel models ([#5566](https://github.com/juspay/hyperswitch/pull/5566)) ([`e56ad0d`](https://github.com/juspay/hyperswitch/commit/e56ad0d6884c6505d73df048e73d6210db3aae46))
+
+**Full Changelog:** [`2024.08.08.0...2024.08.09.0`](https://github.com/juspay/hyperswitch/compare/2024.08.08.0...2024.08.09.0)
+
+- - -
+
 ## 2024.08.08.0
 
 ### Bug Fixes
