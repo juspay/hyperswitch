@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.07.26.0-hotfix2
+
+### Bug Fixes
+
+- **docker:** Currency enum fix for docker config ([#5578](https://github.com/juspay/hyperswitch/pull/5578)) ([`d8d59f3`](https://github.com/juspay/hyperswitch/commit/d8d59f39e857a5fa8c733110304e49c3ec98b8c3))
+
+- - -
+
 ## 2024.07.26.0-hotfix1
 
 ### Features
