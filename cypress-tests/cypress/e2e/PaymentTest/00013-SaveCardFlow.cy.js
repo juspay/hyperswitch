@@ -32,7 +32,7 @@ describe("Card - SaveCard payment flow test", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
-      it.only("create+confirm-payment-call-test", () => {
+      it("create+confirm-payment-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
