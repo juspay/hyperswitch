@@ -9,7 +9,6 @@ pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
 
 #[cfg(all(
     feature = "v2",
-    feature = "customer_v2",
-    feature = "merchant_account_v2"
+    any(feature = "customer_v2", feature = "merchant_account_v2")
 ))]
 pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
