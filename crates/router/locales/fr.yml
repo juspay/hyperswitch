@@ -3,23 +3,25 @@ _version: 1
 payout_link:
   initiate:
     not_allowed: "Vous n'êtes pas autorisé à voir ce contenu"
+    title: "Liens de Paiement"
   status:
+    title: "Statut de Paiement"
     info:
-      ref_id: "ID de référence"
-      error_code: "Code d'erreur"
-      error_message: "Message d'erreur"
+      ref_id: "Id de Réf"
+      error_code: "Code d'Erreur"
+      error_message: "Message d'Erreur"
     message:
       failed: "Échec du traitement de votre paiement. Veuillez vérifier auprès de votre fournisseur pour plus de détails."
       processing: "Votre paiement devrait être traité dans les 2 à 3 jours ouvrables."
       success: "Votre paiement a été effectué sur le mode de paiement sélectionné."
     redirection_text:
-      redirecting: "Redirecting ..."
-      redirecting_in: "Redirecting in "
-      seconds: " seconds ..."
+      redirecting: "Redirection ..."
+      redirecting_in: "Redirection dans"
+      seconds: "secondes ..."
     text:
-      failed: "Échec du paiement"
-      processing: "Paiement en cours"
-      success: "Paiement réussi"
+      failed: "Échec du Paiement"
+      processing: "Traitement du Paiement"
+      success: "Paiement Réussi"
 
 time:
   am: "AM"

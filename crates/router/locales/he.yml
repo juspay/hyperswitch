@@ -24,8 +24,8 @@ payout_link:
       success: "תשלום הצליח"
 
 time:
-  am: "AM"
-  pm: "PM"
+  am: "בבוקר"
+  pm: "בערב"
 
 months:
   january: "ינואר"

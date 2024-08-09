@@ -6,7 +6,7 @@ use std::{
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
-    ext_traits::{Encode, OptionExt},
+    ext_traits::{AsyncExt, Encode, OptionExt},
     link_utils,
     types::{AmountConvertor, StringMajorUnitForConnector},
 };
@@ -289,14 +289,20 @@ pub async fn filter_payout_methods(
         Some(&payout.profile_id),
         common_enums::ConnectorType::PayoutProcessor,
     );
-    let address = db
-        .find_address_by_address_id(key_manager_state, &payout.address_id.clone(), key_store)
+    let address = payout
+        .address_id
+        .as_ref()
+        .async_map(|address_id| async {
+            db.find_address_by_address_id(key_manager_state, address_id, key_store)
+                .await
+        })
         .await
+        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while fetching address with address id {}",
-                payout.address_id.clone()
+                "Failed while fetching address [id - {:?}] for payout [id - {}]",
+                payout.address_id, payout.payout_id
             )
         })?;
 
@@ -331,7 +337,10 @@ pub async fn filter_payout_methods(
                         payout_filter,
                         request_payout_method_type,
                         &payout.destination_currency,
-                        &address.country,
+                        address
+                            .as_ref()
+                            .and_then(|address| address.country)
+                            .as_ref(),
                     )?;
                     if currency_country_filter.unwrap_or(true) {
                         match payment_method {
@@ -386,7 +395,7 @@ pub fn check_currency_country_filters(
     payout_method_filter: Option<&PaymentMethodFilters>,
     request_payout_method_type: &api_models::payment_methods::RequestPaymentMethodTypes,
     currency: &common_enums::Currency,
-    country: &Option<common_enums::CountryAlpha2>,
+    country: Option<&common_enums::CountryAlpha2>,
 ) -> errors::RouterResult<Option<bool>> {
     if matches!(
         request_payout_method_type.payment_method_type,
