@@ -1952,7 +1952,7 @@ impl PayoutsInterface for KafkaStore {
         Vec<(
             storage::Payouts,
             storage::PayoutAttempt,
-            diesel_models::Customer,
+            Option<diesel_models::Customer>,
         )>,
         errors::DataStorageError,
     > {

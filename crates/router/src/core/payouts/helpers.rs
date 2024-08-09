@@ -20,6 +20,7 @@ use router_env::logger;
 
 use super::PayoutData;
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
@@ -28,8 +29,8 @@ use crate::{
             vault,
         },
         payments::{
-            customers::get_connector_customer_details_if_present, route_connector_v1, routing,
-            CustomerDetails,
+            customers::get_connector_customer_details_if_present, helpers as payment_helpers,
+            route_connector_v1, routing, CustomerDetails,
         },
         routing::TransactionData,
     },
@@ -194,11 +195,12 @@ pub async fn make_payout_method_data<'a>(
 pub async fn save_payout_data_to_locker(
     state: &SessionState,
     payout_data: &mut PayoutData,
+    customer_id: &id_type::CustomerId,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let payout_attempt = &payout_data.payout_attempt;
+    let payouts = &payout_data.payouts;
     let (mut locker_req, card_details, bank_details, wallet_details, payment_method_type) =
         match payout_method_data {
             payouts::PayoutMethodData::Card(card) => {
@@ -215,7 +217,7 @@ pub async fn save_payout_data_to_locker(
                 };
                 let payload = StoreLockerReq::LockerCard(StoreCardReq {
                     merchant_id: merchant_account.get_id().clone(),
-                    merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                    merchant_customer_id: customer_id.to_owned(),
                     card: Card {
                         card_number: card.card_number.to_owned(),
                         name_on_card: card.card_holder_name.to_owned(),
@@ -271,7 +273,7 @@ pub async fn save_payout_data_to_locker(
                 })?;
                 let payload = StoreLockerReq::LockerGeneric(StoreGenericReq {
                     merchant_id: merchant_account.get_id().to_owned(),
-                    merchant_customer_id: payout_attempt.customer_id.to_owned(),
+                    merchant_customer_id: customer_id.to_owned(),
                     enc_data,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
                 });
@@ -301,7 +303,7 @@ pub async fn save_payout_data_to_locker(
     let stored_resp = cards::call_to_locker_hs(
         state,
         &locker_req,
-        &payout_attempt.customer_id,
+        customer_id,
         api_enums::LockerChoice::HyperswitchCardVault,
     )
     .await
@@ -403,7 +405,7 @@ pub async fn save_payout_data_to_locker(
                 card: card_details.clone(),
                 wallet: None,
                 metadata: None,
-                customer_id: Some(payout_attempt.customer_id.to_owned()),
+                customer_id: Some(customer_id.to_owned()),
                 card_network: None,
                 client_secret: None,
                 payment_method_data: None,
@@ -490,7 +492,7 @@ pub async fn save_payout_data_to_locker(
                     card: None,
                     wallet: wallet_details,
                     metadata: None,
-                    customer_id: Some(payout_attempt.customer_id.to_owned()),
+                    customer_id: Some(customer_id.to_owned()),
                     card_network: None,
                     client_secret: None,
                     payment_method_data: None,
@@ -503,11 +505,11 @@ pub async fn save_payout_data_to_locker(
 
     // Insert new entry in payment_methods table
     if should_insert_in_pm_table {
-        let payment_method_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+        let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         cards::create_payment_method(
             state,
             &new_payment_method,
-            &payout_attempt.customer_id,
+            customer_id,
             &payment_method_id,
             Some(stored_resp.card_reference.clone()),
             merchant_account.get_id(),
@@ -538,7 +540,7 @@ pub async fn save_payout_data_to_locker(
         // Delete from locker
         cards::delete_card_from_hs_locker(
             state,
-            &payout_attempt.customer_id,
+            customer_id,
             merchant_account.get_id(),
             card_reference,
         )
@@ -553,7 +555,7 @@ pub async fn save_payout_data_to_locker(
         let stored_resp = cards::call_to_locker_hs(
             state,
             &locker_req,
-            &payout_attempt.customer_id,
+            customer_id,
             api_enums::LockerChoice::HyperswitchCardVault,
         )
         .await
@@ -590,9 +592,9 @@ pub async fn save_payout_data_to_locker(
     };
     payout_data.payouts = db
         .update_payout(
-            &payout_data.payouts,
+            payouts,
             updated_payout,
-            payout_attempt,
+            &payout_data.payout_attempt,
             merchant_account.storage_scheme,
         )
         .await
@@ -603,7 +605,7 @@ pub async fn save_payout_data_to_locker(
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn get_or_create_customer_details(
+pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
     _customer_details: &CustomerDetails,
     _merchant_account: &domain::MerchantAccount,
@@ -613,7 +615,7 @@ pub async fn get_or_create_customer_details(
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-pub async fn get_or_create_customer_details(
+pub(super) async fn get_or_create_customer_details(
     state: &SessionState,
     customer_details: &CustomerDetails,
     merchant_account: &domain::MerchantAccount,
@@ -641,56 +643,78 @@ pub async fn get_or_create_customer_details(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
     {
+        // Customer found
         Some(customer) => Ok(Some(customer)),
+
+        // Customer not found
+        // create only if atleast one of the fields were provided for customer creation or else throw error
         None => {
-            let encrypted_data = crypto_operation(
-                &state.into(),
-                type_name!(domain::Customer),
-                CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
-                    CustomerRequestWithEmail {
-                        name: customer_details.name.clone(),
-                        email: customer_details.email.clone(),
-                        phone: customer_details.phone.clone(),
-                    },
-                )),
-                Identifier::Merchant(key_store.merchant_id.clone()),
-                key,
-            )
-            .await
-            .and_then(|val| val.try_into_batchoperation())
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let encryptable_customer =
-                CustomerRequestWithEmail::from_encryptable(encrypted_data)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-            let customer = domain::Customer {
-                customer_id,
-                merchant_id: merchant_id.to_owned().clone(),
-                name: encryptable_customer.name,
-                email: encryptable_customer.email,
-                phone: encryptable_customer.phone,
-                description: None,
-                phone_country_code: customer_details.phone_country_code.to_owned(),
-                metadata: None,
-                connector_customer: None,
-                created_at: common_utils::date_time::now(),
-                modified_at: common_utils::date_time::now(),
-                address_id: None,
-                default_payment_method_id: None,
-                updated_by: None,
-                version: common_enums::ApiVersion::V1,
-            };
-
-            Ok(Some(
-                db.insert_customer(
-                    customer,
-                    key_manager_state,
-                    key_store,
-                    merchant_account.storage_scheme,
+            if customer_details.name.is_some()
+                || customer_details.email.is_some()
+                || customer_details.phone.is_some()
+                || customer_details.phone_country_code.is_some()
+            {
+                let encrypted_data = crypto_operation(
+                    &state.into(),
+                    type_name!(domain::Customer),
+                    CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                        CustomerRequestWithEmail {
+                            name: customer_details.name.clone(),
+                            email: customer_details.email.clone(),
+                            phone: customer_details.phone.clone(),
+                        },
+                    )),
+                    Identifier::Merchant(key_store.merchant_id.clone()),
+                    key,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            ))
+                .and_then(|val| val.try_into_batchoperation())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encrypt customer")?;
+                let encryptable_customer =
+                    CustomerRequestWithEmail::from_encryptable(encrypted_data)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to form EncryptableCustomer")?;
+
+                let customer = domain::Customer {
+                    customer_id: customer_id.clone(),
+                    merchant_id: merchant_id.to_owned().clone(),
+                    name: encryptable_customer.name,
+                    email: encryptable_customer.email,
+                    phone: encryptable_customer.phone,
+                    description: None,
+                    phone_country_code: customer_details.phone_country_code.to_owned(),
+                    metadata: None,
+                    connector_customer: None,
+                    created_at: common_utils::date_time::now(),
+                    modified_at: common_utils::date_time::now(),
+                    address_id: None,
+                    default_payment_method_id: None,
+                    updated_by: None,
+                    version: consts::API_VERSION,
+                };
+
+                Ok(Some(
+                    db.insert_customer(
+                        customer,
+                        key_manager_state,
+                        key_store,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to insert customer [id - {:?}] for merchant [id - {:?}]",
+                            customer_id, merchant_id
+                        )
+                    })?,
+                ))
+            } else {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("customer for id - {:?} not found", customer_id),
+                }))
+            }
         }
     }
 }
@@ -997,6 +1021,7 @@ pub async fn update_payouts_and_payout_attempt(
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
     state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -1010,6 +1035,47 @@ pub async fn update_payouts_and_payout_attempt(
             ),
         }));
     }
+
+    // Fetch customer details from request and create new or else use existing customer that was attached
+    let customer = get_customer_details_from_request(req);
+    let customer_id = if customer.customer_id.is_some()
+        || customer.name.is_some()
+        || customer.email.is_some()
+        || customer.phone.is_some()
+        || customer.phone_country_code.is_some()
+    {
+        payout_data.customer_details =
+            get_or_create_customer_details(state, &customer, merchant_account, merchant_key_store)
+                .await?;
+        payout_data
+            .customer_details
+            .as_ref()
+            .map(|customer| customer.get_customer_id())
+    } else {
+        payout_data.payouts.customer_id.clone()
+    };
+
+    // Fetch address details from request and create new or else use existing address that was attached
+    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
+        state,
+        req.billing.as_ref(),
+        None,
+        merchant_account.get_id(),
+        customer_id.as_ref(),
+        merchant_key_store,
+        &payout_id,
+        merchant_account.storage_scheme,
+    )
+    .await?;
+    let address_id = if billing_address.is_some() {
+        payout_data.billing_address = billing_address;
+        payout_data
+            .billing_address
+            .as_ref()
+            .map(|address| address.address_id.clone())
+    } else {
+        payout_data.payouts.address_id.clone()
+    };
 
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
@@ -1042,6 +1108,8 @@ pub async fn update_payouts_and_payout_attempt(
             .payout_type
             .to_owned()
             .or(payouts.payout_type.to_owned()),
+        address_id: address_id.clone(),
+        customer_id: customer_id.clone(),
     };
     let db = &*state.store;
     payout_data.payouts = db
@@ -1070,25 +1138,66 @@ pub async fn update_payouts_and_payout_attempt(
                     .to_owned()
                     .and_then(|nl| if nl != l { Some(nl) } else { None })
             });
-    match (updated_business_country, updated_business_label) {
-        (None, None) => Ok(()),
-        (business_country, business_label) => {
-            let payout_attempt = &payout_data.payout_attempt;
-            let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
-                business_country,
-                business_label,
-            };
-            payout_data.payout_attempt = db
-                .update_payout_attempt(
-                    payout_attempt,
-                    updated_payout_attempt,
-                    &payout_data.payouts,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating payout_attempt")?;
-            Ok(())
-        }
+    if updated_business_country.is_some()
+        || updated_business_label.is_some()
+        || customer_id.is_some()
+        || address_id.is_some()
+    {
+        let payout_attempt = &payout_data.payout_attempt;
+        let updated_payout_attempt = storage::PayoutAttemptUpdate::BusinessUpdate {
+            business_country: updated_business_country,
+            business_label: updated_business_label,
+            address_id,
+            customer_id,
+        };
+        payout_data.payout_attempt = db
+            .update_payout_attempt(
+                payout_attempt,
+                updated_payout_attempt,
+                &payout_data.payouts,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating payout_attempt")?;
+    }
+    Ok(())
+}
+
+pub(super) fn get_customer_details_from_request(
+    request: &payouts::PayoutCreateRequest,
+) -> CustomerDetails {
+    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
+
+    let customer_name = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.name.clone())
+        .or(request.name.clone());
+
+    let customer_email = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.email.clone())
+        .or(request.email.clone());
+
+    let customer_phone = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone.clone())
+        .or(request.phone.clone());
+
+    let customer_phone_code = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.phone_country_code.clone())
+        .or(request.phone_country_code.clone());
+
+    CustomerDetails {
+        customer_id,
+        name: customer_name,
+        email: customer_email,
+        phone: customer_phone,
+        phone_country_code: customer_phone_code,
     }
 }
