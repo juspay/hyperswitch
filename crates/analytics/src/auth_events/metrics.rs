@@ -45,7 +45,7 @@ where
     async fn load_metrics(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        publishable_key: &str,
+
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
@@ -65,7 +65,7 @@ where
     async fn load_metrics(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        publishable_key: &str,
+
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
@@ -73,42 +73,42 @@ where
         match self {
             Self::ThreeDsSdkCount => {
                 ThreeDsSdkCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationAttemptCount => {
                 AuthenticationAttemptCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::AuthenticationSuccessCount => {
                 AuthenticationSuccessCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::ChallengeFlowCount => {
                 ChallengeFlowCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::ChallengeAttemptCount => {
                 ChallengeAttemptCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::ChallengeSuccessCount => {
                 ChallengeSuccessCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::FrictionlessFlowCount => {
                 FrictionlessFlowCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
             Self::FrictionlessSuccessCount => {
                 FrictionlessSuccessCount
-                    .load_metrics(merchant_id, publishable_key, granularity, time_range, pool)
+                    .load_metrics(merchant_id, granularity, time_range, pool)
                     .await
             }
         }
