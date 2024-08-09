@@ -132,6 +132,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             AnalyticsCollection::Payment
             | AnalyticsCollection::Refund
             | AnalyticsCollection::FraudCheck
+            | AnalyticsCollection::Authentications
             | AnalyticsCollection::PaymentIntent
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
@@ -442,6 +443,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
             Self::Dispute => Ok("dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
+            Self::Authentications => Ok("authentications".to_string()),
         }
     }
 }
