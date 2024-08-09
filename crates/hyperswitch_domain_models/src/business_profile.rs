@@ -771,40 +771,40 @@ impl super::behaviour::Conversion for BusinessProfile {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(diesel_models::business_profile::BusinessProfileNew {
-            profile_id: __self.profile_id,
-            merchant_id: __self.merchant_id,
-            profile_name: __self.profile_name,
-            created_at: __self.created_at,
-            modified_at: __self.modified_at,
-            return_url: __self.return_url,
-            enable_payment_response_hash: __self.enable_payment_response_hash,
-            payment_response_hash_key: __self.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: __self.redirect_to_merchant_with_http_post,
-            webhook_details: __self.webhook_details,
-            metadata: __self.metadata,
-            is_recon_enabled: __self.is_recon_enabled,
-            applepay_verified_domains: __self.applepay_verified_domains,
-            payment_link_config: __self.payment_link_config,
-            session_expiry: __self.session_expiry,
-            authentication_connector_details: __self.authentication_connector_details,
-            payout_link_config: __self.payout_link_config,
-            is_extended_card_info_enabled: __self.is_extended_card_info_enabled,
-            extended_card_info_config: __self.extended_card_info_config,
-            is_connector_agnostic_mit_enabled: __self.is_connector_agnostic_mit_enabled,
-            use_billing_as_payment_method_billing: __self.use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector: __self
+            profile_id: self.profile_id,
+            merchant_id: self.merchant_id,
+            profile_name: self.profile_name,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            return_url: self.return_url,
+            enable_payment_response_hash: self.enable_payment_response_hash,
+            payment_response_hash_key: self.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
+            webhook_details: self.webhook_details,
+            metadata: self.metadata,
+            is_recon_enabled: self.is_recon_enabled,
+            applepay_verified_domains: self.applepay_verified_domains,
+            payment_link_config: self.payment_link_config,
+            session_expiry: self.session_expiry,
+            authentication_connector_details: self.authentication_connector_details,
+            payout_link_config: self.payout_link_config,
+            is_extended_card_info_enabled: self.is_extended_card_info_enabled,
+            extended_card_info_config: self.extended_card_info_config,
+            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+            use_billing_as_payment_method_billing: self.use_billing_as_payment_method_billing,
+            collect_shipping_details_from_wallet_connector: self
                 .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector: __self
+            collect_billing_details_from_wallet_connector: self
                 .collect_billing_details_from_wallet_connector,
-            outgoing_webhook_custom_http_headers: __self
+            outgoing_webhook_custom_http_headers: self
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
-            routing_algorithm_id: __self.routing_algorithm_id,
-            intent_fulfillment_time: __self.intent_fulfillment_time,
+            routing_algorithm_id: self.routing_algorithm_id,
+            intent_fulfillment_time: self.intent_fulfillment_time,
             // order_fulfillment_time: self.order_fulfillment_time,
             // order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             frm_routing_algorithm_id: self.frm_routing_algorithm_id,
-            payout_routing_algorithm_id: __self.payout_routing_algorithm_id,
+            payout_routing_algorithm_id: self.payout_routing_algorithm_id,
             // default_fallback_routing: self.default_fallback_routing,
         })
     }
