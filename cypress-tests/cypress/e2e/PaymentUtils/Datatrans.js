@@ -10,10 +10,6 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",

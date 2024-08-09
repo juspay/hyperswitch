@@ -159,6 +159,24 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("merchantRetrieveCallTest", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.headers["content-type"]).to.include("application/json");
+    expect(response.body.merchant_id).to.equal(merchantId);
+    globalState.set("publishableKey", response.body.publishable_key);
+  });
+});
+
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
   cy.request({
     method: "POST",
@@ -763,7 +781,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
-    request,
+    createPaymentBody,
     req_data,
     res_data,
     authentication_type,
@@ -771,22 +789,23 @@ Cypress.Commands.add(
     globalState
   ) => {
     if (
-      !request ||
-      typeof request !== "object" ||
-      !req_data.currency ||
-      !authentication_type
+      !createPaymentBody ||
+      typeof createPaymentBody !== "object" ||
+      !req_data.currency
     ) {
       throw new Error(
         "Invalid parameters provided to createPaymentIntentTest command"
       );
     }
-    request.currency = req_data.currency;
-    request.authentication_type = authentication_type;
-    request.capture_method = capture_method;
-    request.setup_future_usage = req_data.setup_future_usage;
-    request.customer_acceptance = req_data.customer_acceptance;
-    request.customer_id = globalState.get("customerId");
-    globalState.set("paymentAmount", request.amount);
+
+    for (const key in req_data) {
+      createPaymentBody[key] = req_data[key];
+    }
+    createPaymentBody.authentication_type = authentication_type;
+
+    createPaymentBody.capture_method = capture_method;
+    createPaymentBody.customer_id = globalState.get("customerId");
+    globalState.set("paymentAmount", createPaymentBody.amount);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -796,7 +815,7 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
-      body: request,
+      body: createPaymentBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -811,9 +830,11 @@ Cypress.Commands.add(
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
         }
-        expect(request.amount).to.equal(response.body.amount);
+        expect(createPaymentBody.amount).to.equal(response.body.amount);
         expect(null).to.equal(response.body.amount_received);
-        expect(request.amount).to.equal(response.body.amount_capturable);
+        expect(createPaymentBody.amount).to.equal(
+          response.body.amount_capturable
+        );
       } else {
         defaultErrorHandler(response, res_data);
       }
@@ -895,6 +916,7 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("paymentID", paymentIntentID);
+        globalState.set("connectorId", response.body.connector);
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -971,6 +993,7 @@ Cypress.Commands.add(
       if (response.status === 200) {
         expect(response.headers["content-type"]).to.include("application/json");
         globalState.set("paymentID", paymentIntentId);
+        globalState.set("connectorId", response.body.connector);
         globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
         switch (response.body.authentication_type) {
@@ -2033,6 +2056,7 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
       expect(response.body).to.have.property("token");
       //set jwt_token
       globalState.set("jwtToken", response.body.token);
+      globalState.set("merchantId", response.body.merchant_id);
 
       // set session cookie
       const sessionCookie = response.headers["set-cookie"][0];

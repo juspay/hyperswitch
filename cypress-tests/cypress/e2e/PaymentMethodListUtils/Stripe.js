@@ -10,27 +10,18 @@ export const connectorDetails = {
   pm_list: {
     PaymentIntent: {
       RequestCurrencyUSD: {
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "off_session",
         authentication_type: "no_three_ds",
       },
       RequestCurrencyEUR: {
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "off_session",
         authentication_type: "no_three_ds",
       },
       RequestCurrencyINR: {
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "INR",
         customer_acceptance: null,
         setup_future_usage: "off_session",
