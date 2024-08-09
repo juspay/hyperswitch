@@ -55,7 +55,7 @@ module.exports = defineConfig({
     reporterOptions: {
       reportDir: "cypress/reports",
       reportFilename: `${connectorId}_report`,
-      reportPageTitle: "Cypress Test Report",
+      reportPageTitle: `[${connectorId}] Cypress test report`,
       embeddedScreenshots: true,
       overwrite: false,
       inlineAssets: true,
