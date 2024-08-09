@@ -3,8 +3,9 @@ const fs = require("fs-extra");
 const path = require("path");
 
 let globalState;
-// Fetch connector name from environment variable
+// Fetch from environment variable
 const connectorId = process.env.CYPRESS_CONNECTOR;
+const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
 module.exports = defineConfig({
   e2e: {
@@ -54,7 +55,7 @@ module.exports = defineConfig({
     reporter: "cypress-mochawesome-reporter",
     reporterOptions: {
       reportDir: "cypress/reports",
-      reportFilename: `${connectorId}_report`,
+      reportFilename: reportName,
       reportPageTitle: `[${connectorId}] Cypress test report`,
       embeddedScreenshots: true,
       overwrite: false,
