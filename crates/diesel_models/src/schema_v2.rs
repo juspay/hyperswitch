@@ -652,9 +652,9 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         recon_status -> ReconStatus,
-        version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
