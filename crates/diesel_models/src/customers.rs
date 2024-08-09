@@ -261,6 +261,8 @@ pub struct CustomerUpdateInternal {
     pub connector_customer: Option<pii::SecretSerdeValue>,
     pub default_payment_method_id: Option<Option<String>>,
     pub updated_by: Option<String>,
+    pub default_billing_address: Option<Encryption>,
+    pub default_shipping_address: Option<Encryption>,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -276,6 +278,8 @@ impl CustomerUpdateInternal {
             connector_customer,
             // address_id,
             default_payment_method_id,
+            default_billing_address,
+            default_shipping_address,
             ..
         } = self;
 
@@ -292,6 +296,10 @@ impl CustomerUpdateInternal {
             default_payment_method_id: default_payment_method_id
                 .flatten()
                 .map_or(source.default_payment_method_id, Some),
+            default_billing_address: default_billing_address
+                .map_or(source.default_billing_address, Some),
+            default_shipping_address: default_shipping_address
+                .map_or(source.default_shipping_address, Some),
             ..source
         }
     }

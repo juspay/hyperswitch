@@ -1133,8 +1133,6 @@ pub async fn create_recipient(
             Ok(recipient_create_data) => {
                 let db = &*state.store;
                 if let Some(customer) = customer_details {
-                    let customer_id = customer.get_customer_id().to_owned();
-                    let merchant_id = merchant_account.get_id().to_owned();
                     if let Some(updated_customer) =
                         customers::update_connector_customer_in_customers(
                             &connector_label,
@@ -1143,20 +1141,46 @@ pub async fn create_recipient(
                         )
                         .await
                     {
-                        payout_data.customer_details = Some(
-                            db.update_customer_by_customer_id_merchant_id(
-                                &state.into(),
-                                customer_id,
-                                merchant_id,
-                                customer,
-                                updated_customer,
-                                key_store,
-                                merchant_account.storage_scheme,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error updating customers in db")?,
-                        )
+                        #[cfg(all(
+                            any(feature = "v1", feature = "v2"),
+                            not(feature = "customer_v2")
+                        ))]
+                        {
+                            let customer_id = customer.get_customer_id().to_owned();
+                            payout_data.customer_details = Some(
+                                db.update_customer_by_customer_id_merchant_id(
+                                    &state.into(),
+                                    customer_id,
+                                    merchant_account.get_id().to_owned(),
+                                    customer,
+                                    updated_customer,
+                                    key_store,
+                                    merchant_account.storage_scheme,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Error updating customers in db")?,
+                            );
+                        }
+
+                        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                        {
+                            let global_id = "temp_id".to_string();
+                            payout_data.customer_details = Some(
+                                db.update_customer_by_global_id(
+                                    &state.into(),
+                                    global_id,
+                                    customer,
+                                    &merchant_account.get_id(),
+                                    updated_customer,
+                                    key_store,
+                                    merchant_account.storage_scheme,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Error updating customers in db")?,
+                            );
+                        }
                     }
                 }
 
@@ -2402,9 +2426,33 @@ pub async fn make_payout_data(
     )
     .await?;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer_details = customer_id
         .async_map(|customer_id| async move {
             db.find_customer_optional_by_customer_id_merchant_id(
+                &state.into(),
+                customer_id,
+                merchant_id,
+                key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed while fetching optional customer [id - {:?}] for payout [id - {}]",
+                    customer_id, payout_id
+                )
+            })
+        })
+        .await
+        .transpose()?
+        .and_then(|c| c);
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customer_details = customer_id
+        .async_map(|customer_id| async move {
+            db.find_optional_by_merchant_id_merchant_reference_id(
                 &state.into(),
                 customer_id,
                 merchant_id,

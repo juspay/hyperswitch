@@ -1,14 +1,14 @@
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
+#[cfg(feature = "olap")]
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2")
 ))]
-use diesel::JoinOnDsl;
-#[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethods, QueryDsl};
+use diesel::{JoinOnDsl, NullableExpressionMethods};
 #[cfg(feature = "olap")]
 use diesel_models::{
     customers::Customer as DieselCustomer, query::generics::db_metrics,
@@ -47,12 +47,15 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
-use crate::{
-    connection,
-    store::schema::{
-        customers::all_columns as cust_all_columns, payout_attempt::all_columns as poa_all_columns,
-        payouts::all_columns as po_all_columns,
-    },
+use crate::connection;
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use crate::store::schema::{
+    customers::all_columns as cust_all_columns, payout_attempt::all_columns as poa_all_columns,
+    payouts::all_columns as po_all_columns,
 };
 use crate::{
     diesel_error_to_data_error,
@@ -684,7 +687,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
+    {
         todo!()
     }
 

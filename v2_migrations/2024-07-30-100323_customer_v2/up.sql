@@ -7,6 +7,7 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS default_shipping_address BYTEA DE
 ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_pkey;
 
 ALTER TABLE customers DROP COLUMN IF EXISTS id;
+
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS id VARCHAR(64);
 
 -- Back filling before making it primary key
