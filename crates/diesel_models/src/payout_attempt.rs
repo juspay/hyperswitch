@@ -87,6 +87,7 @@ pub enum PayoutAttemptUpdate {
     UpdateRouting {
         connector: String,
         routing_info: Option<serde_json::Value>,
+        merchant_connector_id: Option<String>,
     },
 }
 
@@ -104,6 +105,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub connector: Option<String>,
     pub routing_info: Option<serde_json::Value>,
     pub last_modified_at: PrimitiveDateTime,
+    pub merchant_connector_id: Option<String>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -119,6 +121,7 @@ impl Default for PayoutAttemptUpdateInternal {
             business_label: None,
             connector: None,
             routing_info: None,
+            merchant_connector_id: None,
             last_modified_at: common_utils::date_time::now(),
         }
     }
@@ -156,9 +159,11 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
             PayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             } => Self {
                 connector: Some(connector),
                 routing_info,
+                merchant_connector_id,
                 ..Default::default()
             },
         }
@@ -179,6 +184,7 @@ impl PayoutAttemptUpdate {
             connector,
             routing_info,
             last_modified_at,
+            merchant_connector_id,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -192,6 +198,7 @@ impl PayoutAttemptUpdate {
             connector: connector.or(source.connector),
             routing_info: routing_info.or(source.routing_info),
             last_modified_at,
+            merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
             ..source
         }
     }
