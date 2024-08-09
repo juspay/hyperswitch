@@ -4,7 +4,7 @@
     "apikey": [
       {
         "key": "value",
-        "value": "{{api_key}}",
+        "value": "{{admin_api_key}}",
         "type": "string"
       },
       {
@@ -14,20 +14,32 @@
       }
     ]
   },
-  "method": "GET",
+  "method": "POST",
   "header": [
     {
       "key": "Content-Type",
       "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
     }
   ],
+  "body": {
+    "mode": "raw",
+    "raw_json_formatted": {
+      "name": "API Key 1",
+      "description": null,
+      "expiration": "2069-09-23T01:02:03.000Z"
+    }
+  },
   "url": {
-    "raw": "{{baseUrl}}/account/:account_id/connectors",
+    "raw": "{{baseUrl}}/api_keys/:merchant_id",
     "host": ["{{baseUrl}}"],
-    "path": ["account", ":account_id", "connectors"],
+    "path": ["api_keys", ":merchant_id"],
     "variable": [
       {
-        "key": "account_id",
+        "key": "merchant_id",
         "value": "{{merchant_id}}"
       }
     ]
