@@ -132,10 +132,10 @@ pub enum Connector {
     Stripe,
     Threedsecureio,
     Trustpay,
-    // Tsys,
     Tsys,
     Volt,
     Wellsfargo,
+    // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
@@ -256,6 +256,7 @@ impl Connector {
             | Self::Tsys
             | Self::Volt
             | Self::Wellsfargo
+			// | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay

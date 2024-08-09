@@ -77,6 +77,7 @@ pub struct ConnectorAuthentication {
     pub tsys: Option<SignatureKey>,
     pub volt: Option<HeaderKey>,
     pub wellsfargo: Option<HeaderKey>,
+    // pub wellsfargopayout: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
