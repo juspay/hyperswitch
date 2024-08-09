@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 

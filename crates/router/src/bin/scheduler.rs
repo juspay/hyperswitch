@@ -1,4 +1,3 @@
-#![recursion_limit = "256"]
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
