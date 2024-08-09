@@ -2,6 +2,7 @@ pub mod access_token;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
+pub mod transformers;
 pub mod validator;
 use std::vec::IntoIter;
 
