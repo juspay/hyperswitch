@@ -12,8 +12,14 @@ mod business_profile {
     };
 }
 
+mod customers {
+    pub use hyperswitch_domain_models::customer::*;
+}
+
+pub use customers::*;
+pub use merchant_account::*;
+
 mod address;
-mod customer;
 mod event;
 mod merchant_connector_account;
 mod merchant_key_store {
@@ -27,9 +33,7 @@ pub mod user_key_store;
 
 pub use address::*;
 pub use business_profile::*;
-pub use customer::*;
 pub use event::*;
-pub use merchant_account::*;
 pub use merchant_connector_account::*;
 pub use merchant_key_store::*;
 pub use payments::*;

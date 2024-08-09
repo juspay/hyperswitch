@@ -400,6 +400,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config,
+                    version: hyperswitch_domain_models::consts::API_VERSION,
                 },
             )
         }
@@ -680,17 +681,11 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                             .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
-                    routing_algorithm: Some(serde_json::json!({
-                        "algorithm_id": null,
-                        "timestamp": 0
-                    })),
                     publishable_key,
                     metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),
-                    frm_routing_algorithm: None,
-                    payout_routing_algorithm: None,
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                 }),
@@ -955,7 +950,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                         key_manager_state,
                         type_name!(storage::MerchantAccount),
                         domain_types::CryptoOperation::EncryptOptional(inner),
-                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        identifier.clone(),
                         key,
                     )
                     .await
@@ -1049,9 +1044,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 .attach_printable("Unable to encrypt merchant details")?,
             metadata,
             publishable_key: None,
-            frm_routing_algorithm: None,
-            payout_routing_algorithm: None,
-            routing_algorithm: None,
         })
     }
 }

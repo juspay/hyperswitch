@@ -26,3 +26,9 @@ ALTER TABLE merchant_account DROP pm_collect_link_config;
 ALTER TABLE merchant_account DROP is_recon_enabled;
 
 ALTER TABLE merchant_account DROP webhook_details;
+
+ALTER TABLE merchant_account DROP routing_algorithm;
+
+ALTER TABLE merchant_account DROP frm_routing_algorithm;
+
+ALTER TABLE merchant_account DROP payout_routing_algorithm;

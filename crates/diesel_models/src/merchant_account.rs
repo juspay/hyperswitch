@@ -56,6 +56,7 @@ pub struct MerchantAccount {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -90,6 +91,7 @@ pub struct MerchantAccountSetter {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -126,6 +128,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             recon_status: item.recon_status,
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
+            version: item.version,
         }
     }
 }
@@ -151,14 +154,12 @@ pub struct MerchantAccount {
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub id: common_utils::id_type::MerchantId,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -173,11 +174,9 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             metadata: item.metadata,
             created_at: item.created_at,
             modified_at: item.modified_at,
-            frm_routing_algorithm: item.frm_routing_algorithm,
-            routing_algorithm: item.routing_algorithm,
-            payout_routing_algorithm: item.payout_routing_algorithm,
             organization_id: item.organization_id,
             recon_status: item.recon_status,
+            version: item.version,
         }
     }
 }
@@ -190,13 +189,11 @@ pub struct MerchantAccountSetter {
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
+    pub version: common_enums::ApiVersion,
 }
 
 impl MerchantAccount {
@@ -248,6 +245,7 @@ pub struct MerchantAccountNew {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -258,14 +256,12 @@ pub struct MerchantAccountNew {
     pub merchant_details: Option<Encryption>,
     pub publishable_key: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub id: common_utils::id_type::MerchantId,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -277,10 +273,7 @@ pub struct MerchantAccountUpdateInternal {
     pub publishable_key: Option<String>,
     pub storage_scheme: Option<storage_enums::MerchantStorageScheme>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub recon_status: Option<storage_enums::ReconStatus>,
 }
