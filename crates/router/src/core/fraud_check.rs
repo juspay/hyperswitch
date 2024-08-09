@@ -170,6 +170,14 @@ where
                     id: merchant_account.get_id().get_string_repr().to_owned(),
                 })
                 .ok();
+            let enabled_merchant_connector_account_from_db_option =
+                merchant_connector_account_from_db_option.and_then(|mca| {
+                    if mca.disabled.unwrap_or(false) {
+                        None
+                    } else {
+                        Some(mca)
+                    }
+                });
 
             #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
             let merchant_connector_account_from_db_option: Option<
@@ -181,7 +189,7 @@ where
                 todo!()
             };
 
-            match merchant_connector_account_from_db_option {
+            match enabled_merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
                     let frm_configs_option = merchant_connector_account_from_db
                         .frm_configs
