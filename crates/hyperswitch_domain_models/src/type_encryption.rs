@@ -9,6 +9,7 @@ use common_utils::{
 };
 use encrypt::TypeEncryption;
 use masking::Secret;
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 
 mod encrypt {
@@ -17,26 +18,19 @@ mod encrypt {
         crypto,
         encryption::Encryption,
         errors::{self, CustomResult},
-        types::keymanager::{Identifier, KeyManagerState},
+        keymanager::call_encryption_service,
+        transformers::{ForeignFrom, ForeignTryFrom},
+        types::keymanager::{
+            BatchDecryptDataResponse, BatchEncryptDataRequest, BatchEncryptDataResponse,
+            DecryptDataResponse, EncryptDataRequest, EncryptDataResponse, Identifier,
+            KeyManagerState, TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
+        },
     };
     use error_stack::ResultExt;
+    use http::Method;
     use masking::{PeekInterface, Secret};
-    use router_env::{instrument, tracing};
+    use router_env::{instrument, logger, tracing};
     use rustc_hash::FxHashMap;
-    #[cfg(feature = "encryption_service")]
-    use {
-        common_utils::{
-            keymanager::call_encryption_service,
-            transformers::{ForeignFrom, ForeignTryFrom},
-            types::keymanager::{
-                BatchDecryptDataResponse, BatchEncryptDataRequest, BatchEncryptDataResponse,
-                DecryptDataResponse, EncryptDataRequest, EncryptDataResponse,
-                TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
-            },
-        },
-        http::Method,
-        router_env::logger,
-    };
 
     use super::metrics;
 
@@ -104,6 +98,17 @@ mod encrypt {
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
     }
 
+    fn is_encryption_service_enabled(_state: &KeyManagerState) -> bool {
+        #[cfg(feature = "encryption_service")]
+        {
+            _state.enabled.unwrap_or_default()
+        }
+        #[cfg(not(feature = "encryption_service"))]
+        {
+            false
+        }
+    }
+
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
@@ -119,12 +124,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::encrypt(masked_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     EncryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -156,12 +159,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     DecryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -227,13 +228,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
-            }
-
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     BatchEncryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -264,13 +262,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-            }
-
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     BatchDecryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -356,12 +351,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::encrypt(masked_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     EncryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -393,12 +386,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     DecryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -465,12 +456,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     BatchEncryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -501,12 +490,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     BatchDecryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -590,12 +577,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::encrypt(masked_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     EncryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -627,12 +612,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     DecryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -694,13 +677,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
-            }
-
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     BatchEncryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -731,12 +711,10 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            #[cfg(not(feature = "encryption_service"))]
-            {
+            // If encryption service is not enabled, fall back to application encryption or else call encryption service
+            if !is_encryption_service_enabled(state) {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
-            }
-            #[cfg(feature = "encryption_service")]
-            {
+            } else {
                 let result: Result<
                     BatchDecryptDataResponse,
                     error_stack::Report<errors::KeyManagerClientError>,
@@ -854,12 +832,12 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
 }
 
 #[inline]
-pub async fn encrypt<E: Clone, S>(
+async fn encrypt<E: Clone, S>(
     state: &KeyManagerState,
     inner: Secret<E, S>,
     identifier: Identifier,
     key: &[u8],
-) -> CustomResult<crypto::Encryptable<Secret<E, S>>, errors::CryptoError>
+) -> CustomResult<crypto::Encryptable<Secret<E, S>>, CryptoError>
 where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
@@ -874,12 +852,12 @@ where
 }
 
 #[inline]
-pub async fn batch_encrypt<E: Clone, S>(
+async fn batch_encrypt<E: Clone, S>(
     state: &KeyManagerState,
     inner: FxHashMap<String, Secret<E, S>>,
     identifier: Identifier,
     key: &[u8],
-) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
+) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
@@ -904,12 +882,12 @@ where
 }
 
 #[inline]
-pub async fn encrypt_optional<E: Clone, S>(
+async fn encrypt_optional<E: Clone, S>(
     state: &KeyManagerState,
     inner: Option<Secret<E, S>>,
     identifier: Identifier,
     key: &[u8],
-) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
+) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
     Secret<E, S>: Send,
     S: masking::Strategy<E>,
@@ -922,12 +900,12 @@ where
 }
 
 #[inline]
-pub async fn decrypt_optional<T: Clone, S: masking::Strategy<T>>(
+async fn decrypt_optional<T: Clone, S: masking::Strategy<T>>(
     state: &KeyManagerState,
     inner: Option<Encryption>,
     identifier: Identifier,
     key: &[u8],
-) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
+) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
@@ -938,12 +916,12 @@ where
 }
 
 #[inline]
-pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     state: &KeyManagerState,
     inner: Encryption,
     identifier: Identifier,
     key: &[u8],
-) -> CustomResult<crypto::Encryptable<Secret<T, S>>, errors::CryptoError>
+) -> CustomResult<crypto::Encryptable<Secret<T, S>>, CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
@@ -957,12 +935,12 @@ where
 }
 
 #[inline]
-pub async fn batch_decrypt<E: Clone, S>(
+async fn batch_decrypt<E: Clone, S>(
     state: &KeyManagerState,
     inner: FxHashMap<String, Encryption>,
     identifier: Identifier,
     key: &[u8],
-) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
+) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
     S: masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
@@ -983,6 +961,65 @@ where
         .await
     } else {
         Ok(FxHashMap::default())
+    }
+}
+
+pub enum CryptoOperation<T: Clone, S: masking::Strategy<T>> {
+    Encrypt(Secret<T, S>),
+    EncryptOptional(Option<Secret<T, S>>),
+    Decrypt(Encryption),
+    DecryptOptional(Option<Encryption>),
+    BatchEncrypt(FxHashMap<String, Secret<T, S>>),
+    BatchDecrypt(FxHashMap<String, Encryption>),
+}
+
+use errors::CryptoError;
+
+#[derive(router_derive::TryGetEnumVariant)]
+#[error(CryptoError::EncodingFailed)]
+pub enum CryptoOutput<T: Clone, S: masking::Strategy<T>> {
+    Operation(crypto::Encryptable<Secret<T, S>>),
+    OptionalOperation(Option<crypto::Encryptable<Secret<T, S>>>),
+    BatchOperation(FxHashMap<String, crypto::Encryptable<Secret<T, S>>>),
+}
+
+#[instrument(skip_all, fields(table = table_name))]
+pub async fn crypto_operation<T: Clone + Send, S: masking::Strategy<T>>(
+    state: &KeyManagerState,
+    table_name: &str,
+    operation: CryptoOperation<T, S>,
+    identifier: Identifier,
+    key: &[u8],
+) -> CustomResult<CryptoOutput<T, S>, CryptoError>
+where
+    Secret<T, S>: Send,
+    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
+{
+    match operation {
+        CryptoOperation::Encrypt(data) => {
+            let data = encrypt(state, data, identifier, key).await?;
+            Ok(CryptoOutput::Operation(data))
+        }
+        CryptoOperation::EncryptOptional(data) => {
+            let data = encrypt_optional(state, data, identifier, key).await?;
+            Ok(CryptoOutput::OptionalOperation(data))
+        }
+        CryptoOperation::Decrypt(data) => {
+            let data = decrypt(state, data, identifier, key).await?;
+            Ok(CryptoOutput::Operation(data))
+        }
+        CryptoOperation::DecryptOptional(data) => {
+            let data = decrypt_optional(state, data, identifier, key).await?;
+            Ok(CryptoOutput::OptionalOperation(data))
+        }
+        CryptoOperation::BatchEncrypt(data) => {
+            let data = batch_encrypt(state, data, identifier, key).await?;
+            Ok(CryptoOutput::BatchOperation(data))
+        }
+        CryptoOperation::BatchDecrypt(data) => {
+            let data = batch_decrypt(state, data, identifier, key).await?;
+            Ok(CryptoOutput::BatchOperation(data))
+        }
     }
 }
 

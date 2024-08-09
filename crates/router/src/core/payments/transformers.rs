@@ -1,8 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    Address, CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData,
-    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
+    Address, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest, PaymentChargeResponse,
+    RequestSurchargeDetails,
 };
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutAttemptResponse;
@@ -105,7 +105,9 @@ where
         customer_data: customer,
     };
 
-    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+    let customer_id = customer
+        .to_owned()
+        .map(|customer| customer.get_customer_id());
 
     let supported_connector = &state
         .conf
@@ -135,11 +137,6 @@ where
         Some(merchant_connector_account),
     );
 
-    let payment_method_data_billing = payment_data
-        .payment_method_data
-        .as_ref()
-        .and_then(|payment_method_data| payment_method_data.get_billing_address());
-
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -152,9 +149,7 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        address: payment_data
-            .address
-            .unify_with_payment_method_data_billing(payment_method_data_billing),
+        address: payment_data.address.clone(),
         auth_type: payment_data
             .payment_attempt
             .authentication_type
@@ -344,7 +339,7 @@ where
                 verify_id: Some(data.payment_intent.payment_id),
                 merchant_id: Some(data.payment_intent.merchant_id),
                 client_secret: data.payment_intent.client_secret.map(Secret::new),
-                customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
+                customer_id: customer.as_ref().map(|x| x.get_customer_id().clone()),
                 email: customer
                     .as_ref()
                     .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
@@ -582,7 +577,7 @@ where
 
         services::ApplicationResponse::Form(Box::new(services::RedirectionFormData {
             redirect_form: form,
-            payment_method_data: payment_data.payment_method_data,
+            payment_method_data: payment_data.payment_method_data.map(Into::into),
             amount,
             currency: currency.to_string(),
         }))
@@ -750,7 +745,7 @@ where
                 .set_client_secret(payment_intent.client_secret.map(Secret::new))
                 .set_created(Some(payment_intent.created_at))
                 .set_currency(currency.to_string())
-                .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
+                .set_customer_id(customer.as_ref().map(|cus| cus.clone().get_customer_id()))
                 .set_email(
                     customer
                         .as_ref()
@@ -1127,7 +1122,7 @@ impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
             currency: payout.destination_currency,
             connector: payout_attempt.connector,
             payout_type: payout.payout_type,
-            customer_id: customer.customer_id,
+            customer_id: customer.get_customer_id(),
             auto_fulfill: payout.auto_fulfill,
             email: customer.email,
             name: customer.name,
@@ -1348,7 +1343,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {
-                Some(api_models::payments::PaymentMethodData::MandatePayment)
+                Some(domain::PaymentMethodData::MandatePayment)
             } else {
                 None
             }
@@ -1372,7 +1367,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let customer_id = additional_data
             .customer_data
             .as_ref()
-            .map(|data| data.customer_id.clone());
+            .map(|data| data.get_customer_id().clone());
 
         let charges = match payment_data.payment_intent.charges {
             Some(charges) => charges
@@ -1390,9 +1385,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
 
         Ok(Self {
-            payment_method_data: From::from(
-                payment_method_data.get_required_value("payment_method_data")?,
-            ),
+            payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -1746,11 +1739,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             confirm: true,
             amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
             minor_amount: Some(amount),
-            payment_method_data: From::from(
-                payment_data
-                    .payment_method_data
-                    .get_required_value("payment_method_data")?,
-            ),
+            payment_method_data: (payment_data
+                .payment_method_data
+                .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             off_session: payment_data.mandate_id.as_ref().map(|_| true),

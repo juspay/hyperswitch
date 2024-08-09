@@ -21,8 +21,9 @@ use crate::{
     transformers::{ForeignFrom, ForeignTryFrom},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KeyManagerState {
+    pub enabled: Option<bool>,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
     #[cfg(feature = "keymanager_mtls")]

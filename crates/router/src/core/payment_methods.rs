@@ -1,14 +1,17 @@
-use std::collections::HashSet;
 pub mod cards;
 pub mod migration;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
+mod validator;
 pub mod vault;
+
+use std::{borrow::Cow, collections::HashSet};
+
 pub use api_models::enums::Connector;
+use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use api_models::{payment_methods, payments::CardToken};
 use common_utils::{ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -32,27 +35,23 @@ use crate::{
     },
     routes::{app::StorageInterface, SessionState},
     services,
-    types::{
-        api::{self, payments},
-        domain, storage,
-    },
+    types::{domain, storage},
 };
-mod validator;
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
-    pm_data: &Option<payments::PaymentMethodData>,
+    pm_data: &Option<domain::PaymentMethodData>,
     state: &SessionState,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
-) -> RouterResult<(Option<payments::PaymentMethodData>, Option<String>)> {
+    business_profile: Option<&domain::BusinessProfile>,
+) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
-        pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)) => {
+        pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -66,17 +65,17 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
-        pm @ Some(api::PaymentMethodData::PayLater(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Crypto(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::BankDebit(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
-        pm @ Some(api::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
-        pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)) => {
+        pm @ Some(domain::PaymentMethodData::PayLater(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Crypto(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::BankDebit(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Upi(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Voucher(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::Reward) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::RealTimePayment(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::CardRedirect(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::GiftCard(_)) => Ok((pm.to_owned(), None)),
+        pm @ Some(domain::PaymentMethodData::OpenBanking(_)) => Ok((pm.to_owned(), None)),
+        pm_opt @ Some(pm @ domain::PaymentMethodData::BankTransfer(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -90,7 +89,7 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
-        pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)) => {
+        pm_opt @ Some(pm @ domain::PaymentMethodData::Wallet(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -104,7 +103,7 @@ pub async fn retrieve_payment_method(
 
             Ok((pm_opt.to_owned(), payment_token))
         }
-        pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)) => {
+        pm_opt @ Some(pm @ domain::PaymentMethodData::BankRedirect(_)) => {
             let payment_token = helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
@@ -146,11 +145,10 @@ pub async fn initiate_pm_collect_link(
         req.return_url.clone(),
     )
     .await?;
-    let customer_id = CustomerId::from(pm_collect_link.primary_reference.into()).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
+    let customer_id = CustomerId::try_from(Cow::from(pm_collect_link.primary_reference))
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "customer_id",
-        },
-    )?;
+        })?;
 
     // Return response
     let url = pm_collect_link.url.peek();
@@ -259,7 +257,7 @@ pub async fn render_pm_collect_link(
             // else, send back form link
             } else {
                 let customer_id =
-                    CustomerId::from(pm_collect_link.primary_reference.clone().into())
+                    CustomerId::try_from(Cow::from(pm_collect_link.primary_reference.clone()))
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
                             field_name: "customer_id",
                         })?;
@@ -288,7 +286,7 @@ pub async fn render_pm_collect_link(
                     publishable_key: masking::Secret::new(merchant_account.publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
-                    customer_id: customer.customer_id,
+                    customer_id: customer.get_customer_id(),
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
                     ui_config: ui_config_data,
@@ -433,7 +431,7 @@ pub async fn retrieve_payment_method_with_token(
     merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     payment_intent: &PaymentIntent,
-    card_token_data: Option<&CardToken>,
+    card_token_data: Option<&domain::CardToken>,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {

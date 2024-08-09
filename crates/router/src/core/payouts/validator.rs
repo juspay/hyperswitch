@@ -1,13 +1,11 @@
-use std::collections::HashSet;
-
 use actix_web::http::header;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
+use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
-use globset::Glob;
 pub use hyperswitch_domain_models::errors::StorageError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use url::Url;
 
 use super::helpers;
@@ -76,6 +74,7 @@ pub async fn validate_create_request(
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
+    let key_manager_state = &state.into();
     let payout_id = core_utils::get_or_generate_uuid("payout_id", req.payout_id.as_ref())?;
     match validate_uniqueness_of_payout_id_against_merchant_id(
         db,
@@ -120,8 +119,13 @@ pub async fn validate_create_request(
         None => None,
     };
 
-    // Profile ID
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let profile_id = core_utils::get_profile_id_from_business_details(
+        key_manager_state,
+        merchant_key_store,
         req.business_country,
         req.business_label.as_ref(),
         merchant_account,
@@ -130,6 +134,16 @@ pub async fn validate_create_request(
         false,
     )
     .await?;
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    // Profile id will be mandatory in v2 in the request / headers
+    let profile_id = req
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .attach_printable("Profile id is a mandatory parameter")?;
 
     Ok((payout_id, payout_method_data, profile_id))
 }
@@ -255,7 +269,7 @@ pub fn validate_payout_link_render_request(
             })?
     };
 
-    if is_domain_allowed(&domain_in_req, link_data.allowed_domains) {
+    if validate_domain_against_allowed_domains(&domain_in_req, link_data.allowed_domains) {
         Ok(())
     } else {
         Err(report!(errors::ApiErrorResponse::AccessForbidden {
@@ -268,13 +282,4 @@ pub fn validate_payout_link_render_request(
             )
         })
     }
-}
-
-fn is_domain_allowed(domain: &str, allowed_domains: HashSet<String>) -> bool {
-    allowed_domains.iter().any(|allowed_domain| {
-        Glob::new(allowed_domain)
-            .map(|glob| glob.compile_matcher().is_match(domain))
-            .map_err(|err| logger::error!("Invalid glob pattern! - {:?}", err))
-            .unwrap_or(false)
-    })
 }

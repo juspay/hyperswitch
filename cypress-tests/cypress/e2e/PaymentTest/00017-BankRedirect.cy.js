@@ -27,7 +27,7 @@ describe("Bank Redirect tests", () => {
     it("create-payment-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
-      ]["blikPaymentIntent"];
+      ]["BlikPaymentIntent"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createPaymentIntentTest(
@@ -49,7 +49,7 @@ describe("Bank Redirect tests", () => {
     it("Confirm bank redirect", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
-      ]["blik"];
+      ]["Blik"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.confirmBankRedirectCallTest(
@@ -104,7 +104,7 @@ describe("Bank Redirect tests", () => {
     it("Confirm bank redirect", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
-      ]["eps"];
+      ]["Eps"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.confirmBankRedirectCallTest(
@@ -170,7 +170,7 @@ describe("Bank Redirect tests", () => {
     it("Confirm bank redirect", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
-      ]["ideal"];
+      ]["Ideal"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.confirmBankRedirectCallTest(
@@ -235,7 +235,7 @@ describe("Bank Redirect tests", () => {
     it("Confirm bank redirect", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
-      ]["giropay"];
+      ]["Giropay"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.confirmBankRedirectCallTest(
@@ -300,7 +300,7 @@ describe("Bank Redirect tests", () => {
     it("Confirm bank redirect", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
-      ]["sofort"];
+      ]["Sofort"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.confirmBankRedirectCallTest(
@@ -365,7 +365,7 @@ describe("Bank Redirect tests", () => {
     it("Confirm bank redirect", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
-      ]["przelewy24"];
+      ]["Przelewy24"];
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.confirmBankRedirectCallTest(

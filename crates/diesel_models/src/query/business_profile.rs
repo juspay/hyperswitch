@@ -1,13 +1,16 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
+use crate::schema::business_profile::dsl;
+#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+use crate::schema_v2::business_profile::dsl;
 use crate::{
-    business_profile::{
-        BusinessProfile, BusinessProfileNew, BusinessProfileUpdate, BusinessProfileUpdateInternal,
-    },
-    errors,
-    schema::business_profile::dsl,
-    PgPooledConn, StorageResult,
+    business_profile::{BusinessProfile, BusinessProfileNew, BusinessProfileUpdateInternal},
+    errors, PgPooledConn, StorageResult,
 };
 
 impl BusinessProfileNew {
@@ -20,12 +23,12 @@ impl BusinessProfile {
     pub async fn update_by_profile_id(
         self,
         conn: &PgPooledConn,
-        business_profile: BusinessProfileUpdate,
+        business_profile: BusinessProfileUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.profile_id.clone(),
-            BusinessProfileUpdateInternal::from(business_profile),
+            business_profile,
         )
         .await
         {

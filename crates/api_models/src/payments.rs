@@ -750,6 +750,7 @@ pub struct HeaderPayload {
     pub browser_name: Option<api_enums::BrowserName>,
     pub x_client_platform: Option<api_enums::ClientPlatform>,
     pub x_merchant_domain: Option<String>,
+    pub locale: Option<String>,
 }
 
 impl HeaderPayload {
@@ -2473,11 +2474,11 @@ pub enum BankTransferData {
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         pix_key: Option<Secret<String>>,
         /// CPF is a Brazilian tax identification number
-        #[schema(value_type = Option<i64>, example = "10599054689")]
-        cpf: Option<Secret<i64>>,
+        #[schema(value_type = Option<String>, example = "10599054689")]
+        cpf: Option<Secret<String>>,
         /// CNPJ is a Brazilian company tax identification number
-        #[schema(value_type = Option<i64>, example = "74469027417312")]
-        cnpj: Option<Secret<i64>>,
+        #[schema(value_type = Option<String>, example = "74469027417312")]
+        cnpj: Option<Secret<String>>,
     },
     Pse {},
     LocalBankTransfer {
@@ -3674,6 +3675,7 @@ pub struct PaymentsResponse {
     /// Providing this field will automatically set `capture` to true
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[remove_in(PaymentsCreateResponseOpenApi)]
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
@@ -5337,7 +5339,11 @@ pub struct RetrievePaymentLinkRequest {
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkResponse {
+    /// URL for rendering the open payment link
     pub link: String,
+    /// URL for rendering the secure payment link
+    pub secure_link: Option<String>,
+    /// Identifier for the payment link
     pub payment_link_id: String,
 }
 
@@ -5348,7 +5354,7 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
-    /// Payment Link
+    /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
     #[schema(value_type = i64, example = 6540)]
@@ -5365,6 +5371,8 @@ pub struct RetrievePaymentLinkResponse {
     pub status: PaymentLinkStatus,
     #[schema(value_type = Option<Currency>)]
     pub currency: Option<api_enums::Currency>,
+    /// Secure payment link (with security checks and listing saved payment methods)
+    pub secure_link: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -5376,9 +5384,9 @@ pub struct PaymentLinkInitiateRequest {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub enum PaymentLinkData<'a> {
-    PaymentLinkDetails(&'a PaymentLinkDetails),
-    PaymentLinkStatusDetails(PaymentLinkStatusDetails),
+pub enum PaymentLinkData {
+    PaymentLinkDetails(Box<PaymentLinkDetails>),
+    PaymentLinkStatusDetails(Box<PaymentLinkStatusDetails>),
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5399,7 +5407,15 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
+    pub locale: Option<String>,
+    pub transaction_details: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct SecurePaymentLinkDetails {
     pub enabled_saved_payment_method: bool,
+    #[serde(flatten)]
+    pub payment_link_details: PaymentLinkDetails,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -5417,6 +5433,8 @@ pub struct PaymentLinkStatusDetails {
     pub redirect: bool,
     pub theme: String,
     pub return_url: String,
+    pub locale: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

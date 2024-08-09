@@ -770,7 +770,7 @@ impl EventInterface for MockDb {
 mod tests {
     use std::sync::Arc;
 
-    use common_utils::types::keymanager::Identifier;
+    use common_utils::{type_name, types::keymanager::Identifier};
     use diesel_models::{enums, events::EventMetadata};
     use time::macros::datetime;
 
@@ -806,7 +806,9 @@ mod tests {
         let state = &Arc::new(app_state)
             .get_session_state("public", || {})
             .unwrap();
-        let merchant_id = common_utils::id_type::MerchantId::from("merchant_1".into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
+                .unwrap();
         let business_profile_id = "profile1";
         let payment_id = "test_payment_id";
         let key_manager_state = &state.into();
@@ -816,13 +818,17 @@ mod tests {
                 key_manager_state,
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.clone(),
-                    key: domain::types::encrypt(
+                    key: domain::types::crypto_operation(
                         key_manager_state,
-                        services::generate_aes256_key().unwrap().to_vec().into(),
+                        type_name!(domain::MerchantKeyStore),
+                        domain::types::CryptoOperation::Encrypt(
+                            services::generate_aes256_key().unwrap().to_vec().into(),
+                        ),
                         Identifier::Merchant(merchant_id.to_owned()),
                         master_key,
                     )
                     .await
+                    .and_then(|val| val.try_into_operation())
                     .unwrap(),
                     created_at: datetime!(2023-02-01 0:00),
                 },
