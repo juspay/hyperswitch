@@ -487,7 +487,7 @@ pub enum ConnectorType {
     /// 3DS Authentication Service Providers
     AuthenticationProcessor,
     /// Tax Calculators
-    TaxCalculator
+    TaxCalculator,
 }
 
 #[derive(Debug, Eq, PartialEq)]
