@@ -68,6 +68,24 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
+    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
+    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
     async fn transfer_org_ownership_between_users(
         &self,
         from_user_id: &str,
@@ -202,6 +220,50 @@ impl UserRoleInterface for Store {
         storage::UserRole::list_by_merchant_id(&conn, merchant_id.to_owned(), version)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::UserRole::find_by_user_id_org_id_merchant_id_profile_id(
+            &conn,
+            user_id.to_owned(),
+            org_id.to_owned(),
+            merchant_id.to_owned(),
+            profile_id.cloned(),
+            version,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::UserRole::delete_by_user_id_org_id_merchant_id_profile_id(
+            &conn,
+            user_id.to_owned(),
+            org_id.to_owned(),
+            merchant_id.to_owned(),
+            profile_id.cloned(),
+            version,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
@@ -633,5 +695,84 @@ impl UserRoleInterface for MockDb {
             .collect();
 
         Ok(filtered_roles)
+    }
+
+    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let user_roles = self.user_roles.lock().await;
+
+        for user_role in user_roles.iter() {
+            let org_level_check = user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.is_none()
+                && user_role.profile_id.is_none();
+
+            let merchant_level_check = user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.profile_id.is_none();
+
+            let profile_level_check = user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.profile_id.as_ref() == profile_id;
+
+            // Check if any condition matches and the version matches
+            if user_role.user_id == user_id
+                && (org_level_check || merchant_level_check || profile_level_check)
+                && user_role.version == version
+            {
+                return Ok(user_role.clone());
+            }
+        }
+
+        Err(errors::StorageError::ValueNotFound(format!(
+            "No user role available for user_id = {} in the current token hierarchy",
+            user_id
+        ))
+        .into())
+    }
+
+    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        let mut user_roles = self.user_roles.lock().await;
+
+        // Find the position of the user role to delete
+        let index = user_roles.iter().position(|role| {
+            let org_level_check = role.org_id.as_ref() == Some(org_id)
+                && role.merchant_id.is_none()
+                && role.profile_id.is_none();
+
+            let merchant_level_check = role.org_id.as_ref() == Some(org_id)
+                && role.merchant_id.as_ref() == Some(merchant_id)
+                && role.profile_id.is_none();
+
+            let profile_level_check = role.org_id.as_ref() == Some(org_id)
+                && role.merchant_id.as_ref() == Some(merchant_id)
+                && role.profile_id.as_ref() == profile_id;
+
+            // Check if the user role matches the conditions and the version matches
+            role.user_id == user_id
+                && (org_level_check || merchant_level_check || profile_level_check)
+                && role.version == version
+        });
+
+        // Remove and return the user role if found
+        match index {
+            Some(idx) => Ok(user_roles.remove(idx)),
+            None => Err(errors::StorageError::ValueNotFound(
+                "Cannot find user role to delete".to_string(),
+            )
+            .into()),
+        }
     }
 }
