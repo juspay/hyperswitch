@@ -4520,7 +4520,7 @@ pub async fn get_mca_status(
             .filter(|mca| mca.disabled == Some(false) && profile_id.clone() == mca.profile_id)
             .collect::<Vec<_>>();
 
-        for mca in mcas.clone() {
+        for mca in mcas {
             mca_ids.insert(mca.get_id());
         }
         for mca_id in connector_mandate_details.keys() {
