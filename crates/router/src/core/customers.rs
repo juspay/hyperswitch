@@ -951,9 +951,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
             type_name!(domain::Customer),
             types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
                 CustomerRequestWithEmail {
-                    name: update_customer.name.clone(),
-                    email: update_customer.email.clone(),
-                    phone: update_customer.phone.clone(),
+                    name: self.name.clone(),
+                    email: self.email.clone(),
+                    phone: self.phone.clone(),
                 },
             )),
             Identifier::Merchant(key_store.merchant_id.clone()),

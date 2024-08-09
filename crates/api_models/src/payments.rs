@@ -5385,8 +5385,8 @@ pub struct PaymentLinkInitiateRequest {
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum PaymentLinkData {
-    PaymentLinkDetails(PaymentLinkDetails),
-    PaymentLinkStatusDetails(PaymentLinkStatusDetails),
+    PaymentLinkDetails(Box<PaymentLinkDetails>),
+    PaymentLinkStatusDetails(Box<PaymentLinkStatusDetails>),
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5408,6 +5408,7 @@ pub struct PaymentLinkDetails {
     pub sdk_layout: String,
     pub display_sdk_only: bool,
     pub locale: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5433,6 +5434,7 @@ pub struct PaymentLinkStatusDetails {
     pub theme: String,
     pub return_url: String,
     pub locale: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

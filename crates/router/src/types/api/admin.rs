@@ -11,20 +11,17 @@ pub use api_models::{
     },
     organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
 };
-use common_utils::{ext_traits::ValueExt, type_name, types::keymanager::Identifier};
+use common_utils::ext_traits::ValueExt;
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    merchant_key_store::MerchantKeyStore,
-    type_encryption::{crypto_operation, CryptoOperation},
-};
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use masking::{ExposeInterface, Secret};
 
 use crate::{
     core::errors,
     routes::SessionState,
     types::{
-        domain, storage,
+        domain,
         transformers::{ForeignInto, ForeignTryFrom},
         ForeignFrom,
     },
@@ -113,79 +110,65 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-pub async fn business_profile_response(
-    state: &SessionState,
-    item: storage::business_profile::BusinessProfile,
-    key_store: &MerchantKeyStore,
-) -> Result<BusinessProfileResponse, error_stack::Report<errors::ParsingError>> {
-    let outgoing_webhook_custom_http_headers =
-        crypto_operation::<serde_json::Value, masking::WithType>(
-            &state.into(),
-            type_name!(storage::business_profile::BusinessProfile),
-            CryptoOperation::DecryptOptional(item.outgoing_webhook_custom_http_headers.clone()),
-            Identifier::Merchant(key_store.merchant_id.clone()),
-            key_store.key.get_inner().peek(),
-        )
-        .await
-        .and_then(|val| val.try_into_optionaloperation())
-        .change_context(errors::ParsingError::StructParseFailure(
-            "Outgoing webhook custom HTTP headers",
-        ))
-        .attach_printable("Failed to decrypt outgoing webhook custom HTTP headers")?
-        .map(|decrypted_value| {
-            decrypted_value
-                .into_inner()
-                .expose()
-                .parse_value::<HashMap<String, String>>("HashMap<String,String>")
-        })
-        .transpose()?;
+impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+    type Error = error_stack::Report<errors::ParsingError>;
 
-    Ok(BusinessProfileResponse {
-        merchant_id: item.merchant_id,
-        profile_id: item.profile_id,
-        profile_name: item.profile_name,
-        return_url: item.return_url,
-        enable_payment_response_hash: item.enable_payment_response_hash,
-        payment_response_hash_key: item.payment_response_hash_key,
-        redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-        webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
-        metadata: item.metadata,
-        routing_algorithm: item.routing_algorithm,
-        intent_fulfillment_time: item.intent_fulfillment_time,
-        frm_routing_algorithm: item.frm_routing_algorithm,
-        #[cfg(feature = "payouts")]
-        payout_routing_algorithm: item.payout_routing_algorithm,
-        applepay_verified_domains: item.applepay_verified_domains,
-        payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),
-        session_expiry: item.session_expiry,
-        authentication_connector_details: item
-            .authentication_connector_details
-            .map(ForeignInto::foreign_into),
-        payout_link_config: item.payout_link_config.map(ForeignInto::foreign_into),
-        use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
-        extended_card_info_config: item
-            .extended_card_info_config
-            .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
-            .transpose()?,
-        collect_shipping_details_from_wallet_connector: item
-            .collect_shipping_details_from_wallet_connector,
-        collect_billing_details_from_wallet_connector: item
-            .collect_billing_details_from_wallet_connector,
-        is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
-        outgoing_webhook_custom_http_headers,
-    })
+    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+        let outgoing_webhook_custom_http_headers = item
+            .outgoing_webhook_custom_http_headers
+            .map(|headers| {
+                headers
+                    .into_inner()
+                    .expose()
+                    .parse_value::<HashMap<String, Secret<String>>>(
+                        "HashMap<String, Secret<String>>",
+                    )
+            })
+            .transpose()?;
+
+        Ok(Self {
+            merchant_id: item.merchant_id,
+            profile_id: item.profile_id,
+            profile_name: item.profile_name,
+            return_url: item.return_url,
+            enable_payment_response_hash: item.enable_payment_response_hash,
+            payment_response_hash_key: item.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+            webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
+            metadata: item.metadata,
+            routing_algorithm: item.routing_algorithm,
+            intent_fulfillment_time: item.intent_fulfillment_time,
+            frm_routing_algorithm: item.frm_routing_algorithm,
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: item.payout_routing_algorithm,
+            applepay_verified_domains: item.applepay_verified_domains,
+            payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),
+            session_expiry: item.session_expiry,
+            authentication_connector_details: item
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config: item.payout_link_config.map(ForeignInto::foreign_into),
+            use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
+            extended_card_info_config: item
+                .extended_card_info_config
+                .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
+                .transpose()?,
+            collect_shipping_details_from_wallet_connector: item
+                .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: item
+                .collect_billing_details_from_wallet_connector,
+            is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
+            outgoing_webhook_custom_http_headers,
+        })
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-
 pub async fn create_business_profile(
     _state: &SessionState,
     _request: BusinessProfileCreate,
     _key_store: &MerchantKeyStore,
-) -> Result<
-    storage::business_profile::BusinessProfileNew,
-    error_stack::Report<errors::ApiErrorResponse>,
-> {
+) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
     todo!()
 }
 
@@ -198,10 +181,7 @@ pub async fn create_business_profile(
     merchant_account: domain::MerchantAccount,
     request: BusinessProfileCreate,
     key_store: &MerchantKeyStore,
-) -> Result<
-    storage::business_profile::BusinessProfileNew,
-    error_stack::Report<errors::ApiErrorResponse>,
-> {
+) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
     use common_utils::ext_traits::AsyncExt;
 
     use crate::core;
@@ -242,7 +222,7 @@ pub async fn create_business_profile(
         })
         .transpose()?;
 
-    Ok(storage::business_profile::BusinessProfileNew {
+    Ok(domain::BusinessProfile {
         profile_id,
         merchant_id,
         profile_name: request.profile_name.unwrap_or("default".to_string()),

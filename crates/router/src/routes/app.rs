@@ -867,7 +867,6 @@ pub struct Customers;
 #[cfg(all(
     feature = "v2",
     feature = "customer_v2",
-    feature = "payment_methods_v2",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
