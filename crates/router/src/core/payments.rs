@@ -628,7 +628,7 @@ where
 pub async fn call_decision_manager<O>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    _business_profile: &diesel_models::business_profile::BusinessProfile,
+    _business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<O>,
 ) -> RouterResult<()>
 where
@@ -760,7 +760,7 @@ pub fn get_connector_data(
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &SessionState,
     _merchant_account: &domain::MerchantAccount,
-    _business_profile: &diesel_models::business_profile::BusinessProfile,
+    _business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
