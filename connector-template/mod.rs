@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, Mask};
 
 use common_utils::{
     errors::CustomResult,
