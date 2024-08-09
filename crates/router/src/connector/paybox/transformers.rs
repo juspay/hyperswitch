@@ -5,6 +5,7 @@ use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use crate::connector::utils;
 
 use crate::{
     core::errors,
@@ -24,6 +25,19 @@ impl<T> From<(MinorUnit, T)> for PayboxRouterData<T> {
         }
     }
 }
+
+const AUTH_REQUEST: &str = "00001";
+const CAPTURE_REQUEST: &str = "00002";
+const AUTH_AND_CAPTURE_REQUEST: &str = "00003";
+const VOID_REQUEST: &str = "00005";
+const SYNC_REQUEST: &str = "00017";
+const REFUND_REQUEST: &str = "00014";
+
+const SUCCESS_CODE: &str = "00000";
+
+const VERSION_PAYBOX:&str ="00104";
+
+const PAY_ORIGIN_INTERNET: &str ="024";
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -60,7 +74,7 @@ pub struct PayboxPaymentsRequest {
     pub cvv: Secret<String>,
 
     #[serde(rename = "ACTIVITE")]
-    pub activity: String, // always 024
+    pub activity: String,
 
     #[serde(rename = "SITE")]
     pub site: Secret<String>,
@@ -121,19 +135,23 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
             .to_string();
-        let current_time = common_utils::date_time::now();
-        let format_time =
-            common_utils::date_time::format_date(current_time, DateFormat::YYYYMMDDHHmmss).unwrap();
+        let paybox_meta_data: PayboxMeta =
+        utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
+        let format_time = common_utils::date_time::format_date(
+            common_utils::date_time::now(),
+            DateFormat::YYYYMMDDHHmmss,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             date: format_time.clone(),
-            transaction_type: "00002".into(),
-            question_number: get_question_number(),
-            version: get_version(),
+            transaction_type: CAPTURE_REQUEST.to_string(),
+            question_number: get_question_number()?,
+            version: VERSION_PAYBOX.to_string(),
             currency,
             site: auth_data.site,
             rank: auth_data.rang,
             key: auth_data.cle,
-            transaction_number: "k".into(),
+            transaction_number: paybox_meta_data.connector_request_id,
             call_number: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
             reference: item.router_data.request.connector_transaction_id.clone(),
@@ -188,21 +206,29 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCancelRouterData>> for PayboxVoid
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let currency =
-            diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency.unwrap())
-                .to_string();
-        let current_time = common_utils::date_time::now();
-        let format_time =
-            common_utils::date_time::format_date(current_time, DateFormat::YYYYMMDDHHmmss).unwrap();
+            diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "Currency",
+                },
+            )?)
+            .to_string();
+        let format_time = common_utils::date_time::format_date(
+            common_utils::date_time::now(),
+            DateFormat::YYYYMMDDHHmmss,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let paybox_meta_data: PayboxMeta =
+    utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
         Ok(Self {
             date: format_time.clone(),
-            transaction_type: "00005".into(),
-            question_number: get_question_number(),
-            version: get_version(),
+            transaction_type: VOID_REQUEST.to_string(),
+            question_number: get_question_number()?,
+            version: VERSION_PAYBOX.to_string(),
             currency,
             site: auth_data.site,
             rank: auth_data.rang,
             key: auth_data.cle,
-            transaction_number: "k".into(),
+            transaction_number: paybox_meta_data.connector_request_id,
             call_number: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
             reference: item.router_data.request.connector_transaction_id.clone(),
@@ -244,18 +270,22 @@ impl TryFrom<&types::RefundSyncRouterData> for PayboxRsyncRequest {
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
         let auth_data: PayboxAuthType = PayboxAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let current_time = common_utils::date_time::now();
-        let format_time =
-            common_utils::date_time::format_date(current_time, DateFormat::YYYYMMDDHHmmss).unwrap();
+        let format_time = common_utils::date_time::format_date(
+            common_utils::date_time::now(),
+            DateFormat::YYYYMMDDHHmmss,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let paybox_meta_data: PayboxMeta =
+    utils::to_connector_meta(item.request.connector_metadata.clone())?;
         Ok(Self {
             date: format_time.clone(),
-            transaction_type: "00017".into(),
-            question_number: get_question_number(),
-            version: get_version(),
+            transaction_type: SYNC_REQUEST.to_string(),
+            question_number: get_question_number()?,
+            version: VERSION_PAYBOX.to_string(),
             site: auth_data.site,
             rank: auth_data.rang,
             key: auth_data.cle,
-            transaction_number: "k".into(),
+            transaction_number: paybox_meta_data.connector_request_id,
             call_number: item.payment_id.clone(),
         })
     }
@@ -295,21 +325,30 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PayboxPSyncRequest {
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let auth_data: PayboxAuthType = PayboxAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let current_time = common_utils::date_time::now();
-        let format_time =
-            common_utils::date_time::format_date(current_time, DateFormat::YYYYMMDDHHmmss).unwrap();
+        let format_time = common_utils::date_time::format_date(
+            common_utils::date_time::now(),
+            DateFormat::YYYYMMDDHHmmss,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let paybox_meta_data: PayboxMeta =
+    utils::to_connector_meta(item.request.connector_meta.clone())?;
         Ok(Self {
             date: format_time.clone(),
-            transaction_type: "00017".into(),
-            question_number: get_question_number(),
-            version: get_version(),
+            transaction_type: SYNC_REQUEST.to_string(),
+            question_number: get_question_number()?,
+            version:VERSION_PAYBOX.to_string(),
             site: auth_data.site,
             rank: auth_data.rang,
             key: auth_data.cle,
-            transaction_number: "k".into(),
+            transaction_number:  paybox_meta_data.connector_request_id,
             call_number: item.payment_id.clone(),
         })
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PayboxMeta {
+    pub connector_request_id: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -365,15 +404,16 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         .to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
-                let current_time = common_utils::date_time::now();
-                let format_time =
-                    common_utils::date_time::format_date(current_time, DateFormat::YYYYMMDDHHmmss)
-                        .unwrap();
+                let format_time = common_utils::date_time::format_date(
+                    common_utils::date_time::now(),
+                    DateFormat::YYYYMMDDHHmmss,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                 Ok(Self {
                     date: format_time.clone(),
                     transaction_type,
-                    question_number: get_question_number(),
+                    question_number: get_question_number()?,
                     amount: item.amount,
                     description_reference: item
                         .router_data
@@ -381,12 +421,12 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         .statement_descriptor
                         .clone()
                         .unwrap_or("paybox payment".into()),
-                    version: get_version(),
+                    version: VERSION_PAYBOX.to_string(),
                     currency,
                     card_number: req_card.card_number,
                     expiration_date,
                     cvv: req_card.card_cvc,
-                    activity: get_activity(),
+                    activity: PAY_ORIGIN_INTERNET.to_string(),
                     site: auth_data.site,
                     rank: auth_data.rang,
                     key: auth_data.cle,
@@ -399,29 +439,22 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
 
 fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<String, Error> {
     match capture_method {
-        Some(enums::CaptureMethod::Automatic) => Ok("00003".into()),
-        Some(enums::CaptureMethod::Manual) => Ok("00001".into()),
+        Some(enums::CaptureMethod::Automatic) => Ok(AUTH_AND_CAPTURE_REQUEST.to_string()),
+        Some(enums::CaptureMethod::Manual) => Ok(AUTH_REQUEST.to_string()),
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
 }
-fn get_question_number() -> String {
+fn get_question_number() -> Result<String, Error> {
     let time_stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .ok()
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)
-        .unwrap()
+        .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         .as_millis()
         .to_string();
     // unix time in ms has 13 digits .if we consider 8 digits in a day there is no collision in the digits and paybox accepting maximum length is 10 so we gonna take 9 (13-9)
-    (&time_stamp[4..]).to_string()
-}
-fn get_version() -> String {
-    "00104".into()
+    Ok((time_stamp[4..]).to_string())
 }
 
-fn get_activity() -> String {
-    "024".into()
-}
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxAuthType {
     pub(super) site: Secret<String>,
@@ -495,9 +528,11 @@ pub fn parse_url_encoded_to_struct(
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
 
-    let json_string = serde_json::to_string(&parsed).unwrap();
+    let json_string =
+        serde_json::to_string(&parsed).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
 
-    let response: PayboxResponse = serde_json::from_str(&json_string).unwrap();
+    let response: PayboxResponse =
+        serde_json::from_str(&json_string).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
     Ok(response)
 }
 
@@ -529,13 +564,23 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::Paymen
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
         let status = get_status_of_request(response.response_code.clone());
+        let connector_payment_status =
+            item.response
+                .status
+                ;
         match status {
             true => Ok(Self {
+                status: match connector_payment_status {
+                    Some(status) => enums::AttemptStatus::from(status),
+                    None => common_enums::AttemptStatus::default(),
+                },
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(response.call_number),
                     redirection_data: None,
                     mandate_reference: None,
-                    connector_metadata: None,
+                    connector_metadata: Some(serde_json::json!(PayboxMeta {
+                        connector_request_id : response.transaction_number.clone()
+                    })),
                     network_txn_id: None,
                     connector_response_reference_id: Some(response.transaction_number),
                     incremental_authorization_allowed: None,
@@ -544,7 +589,6 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::Paymen
                 ..item.data
             }),
             false => Ok(Self {
-                // status: enums::AttemptStatus::from(response.status),
                 response: Err(types::ErrorResponse {
                     code: response.response_code.clone(),
                     message: response.response_message.clone(),
@@ -570,7 +614,7 @@ impl From<PayboxStatus> for enums::AttemptStatus {
     }
 }
 fn get_status_of_request(item: String) -> bool {
-    item == "00000".to_string()
+    item == SUCCESS_CODE.to_string()
 }
 
 impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefundRequest {
@@ -583,20 +627,24 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
             .to_string();
-        let current_time = common_utils::date_time::now();
-        let format_time =
-            common_utils::date_time::format_date(current_time, DateFormat::YYYYMMDDHHmmss).unwrap();
+        let format_time = common_utils::date_time::format_date(
+            common_utils::date_time::now(),
+            DateFormat::YYYYMMDDHHmmss,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let paybox_meta_data: PayboxMeta =
+    utils::to_connector_meta(item.router_data.request.connector_metadata.clone())?;
         Ok(Self {
             date: format_time.clone(),
-            transaction_type: "00014".into(),
-            question_number: get_question_number(),
-            version: get_version(),
+            transaction_type: REFUND_REQUEST.to_string(),
+            question_number: get_question_number()?,
+            version: VERSION_PAYBOX.to_string(),
             currency,
             site: auth_data.site,
             rank: auth_data.rang,
             key: auth_data.cle,
-            transaction_number: "k".into(),
-            call_number: item.router_data.request.refund_id.clone(),
+            transaction_number:paybox_meta_data.connector_request_id,
+            call_number: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
         })
     }
@@ -611,7 +659,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PayboxResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.call_number,
+                connector_refund_id: item.response.transaction_number,
                 refund_status: enums::RefundStatus::Pending,
             }),
             ..item.data
@@ -626,10 +674,23 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PayboxResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, PayboxResponse>,
     ) -> Result<Self, Self::Error> {
+        // let connector_refund_status =
+        //     item.response
+        //         .status
+        //         .ok_or(errors::ConnectorError::MissingRequiredField {
+        //             field_name: "Refund Status",
+        //         })?;
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.call_number,
-                refund_status: enums::RefundStatus::Pending,
+                connector_refund_id: item.response.transaction_number,
+                // refund_status: match connector_refund_status {
+                //     PayboxStatus::Refunded => common_enums::RefundStatus::Success,
+                //     PayboxStatus::Cancelled => common_enums::RefundStatus::Failure,
+                //     PayboxStatus::Authorised => common_enums::RefundStatus::Pending,
+                //     PayboxStatus::Captured => common_enums::RefundStatus::Pending,
+                //     PayboxStatus::Rejected => common_enums::RefundStatus::Failure,
+                // },
+                refund_status: common_enums::RefundStatus::Pending,
             }),
             ..item.data
         })
