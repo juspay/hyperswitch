@@ -977,9 +977,8 @@ pub async fn create_tokenize(
             )
             .await
             .map(|_| lookup_key.clone())
-            .map_err(|err| {
+            .inspect_err(|_| {
                 metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                err
             })
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error from redis locker")

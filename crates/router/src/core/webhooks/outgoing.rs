@@ -157,12 +157,11 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         &event,
     )
     .await
-    .map_err(|error| {
+    .inspect_err(|error| {
         logger::error!(
             ?error,
             "Failed to add outgoing webhook retry task to process tracker"
         );
-        error
     })
     .ok();
 
@@ -442,9 +441,8 @@ fn raise_webhooks_analytics_event(
 
         serde_json::to_value(error.current_context())
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .map_err(|error| {
+            .inspect_err(|error| {
                 logger::error!(?error, "Failed to serialize outgoing webhook error as JSON");
-                error
             })
             .ok()
     } else {

@@ -1557,7 +1557,7 @@ pub async fn add_card_to_locker(
                 card_reference,
             )
             .await
-            .map_err(|error| {
+            .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
@@ -1566,7 +1566,6 @@ pub async fn add_card_to_locker(
                         router_env::opentelemetry::KeyValue::new("operation", "add"),
                     ],
                 );
-                error
             })
         },
         &metrics::CARD_ADD_TIME,
@@ -1599,7 +1598,7 @@ pub async fn get_card_from_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while getting card from hyperswitch card vault")
-            .map_err(|error| {
+            .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
@@ -1608,7 +1607,6 @@ pub async fn get_card_from_locker(
                         router_env::opentelemetry::KeyValue::new("operation", "get"),
                     ],
                 );
-                error
             })
         },
         &metrics::CARD_GET_TIME,
@@ -1633,9 +1631,8 @@ pub async fn delete_card_from_locker(
         async move {
             delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
                 .await
-                .map_err(|error| {
+                .inspect_err(|_| {
                     metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    error
                 })
         },
         &metrics::CARD_DELETE_TIME,
