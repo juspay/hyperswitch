@@ -568,6 +568,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetailsResponse,
         api_models::payments::OpenBankingData,
         api_models::payments::OpenBankingSessionToken,
+        api_models::payments::PaymentsDynamicTaxCalculationRequest,
     )),
     modifiers(&SecurityAddon)
 )]

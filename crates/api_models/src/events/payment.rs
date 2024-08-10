@@ -20,6 +20,7 @@ use crate::{
         PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
         PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
         PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
         PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
         PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
@@ -58,6 +59,20 @@ impl ApiEventMetric for PaymentsCompleteAuthorizeRequest {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),
         })
+    }
+}
+
+impl ApiEventMetric for PaymentsDynamicTaxCalculationRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsDynamicTaxCalculationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
     }
 }
 

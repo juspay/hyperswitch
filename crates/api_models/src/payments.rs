@@ -260,6 +260,9 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
 
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub shipping_cost: Option<MinorUnit>,
+
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.
     #[schema(
@@ -4430,6 +4433,27 @@ pub struct PaymentsSessionRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+/// Request for calling tax jar API
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsDynamicTaxCalculationRequest {
+    /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
+    pub payment_id: String,
+    /// The shipping address for the payment
+    pub shipping: Address,
+    /// Client Secret
+    #[schema(value_type = String)]
+    pub client_secret: String,
+}
+/// Response for calling tax jar API
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsDynamicTaxCalculationResponse {
+    /// Amount of sales tax to collect.
+    // pub order_tax_amount: i64,
+    /// net amount
+    pub net_amount: MinorUnit,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayAllowedMethodsParameters {
     /// The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)
@@ -4696,7 +4720,7 @@ pub struct SessionTokenForSimplifiedApplePay {
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 pub enum SessionToken {
-    /// The session response structure for Google Pay
+    /// The session -structure for Google Pay
     GooglePay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Klarna
     Klarna(Box<KlarnaSessionTokenResponse>),

@@ -11,6 +11,7 @@ pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 pub mod payments_incremental_authorization;
+pub mod tax_calculation;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
@@ -24,6 +25,7 @@ pub use self::{
     payment_response::PaymentResponse, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
+    tax_calculation::PaymentTaxCalculation,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
@@ -174,6 +176,21 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _merchant_account: &domain::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    //
+    async fn payments_dynamic_tax_calculation<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        // _merchant_account: &storage::BusinessProfile,
+        _key_store: &domain::MerchantKeyStore,
+        // _storage_scheme: enums::MerchantStorageScheme,
+        _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

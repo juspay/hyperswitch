@@ -470,6 +470,8 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Dynamic Tax Calcultion
+    PaymentsDynamicTaxCalculation,
 }
 
 ///

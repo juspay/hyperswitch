@@ -58,8 +58,8 @@ pub use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, ResponseId, RetrieveFileRequestData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        PaymentsTaxCalculationData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -126,10 +126,15 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
-pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
-pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
-pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
-pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsTaxCalculationRouterData =
+    RouterData<api::CalculateTax, PaymentsTaxCalculationData, PaymentsResponseData>;
+pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsRejectRouterData =
+    RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
+pub type PaymentsApproveRouterData =
+    RouterData<api::Approve, PaymentsApproveData, PaymentsResponseData>;
+pub type PaymentsSessionRouterData =
+    RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<RSync, RefundsData, RefundsResponseData>;
@@ -362,6 +367,7 @@ impl Capturable for CompleteAuthorizeData {
     }
 }
 impl Capturable for SetupMandateRequestData {}
+impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where

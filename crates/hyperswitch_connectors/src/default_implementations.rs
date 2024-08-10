@@ -28,13 +28,13 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
-            Approve, AuthorizeSessionToken, CompleteAuthorize, CreateConnectorCustomer,
+            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize, CreateConnectorCustomer,
             IncrementalAuthorization, PostProcessing, PreProcessing, Reject,
         },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
-        AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
+        AcceptDisputeRequestData, AuthorizeSessionTokenData,PaymentsTaxCalculationData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, RetrieveFileRequestData,
@@ -62,7 +62,7 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
-            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
+            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,PaymentTaxCalculation,
             PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
             PaymentsPostProcessing, PaymentsPreProcessing,
         },
@@ -86,6 +86,28 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Helcim,
+    connectors::Stax
+);
+
+macro_rules! default_imp_for_calculate_tax {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentTaxCalculation for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                CalculateTax,
+                PaymentsTaxCalculationData,
+                PaymentsResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_calculate_tax!(
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,

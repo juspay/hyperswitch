@@ -1234,6 +1234,7 @@ impl PaymentCreate {
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
             shipping_details,
             is_payment_processor_token_flow,
+            shipping_cost: request.shipping_cost,
         })
     }
 

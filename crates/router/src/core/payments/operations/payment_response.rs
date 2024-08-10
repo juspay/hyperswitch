@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+// use api_models::payments::PaymentsDynamicTaxCalculationRequest;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::{
@@ -44,7 +45,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, tax_calculation_data"
 )]
 pub struct PaymentResponse;
 
@@ -465,6 +466,43 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     where
         F: 'b + Send,
     {
+        payment_data = Box::pin(payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            key_store,
+            storage_scheme,
+        ))
+        .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculationData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        payment_id: &api::PaymentIdType,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsTaxCalculationData,
+            types::PaymentsResponseData,
+        >,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        let shipping_address = payment_data.address.get_shipping();
+        let amount = payment_data.amount;
+
         payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
@@ -1125,6 +1163,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
+                        types::PaymentsResponseData::TaxCalculationResponse { .. } => (None, None),
+                        // types::PaymentsResponseData::TaxCalculationResponse {
+                        //     order_tax_amount,
+                        //     net_amount,
+                        //     shipping_address,
+                        // } => (
+                        //     None,
+                        //     Some(storage::PaymentAttemptUpdate::SessionUpdate {
+                        //         amount: net_amount,
+                        //         order_tax_amount,
+                        //         payment_method_shipping_address_id: shipping_address,
+                        //     }),
+                        // ),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {

@@ -68,6 +68,11 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
+    TaxCalculationResponse {
+        order_tax_amount: i64,
+        net_amount: i64,
+        shipping_address: Option<String>,
+    },
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

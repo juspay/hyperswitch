@@ -583,6 +583,73 @@ pub async fn payments_capture(
     ))
     .await
 }
+
+//Dynamic Tax Calculation
+
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/calculate_tax",
+    request_body=PaymentsDynamicTaxCalculationRequest,
+    responses(
+        (status = 200, description = "Tax Calculation is done", body = PaymentsDynamicTaxCalculationResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Create Tax Calculation for a Payment",
+    security(("publishable_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsDynamicTaxCalculation, payment_id))]
+pub async fn payments_dynamic_tax_calculation(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsDynamicTaxCalculationRequest>,
+) -> impl Responder {
+    let flow = Flow::PaymentsDynamicTaxCalculation;
+    let payload = json_payload.into_inner();
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(error) => {
+            logger::error!(
+                ?error,
+                "Failed to get headers in payments_connector_session"
+            );
+            HeaderPayload::default()
+        }
+    };
+    tracing::Span::current().record("payment_id", &payload.payment_id);
+    let locking_action = payload.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, payload, req_state| {
+            payments::payments_core::<
+                api_types::CalculateTax,
+                payment_types::PaymentsDynamicTaxCalculationResponse,
+                _,
+                _,
+                _,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                payments::PaymentTaxCalculation,
+                payload,
+                api::AuthFlow::Client,
+                payments::CallConnectorAction::Trigger,
+                None,
+                header_payload.clone(),
+            )
+        },
+        &auth::PublishableKeyAuth,
+        locking_action,
+    ))
+    .await
+}
+
 /// Payments - Session token
 ///
 /// To create the session object or to get session token for wallets
@@ -1572,6 +1639,22 @@ impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
 }
 
 impl GetLockingInput for payment_types::PaymentsSessionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,

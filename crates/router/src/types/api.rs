@@ -35,6 +35,7 @@ pub mod payments_v2;
 #[cfg(feature = "payouts")]
 pub mod payouts_v2;
 pub mod refunds_v2;
+// pub mod calculate_tax;
 
 use std::{fmt::Debug, str::FromStr};
 
@@ -112,6 +113,7 @@ pub trait Connector:
     + ConnectorMandateRevokeV2
     + ExternalAuthentication
     + ExternalAuthenticationV2
+    + PaymentTaxCalculation
 {
 }
 
@@ -567,5 +569,34 @@ mod test {
 
         let result = enums::Connector::from_str("Opennode");
         assert!(result.is_err());
+    }
+}
+
+#[derive(Clone)]
+pub struct TaxCalculateConnectorData {
+    pub connector: ConnectorEnum,
+    pub connector_name: enums::TaxCalculatorConnectors,
+}
+
+impl TaxCalculateConnectorData {
+    pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector_name = enums::TaxCalculatorConnectors::from_str(name)
+            .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+            .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
+        let connector = Self::convert_connector(connector_name)?;
+        Ok(Self {
+            connector,
+            connector_name,
+        })
+    }
+
+    fn convert_connector(
+        connector_name: enums::TaxCalculatorConnectors,
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
+        match connector_name {
+            enums::TaxCalculatorConnectors::TaxJar => {
+                Ok(ConnectorEnum::Old(Box::new(&connector::TaxJar)))
+            }
+        }
     }
 }

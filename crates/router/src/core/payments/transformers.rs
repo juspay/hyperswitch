@@ -313,6 +313,33 @@ where
     }
 }
 
+impl<F, Op> ToResponse<PaymentData<F>, Op> for api::PaymentsDynamicTaxCalculationResponse
+where
+    F: Clone,
+    Op: Debug,
+{
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        payment_data: PaymentData<F>,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                // order_tax_amount: payment_data.amount,
+                net_amount: MinorUnit::from(payment_data.amount),
+            },
+            vec![],
+        )))
+    }
+}
+
 impl<F, Op> ToResponse<PaymentData<F>, Op> for api::VerifyResponse
 where
     F: Clone,
@@ -1646,6 +1673,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
+        })
+    }
+}
+
+
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsTaxCalculationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let amount = MinorUnit::from(payment_data.amount);
+        Ok(Self {
+            amount: amount.get_amount_as_i64(), //need to change after we move to connector module
+            shipping_cost: payment_data.payment_intent.shipping_cost.ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("missing shipping_cost in payment_data.payment_intent")?,
+            shipping: payment_data.payment_intent.shipping_details,
+            order_details: payment_data.payment_intent.order_details,
         })
     }
 }

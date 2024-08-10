@@ -2,7 +2,7 @@ pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
 use common_utils::{
-    consts, errors, ext_traits::OptionExt, id_type, pii, types as common_types, types::MinorUnit,
+    consts, crypto::Encryptable, errors, ext_traits::OptionExt, id_type, pii, types::{self as common_types, MinorUnit}
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -769,6 +769,16 @@ pub struct PaymentsSessionData {
 
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PaymentsTaxCalculationData {
+    pub amount: i64,
+    // New amount for amount frame work
+    // pub minor_amount: MinorUnit,
+    pub shipping_cost: MinorUnit,
+    pub shipping: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub order_details: Option<Vec<Secret<serde_json::Value>>>,
 }
 
 #[derive(Debug, Clone)]

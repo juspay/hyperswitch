@@ -3089,6 +3089,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            shipping_cost: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3154,6 +3155,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            shipping_cost: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3217,6 +3219,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            shipping_cost: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

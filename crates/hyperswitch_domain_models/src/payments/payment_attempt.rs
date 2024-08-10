@@ -474,6 +474,11 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
     },
+    // SessionUpdate {
+    //     amount: MinorUnit,
+    //     order_tax_amount: MinorUnit,
+    //     payment_method_shipping_address_id: Option<String>,
+    // },
 }
 
 impl ForeignIDRef for PaymentAttempt {
@@ -742,6 +747,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            shipping_cost: self.shipping_cost,
         })
     }
 
@@ -811,6 +817,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .request_external_three_ds_authentication,
                 charges: storage_model.charges,
                 frm_metadata: storage_model.frm_metadata,
+                shipping_cost: storage_model.shipping_cost,
                 customer_details: storage_model
                     .customer_details
                     .async_lift(inner_decrypt)
@@ -883,6 +890,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            shipping_cost: self.shipping_cost,
         })
     }
 }
