@@ -25,8 +25,6 @@ pub mod pii;
 pub mod request;
 #[cfg(feature = "signals")]
 pub mod signals;
-#[allow(missing_docs)] // Todo: add docs
-pub mod static_cache;
 pub mod transformers;
 pub mod types;
 pub mod validation;
