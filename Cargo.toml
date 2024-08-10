@@ -11,7 +11,7 @@ tracing = { version = "0.1.40" }
 # Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
 [workspace.lints.rust]
 unsafe_code = "forbid"
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 } # Remove priority once https://github.com/rust-lang/rust-clippy/pull/12827 is available in stable clippy
 unused_qualifications = "warn"
 # missing_debug_implementations = "warn"
 # missing_docs = "warn"
