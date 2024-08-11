@@ -5027,3 +5027,133 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
 fn get_content(item: Vec<u8>) -> String {
     String::from_utf8_lossy(&item).to_string()
 }
+
+impl ForeignTryFrom<(&types::AcceptDisputeRouterData, AdyenDisputeResponse)>
+    for types::AcceptDisputeRouterData
+{
+    type Error = errors::ConnectorError;
+
+    fn foreign_try_from(
+        item: (&types::AcceptDisputeRouterData, AdyenDisputeResponse),
+    ) -> Result<Self, Self::Error> {
+        let (data, response) = item;
+
+        if response.success {
+            Ok(types::AcceptDisputeRouterData {
+                response: Ok(types::AcceptDisputeResponse {
+                    dispute_status: api_enums::DisputeStatus::DisputeAccepted,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::AcceptDisputeRouterData {
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: data.connector_http_status_code.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "http code",
+                        },
+                    )?,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
+        }
+    }
+}
+
+impl ForeignTryFrom<(&types::SubmitEvidenceRouterData, AdyenDisputeResponse)>
+    for types::SubmitEvidenceRouterData
+{
+    type Error = errors::ConnectorError;
+    fn foreign_try_from(
+        item: (&types::SubmitEvidenceRouterData, AdyenDisputeResponse),
+    ) -> Result<Self, Self::Error> {
+        let (data, response) = item;
+        if response.success {
+            Ok(types::SubmitEvidenceRouterData {
+                response: Ok(types::SubmitEvidenceResponse {
+                    dispute_status: api_enums::DisputeStatus::DisputeChallenged,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::SubmitEvidenceRouterData {
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: data.connector_http_status_code.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "http code",
+                        },
+                    )?,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
+        }
+    }
+}
+
+impl ForeignTryFrom<(&types::DefendDisputeRouterData, AdyenDisputeResponse)>
+    for types::DefendDisputeRouterData
+{
+    type Error = errors::ConnectorError;
+
+    fn foreign_try_from(
+        item: (&types::DefendDisputeRouterData, AdyenDisputeResponse),
+    ) -> Result<Self, Self::Error> {
+        let (data, response) = item;
+
+        if response.success {
+            Ok(types::DefendDisputeRouterData {
+                response: Ok(types::DefendDisputeResponse {
+                    dispute_status: api_enums::DisputeStatus::DisputeChallenged,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::DefendDisputeRouterData {
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: data.connector_http_status_code.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "http code",
+                        },
+                    )?,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
+        }
+    }
+}

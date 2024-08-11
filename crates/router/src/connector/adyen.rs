@@ -1988,33 +1988,8 @@ impl
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if response.success {
-            Ok(types::AcceptDisputeRouterData {
-                response: Ok(types::AcceptDisputeResponse {
-                    dispute_status: api::enums::DisputeStatus::DisputeAccepted,
-                    connector_status: None,
-                }),
-                ..data.clone()
-            })
-        } else {
-            Ok(types::AcceptDisputeRouterData {
-                response: Err(types::ErrorResponse {
-                    code: response
-                        .error_message
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .error_message
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: response.error_message,
-                    status_code: res.status_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..data.clone()
-            })
-        }
+        types::RouterData::foreign_try_from((data, response))
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -2104,33 +2079,8 @@ impl
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        if response.success {
-            Ok(types::DefendDisputeRouterData {
-                response: Ok(types::DefendDisputeResponse {
-                    dispute_status: api::enums::DisputeStatus::DisputeChallenged,
-                    connector_status: None,
-                }),
-                ..data.clone()
-            })
-        } else {
-            Ok(types::DefendDisputeRouterData {
-                response: Err(types::ErrorResponse {
-                    code: response
-                        .error_message
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .error_message
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: response.error_message,
-                    status_code: res.status_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..data.clone()
-            })
-        }
+        types::RouterData::foreign_try_from((data, response))
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -2219,34 +2169,8 @@ impl
             .response
             .parse_struct("AdyenDisputeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if response.success {
-            Ok(types::SubmitEvidenceRouterData {
-                response: Ok(types::SubmitEvidenceResponse {
-                    dispute_status: api::enums::DisputeStatus::DisputeChallenged,
-                    connector_status: None,
-                }),
-                ..data.clone()
-            })
-        } else {
-            Ok(types::SubmitEvidenceRouterData {
-                response: Err(types::ErrorResponse {
-                    code: response
-                        .error_message
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .error_message
-                        .clone()
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: response.error_message,
-                    status_code: res.status_code,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                }),
-                ..data.clone()
-            })
-        }
+        types::RouterData::foreign_try_from((data, response))
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

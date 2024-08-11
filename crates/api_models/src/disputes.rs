@@ -49,11 +49,6 @@ pub struct DisputeResponse {
     pub merchant_connector_id: Option<String>,
 }
 
-pub struct FileInfo {
-    pub file_data: Option<Vec<u8>>,
-    pub provider_file_id: Option<String>,
-    pub file_type: Option<String>,
-}
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponsePaymentsRetrieve {
     /// The identifier for dispute
