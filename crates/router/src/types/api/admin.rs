@@ -163,20 +163,11 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-pub async fn create_business_profile(
-    _state: &SessionState,
-    _request: BusinessProfileCreate,
-    _key_store: &MerchantKeyStore,
-) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
-    todo!()
-}
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
 ))]
-pub async fn create_business_profile(
+pub async fn create_business_profile_from_merchant_account(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
     request: BusinessProfileCreate,

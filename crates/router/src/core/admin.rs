@@ -3294,13 +3294,18 @@ pub async fn create_and_insert_business_profile(
         any(feature = "v1", feature = "v2"),
         not(feature = "merchant_account_v2")
     ))]
-    let business_profile_new =
-        admin::create_business_profile(state, merchant_account, request, key_store).await?;
+    let business_profile_new = admin::create_business_profile_from_merchant_account(
+        state,
+        merchant_account,
+        request,
+        key_store,
+    )
+    .await?;
 
     #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
     let business_profile_new = {
         let _ = merchant_account;
-        admin::create_business_profile(state, request, key_store).await?
+        admin::create_business_profile_from_merchant_account(state, request, key_store).await?
     };
 
     let profile_name = business_profile_new.profile_name.clone();
@@ -3315,6 +3320,52 @@ pub async fn create_and_insert_business_profile(
             ),
         })
         .attach_printable("Failed to insert Business profile because of duplication error")
+}
+
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+trait BusinessProfileCreateBridge {
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key: domain::MerchantKeyStore,
+        identifier: &id_type::MerchantId,
+    ) -> RouterResult<domain::BusinessProfile>;
+}
+
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key: domain::MerchantKeyStore,
+        identifier: &id_type::MerchantId,
+    ) -> RouterResult<domain::BusinessProfile> {
+        let business_profile =
+            admin::create_business_profile_from_merchant_account(state, identifier, self, &key)
+                .await?;
+        Ok(business_profile)
+    }
+
+    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key: domain::MerchantKeyStore,
+        _identifier: &id_type::MerchantId,
+    ) -> RouterResult<domain::BusinessProfile> {
+        let business_profile =
+            admin::create_business_profile_from_merchant_account(state, self, &key)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to create business profile")?;
+        Ok(business_profile)
+    }
 }
 
 #[cfg(all(
