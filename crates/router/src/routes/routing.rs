@@ -30,7 +30,7 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            routing::create_routing_config(
+            routing::create_routing_algorithm_under_profile(
                 state,
                 auth.merchant_account,
                 auth.key_store,

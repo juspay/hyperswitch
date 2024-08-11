@@ -31,7 +31,7 @@ use crate::{
         payment_methods::{cards, transformers},
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
-        routing::helpers as routing_helpers,
+        routing::{self, helpers as routing_helpers},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -3308,7 +3308,7 @@ pub async fn create_and_insert_business_profile(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
+    not(any(feature = "merchant_account_v2", feature = "business_profile_v2"))
 ))]
 pub async fn create_business_profile(
     state: SessionState,
@@ -3374,7 +3374,11 @@ pub async fn create_business_profile(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "merchant_account_v2",
+    feature = "business_profile_v2"
+))]
 pub async fn create_business_profile(
     _state: SessionState,
     _request: api::BusinessProfileCreate,
@@ -3688,6 +3692,25 @@ impl BusinessProfileWrapper {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to invalidate routing cache")?;
         Ok(())
+    }
+    pub fn get_profile_id_and_routing_algorithm_id<F>(
+        &self,
+        transaction_data: &routing::TransactionData<'_, F>,
+    ) -> (Option<String>, Option<String>)
+    where
+        F: Send + Clone,
+    {
+        match transaction_data {
+            routing::TransactionData::Payment(payment_data) => (
+                payment_data.payment_intent.profile_id.clone(),
+                self.profile.routing_algorithm_id.clone(),
+            ),
+            #[cfg(feature = "payouts")]
+            routing::TransactionData::Payout(payout_data) => (
+                Some(payout_data.payout_attempt.profile_id.clone()),
+                self.profile.payout_routing_algorithm_id.clone(),
+            ),
+        }
     }
 }
 

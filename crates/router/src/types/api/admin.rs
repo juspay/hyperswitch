@@ -111,7 +111,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
 }
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
+    not(any(feature = "business_profile_v2", feature = "merchant_account_v2",))
 ))]
 impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
