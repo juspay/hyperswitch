@@ -580,10 +580,7 @@ async fn publish_and_redact_merchant_account_cache(
         .as_ref()
         .map(|publishable_key| CacheKind::Accounts(publishable_key.into()));
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let cgraph_key = merchant_account.default_profile.as_ref().map(|profile_id| {
         CacheKind::CGraph(
             format!(
@@ -596,7 +593,7 @@ async fn publish_and_redact_merchant_account_cache(
     });
 
     // TODO: we will not have default profile in v2
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let cgraph_key = None;
 
     let mut cache_keys = vec![CacheKind::Accounts(

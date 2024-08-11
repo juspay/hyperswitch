@@ -60,7 +60,7 @@ check_v2 *FLAGS:
     ')"
 
     set -x
-    cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}"  {{ FLAGS }}
     set +x
 
 check *FLAGS:

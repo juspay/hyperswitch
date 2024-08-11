@@ -119,7 +119,7 @@ where
     Ok(router_data_res)
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn should_call_frm<F: Send + Clone>(
     _merchant_account: &domain::MerchantAccount,
     _payment_data: &payments::PaymentData<F>,
@@ -136,7 +136,7 @@ pub async fn should_call_frm<F: Send + Clone>(
     todo!()
 }
 
-#[cfg(all(feature = "v1", not(feature = "merchant_account_v2")))]
+#[cfg(feature = "v1")]
 pub async fn should_call_frm<F: Send + Clone>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &payments::PaymentData<F>,

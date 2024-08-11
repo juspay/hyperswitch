@@ -634,10 +634,7 @@ pub async fn call_decision_manager<O>(
 where
     O: Send + Clone,
 {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -647,7 +644,7 @@ where
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let algorithm_ref: api::routing::RoutingAlgorithmRef = _business_profile
         .routing_algorithm
         .clone()
@@ -787,10 +784,7 @@ where
             .map(|session_connector_data| session_connector_data.payment_method_type)
             .collect();
 
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = _merchant_account
             .routing_algorithm
             .clone()
@@ -800,7 +794,7 @@ where
             .attach_printable("Could not decode the routing algorithm")?
             .unwrap_or_default();
 
-        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        #[cfg(feature = "v2")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = _business_profile
             .routing_algorithm
             .clone()

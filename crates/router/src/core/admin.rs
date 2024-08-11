@@ -159,11 +159,7 @@ pub async fn get_organization(
     state: SessionState,
     org_id: api::OrganizationId,
 ) -> RouterResponse<api::OrganizationResponse> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     {
         CreateOrValidateOrganization::new(Some(org_id.organization_id))
             .create_or_validate(state.store.as_ref())
@@ -171,7 +167,7 @@ pub async fn get_organization(
             .map(ForeignFrom::foreign_from)
             .map(service_api::ApplicationResponse::Json)
     }
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
+    #[cfg(all(feature = "v2", feature = "olap"))]
     {
         CreateOrValidateOrganization::new(org_id.organization_id)
             .create_or_validate(state.store.as_ref())
@@ -269,11 +265,7 @@ trait MerchantAccountCreateBridge {
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    feature = "olap",
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     async fn create_domain_model_from_request(
@@ -420,10 +412,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 #[cfg(feature = "olap")]
 enum CreateOrValidateOrganization {
     /// Creates a new organization
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     Create,
     /// Validates if this organization exists in the records
     Validate {
@@ -433,11 +422,7 @@ enum CreateOrValidateOrganization {
 
 #[cfg(feature = "olap")]
 impl CreateOrValidateOrganization {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
@@ -449,7 +434,7 @@ impl CreateOrValidateOrganization {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
+    #[cfg(all(feature = "v2", feature = "olap"))]
     /// Create an action to validate the provided organization_id
     fn new(organization_id: id_type::OrganizationId) -> Self {
         Self::Validate { organization_id }
@@ -462,10 +447,7 @@ impl CreateOrValidateOrganization {
         db: &dyn StorageInterface,
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             Self::Create => {
                 let new_organization = api_models::organization::OrganizationNew::new(None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -484,11 +466,7 @@ impl CreateOrValidateOrganization {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    feature = "olap",
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 enum CreateBusinessProfile {
     /// Create business profiles from primary business details
     /// If there is only one business profile created, then set this profile as default
@@ -499,11 +477,7 @@ enum CreateBusinessProfile {
     CreateDefaultBusinessProfile,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    feature = "olap",
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 impl CreateBusinessProfile {
     /// Create a new business profile action from the given information
     /// If primary business details exist, then create business profiles from them
@@ -617,7 +591,7 @@ impl CreateBusinessProfile {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     async fn create_domain_model_from_request(
@@ -750,10 +724,7 @@ pub async fn get_merchant_account(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// For backwards compatibility, whenever new business labels are passed in
 /// primary_business_details, create a business profile
 pub async fn create_business_profile_from_business_labels(
@@ -834,10 +805,7 @@ trait MerchantAccountUpdateBridge {
     ) -> RouterResult<storage::MerchantAccountUpdate>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     async fn get_update_merchant_object(
@@ -984,7 +952,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2",))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     async fn get_update_merchant_object(
@@ -1157,10 +1125,7 @@ pub async fn merchant_account_delete(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 async fn get_parent_merchant(
     state: &SessionState,
     sub_merchants_enabled: Option<bool>,
@@ -1189,10 +1154,7 @@ async fn get_parent_merchant(
     })
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 async fn validate_merchant_id(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
@@ -2228,7 +2190,6 @@ trait MerchantConnectorAccountCreateBridge {
     feature = "v2",
     feature = "merchant_connector_account_v2",
     feature = "olap",
-    feature = "merchant_account_v2"
 ))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
@@ -2389,7 +2350,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 #[cfg(all(
     any(feature = "v1", feature = "v2", feature = "olap"),
     not(feature = "merchant_connector_account_v2"),
-    not(feature = "merchant_account_v2")
 ))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
@@ -2618,10 +2578,7 @@ pub async fn create_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     helpers::validate_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -3282,14 +3239,11 @@ pub async fn create_and_insert_business_profile(
     merchant_account: domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::BusinessProfile> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let business_profile_new =
         admin::create_business_profile(state, merchant_account, request, key_store).await?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let business_profile_new = {
         let _ = merchant_account;
         admin::create_business_profile(state, request, key_store).await?
@@ -3309,10 +3263,7 @@ pub async fn create_and_insert_business_profile(
         .attach_printable("Failed to insert Business profile because of duplication error")
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn create_business_profile(
     state: SessionState,
     request: api::BusinessProfileCreate,
@@ -3377,7 +3328,7 @@ pub async fn create_business_profile(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_business_profile(
     _state: SessionState,
     _request: api::BusinessProfileCreate,

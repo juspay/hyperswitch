@@ -8,9 +8,9 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "v1"]
+default = ["kv_store"]
 kv_store = []
-v1 =[]
+v1 = []
 v2 = []
 business_profile_v2 = []
 customer_v2 = []

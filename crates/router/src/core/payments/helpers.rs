@@ -2970,10 +2970,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
         .transpose()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// Check whether the business details are configured in the merchant account
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,

@@ -578,13 +578,10 @@ pub async fn get_mca_from_object_reference_id(
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let default_profile_id = merchant_account.default_profile.as_ref();
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let default_profile_id = Option::<&String>::None;
 
     match default_profile_id {

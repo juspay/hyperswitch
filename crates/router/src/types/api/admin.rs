@@ -40,10 +40,7 @@ impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResp
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -85,7 +82,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -163,7 +160,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_business_profile(
     _state: &SessionState,
     _request: BusinessProfileCreate,
@@ -172,10 +169,7 @@ pub async fn create_business_profile(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn create_business_profile(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,

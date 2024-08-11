@@ -116,10 +116,7 @@ pub async fn update_merchant_routing_dictionary(
 
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn update_merchant_active_algorithm_ref(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -174,7 +171,7 @@ pub async fn update_merchant_active_algorithm_ref(
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2"))]
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn update_merchant_active_algorithm_ref(
     _state: &SessionState,
     _key_store: &domain::MerchantKeyStore,

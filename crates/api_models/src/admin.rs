@@ -7,13 +7,10 @@ use common_utils::{
     ext_traits::Encode,
     id_type, link_utils, pii,
 };
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 use indexmap::IndexMap;
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -21,10 +18,7 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::routing;
 use crate::{enums as api_enums, payment_methods};
 
@@ -33,10 +27,7 @@ pub struct MerchantAccountListRequest {
     pub organization_id: String,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
@@ -117,10 +108,7 @@ pub struct MerchantAccountCreate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantAccountCreate {
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
@@ -185,7 +173,7 @@ impl MerchantAccountCreate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
@@ -205,7 +193,7 @@ pub struct MerchantAccountCreate {
     pub organization_id: id_type::OrganizationId,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantAccountCreate {
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         id_type::MerchantId::from_merchant_name(self.merchant_name.clone().expose())
@@ -253,10 +241,7 @@ pub struct MerchantAccountMetadata {
     pub data: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
@@ -336,10 +321,7 @@ pub struct MerchantAccountUpdate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantAccountUpdate {
     pub fn get_primary_details_as_value(
         &self,
@@ -403,7 +385,7 @@ impl MerchantAccountUpdate {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
@@ -419,7 +401,7 @@ pub struct MerchantAccountUpdate {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantAccountUpdate {
     pub fn get_merchant_details_as_secret(
         &self,
@@ -440,10 +422,7 @@ impl MerchantAccountUpdate {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
@@ -535,7 +514,7 @@ pub struct MerchantAccountResponse {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
