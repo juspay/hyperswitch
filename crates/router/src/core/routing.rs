@@ -275,7 +275,7 @@ pub async fn create_routing_config(
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
-pub async fn link_routing_config(
+pub async fn link_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -329,7 +329,7 @@ pub async fn link_routing_config(
         },
     )?;
     admin::BusinessProfileWrapper::new(business_profile)
-        .update_business_profile_active_algorithm_id(
+        .update_business_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
             db,
             key_manager_state,
             &key_store,
@@ -424,7 +424,7 @@ pub async fn link_routing_config(
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2",))]
-pub async fn retrieve_routing_config(
+pub async fn retrieve_active_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -499,7 +499,7 @@ pub async fn retrieve_routing_config(
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
-pub async fn unlink_routing_config(
+pub async fn unlink_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -535,7 +535,7 @@ pub async fn unlink_routing_config(
         .await?;
         let response = record.0.foreign_into();
         admin::BusinessProfileWrapper::new(business_profile)
-            .update_business_profile_active_algorithm_id(
+            .update_business_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
                 db,
                 key_manager_state,
                 &key_store,
@@ -718,7 +718,7 @@ pub async fn retrieve_default_routing_config(
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
-pub async fn retrieve_linked_routing_config(
+pub async fn retrieve_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,

@@ -197,10 +197,13 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
             metadata: item.metadata,
+            // TODO: Remove routing algorithm from api models of business profile
             routing_algorithm: todo!(),
             intent_fulfillment_time: item.intent_fulfillment_time,
+            // TODO: Remove frm algorithm from api models of business profile
             frm_routing_algorithm: todo!(),
             #[cfg(feature = "payouts")]
+            // TODO: Remove payout algorithm from api models of business profile
             payout_routing_algorithm: todo!(),
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),

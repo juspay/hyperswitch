@@ -3633,7 +3633,7 @@ impl BusinessProfileWrapper {
     pub fn new(profile: domain::BusinessProfile) -> Self {
         Self { profile }
     }
-    fn get_cache_key(self) -> storage_impl::redis::cache::CacheKind<'static> {
+    fn get_routing_config_cache_key(self) -> storage_impl::redis::cache::CacheKind<'static> {
         let merchant_id = self.profile.merchant_id.clone();
 
         let profile_id = self.profile.profile_id.clone();
@@ -3647,7 +3647,7 @@ impl BusinessProfileWrapper {
         )
     }
 
-    pub async fn update_business_profile_active_algorithm_id(
+    pub async fn update_business_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
         self,
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
@@ -3655,7 +3655,7 @@ impl BusinessProfileWrapper {
         algorithm_id: String,
         transaction_type: &storage::enums::TransactionType,
     ) -> RouterResult<()> {
-        let routing_cache_key = self.clone().get_cache_key();
+        let routing_cache_key = self.clone().get_routing_config_cache_key();
 
         let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
             storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
