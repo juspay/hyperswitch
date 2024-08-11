@@ -691,7 +691,7 @@ pub(super) async fn get_or_create_customer_details(
                     address_id: None,
                     default_payment_method_id: None,
                     updated_by: None,
-                    version: consts::API_VERSION,
+                    version: hyperswitch_domain_models::consts::API_VERSION,
                 };
 
                 Ok(Some(
