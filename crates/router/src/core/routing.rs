@@ -751,7 +751,7 @@ pub async fn retrieve_routing_config_under_profile(
 
     let active_algorithms = record
         .into_iter()
-        .filter(|routing_rec| routing_rec.algorithm_for == transaction_type)
+        .filter(|routing_rec| &routing_rec.algorithm_for == transaction_type)
         .map(|routing_algo| routing_algo.foreign_into())
         .collect::<Vec<_>>();
 

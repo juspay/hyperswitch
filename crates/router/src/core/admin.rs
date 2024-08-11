@@ -31,7 +31,7 @@ use crate::{
         payment_methods::{cards, transformers},
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
-        routing::{self, helpers as routing_helpers},
+        routing::helpers as routing_helpers,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -3693,20 +3693,21 @@ impl BusinessProfileWrapper {
         .attach_printable("Failed to invalidate routing cache")?;
         Ok(())
     }
+
     pub fn get_profile_id_and_routing_algorithm_id<F>(
         &self,
-        transaction_data: &routing::TransactionData<'_, F>,
+        transaction_data: &crate::core::routing::TransactionData<'_, F>,
     ) -> (Option<String>, Option<String>)
     where
         F: Send + Clone,
     {
         match transaction_data {
-            routing::TransactionData::Payment(payment_data) => (
+            crate::core::routing::TransactionData::Payment(payment_data) => (
                 payment_data.payment_intent.profile_id.clone(),
                 self.profile.routing_algorithm_id.clone(),
             ),
             #[cfg(feature = "payouts")]
-            routing::TransactionData::Payout(payout_data) => (
+            crate::core::routing::TransactionData::Payout(payout_data) => (
                 Some(payout_data.payout_attempt.profile_id.clone()),
                 self.profile.payout_routing_algorithm_id.clone(),
             ),
