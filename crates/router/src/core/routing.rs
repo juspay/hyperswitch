@@ -457,7 +457,7 @@ pub async fn retrieve_active_routing_config(
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-pub async fn retrieve_routing_config(
+pub async fn retrieve_active_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
