@@ -4058,6 +4058,8 @@ pub async fn payment_external_authentication(
         &[storage_enums::IntentStatus::RequiresCustomerAction],
         "authenticate",
     )?;
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let optional_customer = match &payment_intent.customer_id {
         Some(customer_id) => Some(
             state
@@ -4077,6 +4079,28 @@ pub async fn payment_external_authentication(
         ),
         None => None,
     };
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let optional_customer = match &payment_intent.customer_id {
+        Some(customer_id) => Some(
+            state
+                .store
+                .find_customer_by_merchant_reference_id_merchant_id(
+                    key_manager_state,
+                    customer_id,
+                    merchant_account.get_id(),
+                    &key_store,
+                    storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!("error while finding customer with customer_id {customer_id:?}")
+                })?,
+        ),
+        None => None,
+    };
+
     let profile_id = payment_intent
         .profile_id
         .as_ref()

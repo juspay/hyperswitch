@@ -50,7 +50,7 @@ pub async fn create_customer(
     let merchant_id = merchant_account.get_id();
 
     let merchant_reference_id_customer = MerchantReferenceIdForCustomer {
-        customer_id: merchant_reference_id.as_ref(),
+        merchant_reference_id: merchant_reference_id.as_ref(),
         merchant_id,
         merchant_account: &merchant_account,
         key_store: &key_store,
@@ -64,7 +64,7 @@ pub async fn create_customer(
     // it errors out, now the address that was inserted is not deleted
 
     merchant_reference_id_customer
-        .verify_if_customer_not_present_by_optional_merchant_reference_id(db)
+        .verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(db)
         .await?;
 
     let domain_customer = customer_data
@@ -331,28 +331,29 @@ impl<'a> AddressStructForDbEntry<'a> {
 }
 
 struct MerchantReferenceIdForCustomer<'a> {
-    customer_id: Option<&'a id_type::CustomerId>,
+    merchant_reference_id: Option<&'a id_type::CustomerId>,
     merchant_id: &'a id_type::MerchantId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl<'a> MerchantReferenceIdForCustomer<'a> {
-    async fn verify_if_customer_not_present_by_optional_merchant_reference_id(
+    async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
         &self,
         db: &dyn StorageInterface,
     ) -> Result<Option<()>, error_stack::Report<errors::CustomersErrorResponse>> {
-        self.customer_id
+        self.merchant_reference_id
             .async_map(|cust| async {
-                self.verify_if_customer_not_present_by_merchant_reference(cust, db)
+                self.verify_if_merchant_reference_not_present_by_merchant_reference(cust, db)
                     .await
             })
             .await
             .transpose()
     }
 
-    async fn verify_if_customer_not_present_by_merchant_reference(
+    async fn verify_if_merchant_reference_not_present_by_merchant_reference(
         &self,
         cus: &'a id_type::CustomerId,
         db: &dyn StorageInterface,
@@ -361,6 +362,53 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
             .find_customer_by_customer_id_merchant_id(
                 self.key_manager_state,
                 cus,
+                self.merchant_id,
+                self.key_store,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+        {
+            Err(err) => {
+                if !err.current_context().is_db_not_found() {
+                    Err(err).switch()
+                } else {
+                    Ok(())
+                }
+            }
+            Ok(_) => Err(report!(
+                errors::CustomersErrorResponse::CustomerAlreadyExists
+            )),
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl<'a> MerchantReferenceIdForCustomer<'a> {
+    async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> Result<Option<()>, error_stack::Report<errors::CustomersErrorResponse>> {
+        self.merchant_reference_id
+            .async_map(|merchant_ref| async {
+                self.verify_if_merchant_reference_not_present_by_merchant_reference(
+                    merchant_ref,
+                    db,
+                )
+                .await
+            })
+            .await
+            .transpose()
+    }
+
+    async fn verify_if_merchant_reference_not_present_by_merchant_reference(
+        &self,
+        merchant_ref: &'a id_type::CustomerId,
+        db: &dyn StorageInterface,
+    ) -> Result<(), error_stack::Report<errors::CustomersErrorResponse>> {
+        match db
+            .find_customer_by_merchant_reference_id_merchant_id(
+                self.key_manager_state,
+                merchant_ref,
                 self.merchant_id,
                 self.key_store,
                 self.merchant_account.storage_scheme,

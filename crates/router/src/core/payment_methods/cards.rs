@@ -51,7 +51,8 @@ use super::surcharge_decision_configs::{
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
@@ -107,8 +108,21 @@ pub async fn create_payment_method(
     card_scheme: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer = db
         .find_customer_by_customer_id_merchant_id(
+            &state.into(),
+            customer_id,
+            merchant_id,
+            key_store,
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customer = db
+        .find_customer_by_merchant_reference_id_merchant_id(
             &state.into(),
             customer_id,
             merchant_id,
@@ -484,8 +498,21 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt Payment method billing address")?;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer = db
         .find_customer_by_customer_id_merchant_id(
+            &(&state).into(),
+            &customer_id,
+            &merchant_id,
+            key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customer = db
+        .find_customer_by_merchant_reference_id_merchant_id(
             &(&state).into(),
             &customer_id,
             &merchant_id,
@@ -726,8 +753,22 @@ pub async fn add_payment_method_data(
     }
 
     let customer_id = payment_method.customer_id.clone();
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer = db
         .find_customer_by_customer_id_merchant_id(
+            &(&state).into(),
+            &customer_id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customer = db
+        .find_customer_by_merchant_reference_id_merchant_id(
             &(&state).into(),
             &customer_id,
             merchant_account.get_id(),
@@ -2289,6 +2330,29 @@ pub async fn list_payment_methods(
         .transpose()?
         .flatten();
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customer = payment_intent
+        .as_ref()
+        .async_and_then(|pi| async {
+            pi.customer_id
+                .as_ref()
+                .async_and_then(|cust| async {
+                    db.find_customer_by_merchant_reference_id_merchant_id(
+                        key_manager_state,
+                        cust,
+                        &pi.merchant_id,
+                        &key_store,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+                    .ok()
+                })
+                .await
+        })
+        .await;
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer = payment_intent
         .as_ref()
         .async_and_then(|pi| async {
@@ -3631,7 +3695,11 @@ fn filter_recurring_based(
     recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
 pub async fn list_customer_payment_method_util(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3686,7 +3754,8 @@ pub async fn list_customer_payment_method_util(
 
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     state: routes::SessionState,
@@ -3761,7 +3830,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
@@ -4258,7 +4328,11 @@ impl SavedPMLPaymentsInfo {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -4273,7 +4347,7 @@ pub async fn list_customer_payment_method(
     // let key = key_store.key.get_inner().peek();
 
     let customer = db
-        .find_customer_by_customer_id_merchant_id(
+        .find_customer_by_merchant_reference_id_merchant_id(
             key_manager_state,
             customer_id,
             merchant_account.get_id(),

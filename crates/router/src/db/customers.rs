@@ -64,11 +64,21 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError>;
 
-    // #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         state: &KeyManagerState,
         customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<customer::Customer, errors::StorageError>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_customer_by_merchant_reference_id_merchant_id(
+        &self,
+        state: &KeyManagerState,
+        merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -371,6 +381,72 @@ mod storage {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_customer_by_merchant_reference_id_merchant_id(
+            &self,
+            state: &KeyManagerState,
+            merchant_reference_id: &id_type::CustomerId,
+            merchant_id: &id_type::MerchantId,
+            key_store: &domain::MerchantKeyStore,
+            storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let database_call = || async {
+                storage_types::Customer::find_by_merchant_reference_id_merchant_id(
+                    &conn,
+                    merchant_reference_id,
+                    merchant_id,
+                )
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+            };
+            let storage_scheme =
+                decide_storage_scheme::<_, diesel_models::Customer>(self, storage_scheme, Op::Find)
+                    .await;
+            let customer = match storage_scheme {
+                MerchantStorageScheme::PostgresOnly => database_call().await,
+                MerchantStorageScheme::RedisKv => {
+                    let key = PartitionKey::MerchantIdMerchantReferenceId {
+                        merchant_id,
+                        merchant_reference_id: merchant_reference_id.get_string_repr(),
+                    };
+                    let field = format!("cust_{}", merchant_reference_id.get_string_repr());
+                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                        async {
+                            kv_wrapper(
+                                self,
+                                KvOperation::<diesel_models::Customer>::HGet(&field),
+                                key,
+                            )
+                            .await?
+                            .try_into_hget()
+                        },
+                        database_call,
+                    ))
+                    .await
+                }
+            }?;
+
+            let result: customer::Customer = customer
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+            //.await
+
+            match result.name {
+                Some(ref name) if name.peek() == REDACTED => {
+                    Err(errors::StorageError::CustomerRedacted)?
+                }
+                _ => Ok(result),
+            }
+        }
+
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
@@ -910,7 +986,7 @@ mod storage {
             .await
         }
 
-        // #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         async fn find_customer_by_customer_id_merchant_id(
             &self,
@@ -925,6 +1001,39 @@ mod storage {
                 storage_types::Customer::find_by_customer_id_merchant_id(
                     &conn,
                     customer_id,
+                    merchant_id,
+                )
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+                .async_and_then(|c| async {
+                    c.convert(state, key_store.key.get_inner(), merchant_id.clone().into())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+                .await?;
+            match customer.name {
+                Some(ref name) if name.peek() == REDACTED => {
+                    Err(errors::StorageError::CustomerRedacted)?
+                }
+                _ => Ok(customer),
+            }
+        }
+
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_customer_by_merchant_reference_id_merchant_id(
+            &self,
+            state: &KeyManagerState,
+            merchant_reference_id: &id_type::CustomerId,
+            merchant_id: &id_type::MerchantId,
+            key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<customer::Customer, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let customer: customer::Customer =
+                storage_types::Customer::find_by_merchant_reference_id_merchant_id(
+                    &conn,
+                    merchant_reference_id,
                     merchant_id,
                 )
                 .await
@@ -1181,11 +1290,24 @@ impl CustomerInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    //    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         _state: &KeyManagerState,
         _customer_id: &id_type::CustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<customer::Customer, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_customer_by_merchant_reference_id_merchant_id(
+        &self,
+        _state: &KeyManagerState,
+        _merchant_reference_id: &id_type::CustomerId,
         _merchant_id: &id_type::MerchantId,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,

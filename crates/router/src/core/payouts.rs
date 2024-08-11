@@ -773,8 +773,37 @@ pub async fn payouts_list_core(
         {
             Ok(ref payout_attempt) => match payout.customer_id.clone() {
                 Some(ref customer_id) => {
+                    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
                     match db
                         .find_customer_by_customer_id_merchant_id(
+                            &(&state).into(),
+                            customer_id,
+                            merchant_id,
+                            &key_store,
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                    {
+                        Ok(customer) => Ok((payout, payout_attempt.to_owned(), Some(customer))),
+                        Err(err) => {
+                            let err_msg = format!(
+                                "failed while fetching customer for customer_id - {:?}",
+                                customer_id
+                            );
+                            logger::warn!(?err, err_msg);
+                            if err.current_context().is_db_not_found() {
+                                Ok((payout, payout_attempt.to_owned(), None))
+                            } else {
+                                Err(err
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(err_msg))
+                            }
+                        }
+                    }
+
+                    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                    match db
+                        .find_customer_by_merchant_reference_id_merchant_id(
                             &(&state).into(),
                             customer_id,
                             merchant_id,

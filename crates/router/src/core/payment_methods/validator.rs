@@ -25,8 +25,38 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
     let merchant_id = merchant_account.get_id().clone();
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     match db
         .find_customer_by_customer_id_merchant_id(
+            &state.into(),
+            &customer_id,
+            &merchant_id,
+            key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                Err(err).change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!(
+                        "customer [{}] not found for merchant [{:?}]",
+                        customer_id.get_string_repr(),
+                        merchant_id
+                    ),
+                })
+            } else {
+                Err(err)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("database error while finding customer")
+            }
+        }
+    }?;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    match db
+        .find_customer_by_merchant_reference_id_merchant_id(
             &state.into(),
             &customer_id,
             &merchant_id,
