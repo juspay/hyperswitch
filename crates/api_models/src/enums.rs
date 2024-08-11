@@ -240,8 +240,7 @@ impl Connector {
             | Self::Nexinets
             | Self::Nuvei
             | Self::Opennode
-			| Self::Paybox  //added as template code for future usage
-            | Self::Payme
+			| Self::Paybox
             | Self::Payone
             | Self::Paypal
             | Self::Payu
