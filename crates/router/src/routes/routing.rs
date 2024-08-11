@@ -70,7 +70,7 @@ pub async fn routing_link_config(
         &req,
         path.into_inner(),
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            routing::routing_link_config(
+            routing::link_routing_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -259,7 +259,7 @@ pub async fn routing_unlink_config(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload_req, _| {
-            routing::routing_unlink_config(
+            routing::unlink_routing_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
