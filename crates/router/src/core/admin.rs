@@ -3319,12 +3319,23 @@ pub async fn create_and_insert_business_profile(
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 trait BusinessProfileCreateBridge {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
         merchant_account: &domain::MerchantAccount,
-        key: domain::MerchantKeyStore,
-        identifier: &id_type::MerchantId,
+        key: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfile>;
+
+    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
     ) -> RouterResult<domain::BusinessProfile>;
 }
 
@@ -3339,40 +3350,201 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         self,
         state: &SessionState,
         merchant_account: &domain::MerchantAccount,
-        key: domain::MerchantKeyStore,
-        identifier: &id_type::MerchantId,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::BusinessProfile> {
-        let business_profile = admin::create_business_profile_from_merchant_account(
-            state,
-            merchant_account.to_owned(),
-            self,
-            &key,
-        )
-        .await?;
-        Ok(business_profile)
+        use crate::core;
+        use common_utils::ext_traits::AsyncExt;
+
+        // Generate a unique profile id
+        let profile_id = common_utils::generate_id_with_default_len("pro");
+        let profile_name = self.profile_name.unwrap_or("default".to_string());
+
+        let current_time = date_time::now();
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        let payment_response_hash_key = self
+            .payment_response_hash_key
+            .or(merchant_account.payment_response_hash_key.clone())
+            .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
+
+        let payment_link_config_value = self.payment_link_config.map(ForeignInto::foreign_into);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| {
+                core::payment_methods::cards::create_encrypted_data(state, &key_store, headers)
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(error_stack::report!(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: e.to_string()
+                    }
+                )),
+            })
+            .transpose()?;
+
+        Ok(domain::BusinessProfile {
+            profile_id,
+            merchant_id: merchant_account.get_id().clone(),
+            profile_name,
+            created_at: current_time,
+            modified_at: current_time,
+            return_url: self
+                .return_url
+                .map(|return_url| return_url.to_string())
+                .or(merchant_account.return_url.clone()),
+            enable_payment_response_hash: self
+                .enable_payment_response_hash
+                .unwrap_or(merchant_account.enable_payment_response_hash),
+            payment_response_hash_key: Some(payment_response_hash_key),
+            redirect_to_merchant_with_http_post: self
+                .redirect_to_merchant_with_http_post
+                .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
+            webhook_details: webhook_details.or(merchant_account.webhook_details.clone()),
+            metadata: self.metadata,
+            routing_algorithm: None,
+            intent_fulfillment_time: self
+                .intent_fulfillment_time
+                .map(i64::from)
+                .or(merchant_account.intent_fulfillment_time)
+                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
+            frm_routing_algorithm: self
+                .frm_routing_algorithm
+                .or(merchant_account.frm_routing_algorithm.clone()),
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: self
+                .payout_routing_algorithm
+                .or(merchant_account.payout_routing_algorithm.clone()),
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
+            is_recon_enabled: merchant_account.is_recon_enabled,
+            applepay_verified_domains: self.applepay_verified_domains,
+            payment_link_config: payment_link_config_value,
+            session_expiry: self
+                .session_expiry
+                .map(i64::from)
+                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: self
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config,
+            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+            is_extended_card_info_enabled: None,
+            extended_card_info_config: None,
+            use_billing_as_payment_method_billing: self
+                .use_billing_as_payment_method_billing
+                .or(Some(true)),
+            collect_shipping_details_from_wallet_connector: self
+                .collect_shipping_details_from_wallet_connector
+                .or(Some(false)),
+            collect_billing_details_from_wallet_connector: self
+                .collect_billing_details_from_wallet_connector
+                .or(Some(false)),
+            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                .map(Into::into),
+        })
     }
 
     #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
-        merchant_account: &domain::MerchantAccount,
-        key: domain::MerchantKeyStore,
-        _identifier: &id_type::MerchantId,
+        key: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
     ) -> RouterResult<domain::BusinessProfile> {
-        let business_profile =
-            admin::create_business_profile_from_merchant_account(state, self, &key)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create business profile")?;
-        Ok(business_profile)
+        // Generate a unique profile id
+        // TODO: the profile_id should be generated from the profile_name
+        let profile_id = common_utils::generate_id_with_default_len("pro");
+        let profile_name = self.profile_name.unwrap_or("default".to_string());
+
+        let current_time = date_time::now();
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        let payment_response_hash_key = self
+            .payment_response_hash_key
+            .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
+
+        let payment_link_config_value = self.payment_link_config.map(ForeignInto::foreign_into);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| {
+                core::payment_methods::cards::create_encrypted_data(state, &key_store, headers)
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config =
+            self.payout_link_config
+                .map(|payout_conf| match payout_conf.config.validate() {
+                    Ok(_) => Ok(payout_conf.foreign_into()),
+                    Err(e) => Err(error_stack::report!(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: e.to_string()
+                        }
+                    )),
+                });
+
+        Ok(domain::BusinessProfile {
+            profile_id,
+            merchant_id: merchant_id.clone(),
+            profile_name,
+            created_at: current_time,
+            modified_at: current_time,
+            return_url: self.return_url.map(|return_url| return_url.to_string()),
+            enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
+            payment_response_hash_key: Some(payment_response_hash_key),
+            redirect_to_merchant_with_http_post: self
+                .redirect_to_merchant_with_http_post
+                .unwrap_or(true),
+            webhook_details: webhook_details,
+            metadata: self.metadata,
+            intent_fulfillment_time: self
+                .intent_fulfillment_time
+                .map(i64::from)
+                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
+            is_recon_enabled: merchant_account.is_recon_enabled,
+            applepay_verified_domains: self.applepay_verified_domains,
+            payment_link_config: payment_link_config_value,
+            session_expiry: self
+                .session_expiry
+                .map(i64::from)
+                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: self
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config,
+            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+            is_extended_card_info_enabled: None,
+            extended_card_info_config: None,
+            use_billing_as_payment_method_billing: self
+                .use_billing_as_payment_method_billing
+                .or(Some(true)),
+            collect_shipping_details_from_wallet_connector: self
+                .collect_shipping_details_from_wallet_connector
+                .or(Some(false)),
+            collect_billing_details_from_wallet_connector: self
+                .collect_billing_details_from_wallet_connector
+                .or(Some(false)),
+            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                .map(Into::into),
+            routing_algorithm_id: None,
+            frm_routing_algorithm_id: None,
+            payout_routing_algorithm_id: None,
+        })
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "merchant_account_v2", feature = "business_profile_v2"))
-))]
 pub async fn create_business_profile(
     state: SessionState,
     request: api::BusinessProfileCreate,
@@ -3414,8 +3586,17 @@ pub async fn create_business_profile(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
     let business_profile = request
-        .create_domain_model_from_request(&state, request, merchant_account.clone(), &key_store)
+        .create_domain_model_from_request(&state, &merchant_account, &key_store, merchant_id)
+        .await?;
+
+    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    let business_profile = request
+        .create_domain_model_from_request(&state, &key_store, merchant_id)
         .await?;
 
     if merchant_account.default_profile.is_some() {
@@ -3435,19 +3616,6 @@ pub async fn create_business_profile(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?,
     ))
-}
-
-#[cfg(all(
-    feature = "v2",
-    feature = "merchant_account_v2",
-    feature = "business_profile_v2"
-))]
-pub async fn create_business_profile(
-    _state: SessionState,
-    _request: api::BusinessProfileCreate,
-    _merchant_id: &id_type::MerchantId,
-) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    todo!()
 }
 
 pub async fn list_business_profile(
