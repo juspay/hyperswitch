@@ -175,7 +175,7 @@ pub struct ConnectorConfig {
     pub nmi: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
-    pub paybox: Option<ConnectorTomlConfig>, //added for future usage
+    pub paybox: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub payone_payout: Option<ConnectorTomlConfig>,
