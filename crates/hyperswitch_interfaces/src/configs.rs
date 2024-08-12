@@ -10,11 +10,8 @@ use serde::Deserialize;
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
-    #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithThreeBaseUrls,
+    pub adyen: AdyenParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
-    #[cfg(not(feature = "payouts"))]
-    pub adyen: ConnectorParamsWithThreeBaseUrls,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
@@ -142,13 +139,14 @@ pub struct ConnectorParamsWithFileUploadUrl {
 /// struct ConnectorParamsWithThreeBaseUrls
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
-pub struct ConnectorParamsWithThreeBaseUrls {
+pub struct AdyenParamsWithThreeBaseUrls {
     /// base url
     pub base_url: String,
     /// secondary base url
-    pub secondary_base_url: String,
+    #[cfg(feature="payouts")]
+    pub payout_base_url: String,
     /// third base url
-    pub third_base_url: String,
+    pub dispute_base_url: String,
 }
 /// struct ConnectorParamsWithSecondaryBaseUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]

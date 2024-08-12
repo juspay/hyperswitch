@@ -1146,7 +1146,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.secondary_base_url.as_str(),
+            connectors.adyen.payout_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -1250,7 +1250,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.secondary_base_url.as_str(),
+            connectors.adyen.payout_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -1466,7 +1466,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.secondary_base_url.as_str(),
+            connectors.adyen.payout_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -1940,7 +1940,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.third_base_url.as_str(),
+            connectors.adyen.dispute_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -2030,7 +2030,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.third_base_url.as_str(),
+            connectors.adyen.dispute_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
@@ -2121,7 +2121,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = build_env_specific_endpoint(
-            connectors.adyen.third_base_url.as_str(),
+            connectors.adyen.dispute_base_url.as_str(),
             req.test_mode,
             &req.connector_meta_data,
         )?;
