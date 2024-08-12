@@ -3734,7 +3734,7 @@ impl BusinessProfileWrapper {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Merchant default config has invalid structure")
     }
-    pub fn get_default_configs_for_profile(
+    pub fn get_default_routing_configs_from_profile(
         &self,
     ) -> RouterResult<routing_types::ProfileDefaultRoutingConfig> {
         let profile_id = self.profile.profile_id.clone();

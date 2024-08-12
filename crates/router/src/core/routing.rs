@@ -650,7 +650,7 @@ pub async fn update_default_fallback_routing(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile_id: String,
-    updated_config: Vec<routing_types::RoutableConnectorChoice>,
+    updated_list_of_connectors: Vec<routing_types::RoutableConnectorChoice>,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -665,44 +665,59 @@ pub async fn update_default_fallback_routing(
     .await?
     .get_required_value("BusinessProfile")?;
     let profile_wrapper = admin::BusinessProfileWrapper::new(profile);
-    let default_config = profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
+    let default_list_of_connectors =
+        profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
 
-    utils::when(default_config.len() != updated_config.len(), || {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "current config and updated config have different lengths".to_string(),
-        })
-    })?;
+    utils::when(
+        default_list_of_connectors.len() != updated_list_of_connectors.len(),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "current config and updated config have different lengths".to_string(),
+            })
+        },
+    )?;
 
-    let existing_set: FxHashSet<String> = FxHashSet::from_iter(
-        default_config
+    let existing_set_of_default_connectors: FxHashSet<String> = FxHashSet::from_iter(
+        default_list_of_connectors
             .iter()
             .map(|conn_choice| conn_choice.to_string()),
     );
-    let updated_set: FxHashSet<String> = FxHashSet::from_iter(
-        updated_config
+    let updated_set_of_default_connectors: FxHashSet<String> = FxHashSet::from_iter(
+        updated_list_of_connectors
             .iter()
             .map(|conn_choice| conn_choice.to_string()),
     );
 
-    let symmetric_diff: Vec<String> = existing_set
-        .symmetric_difference(&updated_set)
-        .cloned()
-        .collect();
+    let symmetric_diff_between_existing_and_updated_connectors: Vec<String> =
+        existing_set_of_default_connectors
+            .symmetric_difference(&updated_set_of_default_connectors)
+            .cloned()
+            .collect();
 
-    utils::when(!symmetric_diff.is_empty(), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "connector mismatch between old and new configs ({})",
-                symmetric_diff.join(", ")
-            ),
-        })
-    })?;
+    utils::when(
+        !symmetric_diff_between_existing_and_updated_connectors.is_empty(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "connector mismatch between old and new configs ({})",
+                    symmetric_diff_between_existing_and_updated_connectors.join(", ")
+                ),
+            })
+        },
+    )?;
     profile_wrapper
-        .update_default_routing_for_profile(db, &updated_config, key_manager_state, &key_store)
+        .update_default_routing_for_profile(
+            db,
+            &updated_list_of_connectors,
+            key_manager_state,
+            &key_store,
+        )
         .await?;
 
     metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
-    Ok(service_api::ApplicationResponse::Json(updated_config))
+    Ok(service_api::ApplicationResponse::Json(
+        updated_list_of_connectors,
+    ))
 }
 
 #[cfg(all(
