@@ -474,7 +474,11 @@ fn get_paybox_request_number() -> Result<String, Error> {
         .as_millis()
         .to_string();
     // unix time (in milliseconds) has 13 digits.if we consider 8 digits(the number digits to make day deterministic) there is no collision in the paybox_request_number as it will reset the paybox_request_number for each day  and paybox accepting maximum length is 10 so we gonna take 9 (13-9)
-    Ok((time_stamp[4..]).to_string())
+    // Ok((time_stamp[4..]).to_string())
+    let request_number = time_stamp
+        .get(4..)
+        .ok_or(errors::ConnectorError::ParsingFailed)?;
+    Ok(request_number.to_string())
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -697,27 +701,27 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
 impl From<PayboxStatus> for common_enums::RefundStatus {
     fn from(item: PayboxStatus) -> Self {
         match item {
-            PayboxStatus::Refunded => enums::RefundStatus::Success,
+            PayboxStatus::Refunded => Self::Success,
             PayboxStatus::Cancelled
             | PayboxStatus::Authorised
             | PayboxStatus::Captured
-            | PayboxStatus::Rejected => enums::RefundStatus::Failure,
+            | PayboxStatus::Rejected => Self::Failure,
         }
     }
 }
 impl From<PayboxStatus> for enums::AttemptStatus {
     fn from(item: PayboxStatus) -> Self {
         match item {
-            PayboxStatus::Refunded => enums::AttemptStatus::CaptureFailed,
-            PayboxStatus::Cancelled => enums::AttemptStatus::Voided,
-            PayboxStatus::Authorised => enums::AttemptStatus::Authorized,
-            PayboxStatus::Captured => enums::AttemptStatus::Charged,
-            PayboxStatus::Rejected => enums::AttemptStatus::Failure,
+            PayboxStatus::Refunded => Self::CaptureFailed,
+            PayboxStatus::Cancelled => Self::Voided,
+            PayboxStatus::Authorised => Self::Authorized,
+            PayboxStatus::Captured => Self::Charged,
+            PayboxStatus::Rejected => Self::Failure,
         }
     }
 }
 fn get_status_of_request(item: String) -> bool {
-    item == SUCCESS_CODE.to_string()
+    item == *SUCCESS_CODE
 }
 
 impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefundRequest {

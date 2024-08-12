@@ -181,7 +181,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}", self.base_url(connectors)))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -272,7 +272,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         _req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}", self.base_url(connectors)))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn build_request(
@@ -338,7 +338,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         _req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}", self.base_url(connectors)))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -420,7 +420,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         _req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}", self.base_url(connectors)))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -504,7 +504,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}", self.base_url(connectors)))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
@@ -583,7 +583,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         _req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}", self.base_url(connectors)))
+        Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
