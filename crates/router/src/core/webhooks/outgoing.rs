@@ -5,7 +5,10 @@ use api_models::{
     webhooks,
 };
 use common_utils::{
-    ext_traits::Encode, request::RequestContent, type_name, types::keymanager::Identifier,
+    ext_traits::{Encode, StringExt},
+    request::RequestContent,
+    type_name,
+    types::keymanager::{Identifier, KeyManagerState},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
@@ -33,7 +36,8 @@ use crate::{
     routes::{app::SessionStateInfo, SessionState},
     services,
     types::{
-        api, domain,
+        api,
+        domain::{self},
         storage::{self, enums},
         transformers::ForeignFrom,
     },
@@ -219,7 +223,15 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     )
     .await;
 
-    raise_webhooks_analytics_event(state, trigger_webhook_result, content, merchant_id, event);
+    let _ = raise_webhooks_analytics_event(
+        state,
+        trigger_webhook_result,
+        content,
+        merchant_id,
+        event,
+        merchant_key_store,
+    )
+    .await;
 }
 
 async fn trigger_webhook_to_merchant(
@@ -429,13 +441,17 @@ async fn trigger_webhook_to_merchant(
     Ok(())
 }
 
-fn raise_webhooks_analytics_event(
+async fn raise_webhooks_analytics_event(
     state: SessionState,
     trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
     content: Option<api::OutgoingWebhookContent>,
     merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
+    merchant_key_store: &domain::MerchantKeyStore,
 ) {
+    let key_manager_state: &KeyManagerState = &(&state).into();
+    let event_id = event.event_id;
+
     let error = if let Err(error) = trigger_webhook_result {
         logger::error!(?error, "Failed to send webhook to merchant");
 
@@ -454,13 +470,47 @@ fn raise_webhooks_analytics_event(
         .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content)
         .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
 
+    // Fetch updated_event from db
+    let updated_event = state
+        .store
+        .find_event_by_merchant_id_event_id(
+            key_manager_state,
+            &merchant_id,
+            &event_id,
+            merchant_key_store,
+        )
+        .await
+        .attach_printable_lazy(|| format!("event not found for id: {}", &event_id))
+        .map_err(|error| {
+            logger::error!(?error);
+            error
+        })
+        .ok();
+
+    // Get status_code from webhook response
+    let status_code = updated_event.and_then(|updated_event| {
+        let webhook_response: Option<OutgoingWebhookResponseContent> =
+            updated_event.response.and_then(|res| {
+                res.peek()
+                    .parse_struct("OutgoingWebhookResponseContent")
+                    .map_err(|error| {
+                        logger::error!(?error, "Error deserializing webhook response");
+                        error
+                    })
+                    .ok()
+            });
+        webhook_response.and_then(|res| res.status_code)
+    });
+
     let webhook_event = OutgoingWebhookEvent::new(
         merchant_id,
-        event.event_id,
+        event_id,
         event.event_type,
         outgoing_webhook_event_content,
         error,
         event.initial_attempt_id,
+        status_code,
+        event.delivery_attempt,
     );
     state.event_handler().log_event(&webhook_event);
 }

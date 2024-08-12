@@ -142,6 +142,7 @@ where
             let link_type = (boxed_generic_link_data).data.to_string();
             match services::generic_link_response::build_generic_link_html(
                 boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
