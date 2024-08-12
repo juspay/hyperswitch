@@ -229,7 +229,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: paybox::PayboxResponse = paybox::parse_url_encoded_to_struct(res.response)?;
+        let json_string = paybox::parse_url_encoded_to_struct(res.response)?;
+        let response: paybox::PayboxResponse =
+        serde_json::from_str(&json_string).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -302,8 +304,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let json_string = paybox::parse_url_encoded_to_struct(res.response)?;
         let response: paybox::PayboxSyncResponse =
-            paybox::parse_url_encoded_to_syn_struct(res.response)?;
+        serde_json::from_str(&json_string).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -384,8 +387,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: paybox::PayboxCaptureResponse =
-            paybox::parse_url_encoded_to_capture_struct(res.response)?;
+        let json_string =
+            paybox::parse_url_encoded_to_struct(res.response)?;
+            let response: paybox::PayboxCaptureResponse =
+            serde_json::from_str(&json_string).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -464,7 +469,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: paybox::PayboxResponse = paybox::parse_url_encoded_to_struct(res.response)?;
+        let json_string = paybox::parse_url_encoded_to_struct(res.response)?;
+        let response: paybox::PayboxResponse =
+        serde_json::from_str(&json_string).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -537,8 +544,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+        let json_string = paybox::parse_url_encoded_to_struct(res.response)?;
         let response: paybox::PayboxSyncResponse =
-            paybox::parse_url_encoded_to_syn_struct(res.response)?;
+        serde_json::from_str(&json_string).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
