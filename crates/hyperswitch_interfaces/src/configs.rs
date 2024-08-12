@@ -11,7 +11,7 @@ use serde::Deserialize;
 pub struct Connectors {
     pub aci: ConnectorParams,
     #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
+    pub adyen: ConnectorParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
     #[cfg(not(feature = "payouts"))]
     pub adyen: ConnectorParamsWithThreeBaseUrls,
