@@ -249,6 +249,74 @@
         ]
       }
     },
+    "/v2/accounts": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Create",
+        "description": "Merchant Account - Create\n\nCreate a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
+        "operationId": "Create a Merchant Account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountCreate"
+              },
+              "examples": {
+                "Create a merchant account with merchant details": {
+                  "value": {
+                    "merchant_details": {
+                      "primary_contact_person": "John Doe",
+                      "primary_email": "example@company.com"
+                    },
+                    "merchant_name": "Cloth Store",
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                },
+                "Create a merchant account with metadata": {
+                  "value": {
+                    "merchant_name": "Cloth Store",
+                    "metadata": {
+                      "key_1": "John Doe",
+                      "key_2": "Trends"
+                    },
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                },
+                "Create a merchant account with minimal fields": {
+                  "value": {
+                    "merchant_name": "Cloth Store",
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/accounts/{id}": {
       "get": {
         "tags": [
