@@ -241,6 +241,7 @@ impl Connector {
             | Self::Nuvei
             | Self::Opennode
 			| Self::Paybox
+			| Self::Payme
             | Self::Payone
             | Self::Paypal
             | Self::Payu

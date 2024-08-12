@@ -314,6 +314,7 @@ impl ConnectorConfig {
             Connector::Nmi => Ok(connector_data.nmi),
             Connector::Noon => Ok(connector_data.noon),
             Connector::Nuvei => Ok(connector_data.nuvei),
+            Connector::Paybox => Ok(connector_data.paybox),
             Connector::Payme => Ok(connector_data.payme),
             Connector::Payone => Err("Use get_payout_connector_config".to_string()),
             Connector::Paypal => Ok(connector_data.paypal),
@@ -354,7 +355,6 @@ impl ConnectorConfig {
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
-            Connector::Paybox => Ok(connector_data.paybox),
         }
     }
 }
