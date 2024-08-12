@@ -105,7 +105,7 @@ pub async fn retrieve_disputes_list(
     .await
 }
 
-/// Disputes - List Profile Disputes
+/// Disputes - List Disputes for The Given Business Profiles
 #[utoipa::path(
     get,
     path = "/disputes/profile/list",
@@ -126,7 +126,7 @@ pub async fn retrieve_disputes_list(
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Disputes",
-    operation_id = "List Disputes",
+    operation_id = "List Disputes for The given Business Profiles",
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::DisputesList))]
