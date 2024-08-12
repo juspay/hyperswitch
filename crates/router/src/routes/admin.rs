@@ -384,7 +384,7 @@ pub async fn connector_create(
     ),
     tag = "Merchant Connector Account",
     operation_id = "Retrieve a Merchant Connector",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
 pub async fn connector_retrieve(
@@ -507,7 +507,7 @@ pub async fn connector_retrieve(
     ),
     tag = "Merchant Connector Account",
     operation_id = "List all Merchant Connectors",
-    security(("admin_api_key" = []))
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn payment_connector_list(
@@ -603,7 +603,7 @@ pub async fn payment_connector_list_profile(
     ),
    tag = "Merchant Connector Account",
    operation_id = "Update a Merchant Connector",
-   security(("admin_api_key" = []))
+   security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsUpdate))]
 pub async fn connector_update(
