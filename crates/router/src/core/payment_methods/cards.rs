@@ -3292,6 +3292,10 @@ pub async fn call_surcharge_decision_management(
     billing_address: Option<domain::Address>,
     response_payment_method_types: &mut [ResponsePaymentMethodsEnabled],
 ) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -3300,6 +3304,17 @@ pub async fn call_surcharge_decision_management(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let algorithm_ref: routing_types::RoutingAlgorithmRef = business_profile
+        .routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("routing algorithm"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not decode the routing algorithm")?
+        .unwrap_or_default();
+
     let (surcharge_results, merchant_sucharge_configs) =
         perform_surcharge_decision_management_for_payment_method_list(
             &state,
@@ -3344,6 +3359,10 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> errors::RouterResult<()> {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -3352,6 +3371,17 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let algorithm_ref: routing_types::RoutingAlgorithmRef = business_profile
+        .routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("routing algorithm"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Could not decode the routing algorithm")?
+        .unwrap_or_default();
+
     let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
@@ -3892,6 +3922,7 @@ pub async fn list_customer_payment_method(
         let mca_enabled = get_mca_status(
             state,
             &key_store,
+            profile_id.clone(),
             merchant_account.get_id(),
             is_connector_agnostic_mit_enabled,
             connector_mandate_details,
@@ -3932,7 +3963,9 @@ pub async fn list_customer_payment_method(
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
             billing: payment_method_billing,
         };
-        customer_pms.push(pma.to_owned());
+        if requires_cvv || mca_enabled {
+            customer_pms.push(pma.to_owned());
+        }
 
         let redis_conn = state
             .store
@@ -4410,19 +4443,22 @@ async fn generate_saved_pm_response(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
 
-    let (is_connector_agnostic_mit_enabled, requires_cvv, off_session_payment_flag) = payment_info
-        .map(|pi| {
-            (
-                pi.is_connector_agnostic_mit_enabled,
-                pi.requires_cvv,
-                pi.off_session_payment_flag,
-            )
-        })
-        .unwrap_or((false, false, false));
+    let (is_connector_agnostic_mit_enabled, requires_cvv, off_session_payment_flag, profile_id) =
+        payment_info
+            .map(|pi| {
+                (
+                    pi.is_connector_agnostic_mit_enabled,
+                    pi.requires_cvv,
+                    pi.off_session_payment_flag,
+                    pi.business_profile.map(|profile| profile.profile_id),
+                )
+            })
+            .unwrap_or((false, false, false, Default::default()));
 
     let mca_enabled = get_mca_status(
         state,
         key_store,
+        profile_id,
         merchant_account.get_id(),
         is_connector_agnostic_mit_enabled,
         connector_mandate_details,
@@ -4486,6 +4522,7 @@ async fn generate_saved_pm_response(
 pub async fn get_mca_status(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
+    profile_id: Option<String>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<storage::PaymentsMandateReference>,
@@ -4507,19 +4544,17 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
-
         let mut mca_ids = HashSet::new();
         let mcas = mcas
             .into_iter()
-            .filter(|mca| mca.disabled == Some(true))
+            .filter(|mca| mca.disabled == Some(false) && profile_id.clone() == mca.profile_id)
             .collect::<Vec<_>>();
 
         for mca in mcas {
             mca_ids.insert(mca.get_id());
         }
-
         for mca_id in connector_mandate_details.keys() {
-            if !mca_ids.contains(mca_id) {
+            if mca_ids.contains(mca_id) {
                 return Ok(true);
             }
         }

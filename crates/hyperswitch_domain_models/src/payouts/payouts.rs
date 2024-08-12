@@ -54,7 +54,7 @@ pub trait PayoutsInterface {
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
-        Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>,
+        Vec<(Payouts, PayoutAttempt, Option<diesel_models::Customer>)>,
         errors::StorageError,
     >;
 
@@ -81,8 +81,8 @@ pub trait PayoutsInterface {
 pub struct Payouts {
     pub payout_id: String,
     pub merchant_id: id_type::MerchantId,
-    pub customer_id: id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -109,8 +109,8 @@ pub struct Payouts {
 pub struct PayoutsNew {
     pub payout_id: String,
     pub merchant_id: id_type::MerchantId,
-    pub customer_id: id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -140,27 +140,27 @@ impl Default for PayoutsNew {
         Self {
             payout_id: String::default(),
             merchant_id: id_type::MerchantId::default(),
-            customer_id: common_utils::generate_customer_id_of_default_length(),
-            address_id: String::default(),
-            payout_type: Some(storage_enums::PayoutType::default()),
-            payout_method_id: Option::default(),
+            customer_id: None,
+            address_id: None,
+            payout_type: None,
+            payout_method_id: None,
             amount: MinorUnit::new(i64::default()),
             destination_currency: storage_enums::Currency::default(),
             source_currency: storage_enums::Currency::default(),
-            description: Option::default(),
+            description: None,
             recurring: bool::default(),
             auto_fulfill: bool::default(),
             return_url: None,
             entity_type: storage_enums::PayoutEntityType::default(),
-            metadata: Option::default(),
+            metadata: None,
             created_at: Some(now),
             last_modified_at: Some(now),
             attempt_count: 1,
             profile_id: String::default(),
             status: storage_enums::PayoutStatus::default(),
             confirm: None,
-            payout_link_id: Option::default(),
-            client_secret: Option::default(),
+            payout_link_id: None,
+            client_secret: None,
             priority: None,
         }
     }
@@ -182,6 +182,8 @@ pub enum PayoutsUpdate {
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
         payout_type: Option<storage_enums::PayoutType>,
+        address_id: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -214,6 +216,8 @@ pub struct PayoutsUpdateInternal {
     pub attempt_count: Option<i16>,
     pub confirm: Option<bool>,
     pub payout_type: Option<common_enums::PayoutType>,
+    pub address_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -233,6 +237,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -247,6 +253,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
