@@ -116,9 +116,8 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let event = db
             .insert_event(key_manager_state, new_event, &key_store)
             .await
-            .map_err(|error| {
+            .inspect_err(|error| {
                 logger::error!(?error, "Failed to insert event in events table");
-                error
             })?;
 
         match &event.request {

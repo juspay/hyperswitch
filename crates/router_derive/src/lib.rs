@@ -1,5 +1,4 @@
 //! Utility macros for the `router` crate.
-#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 use syn::parse_macro_input;

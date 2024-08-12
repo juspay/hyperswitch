@@ -248,6 +248,180 @@
           }
         ]
       }
+    },
+    "/v2/accounts": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Create",
+        "description": "Merchant Account - Create\n\nCreate a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
+        "operationId": "Create a Merchant Account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountCreate"
+              },
+              "examples": {
+                "Create a merchant account with merchant details": {
+                  "value": {
+                    "merchant_details": {
+                      "primary_contact_person": "John Doe",
+                      "primary_email": "example@company.com"
+                    },
+                    "merchant_name": "Cloth Store",
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                },
+                "Create a merchant account with metadata": {
+                  "value": {
+                    "merchant_name": "Cloth Store",
+                    "metadata": {
+                      "key_1": "John Doe",
+                      "key_2": "Trends"
+                    },
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                },
+                "Create a merchant account with minimal fields": {
+                  "value": {
+                    "merchant_name": "Cloth Store",
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/accounts/{id}": {
+      "get": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Retrieve",
+        "description": "Merchant Account - Retrieve\n\nRetrieve a *merchant* account details.",
+        "operationId": "Retrieve a Merchant Account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Update",
+        "description": "Merchant Account - Update\n\nUpdates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "operationId": "Update a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountUpdate"
+              },
+              "examples": {
+                "Update Merchant Details": {
+                  "value": {
+                    "merchant_details": {
+                      "primary_contact_person": "John Doe",
+                      "primary_email": "example@company.com"
+                    }
+                  }
+                },
+                "Update merchant name": {
+                  "value": {
+                    "merchant_id": "merchant_abc",
+                    "merchant_name": "merchant_name"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {

@@ -65,3 +65,6 @@ signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional =
 fake = "2.9.2"
 proptest = "1.4.0"
 test-case = "3.3.1"
+
+[lints]
+workspace = true
