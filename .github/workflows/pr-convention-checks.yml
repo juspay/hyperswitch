@@ -159,7 +159,7 @@ jobs:
             migration_and_schema_changes='true'
           fi
 
-          if echo "${files_changed}" | grep --quiet --extended-regexp '^api-reference/(openapi_spec.json|openapi_spec_v2.json)$'; then
+          if echo "${files_changed}" | grep --quiet --extended-regexp '^(api-reference|api-reference-v2)/openapi_spec.json$'; then
             openapi_changes='true'
           fi
 
