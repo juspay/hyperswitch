@@ -21,6 +21,12 @@ use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+use crate::core::routing;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -49,7 +55,6 @@ use crate::{
     },
     utils,
 };
-
 const IBAN_MAX_LENGTH: usize = 34;
 const BACS_SORT_CODE_LENGTH: usize = 6;
 const BACS_MAX_ACCOUNT_NUMBER_LENGTH: usize = 8;
@@ -3696,18 +3701,18 @@ impl BusinessProfileWrapper {
 
     pub fn get_profile_id_and_routing_algorithm_id<F>(
         &self,
-        transaction_data: &crate::core::routing::TransactionData<'_, F>,
+        transaction_data: &routing::TransactionData<'_, F>,
     ) -> (Option<String>, Option<String>)
     where
         F: Send + Clone,
     {
         match transaction_data {
-            crate::core::routing::TransactionData::Payment(payment_data) => (
+            routing::TransactionData::Payment(payment_data) => (
                 payment_data.payment_intent.profile_id.clone(),
                 self.profile.routing_algorithm_id.clone(),
             ),
             #[cfg(feature = "payouts")]
-            crate::core::routing::TransactionData::Payout(payout_data) => (
+            routing::TransactionData::Payout(payout_data) => (
                 Some(payout_data.payout_attempt.profile_id.clone()),
                 self.profile.payout_routing_algorithm_id.clone(),
             ),
