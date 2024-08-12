@@ -69,7 +69,8 @@ impl PayoutsInterface for MockDb {
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError> {
+    ) -> CustomResult<Vec<(Payouts, PayoutAttempt, Option<diesel_models::Customer>)>, StorageError>
+    {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

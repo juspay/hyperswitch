@@ -130,9 +130,3 @@ pub const CONNECTOR_CREDS_TOKEN_TTL: i64 = 900;
 
 //max_amount allowed is 999999999 in minor units
 pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V1;
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub const API_VERSION: common_enums::ApiVersion = common_enums::ApiVersion::V2;
