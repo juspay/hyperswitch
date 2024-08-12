@@ -7,7 +7,7 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     date_time,
-    ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
+    ext_traits::{AsyncExt, Encode, ValueExt},
     id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState},
 };
@@ -15,7 +15,7 @@ use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::organization::OrganizationBridge;
 use error_stack::{report, FutureExt, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
 use regex::Regex;
 use router_env::metrics::add_attributes;
@@ -3721,6 +3721,9 @@ impl BusinessProfileWrapper {
     pub fn get_default_fallback_list_of_connector_under_profile(
         &self,
     ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
+        use common_utils::ext_traits::OptionExt;
+        use masking::ExposeOptionInterface;
+
         self.profile
             .default_fallback_routing
             .clone()
