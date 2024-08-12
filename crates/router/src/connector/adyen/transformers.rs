@@ -5028,13 +5028,13 @@ fn get_content(item: Vec<u8>) -> String {
     String::from_utf8_lossy(&item).to_string()
 }
 
-impl ForeignTryFrom<(&types::AcceptDisputeRouterData, AdyenDisputeResponse)>
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
     for types::AcceptDisputeRouterData
 {
     type Error = errors::ConnectorError;
 
     fn foreign_try_from(
-        item: (&types::AcceptDisputeRouterData, AdyenDisputeResponse),
+        item: (&Self, AdyenDisputeResponse),
     ) -> Result<Self, Self::Error> {
         let (data, response) = item;
 
@@ -5072,12 +5072,12 @@ impl ForeignTryFrom<(&types::AcceptDisputeRouterData, AdyenDisputeResponse)>
     }
 }
 
-impl ForeignTryFrom<(&types::SubmitEvidenceRouterData, AdyenDisputeResponse)>
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
     for types::SubmitEvidenceRouterData
 {
     type Error = errors::ConnectorError;
     fn foreign_try_from(
-        item: (&types::SubmitEvidenceRouterData, AdyenDisputeResponse),
+        item: (&Self, AdyenDisputeResponse),
     ) -> Result<Self, Self::Error> {
         let (data, response) = item;
         if response.success {
@@ -5114,13 +5114,13 @@ impl ForeignTryFrom<(&types::SubmitEvidenceRouterData, AdyenDisputeResponse)>
     }
 }
 
-impl ForeignTryFrom<(&types::DefendDisputeRouterData, AdyenDisputeResponse)>
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
     for types::DefendDisputeRouterData
 {
     type Error = errors::ConnectorError;
 
     fn foreign_try_from(
-        item: (&types::DefendDisputeRouterData, AdyenDisputeResponse),
+        item: (&Self, AdyenDisputeResponse),
     ) -> Result<Self, Self::Error> {
         let (data, response) = item;
 
