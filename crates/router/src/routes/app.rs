@@ -996,6 +996,11 @@ impl Payouts {
                         .route(web::post().to(payouts_list_by_filter)),
                 )
                 .service(
+                    web::resource("/profile/list")
+                        .route(web::get().to(payouts_list_profile))
+                        .route(web::post().to(payouts_list_by_filter_profile)),
+                )
+                .service(
                     web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
                 );
         }
