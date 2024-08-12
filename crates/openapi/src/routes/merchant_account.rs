@@ -134,7 +134,7 @@ pub async fn retrieve_merchant_account() {}
     operation_id = "Retrieve a Merchant Account",
     security(("admin_api_key" = []))
 )]
-pub async fn retrieve_merchant_account() {}
+pub async fn merchant_account_retrieve() {}
 
 #[cfg(feature = "v1")]
 /// Merchant Account - Update
@@ -217,7 +217,7 @@ pub async fn update_merchant_account() {}
     operation_id = "Update a Merchant Account",
     security(("admin_api_key" = []))
 )]
-pub async fn update_merchant_account() {}
+pub async fn merchant_account_update() {}
 
 #[cfg(feature = "v1")]
 /// Merchant Account - Delete
