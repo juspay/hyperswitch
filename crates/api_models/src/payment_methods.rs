@@ -134,18 +134,6 @@ pub struct PaymentMethodCreate {
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
-
-    #[serde(skip_deserializing)]
-    /// The connector mandate details of the payment method, this is added only for cards migration
-    /// api and is skipped during deserialization of the payment method create request as this
-    /// it should not be passed in the request
-    pub connector_mandate_details: Option<PaymentsMandateReference>,
-
-    #[serde(skip_deserializing)]
-    /// The transaction id of a CIT (customer initiated transaction) associated with the payment method,
-    /// this is added only for cards migration api and is skipped during deserialization of the
-    /// payment method create request as it should not be passed in the request
-    pub network_transaction_id: Option<String>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -302,10 +290,8 @@ impl PaymentMethodCreate {
             payment_method_type: payment_method_migrate.payment_method_type,
             metadata: payment_method_migrate.metadata.clone(),
             payment_method_data: payment_method_migrate.payment_method_data.clone(),
-            connector_mandate_details: payment_method_migrate.connector_mandate_details.clone(),
             client_secret: None,
             billing: payment_method_migrate.billing.clone(),
-            network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
     }
 }
