@@ -537,6 +537,11 @@ impl Payments {
                         .route(web::get().to(payments_list))
                         .route(web::post().to(payments_list_by_filter)),
                 )
+                .service(
+                    web::resource("/profile/list")
+                        .route(web::get().to(profile_payments_list))
+                        .route(web::post().to(profile_payments_list_by_filter)),
+                )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
                 .service(
