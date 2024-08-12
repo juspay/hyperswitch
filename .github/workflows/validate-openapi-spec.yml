@@ -58,6 +58,10 @@ jobs:
         shell: bash
         run: cargo run -p openapi
 
+      - name: Generate the OpenAPI spec file for V2
+        shell: bash
+        run: cargo r -p openapi --no-default-features --features v2
+
       - name: Install `swagger-cli`
         shell: bash
         run: npm install -g @apidevtools/swagger-cli
@@ -66,14 +70,18 @@ jobs:
         shell: bash
         run: swagger-cli validate ./api-reference/openapi_spec.json
 
+      - name: Validate the JSON file for V2
+        shell: bash
+        run: swagger-cli validate ./api-reference/openapi_spec_v2.json
+
       - name: Commit the JSON file if it is not up-to-date
         if: ${{ env.IS_PR_FROM_SAME_REPO == 'true' }}
         shell: bash
         run: |
-          if ! git diff --quiet --exit-code -- api-reference/openapi_spec.json ; then
+          if ! git diff --quiet --exit-code -- api-reference/openapi_spec.json api-reference/openapi_spec_v2.json ; then
             git config --local user.name 'hyperswitch-bot[bot]'
             git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
-            git add api-reference/openapi_spec.json
+            git add api-reference/openapi_spec.json api-reference/openapi_spec_v2.json
             git commit --message 'docs(openapi): re-generate OpenAPI specification'
             git push
           fi

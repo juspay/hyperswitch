@@ -273,6 +273,8 @@ impl Settings<SecuredSecret> {
             )
             .build()?;
 
+        // The logger may not yet be initialized when constructing the application configuration
+        #[allow(clippy::print_stderr)]
         serde_path_to_error::deserialize(config).map_err(|error| {
             logger::error!(%error, "Unable to deserialize application configuration");
             eprintln!("Unable to deserialize application configuration: {error}");
@@ -283,20 +285,28 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> Result<(), errors::DrainerError> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.redis.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             errors::DrainerError::ConfigParsingError("invalid Redis configuration".into())
         })?;
         self.drainer.validate()?;
+
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.secrets_management.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             errors::DrainerError::ConfigParsingError(
                 "invalid secrets management configuration".into(),
             )
         })?;
 
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.encryption_management.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             errors::DrainerError::ConfigParsingError(
                 "invalid encryption management configuration".into(),
             )

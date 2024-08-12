@@ -87,6 +87,7 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: false
@@ -138,10 +139,6 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
       - name: Cargo hack
         shell: bash
         env:
@@ -176,6 +173,7 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: false
@@ -244,16 +242,6 @@ jobs:
       #   with:
       #     tool: cargo-nextest
       #     checksum: true
-
-      # - name: Setup Embark Studios lint rules
-      #   shell: bash
-      #   run: |
-      #     mkdir -p .cargo
-      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
-
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Run clippy
         shell: bash
@@ -381,6 +369,11 @@ jobs:
   check-v2:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
+
+    env:
+      # Allow the `clippy::todo` lint for v2 checks
+      RUSTFLAGS: "-D warnings -A clippy::todo"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -411,13 +404,6 @@ jobs:
         with:
           tool: just
           checksum: true
-
-      - name: Deny warnings
-        shell: bash
-        run: |
-          sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-          # Allow the `clippy::todo` lint for v2 checks
-          sed -i --null-data 's/    "-Wclippy::todo",\n//' .cargo/config.toml
 
       - name: Cargo hack_v2
         shell: bash

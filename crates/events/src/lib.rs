@@ -1,6 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(doc)))]
-#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 //!

@@ -1729,7 +1729,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: common_enums::ApiVersion::V1,
+                        version: hyperswitch_domain_models::consts::API_VERSION,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -4681,10 +4681,9 @@ pub async fn get_gsm_record(
     };
     get_gsm()
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             // warn log should suffice here because we are not propagating this error
             logger::warn!(get_gsm_decision_fetch_error=?err, "error fetching gsm decision");
-            err
         })
         .ok()
 }
