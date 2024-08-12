@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Du har inte tillåtelse att visa detta innehåll"
+    title: "Utbetalningslänkar"
+  status:
+    title: "Utbetalningsstatus"
+    info:
+      ref_id: "Referens-ID"
+      error_code: "Felkod"
+      error_message: "Felmeddelande"
+    message:
+      failed: "Det gick inte att behandla din utbetalning. Kontrollera med din leverantör för mer information."
+      processing: "Din utbetalning bör behandlas inom 2-3 arbetsdagar."
+      success: "Din utbetalning har genomförts till vald betalningsmetod."
+    redirection_text:
+      redirecting: "Omdirigerar..."
+      redirecting_in: "Omdirigerar om"
+      seconds: "sekunder..."
+    text:
+      failed: "Utbetalning Misslyckades"
+      processing: "Utbetalning Under Behandling"
+      success: "Utbetalning Lyckad"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Januari"
+  february: "Februari"
+  march: "Mars"
+  april: "April"
+  may: "Maj"
+  june: "Juni"
+  july: "Juli"
+  august: "Augusti"
+  september: "September"
+  october: "Oktober"
+  november: "November"
+  december: "December"
