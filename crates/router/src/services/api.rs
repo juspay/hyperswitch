@@ -183,7 +183,7 @@ where
                 Some(connector_request) => Some(connector_request),
                 None => connector_integration
                     .build_request(req, &state.conf.connectors)
-                    .map_err(|error| {
+                    .inspect_err(|error| {
                         if matches!(
                             error.current_context(),
                             &errors::ConnectorError::RequestEncodingFailed
@@ -195,7 +195,6 @@ where
                                 &add_attributes([("connector", req.connector.to_string())]),
                             )
                         }
-                        error
                     })?,
             };
 
@@ -250,7 +249,7 @@ where
                                     let connector_http_status_code = Some(body.status_code);
                                     let handle_response_result = connector_integration
                                         .handle_response(req, Some(&mut connector_event), body)
-                                        .map_err(|error| {
+                                        .inspect_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
                                         {
@@ -263,7 +262,6 @@ where
                                                 )]),
                                             )
                                         }
-                                            error
                                         });
                                     match handle_response_result {
                                         Ok(mut data) => {
@@ -982,7 +980,10 @@ where
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
             let link_type = boxed_generic_link_data.data.to_string();
-            match build_generic_link_html(boxed_generic_link_data.data) {
+            match build_generic_link_html(
+                boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
+            ) {
                 Ok(rendered_html) => {
                     let headers = if !boxed_generic_link_data.allowed_domains.is_empty() {
                         let domains_str = boxed_generic_link_data

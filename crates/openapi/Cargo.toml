@@ -18,3 +18,6 @@ router_env = { version = "0.1.0", path = "../router_env" }
 [features]
 v2 = ["api_models/v2", "api_models/customer_v2", "api_models/merchant_account_v2", "api_models/routing_v2", "api_models/merchant_connector_account_v2"]
 v1 = ["api_models/v1"]
+
+[lints]
+workspace = true
