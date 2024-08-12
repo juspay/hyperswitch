@@ -346,14 +346,14 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
     ) -> Result<Option<()>, error_stack::Report<errors::CustomersErrorResponse>> {
         self.merchant_reference_id
             .async_map(|cust| async {
-                self.verify_if_merchant_reference_not_present_by_merchant_reference(cust, db)
+                self.verify_if_merchant_reference_not_present_by_merchant_reference_id(cust, db)
                     .await
             })
             .await
             .transpose()
     }
 
-    async fn verify_if_merchant_reference_not_present_by_merchant_reference(
+    async fn verify_if_merchant_reference_not_present_by_merchant_reference_id(
         &self,
         cus: &'a id_type::CustomerId,
         db: &dyn StorageInterface,
