@@ -356,7 +356,7 @@ pub async fn delete_user_role(
     // Find in V2 and delete
     if let Ok(role_to_be_deleted) = state
         .store
-        .find_user_role_by_user_id_org_id_merchant_id_profile_id(
+        .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
@@ -376,21 +376,28 @@ pub async fn delete_user_role(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-        if !target_role_info.is_deletable()
-            || !utils::user_role::is_valid_entity_operation(
-                deletion_requestor_role_info.get_entity_type(),
-                target_role_info.get_entity_type(),
-            )
-        {
+        if !target_role_info.is_deletable() {
             return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
                 "Invalid operation, role_id = {} is not deletable",
                 role_to_be_deleted.role_id
             ));
         }
+
+        if !utils::user_role::is_valid_entity_operation(
+            deletion_requestor_role_info.get_entity_type(),
+            target_role_info.get_entity_type(),
+        ) {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, deletion requestor = {} cannot delete target = {}",
+                deletion_requestor_role_info.get_entity_type(),
+                target_role_info.get_entity_type()
+            ));
+        }
+
         user_role_deleted_flag = true;
         state
             .store
-            .delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+            .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
@@ -405,7 +412,7 @@ pub async fn delete_user_role(
     // Find in V1 and delete
     if let Ok(role_to_be_deleted) = state
         .store
-        .find_user_role_by_user_id_org_id_merchant_id_profile_id(
+        .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
@@ -425,22 +432,28 @@ pub async fn delete_user_role(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-        if !target_role_info.is_deletable()
-            || !utils::user_role::is_valid_entity_operation(
-                deletion_requestor_role_info.get_entity_type(),
-                target_role_info.get_entity_type(),
-            )
-        {
+        if !target_role_info.is_deletable() {
             return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
                 "Invalid operation, role_id = {} is not deletable",
                 role_to_be_deleted.role_id
             ));
         }
 
+        if !utils::user_role::is_valid_entity_operation(
+            deletion_requestor_role_info.get_entity_type(),
+            target_role_info.get_entity_type(),
+        ) {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, deletion requestor = {} cannot delete target = {}",
+                deletion_requestor_role_info.get_entity_type(),
+                target_role_info.get_entity_type()
+            ));
+        }
+
         user_role_deleted_flag = true;
         state
             .store
-            .delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+            .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
@@ -457,14 +470,15 @@ pub async fn delete_user_role(
             .attach_printable("User is not associated with the merchant");
     }
 
-    // If user has no more role associated with it then deleting user
+    // Check if user has any more role associations
     let user_roles = state
         .store
         .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    if user_roles.len() == 0 {
+    // If user has no more role associated with him then deleting user
+    if user_roles.is_empty() {
         state
             .global_store
             .delete_user_by_user_id(user_from_db.get_user_id())
@@ -473,6 +487,6 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user entry")?;
     }
 
-    auth::blacklist::insert_user_in_blacklist(&state, &user_from_db.get_user_id()).await?;
+    auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
     Ok(ApplicationResponse::StatusOk)
 }

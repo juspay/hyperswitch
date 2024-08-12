@@ -68,7 +68,7 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
-    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
@@ -77,7 +77,7 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
-    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
@@ -223,7 +223,7 @@ impl UserRoleInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
@@ -245,7 +245,7 @@ impl UserRoleInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
@@ -697,7 +697,7 @@ impl UserRoleInterface for MockDb {
         Ok(filtered_roles)
     }
 
-    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
@@ -736,7 +736,7 @@ impl UserRoleInterface for MockDb {
         .into())
     }
 
-    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,

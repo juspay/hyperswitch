@@ -2666,7 +2666,7 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn find_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
@@ -2674,7 +2674,7 @@ impl UserRoleInterface for KafkaStore {
         profile_id: Option<&String>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.find_user_role_by_user_id_org_id_merchant_id_profile_id(
+        self.find_user_role_by_user_id_and_lineage(
             user_id,
             org_id,
             merchant_id,
@@ -2684,7 +2684,7 @@ impl UserRoleInterface for KafkaStore {
         .await
     }
 
-    async fn delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+    async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
@@ -2692,7 +2692,7 @@ impl UserRoleInterface for KafkaStore {
         profile_id: Option<&String>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.delete_user_role_by_user_id_org_id_merchant_id_profile_id(
+        self.delete_user_role_by_user_id_and_lineage(
             user_id,
             org_id,
             merchant_id,
