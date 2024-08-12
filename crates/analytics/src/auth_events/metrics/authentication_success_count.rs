@@ -39,7 +39,7 @@ where
 
         query_builder
             .add_select_column(Aggregate::Count {
-                field: Some("authentication_id"),
+                field: None,
                 alias: Some("count"),
             })
             .switch()?;
@@ -57,22 +57,6 @@ where
         query_builder
             .add_filter_clause("authentication_status", "success")
             .switch()?;
-
-        // query_builder
-        //     .add_bool_filter_clause("first_event", 1)
-        //     .switch()?;
-
-        // query_builder
-        //     .add_filter_clause("event_name", SdkEventNames::AuthenticationCall)
-        //     .switch()?;
-
-        // query_builder
-        //     .add_filter_clause("log_type", "INFO")
-        //     .switch()?;
-
-        // query_builder
-        //     .add_filter_clause("category", "API")
-        //     .switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)

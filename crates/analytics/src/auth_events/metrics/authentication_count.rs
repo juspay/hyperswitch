@@ -39,7 +39,7 @@ where
 
         query_builder
             .add_select_column(Aggregate::Count {
-                field: Some("authentication_id"),
+                field: None,
                 alias: Some("count"),
             })
             .switch()?;

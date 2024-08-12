@@ -18,7 +18,6 @@ use crate::{
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
     merchant_id: &common_utils::id_type::MerchantId,
-    _publishable_key: &String,
     req: GetAuthEventMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<

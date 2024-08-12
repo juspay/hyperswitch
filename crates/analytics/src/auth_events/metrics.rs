@@ -12,22 +12,22 @@ use crate::{
 };
 
 mod authentication_attempt_count;
+mod authentication_count;
 mod authentication_success_count;
 mod challenge_attempt_count;
 mod challenge_flow_count;
 mod challenge_success_count;
 mod frictionless_flow_count;
 mod frictionless_success_count;
-mod three_ds_sdk_count;
 
 use authentication_attempt_count::AuthenticationAttemptCount;
+use authentication_count::ThreeDsSdkCount;
 use authentication_success_count::AuthenticationSuccessCount;
 use challenge_attempt_count::ChallengeAttemptCount;
 use challenge_flow_count::ChallengeFlowCount;
 use challenge_success_count::ChallengeSuccessCount;
 use frictionless_flow_count::FrictionlessFlowCount;
 use frictionless_success_count::FrictionlessSuccessCount;
-use three_ds_sdk_count::ThreeDsSdkCount;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
 pub struct AuthEventMetricRow {
@@ -65,7 +65,6 @@ where
     async fn load_metrics(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,

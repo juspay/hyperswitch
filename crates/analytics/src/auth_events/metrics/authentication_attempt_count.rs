@@ -28,8 +28,7 @@ where
 {
     async fn load_metrics(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
-
+        merchant_id: &common_utils::id_type::MerchantId,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
@@ -39,13 +38,13 @@ where
 
         query_builder
             .add_select_column(Aggregate::Count {
-                field: Some("authentication_id"),
+                field: None,
                 alias: Some("count"),
             })
             .switch()?;
 
         query_builder
-            .add_filter_clause("merchant_id", _merchant_id)
+            .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
 
         query_builder

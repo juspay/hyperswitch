@@ -53,8 +53,13 @@ where
         query_builder
             .add_filter_clause("merchant_id", merchant_id)
             .switch()?;
+
         query_builder
             .add_filter_clause("trans_status", "C")
+            .switch()?;
+
+        query_builder
+            .add_negative_filter_clause("authentication_status", "pending")
             .switch()?;
 
         time_range
