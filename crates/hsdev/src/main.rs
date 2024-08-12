@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout, clippy::print_stderr)]
+
 use clap::{Parser, ValueHint};
 use diesel::{pg::PgConnection, Connection};
 use diesel_migrations::{FileBasedMigrations, HarnessWithOutput, MigrationHarness};

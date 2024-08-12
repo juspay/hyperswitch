@@ -18,8 +18,11 @@ async fn main() -> ApplicationResult<()> {
     conf.validate()
         .expect("Failed to validate router configuration");
 
+    #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
-    println!("Starting router (Version: {})", router_env::git_tag!());
+    {
+        println!("Starting router (Version: {})", router_env::git_tag!());
+    }
 
     let _guard = router_env::setup(
         &conf.log,

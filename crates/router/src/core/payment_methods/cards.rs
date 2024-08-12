@@ -1601,7 +1601,7 @@ pub async fn add_card_to_locker(
                 card_reference,
             )
             .await
-            .map_err(|error| {
+            .inspect_err(|error| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
@@ -1610,7 +1610,7 @@ pub async fn add_card_to_locker(
                         router_env::opentelemetry::KeyValue::new("operation", "add"),
                     ],
                 );
-                error
+                logger::error!(?error, "Failed to add card in locker");
             })
         },
         &metrics::CARD_ADD_TIME,
@@ -1643,7 +1643,7 @@ pub async fn get_card_from_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while getting card from hyperswitch card vault")
-            .map_err(|error| {
+            .inspect_err(|error| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     &metrics::CONTEXT,
                     1,
@@ -1652,7 +1652,7 @@ pub async fn get_card_from_locker(
                         router_env::opentelemetry::KeyValue::new("operation", "get"),
                     ],
                 );
-                error
+                logger::error!(?error, "Failed to retrieve card from locker");
             })
         },
         &metrics::CARD_GET_TIME,
@@ -1677,9 +1677,9 @@ pub async fn delete_card_from_locker(
         async move {
             delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
                 .await
-                .map_err(|error| {
+                .inspect_err(|error| {
                     metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                    error
+                    logger::error!(?error, "Failed to delete card from locker");
                 })
         },
         &metrics::CARD_DELETE_TIME,
@@ -3372,15 +3372,9 @@ pub async fn call_surcharge_decision_management(
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
+    // TODO: Move to business profile surcharge decision column
     #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let algorithm_ref: routing_types::RoutingAlgorithmRef = business_profile
-        .routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("routing algorithm"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not decode the routing algorithm")?
-        .unwrap_or_default();
+    let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     let (surcharge_results, merchant_sucharge_configs) =
         perform_surcharge_decision_management_for_payment_method_list(
@@ -3438,16 +3432,9 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
-
+    // TODO: Move to business profile surcharge column
     #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let algorithm_ref: routing_types::RoutingAlgorithmRef = business_profile
-        .routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("routing algorithm"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not decode the routing algorithm")?
-        .unwrap_or_default();
+    let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
         state,

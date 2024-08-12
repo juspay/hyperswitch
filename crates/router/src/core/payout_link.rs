@@ -30,6 +30,7 @@ pub async fn initiate_payout_link(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
+    locale: String,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -108,6 +109,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::ExpiredLink(expired_link_data),
+                    locale,
                 },
             )))
         }
@@ -210,6 +212,7 @@ pub async fn initiate_payout_link(
                 enabled_payment_methods,
                 amount,
                 currency: payout.destination_currency,
+                locale: locale.clone(),
             };
 
             let serialized_css_content = String::new();
@@ -232,6 +235,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::PayoutLink(generic_form_data),
+                    locale,
                 },
             )))
         }
@@ -274,6 +278,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
+                    locale,
                 },
             )))
         }

@@ -26,3 +26,6 @@ serde_json = "1.0.115"
 utoipa = "4.2.0"
 
 common_utils = { version = "0.1.0", path = "../common_utils" }
+
+[lints]
+workspace = true

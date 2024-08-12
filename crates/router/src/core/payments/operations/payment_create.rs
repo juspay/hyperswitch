@@ -1133,9 +1133,8 @@ impl PaymentCreate {
             .charges
             .as_ref()
             .map(|charges| {
-                charges.encode_to_value().map_err(|err| {
+                charges.encode_to_value().inspect_err(|err| {
                     logger::warn!("Failed to serialize PaymentCharges - {}", err);
-                    err
                 })
             })
             .transpose()
