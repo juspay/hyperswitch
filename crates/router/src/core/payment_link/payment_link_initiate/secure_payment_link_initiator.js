@@ -103,6 +103,22 @@ if (!isFramed) {
     arr.splice(0, 3);
     arr.unshift("status");
     arr.unshift("payment_link");
-    window.location.href = window.location.origin + "/" + arr.join("/")+ "?locale=" + paymentDetails.locale;
+    let returnUrl =
+      window.location.origin +
+      "/" +
+      arr.join("/") +
+      "?locale=" +
+      paymentDetails.locale;
+    try {
+      window.top.location.href = returnUrl;
+    } catch (error) {
+      console.error(
+        "CRITICAL ERROR",
+        "Failed to redirect top document. Error - ",
+        error
+      );
+      console.info("Redirecting in current document");
+      window.location.href = returnUrl;
+    }
   }
 }
