@@ -104,6 +104,57 @@ pub async fn retrieve_disputes_list(
     ))
     .await
 }
+
+/// Disputes - List Profile Disputes
+#[utoipa::path(
+    get,
+    path = "/disputes/profile/list",
+    params(
+        ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
+        ("dispute_status" = Option<DisputeStatus>, Query, description = "The status of dispute"),
+        ("dispute_stage" = Option<DisputeStage>, Query, description = "The stage of dispute"),
+        ("reason" = Option<String>, Query, description = "The reason for dispute"),
+        ("connector" = Option<String>, Query, description = "The connector linked to dispute"),
+        ("received_time" = Option<PrimitiveDateTime>, Query, description = "The time at which dispute is received"),
+        ("received_time.lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the dispute received time"),
+        ("received_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the dispute received time"),
+        ("received_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the dispute received time"),
+        ("received_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the dispute received time"),
+    ),
+    responses(
+        (status = 200, description = "The dispute list was retrieved successfully", body = Vec<DisputeResponse>),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Disputes",
+    operation_id = "List Disputes",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesList))]
+pub async fn retrieve_disputes_list_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<dispute_models::DisputeListConstraints>,
+) -> HttpResponse {
+    let flow = Flow::DisputesList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            disputes::retrieve_disputes_list(state, auth.merchant_account, None, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::DisputeRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Disputes - Accept Dispute
 #[utoipa::path(
     get,
