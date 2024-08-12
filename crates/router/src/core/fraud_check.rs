@@ -166,13 +166,16 @@ where
                     &key_store,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.get_id().get_string_repr().to_owned(),
+                .map_err(|error| {
+                    logger::error!("{:?}", error.change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_account.get_id().get_string_repr().to_owned(),
+                    }))
                 })
                 .ok();
             let enabled_merchant_connector_account_from_db_option =
                 merchant_connector_account_from_db_option.and_then(|mca| {
                     if mca.disabled.unwrap_or(false) {
+                        logger::info!("No eligible connector found for FRM");
                         None
                     } else {
                         Some(mca)
