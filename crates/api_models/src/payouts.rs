@@ -764,6 +764,7 @@ pub struct PayoutLinkDetails {
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
     pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
+    pub locale: String,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
