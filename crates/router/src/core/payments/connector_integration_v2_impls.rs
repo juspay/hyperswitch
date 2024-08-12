@@ -692,6 +692,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,
+    connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,

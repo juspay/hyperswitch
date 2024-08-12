@@ -80,6 +80,7 @@ pub struct Connectors {
     pub tsys: ConnectorParams,
     pub volt: ConnectorParams,
     pub wellsfargo: ConnectorParams,
+    pub wellsfargopayout: ConnectorParams,
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
