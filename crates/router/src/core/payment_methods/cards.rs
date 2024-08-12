@@ -3305,15 +3305,9 @@ pub async fn call_surcharge_decision_management(
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
+    // TODO: Move to business profile surcharge decision column
     #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let algorithm_ref: routing_types::RoutingAlgorithmRef = business_profile
-        .routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("routing algorithm"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not decode the routing algorithm")?
-        .unwrap_or_default();
+    let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     let (surcharge_results, merchant_sucharge_configs) =
         perform_surcharge_decision_management_for_payment_method_list(
@@ -3371,16 +3365,9 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
-
+    // TODO: Move to business profile surcharge column
     #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let algorithm_ref: routing_types::RoutingAlgorithmRef = business_profile
-        .routing_algorithm
-        .clone()
-        .map(|val| val.parse_value("routing algorithm"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not decode the routing algorithm")?
-        .unwrap_or_default();
+    let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
         state,
