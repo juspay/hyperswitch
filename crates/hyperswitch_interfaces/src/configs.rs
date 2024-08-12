@@ -11,10 +11,10 @@ use serde::Deserialize;
 pub struct Connectors {
     pub aci: ConnectorParams,
     #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithThreeBaseUrls,
+    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
     pub adyenplatform: ConnectorParams,
     #[cfg(not(feature = "payouts"))]
-    pub adyen: ConnectorParams,
+    pub adyen: ConnectorParamsWithThreeBaseUrls,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
