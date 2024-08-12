@@ -565,7 +565,7 @@ pub async fn payment_connector_list_profile(
         merchant_id.to_owned(),
         |state, _, merchant_id, _| list_payment_connectors(state, merchant_id, None),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
