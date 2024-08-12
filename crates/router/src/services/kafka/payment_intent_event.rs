@@ -34,6 +34,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
+    pub profile_id: Option<&'a String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub billing_details: Option<Encryptable<Secret<Value>>>,
     pub shipping_details: Option<Encryptable<Secret<Value>>>,
@@ -68,6 +69,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             business_country: intent.business_country,
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
+            profile_id: intent.profile_id.as_ref(),
             payment_confirm_source: intent.payment_confirm_source,
             // TODO: use typed information here to avoid PII logging
             billing_details: None,

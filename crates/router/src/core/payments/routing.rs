@@ -195,7 +195,7 @@ where
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                api::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::Card(card) => card.card_network.clone(),
 
                 _ => None,
             }),
@@ -207,7 +207,7 @@ where
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                api::PaymentMethodData::Card(card) => {
+                domain::PaymentMethodData::Card(card) => {
                     Some(card.card_number.peek().chars().take(6).collect())
                 }
                 _ => None,
@@ -801,7 +801,11 @@ pub async fn perform_session_flow_routing(
         let business_profile = session_input
             .state
             .store
-            .find_business_profile_by_profile_id(&profile_id)
+            .find_business_profile_by_profile_id(
+                &session_input.state.into(),
+                session_input.key_store,
+                &profile_id,
+            )
             .await
             .change_context(errors::RoutingError::ProfileNotFound)?;
 

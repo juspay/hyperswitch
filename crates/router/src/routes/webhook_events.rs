@@ -15,7 +15,7 @@ use crate::{
 pub async fn list_initial_webhook_delivery_attempts(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
     query: web::Query<EventListConstraints>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventInitialDeliveryAttemptList;
@@ -23,7 +23,7 @@ pub async fn list_initial_webhook_delivery_attempts(
     let constraints = query.into_inner();
 
     let request_internal = EventListRequestInternal {
-        merchant_id_or_profile_id: merchant_id_or_profile_id.clone(),
+        merchant_id_or_profile_id: merchant_id_or_profile_id.get_string_repr().to_string(),
         constraints,
     };
 
@@ -41,8 +41,8 @@ pub async fn list_initial_webhook_delivery_attempts(
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantOrProfileFromRoute {
-                merchant_id_or_profile_id,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id_or_profile_id,
                 required_permission: Permission::WebhookEventRead,
             },
             req.headers(),
@@ -56,13 +56,13 @@ pub async fn list_initial_webhook_delivery_attempts(
 pub async fn list_webhook_delivery_attempts(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventDeliveryAttemptList;
     let (merchant_id_or_profile_id, initial_attempt_id) = path.into_inner();
 
     let request_internal = WebhookDeliveryAttemptListRequestInternal {
-        merchant_id_or_profile_id: merchant_id_or_profile_id.clone(),
+        merchant_id_or_profile_id: merchant_id_or_profile_id.get_string_repr().to_string(),
         initial_attempt_id,
     };
 
@@ -80,8 +80,8 @@ pub async fn list_webhook_delivery_attempts(
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantOrProfileFromRoute {
-                merchant_id_or_profile_id,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id_or_profile_id,
                 required_permission: Permission::WebhookEventRead,
             },
             req.headers(),
@@ -95,13 +95,13 @@ pub async fn list_webhook_delivery_attempts(
 pub async fn retry_webhook_delivery_attempt(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventDeliveryRetry;
     let (merchant_id_or_profile_id, event_id) = path.into_inner();
 
     let request_internal = WebhookDeliveryRetryRequestInternal {
-        merchant_id_or_profile_id: merchant_id_or_profile_id.clone(),
+        merchant_id_or_profile_id: merchant_id_or_profile_id.get_string_repr().to_string(),
         event_id,
     };
 
@@ -119,8 +119,8 @@ pub async fn retry_webhook_delivery_attempt(
         },
         auth::auth_type(
             &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantOrProfileFromRoute {
-                merchant_id_or_profile_id,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id_or_profile_id,
                 required_permission: Permission::WebhookEventWrite,
             },
             req.headers(),

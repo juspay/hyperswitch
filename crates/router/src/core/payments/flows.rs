@@ -21,7 +21,7 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -57,7 +57,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self>
     where
