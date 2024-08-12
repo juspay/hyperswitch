@@ -167,9 +167,14 @@ where
                 )
                 .await
                 .map_err(|error| {
-                    logger::error!("{:?}", error.change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_account.get_id().get_string_repr().to_owned(),
-                    }))
+                    logger::error!(
+                        "{:?}",
+                        error.change_context(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_account.get_id().get_string_repr().to_owned(),
+                            }
+                        )
+                    )
                 })
                 .ok();
             let enabled_merchant_connector_account_from_db_option =
