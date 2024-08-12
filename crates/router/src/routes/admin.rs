@@ -546,8 +546,8 @@ pub async fn payment_connector_list(
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",
-    operation_id = "List all Merchant Connectors",
-    security(("admin_api_key" = []))
+    operation_id = "List all Merchant Connectors for The given Profile",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn payment_connector_list_profile(
