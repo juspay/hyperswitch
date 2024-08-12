@@ -58,8 +58,6 @@ pub struct ProfileDefaultRoutingConfig {
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
-
-    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -67,6 +65,11 @@ pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingRetrieveLinkQueryWrapper {
+    pub routing_query: RoutingRetrieveQuery,
+    pub profile_id: String,
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 /// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {

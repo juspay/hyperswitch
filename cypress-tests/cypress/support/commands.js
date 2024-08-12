@@ -484,7 +484,7 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -530,7 +530,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        "api-key": globalState.get("apiKey"),
       },
       body: updateConnectorBody,
       failOnStatusCode: false,
@@ -554,7 +554,7 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -2060,7 +2060,7 @@ Cypress.Commands.add("ListMCAbyMID", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
