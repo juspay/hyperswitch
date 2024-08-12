@@ -801,7 +801,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     ))
 }
 
-// need to discuss reagrding the migration APIs for v2
+// need to discuss regarding the migration APIs for v2
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn skip_locker_call_and_migrate_payment_method(
     state: routes::SessionState,

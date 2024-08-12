@@ -1,8 +1,3 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
-
 use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
@@ -12,6 +7,9 @@ use common_utils::{
 };
 use masking::PeekInterface;
 use serde::de;
+use std::collections::{HashMap, HashSet};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use std::str::FromStr;
 use utoipa::{schema, ToSchema};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -147,6 +145,38 @@ pub struct PaymentMethodCreate {
     /// this is added only for cards migration api and is skipped during deserialization of the
     /// payment method create request as it should not be passed in the request
     pub network_transaction_id: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentMethodIntentCreate {
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: id_type::CustomerId,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentMethodIntentConfirm {
+    /// For SDK based calls, client_secret would be required
+    pub client_secret: Option<String>,
+
+    /// The unique identifier of the customer.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// Payment method data to be passed
+    pub payment_method_data: Option<PaymentMethodCreateData>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
