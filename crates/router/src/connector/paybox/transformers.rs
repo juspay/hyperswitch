@@ -17,22 +17,8 @@ pub struct PayboxRouterData<T> {
     pub router_data: T,
 }
 
-pub struct PayboxCancelRouterData<T> {
-    pub amount: Option<MinorUnit>, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
-    pub router_data: T,
-}
-
 impl<T> From<(MinorUnit, T)> for PayboxRouterData<T> {
     fn from((amount, item): (MinorUnit, T)) -> Self {
-        Self {
-            amount,
-            router_data: item,
-        }
-    }
-}
-
-impl<T> From<(Option<MinorUnit>, T)> for PayboxCancelRouterData<T> {
-    fn from((amount, item): (Option<MinorUnit>, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -43,7 +29,6 @@ impl<T> From<(Option<MinorUnit>, T)> for PayboxCancelRouterData<T> {
 const AUTH_REQUEST: &str = "00001";
 const CAPTURE_REQUEST: &str = "00002";
 const AUTH_AND_CAPTURE_REQUEST: &str = "00003";
-const VOID_REQUEST: &str = "00005";
 const SYNC_REQUEST: &str = "00017";
 const REFUND_REQUEST: &str = "00014";
 
@@ -172,83 +157,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
         })
     }
 }
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct PayboxVoidRequest {
-    #[serde(rename = "DATEQ")]
-    pub date: String,
 
-    #[serde(rename = "TYPE")]
-    pub transaction_type: String,
-
-    #[serde(rename = "NUMQUESTION")]
-    pub paybox_request_number: String,
-
-    #[serde(rename = "MONTANT")]
-    pub amount: Option<MinorUnit>,
-
-    #[serde(rename = "REFERENCE")]
-    pub reference: String,
-
-    #[serde(rename = "VERSION")]
-    pub version: String,
-
-    #[serde(rename = "DEVISE")]
-    pub currency: String,
-
-    #[serde(rename = "SITE")]
-    pub site: Secret<String>,
-
-    #[serde(rename = "RANG")]
-    pub rank: Secret<String>,
-
-    #[serde(rename = "CLE")]
-    pub key: Secret<String>,
-
-    #[serde(rename = "NUMTRANS")]
-    pub transaction_number: String,
-
-    #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
-}
-
-impl TryFrom<&PayboxCancelRouterData<&types::PaymentsCancelRouterData>> for PayboxVoidRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PayboxCancelRouterData<&types::PaymentsCancelRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let auth_data: PayboxAuthType =
-            PayboxAuthType::try_from(&item.router_data.connector_auth_type)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency =
-            diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency.ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
-                },
-            )?)
-            .to_string();
-        let format_time = common_utils::date_time::format_date(
-            common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let paybox_meta_data: PayboxMeta =
-            utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
-        Ok(Self {
-            date: format_time.clone(),
-            transaction_type: VOID_REQUEST.to_string(),
-            paybox_request_number: get_paybox_request_number()?,
-            version: VERSION_PAYBOX.to_string(),
-            currency,
-            site: auth_data.site,
-            rank: auth_data.rang,
-            key: auth_data.cle,
-            transaction_number: paybox_meta_data.connector_request_id,
-            call_number: item.router_data.request.connector_transaction_id.clone(),
-            amount: item.amount,
-            reference: item.router_data.request.connector_transaction_id.clone(),
-        })
-    }
-}
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxRsyncRequest {
     #[serde(rename = "DATEQ")]
