@@ -3322,6 +3322,7 @@ trait BusinessProfileCreateBridge {
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
         key: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
     ) -> RouterResult<domain::BusinessProfile>;
@@ -3337,12 +3338,17 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
         key: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
     ) -> RouterResult<domain::BusinessProfile> {
-        let business_profile =
-            admin::create_business_profile_from_merchant_account(state, identifier, self, &key)
-                .await?;
+        let business_profile = admin::create_business_profile_from_merchant_account(
+            state,
+            merchant_account.to_owned(),
+            self,
+            &key,
+        )
+        .await?;
         Ok(business_profile)
     }
 
@@ -3350,6 +3356,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
         key: domain::MerchantKeyStore,
         _identifier: &id_type::MerchantId,
     ) -> RouterResult<domain::BusinessProfile> {
@@ -3407,9 +3414,9 @@ pub async fn create_business_profile(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
-    let business_profile =
-        create_and_insert_business_profile(&state, request, merchant_account.clone(), &key_store)
-            .await?;
+    let business_profile = request
+        .create_domain_model_from_request(&state, request, merchant_account.clone(), &key_store)
+        .await?;
 
     if merchant_account.default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
