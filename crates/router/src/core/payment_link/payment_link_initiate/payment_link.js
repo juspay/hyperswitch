@@ -617,7 +617,7 @@ function renderDynamicMerchantDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
-  if (paymentDetails.transaction_details === null || paymentDetails.transaction_details === undefined || paymentDetails.transaction_details === "") {
+  if (!(typeof paymentDetails.transaction_details === "string" && paymentDetails.transaction_details.length > 0 && paymentDetails.transaction_details !== "{}")) {
     return;
   }
 
