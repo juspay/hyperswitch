@@ -1477,7 +1477,12 @@ impl PayoutLink {
 }
 
 pub struct BusinessProfile;
-#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[cfg(all(
+    feature = "olap",
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
@@ -1515,23 +1520,36 @@ impl BusinessProfile {
                             },
                         )),
                     )
-                    .service(web::resource("/deactivate_routing_algorithm").route(
-                        web::patch().to(|state, req, path| {
-                            routing::routing_unlink_config(
+                    .service(
+                        web::resource("/deactivate_routing_algorithm").route(web::patch().to(
+                            |state, req, path| {
+                                routing::routing_unlink_config(
+                                    state,
+                                    req,
+                                    path,
+                                    &TransactionType::Payment,
+                                )
+                            },
+                        )),
+                    )
+                    .service(web::resource("/routing_algorithm").route(web::get().to(
+                        |state, req, query_params, path| {
+                            routing::routing_retrieve_linked_config(
                                 state,
                                 req,
+                                query_params,
                                 path,
                                 &TransactionType::Payment,
                             )
-                        }),
-                    )),
+                        },
+                    ))),
             )
     }
 }
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
-    not(feature = "routing_v2")
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
 ))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
