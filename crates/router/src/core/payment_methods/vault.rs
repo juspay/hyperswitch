@@ -977,8 +977,9 @@ pub async fn create_tokenize(
             )
             .await
             .map(|_| lookup_key.clone())
-            .inspect_err(|_| {
+            .inspect_err(|error| {
                 metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                logger::error!(?error, "Failed to store tokenized data in Redis");
             })
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error from redis locker")

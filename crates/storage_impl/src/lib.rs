@@ -30,6 +30,7 @@ use database::store::PgPool;
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
+use router_env::logger;
 
 pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
@@ -262,8 +263,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             )
             .await
             .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]))
-            .inspect_err(|_| {
+            .inspect_err(|error| {
                 metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]);
+                logger::error!(?error, "Failed to add entry in drainer stream");
             })
             .change_context(RedisError::StreamAppendFailed)
     }
