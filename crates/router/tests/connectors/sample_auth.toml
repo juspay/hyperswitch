@@ -265,3 +265,6 @@ api_key="API Key"
 api_key = "Consumer Key"
 key1 = "Gateway Entity Id"
 api_secret = "Consumer Secret"
+
+[taxjar]
+api_key = "API Key"
