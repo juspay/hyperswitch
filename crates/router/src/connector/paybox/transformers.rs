@@ -40,7 +40,7 @@ const PAY_ORIGIN_INTERNET: &str = "024";
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-#[derive( Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxPaymentsRequest {
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -85,7 +85,7 @@ pub struct PayboxPaymentsRequest {
     pub key: Secret<String>,
 }
 
-#[derive( Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxCaptureRequest {
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -121,7 +121,7 @@ pub struct PayboxCaptureRequest {
     pub transaction_number: String,
 
     #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
+    pub paybox_order_id: String,
 }
 
 impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCaptureRequest {
@@ -151,14 +151,14 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
             rank: auth_data.rang,
             key: auth_data.cle,
             transaction_number: paybox_meta_data.connector_request_id,
-            call_number: item.router_data.request.connector_transaction_id.clone(),
+            paybox_order_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
             reference: item.router_data.connector_request_reference_id.to_string(),
         })
     }
 }
 
-#[derive( Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxRsyncRequest {
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -185,7 +185,7 @@ pub struct PayboxRsyncRequest {
     pub transaction_number: String,
 
     #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
+    pub paybox_order_id: String,
 }
 
 impl TryFrom<&types::RefundSyncRouterData> for PayboxRsyncRequest {
@@ -211,11 +211,11 @@ impl TryFrom<&types::RefundSyncRouterData> for PayboxRsyncRequest {
                 .connector_refund_id
                 .clone()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
-            call_number: item.request.connector_transaction_id.clone(),
+            paybox_order_id: item.request.connector_transaction_id.clone(),
         })
     }
 }
-#[derive( Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxPSyncRequest {
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -242,7 +242,7 @@ pub struct PayboxPSyncRequest {
     pub transaction_number: String,
 
     #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
+    pub paybox_order_id: String,
 }
 
 impl TryFrom<&types::PaymentsSyncRouterData> for PayboxPSyncRequest {
@@ -266,7 +266,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PayboxPSyncRequest {
             rank: auth_data.rang,
             key: auth_data.cle,
             transaction_number: paybox_meta_data.connector_request_id,
-            call_number: item
+            paybox_order_id: item
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
@@ -280,7 +280,7 @@ pub struct PayboxMeta {
     pub connector_request_id: String,
 }
 
-#[derive( Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxRefundRequest {
     #[serde(rename = "DATEQ")]
     pub date: String,
@@ -313,7 +313,7 @@ pub struct PayboxRefundRequest {
     pub transaction_number: String,
 
     #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
+    pub paybox_order_id: String,
 }
 
 impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxPaymentsRequest {
@@ -344,9 +344,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     transaction_type,
                     paybox_request_number: get_paybox_request_number()?,
                     amount: item.amount,
-                    description_reference: item
-                        .router_data
-                        .connector_request_reference_id.clone(),
+                    description_reference: item.router_data.connector_request_reference_id.clone(),
                     version: VERSION_PAYBOX.to_string(),
                     currency,
                     card_number: req_card.card_number,
@@ -384,7 +382,7 @@ fn get_paybox_request_number() -> Result<String, Error> {
     Ok(request_number.to_string())
 }
 
-#[derive( Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxAuthType {
     pub(super) site: Secret<String>,
     pub(super) rang: Secret<String>,
@@ -429,13 +427,13 @@ impl From<PayboxPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive( Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayboxResponse {
     #[serde(rename = "NUMTRANS")]
     pub transaction_number: String,
 
     #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
+    pub paybox_order_id: String,
 
     #[serde(rename = "CODEREPONSE")]
     pub response_code: String,
@@ -444,9 +442,7 @@ pub struct PayboxResponse {
     pub response_message: String,
 }
 
-pub fn parse_url_encoded_to_struct(
-    query_bytes: Bytes,
-) -> Result<String, errors::ConnectorError> {
+pub fn parse_url_encoded_to_struct(query_bytes: Bytes) -> Result<String, errors::ConnectorError> {
     let query_string = String::from_utf8_lossy(&query_bytes);
     let parsed: std::collections::HashMap<String, String> =
         url::form_urlencoded::parse(query_string.as_bytes())
@@ -458,7 +454,7 @@ pub fn parse_url_encoded_to_struct(
     Ok(json_string)
 }
 
-#[derive( Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum PayboxStatus {
     #[serde(rename = "Rembours�")]
     Refunded,
@@ -482,7 +478,7 @@ pub struct PayboxSyncResponse {
     pub transaction_number: String,
 
     #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
+    pub paybox_order_id: String,
 
     #[serde(rename = "CODEREPONSE")]
     pub response_code: String,
@@ -494,13 +490,13 @@ pub struct PayboxSyncResponse {
     pub status: PayboxStatus,
 }
 
-#[derive( Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PayboxCaptureResponse {
     #[serde(rename = "NUMTRANS")]
     pub transaction_number: String,
 
     #[serde(rename = "NUMAPPEL")]
-    pub call_number: String,
+    pub paybox_order_id: String,
 
     #[serde(rename = "CODEREPONSE")]
     pub response_code: String,
@@ -523,7 +519,7 @@ impl<F, T>
             true => Ok(Self {
                 status: enums::AttemptStatus::Pending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(response.call_number),
+                    resource_id: types::ResponseId::ConnectorTransactionId(response.paybox_order_id),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
@@ -564,14 +560,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::Paymen
         match status {
             true => Ok(Self {
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(response.call_number),
+                    resource_id: types::ResponseId::ConnectorTransactionId(response.paybox_order_id),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
                     network_txn_id: None,
-                    connector_response_reference_id:None,
+                    connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charge_id: None,
                 }),
@@ -607,7 +603,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
                 status: enums::AttemptStatus::from(connector_payment_status),
 
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(response.call_number),
+                    resource_id: types::ResponseId::ConnectorTransactionId(response.paybox_order_id),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
@@ -649,7 +645,6 @@ impl From<PayboxStatus> for common_enums::RefundStatus {
 impl From<PayboxStatus> for enums::AttemptStatus {
     fn from(item: PayboxStatus) -> Self {
         match item {
-            
             PayboxStatus::Cancelled => Self::Voided,
             PayboxStatus::Authorised => Self::Authorized,
             PayboxStatus::Captured | PayboxStatus::Refunded => Self::Charged,
@@ -688,7 +683,7 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
             rank: auth_data.rang,
             key: auth_data.cle,
             transaction_number: paybox_meta_data.connector_request_id,
-            call_number: item.router_data.request.connector_transaction_id.clone(),
+            paybox_order_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount,
         })
     }
@@ -727,7 +722,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PayboxResponse>>
         })
     }
 }
-#[derive( Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct PayboxErrorResponse {
     pub status_code: u16,
     pub code: String,
