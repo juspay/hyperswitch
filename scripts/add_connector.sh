@@ -74,7 +74,7 @@ cd $conn/
 
 # Generate template files for the connector
 cargo install cargo-generate
-cargo gen-pg $payment_gateway
+cargo generate --path ../../../../connector-template -n $payment_gateway
 
 # Move sub files and test files to appropriate folder
 mv $payment_gateway/mod.rs $payment_gateway.rs
