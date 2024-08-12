@@ -4,6 +4,7 @@ mod openapi;
 mod openapi_v2;
 mod routes;
 
+#[allow(clippy::print_stdout)] // Using a logger is not necessary here
 fn main() {
     #[cfg(feature = "v1")]
     let relative_file_path = "api-reference/openapi_spec.json";

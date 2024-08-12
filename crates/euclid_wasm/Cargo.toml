@@ -35,3 +35,6 @@ serde = { version = "1.0", features = [] }
 serde-wasm-bindgen = "0.6.5"
 strum = { version = "0.26", features = ["derive"] }
 wasm-bindgen = { version = "0.2.92" }
+
+[lints]
+workspace = true
