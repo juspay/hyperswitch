@@ -1,3 +1,7 @@
+use std::collections::{HashMap, HashSet};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use std::str::FromStr;
+
 use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
@@ -7,9 +11,6 @@ use common_utils::{
 };
 use masking::PeekInterface;
 use serde::de;
-use std::collections::{HashMap, HashSet};
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
 use utoipa::{schema, ToSchema};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
