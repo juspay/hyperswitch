@@ -3277,17 +3277,16 @@ pub fn get_frm_config_as_secret(
     }
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 pub async fn create_and_insert_business_profile(
     state: &SessionState,
     request: api::BusinessProfileCreate,
     merchant_account: domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::BusinessProfile> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
     let business_profile_new = admin::create_business_profile_from_merchant_account(
         state,
         merchant_account,
@@ -3295,12 +3294,6 @@ pub async fn create_and_insert_business_profile(
         key_store,
     )
     .await?;
-
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let business_profile_new = {
-        let _ = merchant_account;
-        admin::create_business_profile_from_merchant_account(state, request, key_store).await?
-    };
 
     let profile_name = business_profile_new.profile_name.clone();
 
@@ -3354,6 +3347,24 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
     ) -> RouterResult<domain::BusinessProfile> {
         use crate::core;
         use common_utils::ext_traits::AsyncExt;
+
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        if let Some(intent_fulfillment_expiry) = &self.intent_fulfillment_time {
+            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+        }
+
+        if let Some(ref routing_algorithm) = self.routing_algorithm {
+            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+                .clone()
+                .parse_value("RoutingAlgorithm")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "routing_algorithm",
+                })
+                .attach_printable("Invalid routing algorithm given")?;
+        }
 
         // Generate a unique profile id
         let profile_id = common_utils::generate_id_with_default_len("pro");
@@ -3457,9 +3468,20 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
-        key: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
     ) -> RouterResult<domain::BusinessProfile> {
+        use crate::core;
+        use common_utils::ext_traits::AsyncExt;
+
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        if let Some(intent_fulfillment_expiry) = &self.intent_fulfillment_time {
+            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+        }
+
         // Generate a unique profile id
         // TODO: the profile_id should be generated from the profile_name
         let profile_id = common_utils::generate_id_with_default_len("pro");
@@ -3477,23 +3499,24 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                core::payment_methods::cards::create_encrypted_data(state, &key_store, headers)
+                core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
             })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
-        let payout_link_config =
-            self.payout_link_config
-                .map(|payout_conf| match payout_conf.config.validate() {
-                    Ok(_) => Ok(payout_conf.foreign_into()),
-                    Err(e) => Err(error_stack::report!(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: e.to_string()
-                        }
-                    )),
-                });
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(error_stack::report!(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: e.to_string()
+                    }
+                )),
+            })
+            .transpose()?;
 
         Ok(domain::BusinessProfile {
             profile_id,
@@ -3513,7 +3536,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .intent_fulfillment_time
                 .map(i64::from)
                 .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
-            is_recon_enabled: merchant_account.is_recon_enabled,
+            is_recon_enabled: false,
             applepay_verified_domains: self.applepay_verified_domains,
             payment_link_config: payment_link_config_value,
             session_expiry: self
@@ -3550,14 +3573,6 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    if let Some(session_expiry) = &request.session_expiry {
-        helpers::validate_session_expiry(session_expiry.to_owned())?;
-    }
-
-    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
-    }
-
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store = db
@@ -3576,16 +3591,6 @@ pub async fn create_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "business_profile_v2")
@@ -3596,9 +3601,13 @@ pub async fn create_business_profile(
 
     #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
     let business_profile = request
-        .create_domain_model_from_request(&state, &key_store, merchant_id)
+        .create_domain_model_from_request(&state, &key_store, merchant_account.get_id())
         .await?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
     if merchant_account.default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
         db.update_merchant(

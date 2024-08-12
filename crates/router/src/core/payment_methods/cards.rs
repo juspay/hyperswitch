@@ -4437,7 +4437,9 @@ async fn generate_saved_pm_response(
                     pi.is_connector_agnostic_mit_enabled,
                     pi.requires_cvv,
                     pi.off_session_payment_flag,
-                    pi.business_profile.map(|profile| profile.profile_id),
+                    pi.business_profile
+                        .as_ref()
+                        .map(|profile| profile.profile_id.clone()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));
