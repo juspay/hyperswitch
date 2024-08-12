@@ -212,9 +212,14 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
 
     #[actix_rt::test]
     async fn test_jwe() {
-        let jwt = encrypt_jwe("request_payload".as_bytes(), ENCRYPTION_KEY, "A256GCM", None)
-            .await
-            .unwrap();
+        let jwt = encrypt_jwe(
+            "request_payload".as_bytes(),
+            ENCRYPTION_KEY,
+            "A256GCM",
+            None,
+        )
+        .await
+        .unwrap();
         let alg = jwe::RSA_OAEP_256;
         let payload = decrypt_jwe(&jwt, KeyIdCheck::SkipKeyIdCheck, DECRYPTION_KEY, alg)
             .await

@@ -406,7 +406,9 @@ pub(crate) async fn fetch_raw_secrets(
     let network_tokenization_service = settings::NetworkTokenizationService::convert_to_raw_secret(
         conf.network_tokenization_service,
         secret_management_client,
-    ).await.expect("Failed to decrypt network tokenization service configs");
+    )
+    .await
+    .expect("Failed to decrypt network tokenization service configs");
 
     Settings {
         server: conf.server,

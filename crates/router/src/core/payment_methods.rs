@@ -1,18 +1,18 @@
 pub mod cards;
 pub mod migration;
+pub mod network_tokenization;
 pub mod surcharge_decision_configs;
 pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
-pub mod network_tokenization;
 
 use std::{borrow::Cow, collections::HashSet};
 
 pub use api_models::enums::Connector;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use api_models::{payment_methods, payments::CardToken};
+use api_models::payment_methods;
 use common_utils::{ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -512,7 +512,10 @@ pub async fn retrieve_payment_method_with_token(
         storage::PaymentTokenData::PermanentCard(card_token) => {
             helpers::retrieve_card_with_permanent_token(
                 state,
-                card_token.token_locker_id.as_ref().unwrap_or(card_token.locker_id.as_ref().unwrap_or(&card_token.token)),
+                card_token
+                    .token_locker_id
+                    .as_ref()
+                    .unwrap_or(card_token.locker_id.as_ref().unwrap_or(&card_token.token)),
                 card_token
                     .payment_method_id
                     .as_ref()

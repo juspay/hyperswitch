@@ -984,7 +984,16 @@ pub struct MandateIds {
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
-    
+    NetworkTokenWithNTI(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkTokenWithNTIRef {
+    pub network_token: CardNumber,
+    pub network_transaction_id: String,
+    pub payment_method_id: Option<String>,
+    pub token_exp_month: Option<String>,
+    pub token_exp_year: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]

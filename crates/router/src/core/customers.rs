@@ -28,7 +28,7 @@ use crate::{
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
-    core::payment_methods::cards,
+    core::payment_methods::{cards, network_tokenization},
     routes::metrics,
     types::storage::{self, enums},
     utils::CustomerAddress,
@@ -468,7 +468,21 @@ pub async fn delete_customer(
                     )
                     .await
                     .switch()?;
+
+                    if let Some(network_token_ref_id) = pm.network_token_reference_id {
+                        let resp = network_tokenization::delete_network_token_from_locker_and_token_service(
+                            &state,
+                            &req.customer_id,
+                        merchant_account.get_id(),
+                            pm.payment_method_id.clone(),
+                            pm.token_locker_id,
+                            network_token_ref_id,
+                        )
+                        .await
+                        .switch()?;
+                    }
                 }
+
                 db.delete_payment_method_by_merchant_id_payment_method_id(
                     merchant_account.get_id(),
                     &pm.payment_method_id,

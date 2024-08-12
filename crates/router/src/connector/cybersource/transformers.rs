@@ -16,7 +16,10 @@ use serde_json::Value;
 use crate::connector::utils::PayoutsData;
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, NetworkTokenData, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData, RouterData
+        self, AddressDetailsData, ApplePayDecrypt, CardData, NetworkTokenData,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsPreProcessingData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
+        RecurringMandateData, RouterData,
     },
     consts,
     core::errors,
@@ -708,6 +711,7 @@ impl
                         }),
                     )
                 }
+                Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => todo!(), //
                 None => (None, None, None),
             }
         } else {
@@ -1090,15 +1094,16 @@ impl
             Err(_) => None,
         };
 
-        let payment_information = PaymentInformation::NetworkToken(Box::new(NetworkTokenPaymentInformation {
-            tokenized_card: NetworkTokenizedCard {
-                number: token_data.token_number,
-                expiration_month: token_data.token_exp_month,
-                expiration_year: token_data.token_exp_year,
-                cryptogram: token_data.token_cryptogram,
-                transaction_type: "1".to_string(),
-            },
-        }));
+        let payment_information =
+            PaymentInformation::NetworkToken(Box::new(NetworkTokenPaymentInformation {
+                tokenized_card: NetworkTokenizedCard {
+                    number: token_data.token_number,
+                    expiration_month: token_data.token_exp_month,
+                    expiration_year: token_data.token_exp_year,
+                    cryptogram: token_data.token_cryptogram,
+                    transaction_type: "1".to_string(),
+                },
+            }));
 
         let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
         let client_reference_information = ClientReferenceInformation::from(item);
@@ -1484,7 +1489,9 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                             )?;
                         Self::try_from((item, connector_mandate_id))
                     }
-                    domain::PaymentMethodData::NetworkToken(token_data) => Self::try_from((item, token_data)),
+                    domain::PaymentMethodData::NetworkToken(token_data) => {
+                        Self::try_from((item, token_data))
+                    }
                     domain::PaymentMethodData::CardRedirect(_)
                     | domain::PaymentMethodData::PayLater(_)
                     | domain::PaymentMethodData::BankRedirect(_)

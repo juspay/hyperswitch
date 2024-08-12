@@ -512,6 +512,7 @@ async fn store_bank_details_in_payment_methods(
                 payment_method_billing_address: None,
                 updated_by: None,
                 token_locker_id: None,
+                token_payment_method_data: None,
             };
 
             new_entries.push(pm_new);

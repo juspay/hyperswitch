@@ -703,7 +703,9 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 }
@@ -840,7 +842,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.connector_mandate_id.clone()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
     fn is_mandate_payment(&self) -> bool {
@@ -2976,10 +2980,19 @@ pub fn get_refund_integrity_object<T>(
 }
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
+    fn get_expiry_year_4_digit(&self) -> Secret<String>;
 }
 
 impl NetworkTokenData for domain::NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
         get_card_issuer(self.token_number.peek())
+    }
+
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
     }
 }

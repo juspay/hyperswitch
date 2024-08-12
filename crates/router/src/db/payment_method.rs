@@ -696,6 +696,7 @@ impl PaymentMethodInterface for MockDb {
             updated_by: payment_method_new.updated_by,
             payment_method_billing_address: payment_method_new.payment_method_billing_address,
             token_locker_id: payment_method_new.token_locker_id,
+            token_payment_method_data: payment_method_new.token_payment_method_data,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)

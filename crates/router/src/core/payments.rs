@@ -75,7 +75,7 @@ use crate::{
     core::{
         authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::cards,
+        payment_methods::{cards, network_tokenization::do_status_check_for_network_token},
         utils,
     },
     db::StorageInterface,
@@ -2520,6 +2520,7 @@ where
         .map(|mandate_reference| match mandate_reference {
             api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
             api_models::payments::MandateReferenceId::NetworkMandateId(_) => false,
+            api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
         })
         .unwrap_or(false);
 
@@ -3522,6 +3523,8 @@ where
             connector_data,
             mandate_type,
             business_profile.is_connector_agnostic_mit_enabled,
+            merchant_account.is_network_tokenization_enabled,
+            key_store,
         )
         .await;
     }
@@ -3571,6 +3574,8 @@ where
             connector_data,
             mandate_type,
             business_profile.is_connector_agnostic_mit_enabled,
+            merchant_account.is_network_tokenization_enabled,
+            key_store,
         )
         .await;
     }
@@ -3595,6 +3600,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     connectors: Vec<api::ConnectorData>,
     mandate_type: Option<api::MandateTransactionType>,
     is_connector_agnostic_mit_enabled: Option<bool>,
+    is_network_tokenization_enabled: bool,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<ConnectorCallType> {
     match (
         payment_data.payment_intent.setup_future_usage,
@@ -3645,14 +3652,40 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                     .as_ref()
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to find the merchant connector id")?;
+                if is_network_token_with_transaction_id_flow(
+                    state,
+                    key_store,
+                    is_connector_agnostic_mit_enabled,
+                    Some(is_network_tokenization_enabled),
+                    payment_method_info,
+                )
+                .await
+                {
+                    logger::info!("using network_tokenization with transaction_id for MIT flow");
+                    //get token details from locker???
+
+                    let network_transaction_id = payment_method_info
+                        .network_transaction_id
+                        .as_ref()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+
+                    let mandate_reference_id =
+                        Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
+                            network_transaction_id.to_string(),
+                        ));
+
+                    connector_choice = Some((connector_data, mandate_reference_id.clone()));
+                    break;
+                }
 
                 if is_network_transaction_id_flow(
+                    //
                     state,
                     is_connector_agnostic_mit_enabled,
                     connector_data.connector_name,
                     payment_method_info,
                 ) {
-                    logger::info!("using network_transaction_id for MIT flow");
+                    logger::info!("using network_transaction_id for MIT flow"); //
                     let network_transaction_id = payment_method_info
                         .network_transaction_id
                         .as_ref()
@@ -3774,6 +3807,23 @@ pub fn is_network_transaction_id_flow(
         && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
         && ntid_supported_connectors.contains(&connector)
         && payment_method_info.network_transaction_id.is_some()
+}
+
+pub async fn is_network_token_with_transaction_id_flow(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+    is_network_tokenization_enabled: Option<bool>,
+    payment_method_info: &storage::PaymentMethod,
+) -> bool {
+    is_connector_agnostic_mit_enabled == Some(true)
+        && is_network_tokenization_enabled == Some(true)
+        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
+        && payment_method_info.network_transaction_id.is_some()
+        && payment_method_info.token_locker_id.is_some()
+        && do_status_check_for_network_token(state, key_store, payment_method_info)
+            .await
+            .is_ok()
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {
@@ -3989,6 +4039,8 @@ where
                 connector_data,
                 mandate_type,
                 business_profile.is_connector_agnostic_mit_enabled,
+                merchant_account.is_network_tokenization_enabled,
+                key_store,
             )
             .await
         }

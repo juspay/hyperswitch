@@ -61,8 +61,6 @@ impl PaymentMethod {
     //     .await
     // }
 
-
-
     pub async fn find_by_payment_method_id(
         conn: &PgPooledConn,
         payment_method_id: &str,

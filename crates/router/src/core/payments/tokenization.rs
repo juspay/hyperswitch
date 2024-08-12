@@ -178,7 +178,6 @@ where
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to serialize customer acceptance to value")?;
-            let is_network_token_enabled = merchant_account.is_network_tokenization_enabled;
 
             let pm_id = if customer_acceptance.is_some() {
                 let payment_method_create_request = helpers::get_payment_method_create_request(
@@ -191,7 +190,7 @@ where
                 .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let merchant_id = merchant_account.get_id();
-                let ((mut resp, duplication_check, network_token_ref_id), token_locker_id) =
+                let ((mut resp, duplication_check, network_token_requestor_ref_id), token_resp) =
                     if !state.conf.locker.locker_enabled {
                         let (res, dc) = skip_saving_card_in_locker(
                             merchant_account,
@@ -210,11 +209,11 @@ where
                             payment_method_create_request.to_owned(),
                             false,
                             amount.clone(),
-                            currency.clone(),
+                            currency,
                         ))
                         .await?;
 
-                        let (res2, dc2, ref_id2) = Box::pin(save_in_locker(
+                        let (res2, dc2, network_token_requestor_ref_id) = Box::pin(save_in_locker(
                             state,
                             merchant_account,
                             Some(&save_payment_method_data.request.get_payment_method_data()),
@@ -225,8 +224,12 @@ where
                         ))
                         .await?;
 
-                        ((res, dc, ref_id2), Some(res2.payment_method_id))
+                        ((res, dc, network_token_requestor_ref_id), Some(res2))
                     };
+                let token_locker_id = match token_resp {
+                    Some(ref token_resp) => Some(token_resp.payment_method_id.clone()),
+                    None => None,
+                };
 
                 let pm_card_details = resp.card.as_ref().map(|card| {
                     PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
@@ -239,6 +242,27 @@ where
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encrypt payment method data")?;
+
+                let pm_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
+                    match token_resp {
+                        Some(token_resp) => {
+                            let pm_token_details = token_resp.card.as_ref().map(|card| {
+                                PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
+                                    card.clone(),
+                                ))
+                            });
+
+                            pm_token_details
+                                .async_map(|pm_card| {
+                                    create_encrypted_data(state, key_store, pm_card)
+                                })
+                                .await
+                                .transpose()
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Unable to encrypt payment method data")?
+                        }
+                        None => None,
+                    };
 
                 let encrypted_payment_method_billing_address: Option<
                     Encryptable<Secret<serde_json::Value>>,
@@ -350,8 +374,9 @@ where
                                                 card.card_network
                                                     .map(|card_network| card_network.to_string())
                                             }),
-                                            network_token_ref_id, //todo!
+                                            network_token_requestor_ref_id, //todo!
                                             token_locker_id,
+                                            pm_token_data_encrypted.map(Into::into),
                                         )
                                         .await
                                     } else {
@@ -443,8 +468,9 @@ where
                                                 merchant_account.storage_scheme,
                                                 encrypted_payment_method_billing_address
                                                     .map(Into::into),
-                                                network_token_ref_id, //todo!
+                                                network_token_requestor_ref_id, //todo!
                                                 token_locker_id,
+                                                pm_token_data_encrypted.map(Into::into),
                                             )
                                             .await
                                         } else {
@@ -642,8 +668,9 @@ where
                                     card.card_network
                                         .map(|card_network| card_network.to_string())
                                 }),
-                                network_token_ref_id, //todo!
-                                token_locker_id,      //todo!
+                                network_token_requestor_ref_id, //todo!
+                                token_locker_id,                //todo!
+                                pm_token_data_encrypted.map(Into::into), //todo!
                             )
                             .await?;
                         };
@@ -767,9 +794,8 @@ pub async fn save_in_locker(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    println!("before saveingggg");
     if save_token {
-        let (token_response, token_ref_id) =
+        let (token_response, network_token_requestor_ref_id) =
             network_tokenization::make_card_network_tokenization_request(
                 state,
                 payment_method_data,
@@ -780,7 +806,7 @@ pub async fn save_in_locker(
             )
             .await?;
         let card_data = api::CardDetail {
-            card_number: token_response.card_reference.clone(),
+            card_number: token_response.token.clone(),
             card_exp_month: token_response.token_expiry_month.clone(),
             card_exp_year: token_response.token_expiry_year.clone(),
             card_holder_name: None,
@@ -790,7 +816,6 @@ pub async fn save_in_locker(
             card_issuer: None,
             card_type: None,
         };
-        println!("savinggg token");
         let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
             state,
             payment_method_request,
@@ -802,9 +827,8 @@ pub async fn save_in_locker(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Card Failed")?;
-        Ok((res, dc, token_ref_id))
+        Ok((res, dc, network_token_requestor_ref_id))
     } else {
-        println!("savinggg card");
         match payment_method_request.card.clone() {
             Some(card) => {
                 let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
