@@ -2253,6 +2253,23 @@ impl BusinessProfileInterface for KafkaStore {
             .await
     }
 
+    async fn find_business_profile_by_merchant_id_profile_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &str,
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        self.diesel_store
+            .find_business_profile_by_merchant_id_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                merchant_id,
+                profile_id,
+            )
+            .await
+    }
+
     async fn update_business_profile_by_profile_id(
         &self,
         key_manager_state: &KeyManagerState,

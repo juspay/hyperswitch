@@ -283,12 +283,20 @@ async fn get_account_and_key_store(
         // specific than a merchant account.
         Some(profile_id) => {
             let business_profile = store
-                .find_business_profile_by_profile_id(
+                .find_business_profile_by_merchant_id_profile_id(
                     key_manager_state,
                     &merchant_key_store,
+                    &merchant_id,
                     &profile_id,
                 )
                 .await
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed to find business profile by merchant_id `{merchant_id:?}` and profile_id `{profile_id}`. \
+                        The merchant_id associated with the business profile `{profile_id}` may be \
+                        different than the merchant_id specified (`{merchant_id:?}`)."
+                    )
+                })
                 .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                     id: profile_id,
                 })?;
