@@ -1,10 +1,10 @@
 use bytes::Bytes;
-use common_utils::{date_time::DateFormat, types::MinorUnit};
+use common_utils::{date_time::DateFormat, errors::CustomResult, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_connectors::utils::CardData;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use masking::Secret;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     connector::utils,
@@ -442,33 +442,28 @@ pub struct PayboxResponse {
     pub response_message: String,
 }
 
-pub fn parse_url_encoded_to_struct(query_bytes: Bytes) -> Result<String, errors::ConnectorError> {
-    let query_string = String::from_utf8_lossy(&query_bytes);
-    let parsed: std::collections::HashMap<String, String> =
-        url::form_urlencoded::parse(query_string.as_bytes())
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
-
-    let json_string =
-        serde_json::to_string(&parsed).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
-    Ok(json_string)
+pub fn parse_url_encoded_to_struct<T: DeserializeOwned>(
+    query_bytes: Bytes,
+) -> CustomResult<T, errors::ConnectorError> {
+    let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&query_bytes);
+    serde_qs::from_str::<T>(&cow.to_string()).change_context(errors::ConnectorError::ParsingFailed)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum PayboxStatus {
-    #[serde(rename = "Rembours�")]
+    #[serde(rename = "Remboursé")]
     Refunded,
 
-    #[serde(rename = "Annul�")]
+    #[serde(rename = "Annulé")]
     Cancelled,
 
-    #[serde(rename = "Autoris�")]
+    #[serde(rename = "Autorisé")]
     Authorised,
 
-    #[serde(rename = "Captur�")]
+    #[serde(rename = "Capturé")]
     Captured,
 
-    #[serde(rename = "Refus�")]
+    #[serde(rename = "Refusé")]
     Rejected,
 }
 
@@ -519,7 +514,9 @@ impl<F, T>
             true => Ok(Self {
                 status: enums::AttemptStatus::Pending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(response.paybox_order_id),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.paybox_order_id,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
@@ -560,7 +557,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::Paymen
         match status {
             true => Ok(Self {
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(response.paybox_order_id),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.paybox_order_id,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
@@ -603,7 +602,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
                 status: enums::AttemptStatus::from(connector_payment_status),
 
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(response.paybox_order_id),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.paybox_order_id,
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
