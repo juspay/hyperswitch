@@ -652,7 +652,8 @@ impl
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(report!(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message(
                         req.connector.as_str(),

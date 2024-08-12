@@ -647,16 +647,14 @@ diesel::table! {
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
         metadata -> Nullable<Jsonb>,
-        routing_algorithm -> Nullable<Json>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        frm_routing_algorithm -> Nullable<Jsonb>,
-        payout_routing_algorithm -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
         recon_status -> ReconStatus,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
@@ -880,6 +878,7 @@ diesel::table! {
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
         shipping_details -> Nullable<Bytea>,
+        is_payment_processor_token_flow -> Nullable<Bool>,
     }
 }
 
@@ -979,11 +978,11 @@ diesel::table! {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        address_id -> Varchar,
+        address_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector -> Nullable<Varchar>,
         #[max_length = 128]
@@ -1018,9 +1017,9 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
-        address_id -> Varchar,
+        address_id -> Nullable<Varchar>,
         payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
