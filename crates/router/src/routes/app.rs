@@ -1229,6 +1229,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(payment_connector_list)),
                 )
                 .service(
+                    web::resource("/{merchant_id}/profile/connectors")
+                        .route(web::get().to(payment_connector_list_profile)),
+                )
+                .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
