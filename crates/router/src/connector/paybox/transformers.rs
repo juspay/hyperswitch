@@ -469,6 +469,24 @@ pub fn parse_url_encoded_to_struct(
     Ok(response)
 }
 
+pub fn parse_url_encoded_to_capture_struct(
+    query_bytes: Bytes,
+) -> Result<PayboxCaptureResponse, errors::ConnectorError> {
+    let query_string = String::from_utf8_lossy(&query_bytes);
+    let parsed: std::collections::HashMap<String, String> =
+        url::form_urlencoded::parse(query_string.as_bytes())
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+
+    let json_string =
+        serde_json::to_string(&parsed).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
+
+    let response: PayboxCaptureResponse =
+        serde_json::from_str(&json_string).map_err(|_e| errors::ConnectorError::ParsingFailed)?;
+
+    Ok(response)
+}
+
 pub fn parse_url_encoded_to_syn_struct(
     query_bytes: Bytes,
 ) -> Result<PayboxSyncResponse, errors::ConnectorError> {
@@ -522,6 +540,64 @@ pub struct PayboxSyncResponse {
 
     #[serde(rename = "STATUS")]
     pub status: PayboxStatus,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PayboxCaptureResponse {
+    #[serde(rename = "NUMTRANS")]
+    pub transaction_number: String,
+
+    #[serde(rename = "NUMAPPEL")]
+    pub call_number: String,
+
+    #[serde(rename = "CODEREPONSE")]
+    pub response_code: String,
+
+    #[serde(rename = "COMMENTAIRE")]
+    pub response_message: String,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PayboxCaptureResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PayboxCaptureResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.clone();
+        let status = get_status_of_request(response.response_code.clone());
+        match status {
+            true => Ok(Self {
+                status: enums::AttemptStatus::Pending,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(response.call_number),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: Some(serde_json::json!(PayboxMeta {
+                        connector_request_id: response.transaction_number.clone()
+                    })),
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(response.transaction_number),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                amount_captured: None,
+                ..item.data
+            }),
+            false => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: response.response_code.clone(),
+                    message: response.response_message.clone(),
+                    reason: Some(response.response_message),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transaction_number),
+                }),
+                ..item.data
+            }),
+        }
+    }
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::PaymentsResponseData>>

@@ -384,7 +384,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: paybox::PayboxResponse = paybox::parse_url_encoded_to_struct(res.response)?;
+        let response: paybox::PayboxCaptureResponse =
+            paybox::parse_url_encoded_to_capture_struct(res.response)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
