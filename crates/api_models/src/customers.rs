@@ -443,3 +443,16 @@ impl CustomerUpdateRequest {
         self.default_shipping_address.clone()
     }
 }
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct UpdateCustomerId(String);
+
+impl UpdateCustomerId {
+    pub fn get_global_id(&self) -> String {
+        self.0.clone()
+    }
+
+    pub fn new(id: String) -> Self {
+        Self(id)
+    }
+}

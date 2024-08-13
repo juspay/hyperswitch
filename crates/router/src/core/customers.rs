@@ -665,7 +665,7 @@ pub async fn update_customer(
     merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerUpdateRequest,
     key_store: domain::MerchantKeyStore,
-    id: Option<String>,
+    id: customers::UpdateCustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -675,7 +675,7 @@ pub async fn update_customer(
 
     let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
         merchant_reference_id: merchant_reference_id.as_ref(),
-        id: id.as_ref(),
+        id: &id,
         merchant_account: &merchant_account,
         key_store: &key_store,
         key_manager_state,
@@ -813,7 +813,7 @@ impl<'a> AddressStructForDbUpdate<'a> {
 
 struct VerifyIdForUpdateCustomer<'a> {
     merchant_reference_id: Option<&'a id_type::CustomerId>,
-    id: Option<&'a String>,
+    id: &'a customers::UpdateCustomerId,
     merchant_account: &'a domain::MerchantAccount,
     key_store: &'a domain::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
@@ -854,17 +854,13 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
         &self,
         db: &dyn StorageInterface,
     ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
-        let id = self
-            .id
-            .get_required_value("id")
-            .change_context(errors::CustomersErrorResponse::InternalServerError)
-            .attach("Missing required field `id`")?;
+        let id = self.id.get_global_id();
 
         let _merchant_reference_id = self.merchant_reference_id;
         let customer = db
             .find_customer_by_global_id(
                 self.key_manager_state,
-                id,
+                &id,
                 &self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,

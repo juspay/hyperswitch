@@ -117,13 +117,20 @@ pub async fn customers_update(
     let flow = Flow::CustomersUpdate;
     let customer_id = path.into_inner();
     json_payload.customer_id = Some(customer_id);
+    let customer_update_id = customers::UpdateCustomerId::new("temp_global_id".to_string());
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| {
-            update_customer(state, auth.merchant_account, req, auth.key_store, None)
+            update_customer(
+                state,
+                auth.merchant_account,
+                req,
+                auth.key_store,
+                customer_update_id.clone(),
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -145,6 +152,7 @@ pub async fn customers_update(
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
     let id = path.into_inner().clone();
+    let customer_update_id = customers::UpdateCustomerId::new(id);
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -156,7 +164,7 @@ pub async fn customers_update(
                 auth.merchant_account,
                 req,
                 auth.key_store,
-                Some(id.clone()),
+                customer_update_id.clone(),
             )
         },
         auth::auth_type(

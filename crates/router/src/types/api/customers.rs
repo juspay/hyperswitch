@@ -1,6 +1,6 @@
 use api_models::customers;
 pub use api_models::customers::{
-    CustomerDeleteResponse, CustomerId, CustomerRequest, CustomerUpdateRequest,
+    CustomerDeleteResponse, CustomerId, CustomerRequest, CustomerUpdateRequest, UpdateCustomerId,
 };
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use hyperswitch_domain_models::customer;
