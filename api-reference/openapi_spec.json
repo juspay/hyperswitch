@@ -11923,6 +11923,10 @@
               }
             ],
             "nullable": true
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean",
+            "nullable": true
           }
         },
         "additionalProperties": false
