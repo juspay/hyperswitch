@@ -2706,7 +2706,10 @@ pub async fn construct_profile_id_and_get_mca(
     key_store: &domain::MerchantKeyStore,
     should_validate: bool,
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
+    let key_manager_state: &common_utils::types::keymanager::KeyManagerState = &state.into();
     let profile_id = core_utils::get_profile_id_from_business_details(
+        &key_manager_state,
+        &key_store,
         payout_data.payout_attempt.business_country,
         payout_data.payout_attempt.business_label.as_ref(),
         merchant_account,
@@ -2720,7 +2723,7 @@ pub async fn construct_profile_id_and_get_mca(
 
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         &profile_id,
