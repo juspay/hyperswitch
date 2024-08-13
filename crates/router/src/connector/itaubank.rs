@@ -197,12 +197,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let auth_details = itaubank::ItaubankAuthType::try_from(&req.connector_auth_type)?;
         let req = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .add_certificate(Some(auth_details.certificate))
                 .set_body(types::RefreshTokenType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -326,6 +328,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let auth_details = itaubank::ItaubankAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -336,6 +339,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
+                .add_certificate(Some(auth_details.certificate))
                 .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -406,12 +410,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let auth_details = itaubank::ItaubankAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .add_certificate(Some(auth_details.certificate))
                 .build(),
         ))
     }
@@ -480,6 +486,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let auth_details = itaubank::ItaubankAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -488,6 +495,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .add_certificate(Some(auth_details.certificate))
                 .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -597,6 +605,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let auth_details = itaubank::ItaubankAuthType::try_from(&req.connector_auth_type)?;
         let request = services::RequestBuilder::new()
             .method(services::Method::Put)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
@@ -604,6 +613,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
+            .add_certificate(Some(auth_details.certificate))
             .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
@@ -679,12 +689,14 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let auth_details = itaubank::ItaubankAuthType::try_from(&req.connector_auth_type)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .add_certificate(Some(auth_details.certificate))
                 .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
