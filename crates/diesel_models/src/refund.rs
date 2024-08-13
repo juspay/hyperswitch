@@ -19,13 +19,12 @@ use crate::{enums as storage_enums, schema::refund};
     serde::Serialize,
     serde::Deserialize,
 )]
-#[diesel(table_name = refund, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = refund, primary_key(refund_id), check_for_backend(diesel::pg::Pg))]
 pub struct Refund {
-    pub id: i32,
     pub internal_reference_id: String,
     pub refund_id: String, //merchant_reference id
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_transaction_id: String,
     pub connector: String,
     pub connector_refund_id: Option<String>,
@@ -68,7 +67,7 @@ pub struct Refund {
 pub struct RefundNew {
     pub refund_id: String,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub internal_reference_id: String,
     pub external_reference_id: Option<String>,
     pub connector_transaction_id: String,
@@ -324,7 +323,7 @@ impl RefundUpdate {
 pub struct RefundCoreWorkflow {
     pub refund_internal_reference_id: String,
     pub connector_transaction_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
 }
 
@@ -341,7 +340,6 @@ mod tests {
     #[test]
     fn test_backwards_compatibility() {
         let serialized_refund = r#"{
-    "id": 1,
     "internal_reference_id": "internal_ref_123",
     "refund_id": "refund_456",
     "payment_id": "payment_789",

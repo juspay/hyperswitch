@@ -31,3 +31,6 @@ toml = "0.8.12"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
+
+[lints]
+workspace = true

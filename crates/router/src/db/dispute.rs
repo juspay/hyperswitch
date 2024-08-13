@@ -1,4 +1,4 @@
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
@@ -17,26 +17,26 @@ pub trait DisputeInterface {
 
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError>;
 
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
     async fn find_disputes_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
@@ -64,7 +64,7 @@ impl DisputeInterface for Store {
     #[instrument(skip_all)]
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
@@ -82,7 +82,7 @@ impl DisputeInterface for Store {
     #[instrument(skip_all)]
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -94,7 +94,7 @@ impl DisputeInterface for Store {
     #[instrument(skip_all)]
     async fn find_disputes_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -106,7 +106,7 @@ impl DisputeInterface for Store {
     #[instrument(skip_all)]
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -148,8 +148,6 @@ impl DisputeInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
-            id: i32::try_from(locked_disputes.len())
-                .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,
             currency: dispute.currency,
@@ -180,7 +178,7 @@ impl DisputeInterface for MockDb {
     }
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
@@ -190,7 +188,7 @@ impl DisputeInterface for MockDb {
             .await
             .iter()
             .find(|d| {
-                d.merchant_id == merchant_id
+                d.merchant_id == *merchant_id
                     && d.payment_id == payment_id
                     && d.connector_dispute_id == connector_dispute_id
             })
@@ -199,22 +197,22 @@ impl DisputeInterface for MockDb {
 
     async fn find_dispute_by_merchant_id_dispute_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_id: &str,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
         locked_disputes
             .iter()
-            .find(|d| d.merchant_id == merchant_id && d.dispute_id == dispute_id)
+            .find(|d| d.merchant_id == *merchant_id && d.dispute_id == dispute_id)
             .cloned()
-            .ok_or(errors::StorageError::ValueNotFound(format!("No dispute available for merchant_id = {merchant_id} and dispute_id = {dispute_id}"))
+            .ok_or(errors::StorageError::ValueNotFound(format!("No dispute available for merchant_id = {merchant_id:?} and dispute_id = {dispute_id}"))
             .into())
     }
 
     async fn find_disputes_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
@@ -222,7 +220,7 @@ impl DisputeInterface for MockDb {
         Ok(locked_disputes
             .iter()
             .filter(|d| {
-                d.merchant_id == merchant_id
+                d.merchant_id == *merchant_id
                     && dispute_constraints
                         .dispute_status
                         .as_ref()
@@ -285,14 +283,14 @@ impl DisputeInterface for MockDb {
 
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &str,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
         Ok(locked_disputes
             .iter()
-            .filter(|d| d.merchant_id == merchant_id && d.payment_id == payment_id)
+            .filter(|d| d.merchant_id == *merchant_id && d.payment_id == payment_id)
             .cloned()
             .collect())
     }
@@ -363,8 +361,10 @@ impl DisputeInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    #[allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
     mod mockdb_dispute_interface {
+        use std::borrow::Cow;
+
         use api_models::disputes::DisputeListConstraints;
         use diesel_models::{
             dispute::DisputeNew,
@@ -381,7 +381,7 @@ mod tests {
             dispute_id: String,
             payment_id: String,
             attempt_id: String,
-            merchant_id: String,
+            merchant_id: common_utils::id_type::MerchantId,
             connector_dispute_id: String,
         }
 
@@ -412,16 +412,18 @@ mod tests {
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create a mock DB");
+
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -443,7 +445,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
-            #[allow(clippy::expect_used)]
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -452,7 +456,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -463,7 +467,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_2".into(),
                 }))
@@ -472,7 +476,7 @@ mod tests {
 
             let found_dispute = mockdb
                 .find_by_merchant_id_payment_id_connector_dispute_id(
-                    "merchant_1",
+                    &merchant_id,
                     "payment_1",
                     "connector_dispute_1",
                 )
@@ -486,7 +490,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_dispute_by_merchant_id_dispute_id() {
-            #[allow(clippy::expect_used)]
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -495,7 +501,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -506,7 +512,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -514,7 +520,7 @@ mod tests {
                 .unwrap();
 
             let found_dispute = mockdb
-                .find_dispute_by_merchant_id_dispute_id("merchant_1", "dispute_1")
+                .find_dispute_by_merchant_id_dispute_id(&merchant_id, "dispute_1")
                 .await
                 .unwrap();
 
@@ -523,7 +529,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id() {
-            #[allow(clippy::expect_used)]
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_2")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -532,7 +540,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -543,7 +551,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_2".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -552,7 +560,7 @@ mod tests {
 
             let found_disputes = mockdb
                 .find_disputes_by_merchant_id(
-                    "merchant_1",
+                    &merchant_id,
                     DisputeListConstraints {
                         limit: None,
                         dispute_status: None,
@@ -577,7 +585,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id_payment_id() {
-            #[allow(clippy::expect_used)]
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -586,7 +596,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_1".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -597,7 +607,7 @@ mod tests {
                 .insert_dispute(create_dispute_new(DisputeNewIds {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
-                    merchant_id: "merchant_2".into(),
+                    merchant_id: merchant_id.clone(),
                     payment_id: "payment_1".into(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -605,7 +615,7 @@ mod tests {
                 .unwrap();
 
             let found_disputes = mockdb
-                .find_disputes_by_merchant_id_payment_id("merchant_1", "payment_1")
+                .find_disputes_by_merchant_id_payment_id(&merchant_id, "payment_1")
                 .await
                 .unwrap();
 
@@ -615,6 +625,8 @@ mod tests {
         }
 
         mod update_dispute {
+            use std::borrow::Cow;
+
             use diesel_models::{
                 dispute::DisputeUpdate,
                 enums::{DisputeStage, DisputeStatus},
@@ -633,7 +645,9 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update() {
-                #[allow(clippy::expect_used)]
+                let merchant_id =
+                    common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -642,7 +656,7 @@ mod tests {
                     .insert_dispute(create_dispute_new(DisputeNewIds {
                         dispute_id: "dispute_1".into(),
                         attempt_id: "attempt_1".into(),
-                        merchant_id: "merchant_1".into(),
+                        merchant_id: merchant_id.clone(),
                         payment_id: "payment_1".into(),
                         connector_dispute_id: "connector_dispute_1".into(),
                     }))
@@ -665,7 +679,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);
@@ -713,7 +726,9 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_status() {
-                #[allow(clippy::expect_used)]
+                let merchant_id =
+                    common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -722,7 +737,7 @@ mod tests {
                     .insert_dispute(create_dispute_new(DisputeNewIds {
                         dispute_id: "dispute_1".into(),
                         attempt_id: "attempt_1".into(),
-                        merchant_id: "merchant_1".into(),
+                        merchant_id: merchant_id.clone(),
                         payment_id: "payment_1".into(),
                         connector_dispute_id: "connector_dispute_1".into(),
                     }))
@@ -740,7 +755,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);
@@ -788,7 +802,9 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_evidence() {
-                #[allow(clippy::expect_used)]
+                let merchant_id =
+                    common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -797,7 +813,7 @@ mod tests {
                     .insert_dispute(create_dispute_new(DisputeNewIds {
                         dispute_id: "dispute_1".into(),
                         attempt_id: "attempt_1".into(),
-                        merchant_id: "merchant_1".into(),
+                        merchant_id: merchant_id.clone(),
                         payment_id: "payment_1".into(),
                         connector_dispute_id: "connector_dispute_1".into(),
                     }))
@@ -814,7 +830,6 @@ mod tests {
                     .await
                     .unwrap();
 
-                assert_eq!(created_dispute.id, updated_dispute.id);
                 assert_eq!(created_dispute.dispute_id, updated_dispute.dispute_id);
                 assert_eq!(created_dispute.amount, updated_dispute.amount);
                 assert_eq!(created_dispute.currency, updated_dispute.currency);

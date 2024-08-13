@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 #[cfg(feature = "vergen")]
 use router_env as env;
 

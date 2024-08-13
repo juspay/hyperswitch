@@ -4,15 +4,15 @@ use async_trait::async_trait;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
+    connector::utils::RouterData,
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::SessionState,
     services::{self, api::ConnectorValidation, logger},
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
-
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for PaymentData<api::PSync>
@@ -67,7 +67,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -151,7 +151,12 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 //validate_psync_reference_id if call_connector_action is trigger
                 if connector
                     .connector
-                    .validate_psync_reference_id(self)
+                    .validate_psync_reference_id(
+                        &self.request,
+                        self.is_three_ds(),
+                        self.status,
+                        self.connector_meta_data.clone(),
+                    )
                     .is_err()
                 {
                     logger::warn!(

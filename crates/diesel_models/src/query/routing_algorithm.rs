@@ -7,7 +7,7 @@ use crate::{
     enums,
     errors::DatabaseError,
     query::generics,
-    routing_algorithm::{RoutingAlgorithm, RoutingAlgorithmMetadata, RoutingProfileMetadata},
+    routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
     schema::routing_algorithm::dsl,
     PgPooledConn, StorageResult,
 };
@@ -20,7 +20,7 @@ impl RoutingAlgorithm {
     pub async fn find_by_algorithm_id_merchant_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -112,10 +112,11 @@ impl RoutingAlgorithm {
         profile_id: &str,
         limit: i64,
         offset: i64,
-    ) -> StorageResult<Vec<RoutingAlgorithmMetadata>> {
+    ) -> StorageResult<Vec<RoutingProfileMetadata>> {
         Ok(Self::table()
             .select((
                 dsl::algorithm_id,
+                dsl::profile_id,
                 dsl::name,
                 dsl::description,
                 dsl::kind,
@@ -127,6 +128,7 @@ impl RoutingAlgorithm {
             .limit(limit)
             .offset(offset)
             .load_async::<(
+                String,
                 String,
                 String,
                 Option<String>,
@@ -141,6 +143,7 @@ impl RoutingAlgorithm {
             .map(
                 |(
                     algorithm_id,
+                    profile_id,
                     name,
                     description,
                     kind,
@@ -148,7 +151,7 @@ impl RoutingAlgorithm {
                     modified_at,
                     algorithm_for,
                 )| {
-                    RoutingAlgorithmMetadata {
+                    RoutingProfileMetadata {
                         algorithm_id,
                         name,
                         description,
@@ -156,6 +159,7 @@ impl RoutingAlgorithm {
                         created_at,
                         modified_at,
                         algorithm_for,
+                        profile_id,
                     }
                 },
             )
@@ -164,7 +168,7 @@ impl RoutingAlgorithm {
 
     pub async fn list_metadata_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<RoutingProfileMetadata>> {
@@ -224,7 +228,7 @@ impl RoutingAlgorithm {
 
     pub async fn list_metadata_by_merchant_id_transaction_type(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         transaction_type: &enums::TransactionType,
         limit: i64,
         offset: i64,

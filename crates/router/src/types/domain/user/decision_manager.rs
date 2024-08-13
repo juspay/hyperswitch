@@ -1,5 +1,6 @@
 use common_enums::TokenPurpose;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
+use error_stack::report;
 use masking::Secret;
 
 use super::UserFromStorage;
@@ -100,7 +101,7 @@ impl JWTFlow {
         Ok(true)
     }
 
-    pub async fn generate_jwt(
+    pub async fn generate_jwt_without_profile(
         self,
         state: &SessionState,
         next_flow: &NextFlow,
@@ -108,10 +109,17 @@ impl JWTFlow {
     ) -> UserResult<Secret<String>> {
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
-            user_role.merchant_id.clone(),
+            user_role
+                .merchant_id
+                .clone()
+                .ok_or(report!(UserErrors::InternalServerError))?,
             user_role.role_id.clone(),
             &state.conf,
-            user_role.org_id.clone(),
+            user_role
+                .org_id
+                .clone()
+                .ok_or(report!(UserErrors::InternalServerError))?,
+            None,
         )
         .await
         .map(|token| token.into())
@@ -286,7 +294,9 @@ impl NextFlow {
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
                     .await;
 
-                jwt_flow.generate_jwt(state, self, &user_role).await
+                jwt_flow
+                    .generate_jwt_without_profile(state, self, &user_role)
+                    .await
             }
         }
     }
@@ -306,7 +316,9 @@ impl NextFlow {
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, user_role)
                     .await;
 
-                jwt_flow.generate_jwt(state, self, user_role).await
+                jwt_flow
+                    .generate_jwt_without_profile(state, self, user_role)
+                    .await
             }
         }
     }

@@ -40,14 +40,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest>> {
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
-        let merchant_id = &merchant_account.merchant_id;
+        let key_manager_state = &state.into();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
 
         let mut payment_intent = db
@@ -139,7 +140,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    merchant_account.merchant_id.as_str(),
+                    merchant_account.get_id(),
                     mcd,
                 )
                 .await
@@ -155,7 +156,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = db
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
@@ -270,7 +271,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
-        operations::ValidateResult<'a>,
+        operations::ValidateResult,
     )> {
         //paymentid is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
@@ -278,7 +279,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.merchant_id,
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
@@ -328,10 +329,10 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         //No payment method data for this operation
@@ -360,7 +361,7 @@ where
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &state.into(),
-                &merchant_account.merchant_id,
+                merchant_account.get_id(),
                 false,
                 key_store,
             )
@@ -368,19 +369,18 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let profile_id = crate::core::utils::get_profile_id_from_business_details(
-            payment_intent.business_country,
-            payment_intent.business_label.as_ref(),
-            merchant_account,
-            payment_intent.profile_id.as_ref(),
-            &*state.store,
-            false,
-        )
-        .await
-        .attach_printable("Could not find profile id from business details")?;
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("profile_id is not set in payment_intent")?;
 
-        let filtered_connector_accounts =
-            helpers::filter_mca_based_on_business_profile(all_connector_accounts, Some(profile_id));
+        let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
+            all_connector_accounts,
+            Some(&profile_id),
+            common_enums::ConnectorType::PaymentProcessor,
+        );
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();
@@ -399,9 +399,8 @@ where
                     })
                     .filter_map(|parsed_payment_method_result| {
                         parsed_payment_method_result
-                            .map_err(|err| {
+                            .inspect_err(|err| {
                                 logger::error!(session_token_parsing_error=?err);
-                                err
                             })
                             .ok()
                     })
@@ -445,17 +444,29 @@ where
                 &state.conf.connectors,
                 &merchant_connector_account.connector_name.to_string(),
                 connector_type,
-                Some(merchant_connector_account.merchant_connector_id.clone()),
+                Some(merchant_connector_account.get_id()),
             )
-            .map_err(|err| {
+            .inspect_err(|err| {
                 logger::error!(session_token_error=?err);
-                err
             }) {
-                session_connector_data.push(api::SessionConnectorData {
-                    payment_method_type,
-                    connector: connector_data,
-                    business_sub_label: merchant_connector_account.business_sub_label.clone(),
-                })
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "merchant_connector_account_v2")
+                ))]
+                {
+                    let new_session_connector_data = api::SessionConnectorData::new(
+                        payment_method_type,
+                        connector_data,
+                        merchant_connector_account.business_sub_label.clone(),
+                    );
+                    session_connector_data.push(new_session_connector_data)
+                }
+                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                {
+                    let new_session_connector_data =
+                        api::SessionConnectorData::new(payment_method_type, connector_data, None);
+                    session_connector_data.push(new_session_connector_data)
+                }
             };
         }
 

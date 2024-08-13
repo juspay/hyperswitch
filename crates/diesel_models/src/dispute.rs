@@ -17,7 +17,7 @@ pub struct DisputeNew {
     pub dispute_status: storage_enums::DisputeStatus,
     pub payment_id: String,
     pub attempt_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_status: String,
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
@@ -33,10 +33,8 @@ pub struct DisputeNew {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
-#[diesel(table_name = dispute, check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = dispute, primary_key(dispute_id), check_for_backend(diesel::pg::Pg))]
 pub struct Dispute {
-    #[serde(skip_serializing)]
-    pub id: i32,
     pub dispute_id: String,
     pub amount: String,
     pub currency: String,
@@ -44,7 +42,7 @@ pub struct Dispute {
     pub dispute_status: storage_enums::DisputeStatus,
     pub payment_id: String,
     pub attempt_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_status: String,
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,

@@ -3,7 +3,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use crate::routing::{
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
     RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
-    RoutingPayloadWrapper, RoutingRetrieveLinkQuery, RoutingRetrieveQuery,
+    RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
+    RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery,
 };
 
 impl ApiEventMetric for RoutingKind {
@@ -60,6 +61,17 @@ impl ApiEventMetric for RoutingConfigRequest {
 }
 
 impl ApiEventMetric for RoutingRetrieveLinkQuery {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingLinkWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+impl ApiEventMetric for RoutingRetrieveLinkQueryWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

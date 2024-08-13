@@ -26,7 +26,7 @@ use crate::{
 pub async fn sdk_events_core(
     pool: &AnalyticsProvider,
     req: SdkEventsRequest,
-    publishable_key: &str,
+    publishable_key: &String,
 ) -> AnalyticsResult<Vec<SdkEventsResult>> {
     match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
