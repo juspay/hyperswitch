@@ -1172,7 +1172,7 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id))?;
+    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
 
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
@@ -1191,12 +1191,16 @@ pub async fn create_internal_user(
         .map(domain::user::UserFromStorage::from)?;
 
     new_user
-        .insert_internal_user_role_in_db(
-            state,
+        .get_no_level_user_role(
             consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             UserStatus::Active,
         )
-        .await?;
+        .add_entity(domain::InternalLevel {
+            org_id: internal_merchant.organization_id,
+        })
+        .insert_in_v1_and_v2(&state)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
 }

@@ -639,7 +639,7 @@ impl NewUser {
         created_user
     }
 
-    fn get_no_level_user_role(
+    pub fn get_no_level_user_role(
         self,
         role_id: String,
         user_status: UserStatus,
@@ -676,24 +676,6 @@ impl NewUser {
                 org_id,
                 merchant_id,
             })
-            .insert_in_v1_and_v2(&state)
-            .await
-            .change_context(UserErrors::InternalServerError)
-    }
-
-    pub async fn insert_internal_user_role_in_db(
-        self,
-        state: SessionState,
-        role_id: String,
-        user_status: UserStatus,
-    ) -> UserResult<UserRole> {
-        let org_id = self
-            .get_new_merchant()
-            .get_new_organization()
-            .get_organization_id();
-
-        self.get_no_level_user_role(role_id, user_status)
-            .add_entity(InternalLevel { org_id })
             .insert_in_v1_and_v2(&state)
             .await
             .change_context(UserErrors::InternalServerError)
@@ -1316,9 +1298,9 @@ pub struct NoLevel;
 
 #[derive(Clone)]
 pub struct OrganizationLevel {
-    org_id: id_type::OrganizationId,
+    pub org_id: id_type::OrganizationId,
     // Keeping this to allow insertion of org_admins in V1
-    merchant_id: id_type::MerchantId,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
@@ -1329,14 +1311,14 @@ pub struct MerchantLevel {
 
 #[derive(Clone)]
 pub struct ProfileLevel {
-    org_id: id_type::OrganizationId,
-    merchant_id: id_type::MerchantId,
-    profile_id: String,
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: String,
 }
 
 #[derive(Clone)]
 pub struct InternalLevel {
-    org_id: id_type::OrganizationId,
+    pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
