@@ -51,6 +51,7 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
+    pub tax_connector_id: Option<String>,
 }
 
 #[cfg(all(
@@ -81,6 +82,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
+    pub tax_connector_id: Option<String>,
 }
 
 #[cfg(all(
@@ -135,6 +137,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     collect_billing_details_from_wallet_connector,
                     is_connector_agnostic_mit_enabled,
                     outgoing_webhook_custom_http_headers,
+                    tax_connector_id,
                 } = *update;
 
                 Self {
@@ -164,6 +167,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     collect_billing_details_from_wallet_connector,
                     outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                         .map(Encryption::from),
+                    tax_connector_id,
                 }
             }
             BusinessProfileUpdate::RoutingAlgorithmUpdate {
@@ -195,6 +199,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
+                tax_connector_id: None,
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -224,6 +229,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
+                tax_connector_id: None,
             },
             BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -253,6 +259,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
+                tax_connector_id: None,
             },
         }
     }
@@ -301,6 +308,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             outgoing_webhook_custom_http_headers: self
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
+            tax_connector_id: self.tax_connector_id,
         })
     }
 
@@ -358,6 +366,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                tax_connector_id: item.tax_connector_id,
             })
         }
         .await
@@ -400,6 +409,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             outgoing_webhook_custom_http_headers: self
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
+            tax_connector_id: self.tax_connector_id,
         })
     }
 }

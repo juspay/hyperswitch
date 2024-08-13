@@ -203,6 +203,8 @@ diesel::table! {
         collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
+        #[max_length = 64]
+        tax_connector_id -> Nullable<Varchar>,
     }
 }
 

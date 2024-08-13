@@ -162,6 +162,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
             outgoing_webhook_custom_http_headers,
+            tax_connector_id: item.tax_connector_id,
         })
     }
 }
@@ -331,5 +332,6 @@ pub async fn create_business_profile_from_merchant_account(
             .collect_billing_details_from_wallet_connector
             .or(Some(false)),
         outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
+        tax_connector_id: request.tax_connector_id,
     })
 }
