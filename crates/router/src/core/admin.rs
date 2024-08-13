@@ -3381,7 +3381,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         let payment_link_config_value = self.payment_link_config.map(ForeignInto::foreign_into);
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, &key_store, headers))
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3518,7 +3518,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             redirect_to_merchant_with_http_post: self
                 .redirect_to_merchant_with_http_post
                 .unwrap_or(true),
-            webhook_details: webhook_details,
+            webhook_details,
             metadata: self.metadata,
             is_recon_enabled: false,
             applepay_verified_domains: self.applepay_verified_domains,
@@ -3553,6 +3553,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .map(|order_fulfillment_time| i64::from(order_fulfillment_time.into_inner()))
                 .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
+            default_fallback_routing: None,
         })
     }
 }
