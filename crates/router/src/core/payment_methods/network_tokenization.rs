@@ -5,8 +5,9 @@ use cards::CardNumber;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
-    id_type, type_name,
+    id_type,
     request::RequestContent,
+    type_name,
     types::keymanager::Identifier,
 };
 use error_stack::ResultExt;
@@ -24,10 +25,7 @@ use crate::{
     },
     headers, logger,
     routes::{self},
-    services::{
-        self, encryption,
-        request,
-    },
+    services::{self, encryption},
     types::{
         api::{self},
         domain,
@@ -159,28 +157,24 @@ pub struct DeleteNetworkTokenResponse {
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
     payment_method_data: Option<&domain::PaymentMethodData>,
-    _merchant_account: &domain::MerchantAccount,
     customer_id: &Option<id_type::CustomerId>,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
-) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::ApiErrorResponse>
-{
+) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::ApiErrorResponse> {
     let customer_id = customer_id
         .clone()
         .get_required_value("customer_id")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let card_data = match payment_method_data {
-        Some(pm_data) => match pm_data {
-            domain::PaymentMethodData::Card(card) => CardData {
+        Some(domain::PaymentMethodData::Card(card)) => CardData {
+            
                 card_number: card.card_number.clone(),
                 exp_month: card.card_exp_month.clone(),
                 exp_year: card.card_exp_year.clone(),
                 card_security_code: card.card_cvc.clone(),
             },
             _ => todo!(),
-        },
-        _ => todo!(),
-    };
+        };
 
     let payload = card_data
         .encode_to_string_of_json()
@@ -197,14 +191,9 @@ pub async fn make_card_network_tokenization_request(
 
     let key_id = tokenization_service.key_id.clone();
 
-    let jwt = encryption::encrypt_jwe(
-        payload_bytes,
-        enc_key,
-        "A128GCM",
-        Some(key_id.as_str()),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let jwt = encryption::encrypt_jwe(payload_bytes, enc_key, "A128GCM", Some(key_id.as_str()))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let amount_str = amount.map_or_else(String::new, |a| a.to_string());
     let currency_str = currency.map_or_else(String::new, |c| c.to_string());
     let order_data = OrderData {
@@ -373,25 +362,28 @@ pub async fn do_status_check_for_network_token(
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let token_data_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(payment_method::PaymentMethod),
-        domain::types::CryptoOperation::DecryptOptional(payment_method_info.token_payment_method_data.clone()),
-        identifier,
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(errors::StorageError::DecryptionError)
-    .attach_printable("unable to decrypt card details")
-    .ok()
-    .flatten()
-    .map(|x| x.into_inner().expose())
-    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-    .and_then(|pmd| match pmd {
-        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-        _ => None,
-    });
+    let token_data_decrypted =
+        domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+            &state.into(),
+            type_name!(payment_method::PaymentMethod),
+            domain::types::CryptoOperation::DecryptOptional(
+                payment_method_info.token_payment_method_data.clone(),
+            ),
+            identifier,
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(errors::StorageError::DecryptionError)
+        .attach_printable("unable to decrypt card details")
+        .ok()
+        .flatten()
+        .map(|x| x.into_inner().expose())
+        .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+        .and_then(|pmd| match pmd {
+            PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+            _ => None,
+        });
 
     is_token_active(token_data_decrypted)
 }
@@ -429,7 +421,7 @@ pub async fn delete_network_token_from_locker_and_token_service(
         token_locker_id.as_ref().unwrap_or(&payment_method_id),
     )
     .await?;
-    let delete_token_resp = delete_network_token_from_tokenization_service(
+    let _delete_token_resp = delete_network_token_from_tokenization_service(
         state,
         network_token_requestor_reference_id,
         customer_id,
@@ -486,7 +478,8 @@ pub async fn delete_network_token_from_tokenization_service(
             errors::ApiErrorResponse::InternalServerError
         })?;
 
-    if res == DeleteNTResponse::DeleteNetworkTokenResponse(DeleteNetworkTokenResponse {
+    if res
+        == DeleteNTResponse::DeleteNetworkTokenResponse(DeleteNetworkTokenResponse {
             status: DeleteNetworkTokenStatus::Success,
         })
     {
