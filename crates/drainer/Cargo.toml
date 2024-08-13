@@ -41,3 +41,6 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
+
+[lints]
+workspace = true
