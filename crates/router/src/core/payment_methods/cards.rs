@@ -4547,7 +4547,9 @@ pub async fn get_mca_status(
         let mut mca_ids = HashSet::new();
         let mcas = mcas
             .into_iter()
-            .filter(|mca| mca.disabled == Some(false) && profile_id.clone() == mca.profile_id)
+            .filter(|mca| {
+                mca.disabled == Some(false) && profile_id.clone() == Some(mca.profile_id.clone())
+            })
             .collect::<Vec<_>>();
 
         for mca in mcas {

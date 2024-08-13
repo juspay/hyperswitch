@@ -1335,7 +1335,7 @@ pub(super) trait GetProfileId {
 
 impl GetProfileId for MerchantConnectorAccount {
     fn get_profile_id(&self) -> Option<&String> {
-        self.profile_id.as_ref()
+        Some(&self.profile_id)
     }
 }
 

@@ -679,7 +679,7 @@ diesel::table! {
         connector_webhook_details -> Nullable<Jsonb>,
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
         #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
+        profile_id -> Varchar,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
@@ -687,6 +687,7 @@ diesel::table! {
         connector_wallets_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 

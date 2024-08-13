@@ -36,12 +36,13 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
-    pub profile_id: Option<String>,
+    pub profile_id: String,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
     pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -70,12 +71,13 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
-    pub profile_id: Option<String>,
+    pub profile_id: String,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
     pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -165,12 +167,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 created_at: self.created_at,
                 modified_at: self.modified_at,
                 connector_webhook_details: self.connector_webhook_details,
-                profile_id: self.profile_id,
+                profile_id: Some(self.profile_id),
                 applepay_verified_domains: self.applepay_verified_domains,
                 pm_auth_config: self.pm_auth_config,
                 status: self.status,
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+                version: self.version,
             },
         )
     }
@@ -212,7 +215,11 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: other.created_at,
             modified_at: other.modified_at,
             connector_webhook_details: other.connector_webhook_details,
-            profile_id: other.profile_id,
+            profile_id: other
+                .profile_id
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "proflie_id".to_string(),
+                })?,
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
             status: other.status,
@@ -251,6 +258,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             } else {
                 None
             },
+            version: other.version,
         })
     }
 
@@ -275,12 +283,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: now,
             modified_at: now,
             connector_webhook_details: self.connector_webhook_details,
-            profile_id: self.profile_id,
+            profile_id: Some(self.profile_id),
             applepay_verified_domains: self.applepay_verified_domains,
             pm_auth_config: self.pm_auth_config,
             status: self.status,
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+            version: self.version,
         })
     }
 }
@@ -313,6 +322,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 status: self.status,
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+                version: self.version,
             },
         )
     }
@@ -389,6 +399,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             } else {
                 None
             },
+            version: other.version,
         })
     }
 
@@ -414,6 +425,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: self.status,
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+            version: self.version,
         })
     }
 }
