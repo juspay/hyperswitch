@@ -31,6 +31,7 @@ mod dlocal;
 mod dummyconnector;
 mod ebanx;
 mod fiserv;
+mod fiservemea;
 mod forte;
 mod globalpay;
 mod globepay;
@@ -73,6 +74,7 @@ mod tsys;
 mod utils;
 mod volt;
 mod wellsfargo;
+// mod wellsfargopayout;
 #[cfg(feature = "payouts")]
 mod wise;
 mod worldline;

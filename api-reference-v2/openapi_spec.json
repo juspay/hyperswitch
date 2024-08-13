@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/connector_accounts": {
+    "/v2/connector_accounts": {
       "post": {
         "tags": [
           "Merchant Connector Account"
@@ -95,7 +95,7 @@
         ]
       }
     },
-    "/connector_accounts/{id}": {
+    "/v2/connector_accounts/{id}": {
       "get": {
         "tags": [
           "Merchant Connector Account"
@@ -240,6 +240,180 @@
           },
           "404": {
             "description": "Merchant Connector does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/accounts": {
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Create",
+        "description": "Merchant Account - Create\n\nCreate a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
+        "operationId": "Create a Merchant Account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountCreate"
+              },
+              "examples": {
+                "Create a merchant account with merchant details": {
+                  "value": {
+                    "merchant_details": {
+                      "primary_contact_person": "John Doe",
+                      "primary_email": "example@company.com"
+                    },
+                    "merchant_name": "Cloth Store",
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                },
+                "Create a merchant account with metadata": {
+                  "value": {
+                    "merchant_name": "Cloth Store",
+                    "metadata": {
+                      "key_1": "John Doe",
+                      "key_2": "Trends"
+                    },
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                },
+                "Create a merchant account with minimal fields": {
+                  "value": {
+                    "merchant_name": "Cloth Store",
+                    "organization_id": "org_abcdefghijklmnop"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/accounts/{id}": {
+      "get": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Retrieve",
+        "description": "Merchant Account - Retrieve\n\nRetrieve a *merchant* account details.",
+        "operationId": "Retrieve a Merchant Account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant Account Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Merchant Account - Update",
+        "description": "Merchant Account - Update\n\nUpdates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "operationId": "Update a Merchant Account",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "description": "The unique identifier for the merchant account",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountUpdate"
+              },
+              "examples": {
+                "Update Merchant Details": {
+                  "value": {
+                    "merchant_details": {
+                      "primary_contact_person": "John Doe",
+                      "primary_email": "example@company.com"
+                    }
+                  }
+                },
+                "Update merchant name": {
+                  "value": {
+                    "merchant_id": "merchant_abc",
+                    "merchant_name": "merchant_name"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant Account Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccountResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant account not found"
           }
         },
         "security": [
@@ -7003,6 +7177,7 @@
         "required": [
           "connector_type",
           "connector_name",
+          "profile_id",
           "merchant_id"
         ],
         "properties": {
@@ -7014,14 +7189,13 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`",
             "example": "stripe_US_travel",
             "nullable": true
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account"
           },
           "connector_account_details": {
             "allOf": [
@@ -7220,6 +7394,7 @@
           "connector_type",
           "connector_name",
           "id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -7243,7 +7418,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "payment_methods_enabled": {
@@ -7344,6 +7518,7 @@
           "connector_type",
           "connector_name",
           "id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -7367,7 +7542,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "connector_account_details": {
@@ -7492,7 +7666,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`",
             "example": "stripe_US_travel",
             "nullable": true
           },
@@ -13299,19 +13473,7 @@
         }
       },
       "PayoutActionRequest": {
-        "type": "object",
-        "required": [
-          "payout_id"
-        ],
-        "properties": {
-          "payout_id": {
-            "type": "string",
-            "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
-            "example": "payout_mbabizu24mvu3mela5njyhpit4",
-            "maxLength": 30,
-            "minLength": 30
-          }
-        }
+        "type": "object"
       },
       "PayoutAttemptResponse": {
         "type": "object",
@@ -13443,23 +13605,11 @@
       },
       "PayoutCreateRequest": {
         "type": "object",
-        "required": [
-          "currency",
-          "confirm",
-          "payout_type",
-          "auto_fulfill",
-          "client_secret",
-          "return_url",
-          "business_country",
-          "description",
-          "entity_type",
-          "priority"
-        ],
         "properties": {
           "payout_id": {
             "type": "string",
             "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts that have been done by a single merchant. This field is auto generated and is returned in the API response, **not required to be included in the Payout Create/Update Request.**",
-            "example": "payout_mbabizu24mvu3mela5njyhpit4",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
@@ -13475,10 +13625,17 @@
             "type": "integer",
             "format": "int64",
             "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 1000
+            "example": 1000,
+            "nullable": true,
+            "minimum": 0
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
           },
           "routing": {
             "allOf": [
@@ -13504,10 +13661,16 @@
             "type": "boolean",
             "description": "This field is used when merchant wants to confirm the payout, thus useful for the payout _Confirm_ request. Ideally merchants should _Create_ a payout, _Update_ it (if required), then _Confirm_ it.",
             "default": false,
-            "example": true
+            "example": true,
+            "nullable": true
           },
           "payout_type": {
-            "$ref": "#/components/schemas/PayoutType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutType"
+              }
+            ],
+            "nullable": true
           },
           "payout_method_data": {
             "allOf": [
@@ -13518,77 +13681,76 @@
             "nullable": true
           },
           "billing": {
-            "type": "object",
-            "description": "The billing address for the payout",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
             "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
           },
           "auto_fulfill": {
             "type": "boolean",
             "description": "Set to true to confirm the payout without review, no further action required",
             "default": false,
-            "example": true
+            "example": true,
+            "nullable": true
           },
-          "email": {
+          "customer_id": {
             "type": "string",
-            "description": "description: The customer's email address",
-            "example": "johntest@test.com",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use customer_id instead._",
+            "deprecated": true,
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 255
           },
-          "name": {
-            "type": "string",
-            "description": "description: The customer's name",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number",
-            "example": "9123456789",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number",
-            "example": "+1",
-            "nullable": true,
-            "maxLength": 255
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
           },
           "client_secret": {
             "type": "string",
             "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
+            "nullable": true
           },
           "return_url": {
             "type": "string",
             "description": "The URL to redirect after the completion of the operation",
-            "example": "https://hyperswitch.io"
+            "example": "https://hyperswitch.io",
+            "nullable": true
           },
           "business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "business_label": {
             "type": "string",
-            "description": "Business label of the merchant for this payout",
+            "description": "Business label of the merchant for this payout. _Deprecated: Use profile_id instead._",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
           "description": {
             "type": "string",
             "description": "A description of the payout",
-            "example": "It's my first payout request"
+            "example": "It's my first payout request",
+            "nullable": true
           },
           "entity_type": {
-            "$ref": "#/components/schemas/PayoutEntityType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutEntityType"
+              }
+            ],
+            "nullable": true
           },
           "recurring": {
             "type": "boolean",
@@ -13613,7 +13775,12 @@
             "nullable": true
           },
           "priority": {
-            "$ref": "#/components/schemas/PayoutSendPriority"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutSendPriority"
+              }
+            ],
+            "nullable": true
           },
           "payout_link": {
             "type": "boolean",
@@ -13637,6 +13804,38 @@
             "example": 900,
             "nullable": true,
             "minimum": 0
+          },
+          "email": {
+            "type": "string",
+            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "name": {
+            "type": "string",
+            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "John Test",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "+1",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -13648,23 +13847,21 @@
           "merchant_id",
           "amount",
           "currency",
-          "customer_id",
           "auto_fulfill",
+          "customer_id",
           "client_secret",
           "return_url",
           "business_country",
-          "description",
           "entity_type",
+          "recurring",
           "status",
-          "error_message",
-          "error_code",
           "profile_id"
         ],
         "properties": {
           "payout_id": {
             "type": "string",
             "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
-            "example": "payout_mbabizu24mvu3mela5njyhpit4",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "maxLength": 30,
             "minLength": 30
           },
@@ -13702,45 +13899,25 @@
             "description": "The billing address for the payout",
             "nullable": true
           },
-          "customer_id": {
-            "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
-          },
           "auto_fulfill": {
             "type": "boolean",
             "description": "Set to true to confirm the payout without review, no further action required",
             "default": false,
             "example": true
           },
-          "email": {
+          "customer_id": {
             "type": "string",
-            "description": "description: The customer's email address",
-            "example": "johntest@test.com",
-            "nullable": true,
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 255
           },
-          "name": {
-            "type": "string",
-            "description": "description: The customer's name",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone": {
-            "type": "string",
-            "description": "The customer's phone number",
-            "example": "9123456789",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "phone_country_code": {
-            "type": "string",
-            "description": "The country code for the customer phone number",
-            "example": "+1",
-            "nullable": true,
-            "maxLength": 255
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerDetailsResponse"
+              }
+            ],
+            "nullable": true
           },
           "client_secret": {
             "type": "string",
@@ -13764,7 +13941,8 @@
           "description": {
             "type": "string",
             "description": "A description of the payout",
-            "example": "It's my first payout request"
+            "example": "It's my first payout request",
+            "nullable": true
           },
           "entity_type": {
             "$ref": "#/components/schemas/PayoutEntityType"
@@ -13772,8 +13950,7 @@
           "recurring": {
             "type": "boolean",
             "description": "Specifies whether or not the payout request is recurring",
-            "default": false,
-            "nullable": true
+            "default": false
           },
           "metadata": {
             "type": "object",
@@ -13786,12 +13963,14 @@
           "error_message": {
             "type": "string",
             "description": "If there was an error while calling the connector the error message is received here",
-            "example": "Failed while verifying the card"
+            "example": "Failed while verifying the card",
+            "nullable": true
           },
           "error_code": {
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
-            "example": "E0001"
+            "example": "E0001",
+            "nullable": true
           },
           "profile_id": {
             "type": "string",
@@ -13833,6 +14012,38 @@
               }
             ],
             "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "name": {
+            "type": "string",
+            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "John Test",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "phone_country_code": {
+            "type": "string",
+            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "deprecated": true,
+            "example": "+1",
+            "nullable": true,
+            "maxLength": 255
           }
         },
         "additionalProperties": false
@@ -13950,7 +14161,7 @@
               "payout_id": {
                 "type": "string",
                 "description": "The identifier for payout",
-                "example": "payout_mbabizu24mvu3mela5njyhpit4",
+                "example": "187282ab-40ef-47a9-9206-5099ba31e432",
                 "nullable": true,
                 "maxLength": 30,
                 "minLength": 30
@@ -14142,7 +14353,7 @@
           "payout_id": {
             "type": "string",
             "description": "Unique identifier for the payout. This ensures idempotency for multiple payouts\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
-            "example": "payout_mbabizu24mvu3mela5njyhpit4",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "maxLength": 30,
             "minLength": 30
           },
