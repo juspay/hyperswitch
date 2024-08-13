@@ -74,6 +74,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_connector_account::connector_retrieve,
         routes::merchant_connector_account::connector_update,
         routes::merchant_connector_account::connector_delete,
+
+        // Routes for merchant account
+        routes::merchant_account::merchant_account_create,
+        routes::merchant_account::merchant_account_retrieve,
+        routes::merchant_account::merchant_account_update,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
