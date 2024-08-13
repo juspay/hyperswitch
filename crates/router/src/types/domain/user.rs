@@ -3,7 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::TokenPurpose;
+use common_enums::{EntityType, TokenPurpose};
 use common_utils::{
     crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
     types::keymanager::Identifier,
@@ -19,6 +19,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
 use router_env::env;
+use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
 #[cfg(feature = "keymanager_create")]
 use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
@@ -638,36 +639,62 @@ impl NewUser {
         created_user
     }
 
-    pub async fn insert_user_role_in_db(
+    fn get_no_level_user_role(
+        self,
+        role_id: String,
+        user_status: UserStatus,
+    ) -> NewUserRole<NoLevel> {
+        let now = common_utils::date_time::now();
+        let user_id = self.get_user_id();
+
+        NewUserRole {
+            status: user_status,
+            created_by: user_id.clone(),
+            last_modified_by: user_id.clone(),
+            user_id,
+            role_id,
+            created_at: now,
+            last_modified: now,
+            entity: NoLevel,
+        }
+    }
+
+    pub async fn insert_org_level_user_role_in_db(
         self,
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
     ) -> UserResult<UserRole> {
-        let now = common_utils::date_time::now();
-        let user_id = self.get_user_id();
+        let org_id = self
+            .get_new_merchant()
+            .get_new_organization()
+            .get_organization_id();
+        let merchant_id = self.get_new_merchant().get_merchant_id();
 
-        state
-            .store
-            .insert_user_role(UserRoleNew {
-                merchant_id: Some(self.get_new_merchant().get_merchant_id()),
-                status: user_status,
-                created_by: user_id.clone(),
-                last_modified_by: user_id.clone(),
-                user_id,
-                role_id,
-                created_at: now,
-                last_modified: now,
-                org_id: Some(
-                    self.get_new_merchant()
-                        .get_new_organization()
-                        .get_organization_id(),
-                ),
-                profile_id: None,
-                entity_id: None,
-                entity_type: None,
-                version: UserRoleVersion::V1,
+        self.get_no_level_user_role(role_id, user_status)
+            .add_entity(OrganizationLevel {
+                org_id,
+                merchant_id,
             })
+            .insert_in_v1_and_v2(&state)
+            .await
+            .change_context(UserErrors::InternalServerError)
+    }
+
+    pub async fn insert_internal_user_role_in_db(
+        self,
+        state: SessionState,
+        role_id: String,
+        user_status: UserStatus,
+    ) -> UserResult<UserRole> {
+        let org_id = self
+            .get_new_merchant()
+            .get_new_organization()
+            .get_organization_id();
+
+        self.get_no_level_user_role(role_id, user_status)
+            .add_entity(InternalLevel { org_id })
+            .insert_in_v1_and_v2(&state)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -1276,5 +1303,216 @@ impl RecoveryCodes {
 
     pub fn into_inner(self) -> Vec<Secret<String>> {
         self.0
+    }
+}
+
+// This is for easier construction
+#[derive(Clone)]
+pub struct NoLevel;
+
+#[derive(Clone)]
+pub struct OrganizationLevel {
+    org_id: id_type::OrganizationId,
+    // Keeping this to allow insertion of org_admins in V1
+    merchant_id: id_type::MerchantId,
+}
+
+#[derive(Clone)]
+pub struct MerchantLevel {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+}
+
+#[derive(Clone)]
+pub struct ProfileLevel {
+    org_id: id_type::OrganizationId,
+    merchant_id: id_type::MerchantId,
+    profile_id: String,
+}
+
+#[derive(Clone)]
+pub struct InternalLevel {
+    org_id: id_type::OrganizationId,
+}
+
+#[derive(Clone)]
+pub struct NewUserRole<E: Clone> {
+    pub user_id: String,
+    pub role_id: String,
+    pub status: UserStatus,
+    pub created_by: String,
+    pub last_modified_by: String,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified: PrimitiveDateTime,
+    pub entity: E,
+}
+
+impl NewUserRole<NoLevel> {
+    pub fn add_entity<T>(self, entity: T) -> NewUserRole<T>
+    where
+        T: Clone,
+    {
+        NewUserRole {
+            entity,
+            user_id: self.user_id,
+            role_id: self.role_id,
+            status: self.status,
+            created_by: self.created_by,
+            last_modified_by: self.last_modified_by,
+            created_at: self.created_at,
+            last_modified: self.last_modified,
+        }
+    }
+}
+
+impl<E> NewUserRole<E>
+where
+    E: Clone,
+{
+    fn to_v1(
+        self,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+    ) -> UserRoleNew {
+        UserRoleNew {
+            user_id: self.user_id,
+            role_id: self.role_id,
+            status: self.status,
+            created_by: self.created_by,
+            last_modified_by: self.last_modified_by,
+            created_at: self.created_at,
+            last_modified: self.last_modified,
+            org_id: Some(org_id),
+            merchant_id: Some(merchant_id),
+            profile_id: None,
+            entity_id: None,
+            entity_type: None,
+            version: UserRoleVersion::V1,
+        }
+    }
+
+    fn to_v2(self, entity: EntityInfo) -> UserRoleNew {
+        UserRoleNew {
+            user_id: self.user_id,
+            role_id: self.role_id,
+            status: self.status,
+            created_by: self.created_by,
+            last_modified_by: self.last_modified_by,
+            created_at: self.created_at,
+            last_modified: self.last_modified,
+            org_id: Some(entity.org_id),
+            merchant_id: entity.merchant_id,
+            profile_id: entity.profile_id,
+            entity_id: Some(entity.entity_id),
+            entity_type: Some(entity.entity_type),
+            version: UserRoleVersion::V2,
+        }
+    }
+}
+
+pub struct EntityInfo {
+    org_id: id_type::OrganizationId,
+    merchant_id: Option<id_type::MerchantId>,
+    profile_id: Option<String>,
+    entity_id: String,
+    entity_type: EntityType,
+}
+
+impl NewUserRole<OrganizationLevel> {
+    pub async fn insert_in_v1_and_v2(
+        self,
+        state: &SessionState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        let entity = self.entity.clone();
+
+        let new_v1_role = self
+            .clone()
+            .to_v1(entity.org_id.clone(), entity.merchant_id.clone());
+        let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
+
+        let new_v2_role = self.to_v2(EntityInfo {
+            org_id: entity.org_id.clone(),
+            merchant_id: None,
+            profile_id: None,
+            entity_id: entity.org_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Organization,
+        });
+        state.store.insert_user_role(new_v2_role).await?;
+
+        // Returning v1 role so that merchant_id will be present in the role
+        Ok(db_v1_role)
+    }
+}
+
+impl NewUserRole<MerchantLevel> {
+    pub async fn insert_in_v1_and_v2(
+        self,
+        state: &SessionState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        let entity = self.entity.clone();
+
+        let new_v1_role = self
+            .clone()
+            .to_v1(entity.org_id.clone(), entity.merchant_id.clone());
+        let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
+
+        let new_v2_role = self.clone().to_v2(EntityInfo {
+            org_id: entity.org_id.clone(),
+            merchant_id: Some(entity.merchant_id.clone()),
+            profile_id: None,
+            entity_id: entity.merchant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Merchant,
+        });
+        state.store.insert_user_role(new_v2_role).await?;
+
+        // Returning v1 role so other code which was not migrated doesn't break
+        Ok(db_v1_role)
+    }
+}
+
+impl NewUserRole<InternalLevel> {
+    pub async fn insert_in_v1_and_v2(
+        self,
+        state: &SessionState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        let entity = self.entity.clone();
+        let internal_merchant_id = id_type::MerchantId::get_internal_user_merchant_id(
+            consts::user_role::INTERNAL_USER_MERCHANT_ID,
+        );
+
+        let new_v1_role = self
+            .clone()
+            .to_v1(entity.org_id.clone(), internal_merchant_id.clone());
+        let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
+
+        let new_v2_role = self.to_v2(EntityInfo {
+            org_id: entity.org_id.clone(),
+            merchant_id: Some(internal_merchant_id.clone()),
+            profile_id: None,
+            entity_id: internal_merchant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Internal,
+        });
+        state.store.insert_user_role(new_v2_role).await?;
+
+        // Returning v1 role so other code which was not migrated doesn't break
+        Ok(db_v1_role)
+    }
+}
+
+impl NewUserRole<ProfileLevel> {
+    pub async fn insert_in_v2(
+        self,
+        state: &SessionState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        let entity = self.entity.clone();
+
+        let new_v2_role = self.to_v2(EntityInfo {
+            org_id: entity.org_id.clone(),
+            merchant_id: Some(entity.merchant_id.clone()),
+            profile_id: Some(entity.profile_id.clone()),
+            entity_id: entity.profile_id,
+            entity_type: EntityType::Profile,
+        });
+        state.store.insert_user_role(new_v2_role).await
     }
 }
