@@ -245,6 +245,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Trustpay,
     // Tsys,
     Tsys,

@@ -248,7 +248,7 @@ pub struct BusinessProfile {
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
-    // pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -285,7 +285,7 @@ pub struct BusinessProfileNew {
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
-    // pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -319,7 +319,7 @@ pub struct BusinessProfileUpdateInternal {
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
-    // pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -352,7 +352,7 @@ impl BusinessProfileUpdateInternal {
             order_fulfillment_time_origin,
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
-            // default_fallback_routing,
+            default_fallback_routing,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -400,7 +400,7 @@ impl BusinessProfileUpdateInternal {
             frm_routing_algorithm_id: frm_routing_algorithm_id.or(source.frm_routing_algorithm_id),
             payout_routing_algorithm_id: payout_routing_algorithm_id
                 .or(source.payout_routing_algorithm_id),
-            // default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
+            default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
         }
     }
 }
@@ -443,7 +443,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             order_fulfillment_time_origin: new.order_fulfillment_time_origin,
             frm_routing_algorithm_id: new.frm_routing_algorithm_id,
             payout_routing_algorithm_id: new.payout_routing_algorithm_id,
-            // default_fallback_routing: new.default_fallback_routing,
+            default_fallback_routing: new.default_fallback_routing,
         }
     }
 }

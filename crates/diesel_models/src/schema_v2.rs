@@ -209,6 +209,7 @@ diesel::table! {
         frm_routing_algorithm_id -> Nullable<Varchar>,
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
+        default_fallback_routing -> Nullable<Jsonb>,
     }
 }
 

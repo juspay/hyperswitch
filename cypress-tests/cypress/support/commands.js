@@ -1250,7 +1250,7 @@ Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, req_data, res_data, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    if (req_data.setup_future_usage === "on_session"){
+    if (req_data.setup_future_usage === "on_session") {
       saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
