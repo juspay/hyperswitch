@@ -8,15 +8,14 @@ use crate::utils::{self, ConnectorActions};
 struct TaxjarTest;
 impl ConnectorActions for TaxjarTest {}
 impl utils::Connector for TaxjarTest {
-    fn get_data(&self) -> types::api::ConnectorData {
+    fn get_data(&self) -> api::ConnectorData {
         use router::connector::Taxjar;
-        types::api::ConnectorData {
-            connector: Box::new(&Taxjar),
-            connector_name: types::Connector::Adyen,
-            // Added as Dummy connector as template code is added for future usage
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        utils::construct_connector_data_old(
+            Box::new(Taxjar::new()),
+            types::Connector::Adyen,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -303,7 +302,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::domain::PaymentMethodData::Card(domain::Card {
+                payment_method_data: domain::PaymentMethodData::Card(domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
