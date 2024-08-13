@@ -2708,8 +2708,8 @@ pub async fn construct_profile_id_and_get_mca(
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let key_manager_state: &common_utils::types::keymanager::KeyManagerState = &state.into();
     let profile_id = core_utils::get_profile_id_from_business_details(
-        &key_manager_state,
-        &key_store,
+        key_manager_state,
+        key_store,
         payout_data.payout_attempt.business_country,
         payout_data.payout_attempt.business_label.as_ref(),
         merchant_account,
