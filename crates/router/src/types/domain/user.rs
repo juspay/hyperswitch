@@ -1355,7 +1355,7 @@ impl<E> NewUserRole<E>
 where
     E: Clone,
 {
-    fn to_v1(
+    fn convert_to_new_v1_role(
         self,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
@@ -1377,7 +1377,7 @@ where
         }
     }
 
-    fn to_v2(self, entity: EntityInfo) -> UserRoleNew {
+    fn convert_to_new_v2_role(self, entity: EntityInfo) -> UserRoleNew {
         UserRoleNew {
             user_id: self.user_id,
             role_id: self.role_id,
@@ -1413,10 +1413,10 @@ impl NewUserRole<OrganizationLevel> {
 
         let new_v1_role = self
             .clone()
-            .to_v1(entity.org_id.clone(), entity.merchant_id.clone());
+            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
         let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
 
-        let new_v2_role = self.to_v2(EntityInfo {
+        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
             org_id: entity.org_id.clone(),
             merchant_id: None,
             profile_id: None,
@@ -1439,10 +1439,10 @@ impl NewUserRole<MerchantLevel> {
 
         let new_v1_role = self
             .clone()
-            .to_v1(entity.org_id.clone(), entity.merchant_id.clone());
+            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
         let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
 
-        let new_v2_role = self.clone().to_v2(EntityInfo {
+        let new_v2_role = self.clone().convert_to_new_v2_role(EntityInfo {
             org_id: entity.org_id.clone(),
             merchant_id: Some(entity.merchant_id.clone()),
             profile_id: None,
@@ -1468,10 +1468,10 @@ impl NewUserRole<InternalLevel> {
 
         let new_v1_role = self
             .clone()
-            .to_v1(entity.org_id.clone(), internal_merchant_id.clone());
+            .convert_to_new_v1_role(entity.org_id.clone(), internal_merchant_id.clone());
         let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
 
-        let new_v2_role = self.to_v2(EntityInfo {
+        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
             org_id: entity.org_id.clone(),
             merchant_id: Some(internal_merchant_id.clone()),
             profile_id: None,
@@ -1492,7 +1492,7 @@ impl NewUserRole<ProfileLevel> {
     ) -> CustomResult<UserRole, errors::StorageError> {
         let entity = self.entity.clone();
 
-        let new_v2_role = self.to_v2(EntityInfo {
+        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
             org_id: entity.org_id.clone(),
             merchant_id: Some(entity.merchant_id.clone()),
             profile_id: Some(entity.profile_id.clone()),
