@@ -46,6 +46,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    // Fiservemea,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -130,6 +131,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Threedsecureio,
     Trustpay,
     Tsys,
@@ -207,6 +209,8 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Taxjar
+			// | Self::Fiservemea
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex

@@ -399,9 +399,8 @@ where
                     })
                     .filter_map(|parsed_payment_method_result| {
                         parsed_payment_method_result
-                            .map_err(|err| {
+                            .inspect_err(|err| {
                                 logger::error!(session_token_parsing_error=?err);
-                                err
                             })
                             .ok()
                     })
@@ -447,9 +446,8 @@ where
                 connector_type,
                 Some(merchant_connector_account.get_id()),
             )
-            .map_err(|err| {
+            .inspect_err(|err| {
                 logger::error!(session_token_error=?err);
-                err
             }) {
                 #[cfg(all(
                     any(feature = "v1", feature = "v2"),

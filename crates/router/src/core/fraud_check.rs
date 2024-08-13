@@ -183,10 +183,26 @@ pub async fn should_call_frm<F: Send + Clone>(
                     &key_store,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.get_id().get_string_repr().to_owned(),
+                .map_err(|error| {
+                    logger::error!(
+                        "{:?}",
+                        error.change_context(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_account.get_id().get_string_repr().to_owned(),
+                            }
+                        )
+                    )
                 })
                 .ok();
+            let enabled_merchant_connector_account_from_db_option =
+                merchant_connector_account_from_db_option.and_then(|mca| {
+                    if mca.disabled.unwrap_or(false) {
+                        logger::info!("No eligible connector found for FRM");
+                        None
+                    } else {
+                        Some(mca)
+                    }
+                });
 
             #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
             let merchant_connector_account_from_db_option: Option<
@@ -198,7 +214,7 @@ pub async fn should_call_frm<F: Send + Clone>(
                 todo!()
             };
 
-            match merchant_connector_account_from_db_option {
+            match enabled_merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
                     let frm_configs_option = merchant_connector_account_from_db
                         .frm_configs
