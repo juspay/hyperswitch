@@ -131,6 +131,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Threedsecureio,
     Trustpay,
     Tsys,
@@ -208,6 +209,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Taxjar
 			// | Self::Fiservemea
             | Self::Adyen
             | Self::Adyenplatform

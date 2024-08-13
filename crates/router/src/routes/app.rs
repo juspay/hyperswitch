@@ -1473,21 +1473,8 @@ impl BusinessProfile {
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("/fallback_routing")
-                            .route(web::get().to(|state, req| {
-                                routing::routing_retrieve_default_config(
-                                    state,
-                                    req,
-                                    &TransactionType::Payment,
-                                )
-                            }))
-                            .route(web::post().to(|state, req, payload| {
-                                routing::routing_update_default_config(
-                                    state,
-                                    req,
-                                    payload,
-                                    &TransactionType::Payment,
-                                )
-                            })),
+                            .route(web::get().to(routing::routing_retrieve_default_config))
+                            .route(web::post().to(routing::routing_update_default_config)),
                     )
                     .service(
                         web::resource("/activate_routing_algorithm").route(web::patch().to(

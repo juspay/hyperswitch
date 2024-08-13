@@ -308,7 +308,7 @@ impl ConnectorData {
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
-                enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(&connector::Aci))),
+                enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
@@ -446,6 +446,7 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
+                // enums::Connector::Taxjar => Ok(ConnectorEnum::Old(Box::new(connector::Taxjar))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
