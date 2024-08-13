@@ -2,7 +2,9 @@
 use api_models::enums::PayoutConnectors;
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::{errors::ReportSwitchExt, ext_traits::Encode};
+#[cfg(feature = "payouts")]
+use common_utils::errors::ReportSwitchExt;
+use common_utils::ext_traits::Encode;
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
