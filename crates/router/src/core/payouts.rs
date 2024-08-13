@@ -2396,6 +2396,18 @@ pub async fn payout_create_db_entries(
     })
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn make_payout_data(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _auth_profile_id: Option<String>,
+    _key_store: &domain::MerchantKeyStore,
+    _req: &payouts::PayoutRequest,
+) -> RouterResult<PayoutData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn make_payout_data(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -2446,33 +2458,9 @@ pub async fn make_payout_data(
     )
     .await?;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer_details = customer_id
         .async_map(|customer_id| async move {
             db.find_customer_optional_by_customer_id_merchant_id(
-                &state.into(),
-                customer_id,
-                merchant_id,
-                key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
-            .attach_printable_lazy(|| {
-                format!(
-                    "Failed while fetching optional customer [id - {:?}] for payout [id - {}]",
-                    customer_id, payout_id
-                )
-            })
-        })
-        .await
-        .transpose()?
-        .and_then(|c| c);
-
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    let customer_details = customer_id
-        .async_map(|customer_id| async move {
-            db.find_optional_by_merchant_id_merchant_reference_id(
                 &state.into(),
                 customer_id,
                 merchant_id,
