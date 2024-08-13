@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use std::str::FromStr;
 
 use api_models::payments::Address;

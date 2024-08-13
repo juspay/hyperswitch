@@ -1,5 +1,4 @@
 //! Utility macros for the `router` crate.
-#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 use syn::parse_macro_input;
@@ -292,7 +291,7 @@ fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
 /// # The Generated `Serialize` Implementation
 ///
 /// - For a simple enum variant with no fields, the generated [`Serialize`][Serialize]
-/// implementation has only three fields, `type`, `code` and `message`:
+///   implementation has only three fields, `type`, `code` and `message`:
 ///
 /// ```
 /// # use router_derive::ApiError;
@@ -322,8 +321,8 @@ fn check_if_auth_based_attr_is_present(f: &syn::Field, ident: &str) -> bool {
 /// ```
 ///
 /// - For an enum variant with named fields, the generated [`Serialize`][Serialize] implementation
-/// includes three mandatory fields, `type`, `code` and `message`, and any other fields not
-/// included in the message:
+///   includes three mandatory fields, `type`, `code` and `message`, and any other fields not
+///   included in the message:
 ///
 /// ```
 /// # use router_derive::ApiError;

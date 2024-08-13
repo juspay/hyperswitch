@@ -690,7 +690,7 @@ mod amount_conversion_tests {
     Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-/// Charge object for refunds
+/// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
 pub struct ChargeRefunds {
     /// Identifier for charge created for the payment
     pub charge_id: String,
@@ -705,3 +705,62 @@ pub struct ChargeRefunds {
 }
 
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
+
+/// Domain type for description
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct Description(String);
+
+impl Description {
+    /// Create a new Description Domain type
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Description> for String {
+    fn from(description: Description) -> Self {
+        description.0
+    }
+}
+
+impl From<String> for Description {
+    fn from(description: String) -> Self {
+        Self(description)
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}

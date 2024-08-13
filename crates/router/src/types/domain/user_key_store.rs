@@ -1,15 +1,14 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256},
-    date_time,
+    crypto::Encryptable,
+    date_time, type_name,
+    types::keymanager::{Identifier, KeyManagerState},
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
-use crate::{
-    errors::{CustomResult, ValidationError},
-    types::domain::types::TypeEncryption,
-};
+use crate::errors::{CustomResult, ValidationError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct UserKeyStore {
@@ -32,18 +31,28 @@ impl super::behaviour::Conversion for UserKeyStore {
     }
 
     async fn convert_back(
+        state: &KeyManagerState,
         item: Self::DstType,
         key: &Secret<Vec<u8>>,
+        _key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
+        let identifier = Identifier::User(item.user_id.clone());
         Ok(Self {
-            key: Encryptable::decrypt(item.key, key.peek(), GcmAes256)
-                .await
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
+            key: crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                CryptoOperation::Decrypt(item.key),
+                identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_operation())
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?,
             user_id: item.user_id,
             created_at: item.created_at,
         })

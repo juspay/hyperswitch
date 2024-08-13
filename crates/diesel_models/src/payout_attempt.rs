@@ -1,4 +1,3 @@
-use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -12,9 +11,9 @@ use crate::{enums as storage_enums, schema::payout_attempt};
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -48,9 +47,9 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -84,6 +83,8 @@ pub enum PayoutAttemptUpdate {
     BusinessUpdate {
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
+        address_id: Option<String>,
+        customer_id: Option<common_utils::id_type::CustomerId>,
     },
     UpdateRouting {
         connector: String,
@@ -105,6 +106,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub connector: Option<String>,
     pub routing_info: Option<serde_json::Value>,
     pub last_modified_at: PrimitiveDateTime,
+    pub address_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -121,6 +124,8 @@ impl Default for PayoutAttemptUpdateInternal {
             connector: None,
             routing_info: None,
             last_modified_at: common_utils::date_time::now(),
+            address_id: None,
+            customer_id: None,
         }
     }
 }
@@ -149,9 +154,13 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
             PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             } => Self {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::UpdateRouting {
@@ -180,6 +189,8 @@ impl PayoutAttemptUpdate {
             connector,
             routing_info,
             last_modified_at,
+            address_id,
+            customer_id,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -193,6 +204,8 @@ impl PayoutAttemptUpdate {
             connector: connector.or(source.connector),
             routing_info: routing_info.or(source.routing_info),
             last_modified_at,
+            address_id: address_id.or(source.address_id),
+            customer_id: customer_id.or(source.customer_id),
             ..source
         }
     }

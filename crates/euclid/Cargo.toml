@@ -7,9 +7,6 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-erased-serde = "0.4.4"
-frunk = "0.4.2"
-frunk_core = "0.4.2"
 nom = { version = "7.1.3", features = ["alloc"], optional = true }
 once_cell = "1.19.0"
 rustc-hash = "1.1.0"
@@ -21,15 +18,14 @@ utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order
 
 # First party dependencies
 common_enums = { version = "0.1.0", path = "../common_enums" }
-hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = ["viz"] }
+common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid_macros = { version = "0.1.0", path = "../euclid_macros" }
-common_utils = { version = "0.1.0", path = "../common_utils"}
+hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = ["viz"] }
 
 [features]
 default = []
 ast_parser = ["dep:nom"]
 valued_jit = []
-connector_choice_mca_id = []
 dummy_connector = []
 payouts = []
 
@@ -40,3 +36,6 @@ criterion = "0.5"
 name = "backends"
 harness = false
 required-features = ["ast_parser", "valued_jit"]
+
+[lints]
+workspace = true

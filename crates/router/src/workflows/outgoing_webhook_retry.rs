@@ -43,14 +43,20 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .parse_value("OutgoingWebhookTrackingData")?;
 
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
         let business_profile = db
-            .find_business_profile_by_profile_id(&tracking_data.business_profile_id)
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                &key_store,
+                &tracking_data.business_profile_id,
+            )
             .await?;
 
         let event_id = webhooks_core::utils::generate_event_id();
@@ -63,6 +69,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let initial_event = match &tracking_data.initial_attempt_id {
             Some(initial_attempt_id) => {
                 db.find_event_by_merchant_id_event_id(
+                    key_manager_state,
                     &business_profile.merchant_id,
                     initial_attempt_id,
                     &key_store,
@@ -77,6 +84,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     tracking_data.primary_object_id, tracking_data.event_type
                 );
                 db.find_event_by_merchant_id_event_id(
+                    key_manager_state,
                     &business_profile.merchant_id,
                     &old_event_id,
                     &key_store,
@@ -106,11 +114,10 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         };
 
         let event = db
-            .insert_event(new_event, &key_store)
+            .insert_event(key_manager_state, new_event, &key_store)
             .await
-            .map_err(|error| {
+            .inspect_err(|error| {
                 logger::error!(?error, "Failed to insert event in events table");
-                error
             })?;
 
         match &event.request {
@@ -137,7 +144,11 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             // resource
             None => {
                 let merchant_account = db
-                    .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+                    .find_merchant_account_by_merchant_id(
+                        key_manager_state,
+                        &tracking_data.merchant_id,
+                        &key_store,
+                    )
                     .await?;
 
                 // TODO: Add request state for the PT flows as well
@@ -165,9 +176,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                             &merchant_account,
                             outgoing_webhook,
                             &business_profile,
-                            &key_store,
                         )
-                        .await
                         .map_err(|error| {
                             logger::error!(
                                 ?error,
@@ -254,7 +263,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let key = "pt_mapping_outgoing_webhooks";
@@ -299,7 +308,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     process: storage::ProcessTracker,
 ) -> errors::CustomResult<(), errors::StorageError> {
     let schedule_time =
@@ -362,6 +371,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     state,
                     req_state,
                     merchant_account,
+                    None,
                     key_store,
                     PaymentStatus,
                     request,
@@ -408,6 +418,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let refund = Box::pin(refund_retrieve_core(
                 state,
                 merchant_account,
+                None,
                 key_store,
                 request,
             ))
@@ -427,7 +438,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let request = DisputeId { dispute_id };
 
             let dispute_response =
-                match retrieve_dispute(state, merchant_account, request).await? {
+                match retrieve_dispute(state, merchant_account, None, request).await? {
                     ApplicationResponse::Json(dispute_response)
                     | ApplicationResponse::JsonWithHeaders((dispute_response, _)) => {
                         Ok(dispute_response)
@@ -493,7 +504,8 @@ async fn get_outgoing_webhook_content_and_event_type(
             );
 
             let payout_data =
-                payouts::make_payout_data(&state, &merchant_account, &key_store, &request).await?;
+                payouts::make_payout_data(&state, &merchant_account, None, &key_store, &request)
+                    .await?;
 
             let router_response =
                 payouts::response_handler(&merchant_account, &payout_data).await?;

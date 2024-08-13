@@ -1,4 +1,3 @@
-#![recursion_limit = "256"]
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use actix_web::{dev::Server, web, Scope};
@@ -38,7 +37,11 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let api_client = Box::new(
         services::ProxyClient::new(
             conf.proxy.clone(),
-            services::proxy_bypass_urls(&conf.locker, &conf.proxy.bypass_proxy_urls),
+            services::proxy_bypass_urls(
+                conf.key_manager.get_inner(),
+                &conf.locker,
+                &conf.proxy.bypass_proxy_urls,
+            ),
         )
         .change_context(ProcessTrackerError::ConfigurationError)?,
     );
@@ -63,11 +66,14 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let scheduler_flow = scheduler::SchedulerFlow::from_str(&scheduler_flow_str)
         .expect("Unable to parse SchedulerFlow from environment variable");
 
+    #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
-    println!(
-        "Starting {scheduler_flow} (Version: {})",
-        router_env::git_tag!()
-    );
+    {
+        println!(
+            "Starting {scheduler_flow} (Version: {})",
+            router_env::git_tag!()
+        );
+    }
 
     let _guard = router_env::setup(
         &state.conf.log,
@@ -95,7 +101,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
 
     start_scheduler(&state, scheduler_flow, (tx, rx)).await?;
 
-    eprintln!("Scheduler shut down");
+    logger::error!("Scheduler shut down");
     Ok(())
 }
 

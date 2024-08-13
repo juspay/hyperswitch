@@ -61,6 +61,12 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// Organization create flow
+    OrganizationCreate,
+    /// Organization retrieve flow
+    OrganizationRetrieve,
+    /// Organization update flow
+    OrganizationUpdate,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
@@ -284,6 +290,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// payment Link Initiate flow
+    PaymentSecureLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
     /// Payment Link Status

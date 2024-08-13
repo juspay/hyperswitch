@@ -1,9 +1,11 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    impl_misc_api_event_type,
+    impl_api_event_type,
 };
+
+use super::payment_method_data::PaymentMethodData;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
@@ -28,12 +30,12 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     }
 }
 
-impl_misc_api_event_type!(PaymentLinkFormData, GenericLinkFormData);
+impl_api_event_type!(Miscellaneous, (PaymentLinkFormData, GenericLinkFormData));
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RedirectionFormData {
     pub redirect_form: crate::router_response_types::RedirectForm,
-    pub payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodData>,
     pub amount: String,
     pub currency: String,
 }
@@ -59,25 +61,34 @@ pub struct PaymentLinkStatusData {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum GenericLinks {
+pub struct GenericLinks {
+    pub allowed_domains: HashSet<String>,
+    pub data: GenericLinksData,
+    pub locale: String,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum GenericLinksData {
     ExpiredLink(GenericExpiredLinkData),
     PaymentMethodCollect(GenericLinkFormData),
     PayoutLink(GenericLinkFormData),
     PayoutLinkStatus(GenericLinkStatusData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
+    SecurePaymentLink(PaymentLinkFormData),
 }
 
-impl Display for GenericLinks {
+impl Display for GenericLinksData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}",
-            match self {
+            match *self {
                 Self::ExpiredLink(_) => "ExpiredLink",
                 Self::PaymentMethodCollect(_) => "PaymentMethodCollect",
                 Self::PayoutLink(_) => "PayoutLink",
                 Self::PayoutLinkStatus(_) => "PayoutLinkStatus",
                 Self::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+                Self::SecurePaymentLink(_) => "SecurePaymentLink",
             }
         )
     }

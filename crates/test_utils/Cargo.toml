@@ -13,8 +13,8 @@ dummy_connector = []
 payouts = []
 
 [dependencies]
-async-trait = "0.1.79"
 anyhow = "1.0.81"
+async-trait = "0.1.79"
 base64 = "0.22.0"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
 rand = "0.8.5"
@@ -31,3 +31,6 @@ toml = "0.8.12"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
+
+[lints]
+workspace = true

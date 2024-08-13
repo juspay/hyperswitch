@@ -1,4 +1,7 @@
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use actix_web::Responder;
+use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
@@ -23,7 +26,7 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -32,6 +35,7 @@ pub async fn customers_create(
     .await
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
@@ -39,9 +43,10 @@ pub async fn customers_retrieve(
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
-    let payload = web::Json(customers::CustomerId {
-        customer_id: path.into_inner(),
-    })
+
+    let payload = web::Json(customers::CustomerId::new_customer_id_struct(
+        path.into_inner(),
+    ))
     .into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
@@ -58,13 +63,22 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            retrieve_customer(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::CustomersList;
@@ -75,10 +89,15 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
         &req,
         (),
         |state, auth, _, _| {
-            list_customers(state, auth.merchant_account.merchant_id, auth.key_store)
+            list_customers(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                None,
+                auth.key_store,
+            )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerRead),
             req.headers(),
         ),
@@ -87,6 +106,7 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
     .await
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
     state: web::Data<AppState>,
@@ -104,7 +124,7 @@ pub async fn customers_update(
         json_payload.into_inner(),
         |state, auth, req, _| update_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -113,6 +133,7 @@ pub async fn customers_update(
     .await
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
     state: web::Data<AppState>,
@@ -132,7 +153,7 @@ pub async fn customers_delete(
         payload,
         |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -140,6 +161,8 @@ pub async fn customers_delete(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
 pub async fn get_customer_mandates(
     state: web::Data<AppState>,
@@ -165,7 +188,7 @@ pub async fn get_customer_mandates(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MandateRead),
             req.headers(),
         ),

@@ -1,6 +1,7 @@
 use common_utils::{
     id_type,
     pii::{Email, SecretSerdeValue},
+    types::MinorUnit,
 };
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -13,15 +14,13 @@ use crate::{
 };
 
 pub struct BillwerkRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for BillwerkRouterData<T> {
+impl<T> TryFrom<(MinorUnit, T)> for BillwerkRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -104,7 +103,8 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | domain::payments::PaymentMethodData::Voucher(_)
             | domain::payments::PaymentMethodData::GiftCard(_)
             | domain::payments::PaymentMethodData::OpenBanking(_)
-            | domain::payments::PaymentMethodData::CardToken(_) => {
+            | domain::payments::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
                 )
@@ -163,7 +163,7 @@ pub struct BillwerkCustomerObject {
 #[derive(Debug, Serialize)]
 pub struct BillwerkPaymentsRequest {
     handle: String,
-    amount: i64,
+    amount: MinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
@@ -293,7 +293,7 @@ impl<F, T>
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCaptureRequest {
-    amount: i64,
+    amount: MinorUnit,
 }
 
 impl TryFrom<&BillwerkRouterData<&types::PaymentsCaptureRouterData>> for BillwerkCaptureRequest {
@@ -311,7 +311,7 @@ impl TryFrom<&BillwerkRouterData<&types::PaymentsCaptureRouterData>> for Billwer
 #[derive(Debug, Serialize)]
 pub struct BillwerkRefundRequest {
     pub invoice: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub text: Option<String>,
 }
 

@@ -11,7 +11,7 @@ impl utils::Connector for BokuTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Boku;
         utils::construct_connector_data_old(
-            Box::new(&Boku),
+            Box::new(Boku::new()),
             types::Connector::Boku,
             types::api::GetToken::Connector,
             None,

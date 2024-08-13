@@ -1,7 +1,10 @@
 pub mod transformers;
-use std::fmt::Debug;
 
-use common_utils::{ext_traits::XmlExt, request::RequestContent};
+use common_utils::{
+    ext_traits::XmlExt,
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret, WithType};
@@ -32,8 +35,18 @@ use crate::{
     utils::{BytesExt, OptionExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Boku;
+#[derive(Clone)]
+pub struct Boku {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Boku {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Boku {}
 impl api::PaymentSession for Boku {}
@@ -231,7 +244,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = boku::BokuPaymentsRequest::try_from(req)?;
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = boku::BokuRouterData::from((amount, req));
+        let connector_req = boku::BokuPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 
@@ -489,7 +509,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = boku::BokuRefundRequest::try_from(req)?;
+        let refund_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = boku::BokuRouterData::from((refund_amount, req));
+        let connector_req = boku::BokuRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Xml(Box::new(connector_req)))
     }
 

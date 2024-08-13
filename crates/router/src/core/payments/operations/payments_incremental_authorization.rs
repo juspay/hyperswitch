@@ -16,10 +16,7 @@ use crate::{
             PaymentAddress,
         },
     },
-    routes::{
-        app::{ReqState, StorageInterface},
-        SessionState,
-    },
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -47,11 +44,13 @@ impl<F: Send + Clone>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsIncrementalAuthorizationRequest>>
     {
         let db = &*state.store;
-        let merchant_id = &merchant_account.merchant_id;
+        let key_manager_state = &state.into();
+
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -59,6 +58,7 @@ impl<F: Send + Clone>
 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
+                &state.into(),
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -109,7 +109,7 @@ impl<F: Send + Clone>
 
         let business_profile = state
             .store
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
@@ -179,7 +179,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &'b SessionState,
+        state: &'b SessionState,
         _req_state: ReqState,
         mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
@@ -224,7 +224,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_intent.amount,
         };
-        let authorization = db
+        let authorization = state
             .store
             .insert_authorization(authorization_new.clone())
             .await
@@ -236,9 +236,10 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
             })
             .attach_printable("failed while inserting new authorization")?;
         // Update authorization_count in payment_intent
-        payment_data.payment_intent = db
+        payment_data.payment_intent = state
             .store
             .update_payment_intent(
+                &state.into(),
                 payment_data.payment_intent.clone(),
                 storage::PaymentIntentUpdate::AuthorizationCountUpdate {
                     authorization_count: new_authorization_count,
@@ -274,12 +275,12 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
-        operations::ValidateResult<'a>,
+        operations::ValidateResult,
     )> {
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.merchant_id,
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
@@ -295,7 +296,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _db: &dyn StorageInterface,
+        _state: &SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _request: Option<CustomerDetails>,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -318,10 +319,10 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))
