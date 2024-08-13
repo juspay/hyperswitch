@@ -1934,8 +1934,8 @@ pub async fn retrieve_card_with_permanent_token(
             bank_code: None,
         };
 
-    Ok(domain::PaymentMethodData::Card(api_card.into()))
-}
+        Ok(domain::PaymentMethodData::Card(api_card.into()))
+    }
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(

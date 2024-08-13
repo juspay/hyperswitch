@@ -5,10 +5,12 @@ use cards::CardNumber;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
-    id_type, type_name,
+    id_type,
     request::RequestContent,
+    type_name,
     types::keymanager::Identifier,
 };
+use diesel_models::payment_method;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_method_data::NetworkTokenData;
 use josekit::jwe;
@@ -24,10 +26,7 @@ use crate::{
     },
     headers, logger,
     routes::{self},
-    services::{
-        self, encryption,
-        request,
-    },
+    services::{self, encryption, request},
     types::{
         api::{self},
         domain,
@@ -35,8 +34,6 @@ use crate::{
     },
     utils::ConnectorResponseExt,
 };
-
-use diesel_models::payment_method;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -163,8 +160,7 @@ pub async fn make_card_network_tokenization_request(
     customer_id: &Option<id_type::CustomerId>,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
-) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::ApiErrorResponse>
-{
+) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::ApiErrorResponse> {
     let customer_id = customer_id
         .clone()
         .get_required_value("customer_id")
@@ -197,14 +193,9 @@ pub async fn make_card_network_tokenization_request(
 
     let key_id = tokenization_service.key_id.clone();
 
-    let jwt = encryption::encrypt_jwe(
-        payload_bytes,
-        enc_key,
-        "A128GCM",
-        Some(key_id.as_str()),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let jwt = encryption::encrypt_jwe(payload_bytes, enc_key, "A128GCM", Some(key_id.as_str()))
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let amount_str = amount.map_or_else(String::new, |a| a.to_string());
     let currency_str = currency.map_or_else(String::new, |c| c.to_string());
     let order_data = OrderData {
@@ -373,25 +364,28 @@ pub async fn do_status_check_for_network_token(
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let token_data_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(payment_method::PaymentMethod),
-        domain::types::CryptoOperation::DecryptOptional(payment_method_info.token_payment_method_data.clone()),
-        identifier,
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(errors::StorageError::DecryptionError)
-    .attach_printable("unable to decrypt card details")
-    .ok()
-    .flatten()
-    .map(|x| x.into_inner().expose())
-    .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-    .and_then(|pmd| match pmd {
-        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-        _ => None,
-    });
+    let token_data_decrypted =
+        domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+            &state.into(),
+            type_name!(payment_method::PaymentMethod),
+            domain::types::CryptoOperation::DecryptOptional(
+                payment_method_info.token_payment_method_data.clone(),
+            ),
+            identifier,
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(errors::StorageError::DecryptionError)
+        .attach_printable("unable to decrypt card details")
+        .ok()
+        .flatten()
+        .map(|x| x.into_inner().expose())
+        .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+        .and_then(|pmd| match pmd {
+            PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+            _ => None,
+        });
 
     is_token_active(token_data_decrypted)
 }
@@ -486,7 +480,8 @@ pub async fn delete_network_token_from_tokenization_service(
             errors::ApiErrorResponse::InternalServerError
         })?;
 
-    if res == DeleteNTResponse::DeleteNetworkTokenResponse(DeleteNetworkTokenResponse {
+    if res
+        == DeleteNTResponse::DeleteNetworkTokenResponse(DeleteNetworkTokenResponse {
             status: DeleteNetworkTokenStatus::Success,
         })
     {
