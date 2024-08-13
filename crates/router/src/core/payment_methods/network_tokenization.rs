@@ -5,7 +5,7 @@ use cards::CardNumber;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, OptionExt},
-    id_type,
+    id_type, type_name,
     request::RequestContent,
     types::keymanager::Identifier,
 };
@@ -26,15 +26,17 @@ use crate::{
     routes::{self},
     services::{
         self, encryption,
-        request::{self},
+        request,
     },
     types::{
         api::{self},
-        domain::{self, types::decrypt_optional},
+        domain,
         storage::{self, enums as storage_enums},
     },
     utils::ConnectorResponseExt,
 };
+
+use diesel_models::payment_method;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -157,11 +159,11 @@ pub struct DeleteNetworkTokenResponse {
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
     payment_method_data: Option<&domain::PaymentMethodData>,
-    merchant_account: &domain::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
     customer_id: &Option<id_type::CustomerId>,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
-) -> errors::CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::ApiErrorResponse>
+) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::ApiErrorResponse>
 {
     let customer_id = customer_id
         .clone()
@@ -321,13 +323,15 @@ pub async fn get_token_from_tokenization_service(
             errors::ApiErrorResponse::InternalServerError
         })?;
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let card_decrypted = decrypt_optional::<serde_json::Value, masking::WithType>(
+    let card_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
-        pm_data.payment_method_data.clone(),
+        type_name!(payment_method::PaymentMethod),
+        domain::types::CryptoOperation::DecryptOptional(pm_data.payment_method_data.clone()),
         identifier,
         key,
     )
     .await
+    .and_then(|val| val.try_into_optionaloperation())
     .change_context(errors::StorageError::DecryptionError)
     .attach_printable("unable to decrypt card details")
     .ok()
@@ -369,13 +373,15 @@ pub async fn do_status_check_for_network_token(
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let token_data_decrypted = decrypt_optional::<serde_json::Value, masking::WithType>(
+    let token_data_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
-        payment_method_info.token_payment_method_data.clone(),
+        type_name!(payment_method::PaymentMethod),
+        domain::types::CryptoOperation::DecryptOptional(payment_method_info.token_payment_method_data.clone()),
         identifier,
         key,
     )
     .await
+    .and_then(|val| val.try_into_optionaloperation())
     .change_context(errors::StorageError::DecryptionError)
     .attach_printable("unable to decrypt card details")
     .ok()

@@ -983,6 +983,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             payment_link_config: None,
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 }

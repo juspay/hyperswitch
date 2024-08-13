@@ -237,6 +237,7 @@ pub enum MerchantAccountUpdate {
         default_profile: Option<Option<String>>,
         payment_link_config: Option<serde_json::Value>,
         pm_collect_link_config: Option<serde_json::Value>,
+        is_network_tokenization_enabled: Option<bool>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -298,6 +299,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 default_profile,
                 payment_link_config,
                 pm_collect_link_config,
+                is_network_tokenization_enabled,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -324,6 +326,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 organization_id: None,
                 is_recon_enabled: None,
                 recon_status: None,
+                is_network_tokenization_enabled
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -351,6 +354,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_network_tokenization_enabled: None,
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -378,6 +382,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 default_profile: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_network_tokenization_enabled: None,
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
@@ -405,6 +410,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_network_tokenization_enabled: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -432,6 +438,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_network_tokenization_enabled: None,
             },
         }
     }

@@ -1862,7 +1862,7 @@ pub async fn retrieve_card_with_permanent_token(
     payment_method_id: &str,
     payment_intent: &PaymentIntent,
     card_token_data: Option<&domain::CardToken>,
-    _merchant_key_store: &domain::MerchantKeyStore,
+    merchant_key_store: &domain::MerchantKeyStore,
     _storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
@@ -1935,6 +1935,7 @@ pub async fn retrieve_card_with_permanent_token(
         };
 
     Ok(domain::PaymentMethodData::Card(api_card.into()))
+}
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
