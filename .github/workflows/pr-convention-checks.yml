@@ -153,11 +153,11 @@ jobs:
 
           files_changed="$(gh api --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" --paginate https://api.github.com/repos/juspay/hyperswitch/pulls/${{ github.event.pull_request.number }}/files --jq '.[] | .filename')"
 
-          if echo "${files_changed}" | grep --quiet --extended-regexp '(^migrations/.*/(up|down)\.sql$|^crates/diesel_models/src/schema.rs$)' ; then
+          if echo "${files_changed}" | grep --quiet --extended-regexp '(^(migrations|v2_migrations)/.*/(up|down)\.sql$|^crates/diesel_models/src/(schema|schema_v2).rs$)' ; then
             migration_and_schema_changes='true'
           fi
 
-          if echo "${files_changed}" | grep --quiet --extended-regexp '^(api-reference/openapi_spec.json)$'; then
+          if echo "${files_changed}" | grep --quiet --extended-regexp '^(api-reference|api-reference-v2)/openapi_spec.json$'; then
             openapi_changes='true'
           fi
 

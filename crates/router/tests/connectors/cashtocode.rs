@@ -42,7 +42,7 @@ impl CashtocodeTest {
         payment_method_type: Option<enums::PaymentMethodType>,
         payment_method_data: domain::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
-        let cust_id = id_type::CustomerId::from("John Doe".into());
+        let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from("John Doe"));
         Some(types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::EUR,

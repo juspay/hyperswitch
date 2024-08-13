@@ -92,7 +92,9 @@ struct BokuHostedData {
 
 impl TryFrom<&BokuRouterData<&types::PaymentsAuthorizeRouterData>> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &BokuRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &BokuRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, &wallet_data)),
             domain::PaymentMethodData::Card(_)
@@ -109,7 +111,8 @@ impl TryFrom<&BokuRouterData<&types::PaymentsAuthorizeRouterData>> for BokuPayme
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("boku"),
                 ))?
@@ -118,10 +121,18 @@ impl TryFrom<&BokuRouterData<&types::PaymentsAuthorizeRouterData>> for BokuPayme
     }
 }
 
-impl TryFrom<(&BokuRouterData<&types::PaymentsAuthorizeRouterData>, &domain::WalletData)> for BokuPaymentsRequest {
+impl
+    TryFrom<(
+        &BokuRouterData<&types::PaymentsAuthorizeRouterData>,
+        &domain::WalletData,
+    )> for BokuPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&BokuRouterData<&types::PaymentsAuthorizeRouterData>, &domain::WalletData),
+        value: (
+            &BokuRouterData<&types::PaymentsAuthorizeRouterData>,
+            &domain::WalletData,
+        ),
     ) -> Result<Self, Self::Error> {
         let (item_router_data, wallet_data) = value;
         let item = item_router_data.router_data;
@@ -367,7 +378,11 @@ impl<F> TryFrom<&BokuRouterData<&types::RefundsRouterData<F>>> for BokuRefundReq
             merchant_id: auth_type.merchant_id,
             merchant_refund_id: Secret::new(item.router_data.request.refund_id.to_string()),
             merchant_request_id: Uuid::new_v4().to_string(),
-            charge_id: item.router_data.request.connector_transaction_id.to_string(),
+            charge_id: item
+                .router_data
+                .request
+                .connector_transaction_id
+                .to_string(),
             reason_code: BokuRefundReasonCode::NonFulfillment.to_string(),
         };
 

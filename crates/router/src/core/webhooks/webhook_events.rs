@@ -15,7 +15,8 @@ const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
 #[derive(Debug)]
 enum MerchantAccountOrBusinessProfile {
     MerchantAccount(domain::MerchantAccount),
-    BusinessProfile(storage::BusinessProfile),
+    #[allow(dead_code)]
+    BusinessProfile(domain::BusinessProfile),
 }
 
 #[instrument(skip(state))]
@@ -186,7 +187,11 @@ pub async fn retry_delivery_attempt(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to read business profile ID from event to retry")?;
             store
-                .find_business_profile_by_profile_id(&business_profile_id)
+                .find_business_profile_by_profile_id(
+                    key_manager_state,
+                    &key_store,
+                    &business_profile_id,
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to find business profile")
@@ -272,11 +277,12 @@ async fn determine_identifier_and_get_key_store(
 ) -> errors::RouterResult<(MerchantAccountOrBusinessProfile, domain::MerchantKeyStore)> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let merchant_id =
-        common_utils::id_type::MerchantId::from(merchant_id_or_profile_id.clone().into())
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_id",
-            })?;
+    let merchant_id = common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(
+        merchant_id_or_profile_id.clone(),
+    ))
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "merchant_id",
+    })?;
     match store
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
@@ -300,6 +306,7 @@ async fn determine_identifier_and_get_key_store(
             ))
         }
 
+        /*
         // Since no merchant key store was found with `merchant_id` = `merchant_id_or_profile_id`,
         // `merchant_id_or_profile_id` is not a valid merchant ID.
         // Assuming that `merchant_id_or_profile_id` is a business profile ID, try to find a
@@ -332,7 +339,7 @@ async fn determine_identifier_and_get_key_store(
                 key_store,
             ))
         }
-
+        */
         Err(error) => Err(error)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to find merchant key store by merchant ID"),
