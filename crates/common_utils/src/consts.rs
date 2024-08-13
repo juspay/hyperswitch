@@ -86,6 +86,9 @@ pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 /// Default allowed domains for payment links
 pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 
+/// Default merchant details for payment links
+pub const DEFAULT_TRANSACTION_DETAILS: Option<String> = None;
+
 /// Default ttl for Extended card info  in redis (in seconds)
 pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
 
@@ -124,3 +127,6 @@ pub const WILDCARD_DOMAIN_REGEX: &str = r"^((\*|https?)?://)?((\*\.|[A-Za-z0-9][
 
 /// Maximum allowed length for MerchantName
 pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
+
+/// Default locale
+pub const DEFAULT_LOCALE: &str = "en";

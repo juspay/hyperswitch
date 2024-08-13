@@ -24,3 +24,6 @@ serde = "1.0.197"
 serde_json = "1.0.115"
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
+
+[lints]
+workspace = true

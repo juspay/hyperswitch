@@ -32,6 +32,7 @@ function initializeSDK() {
   widgets = hyper.widgets({
     appearance: appearance,
     clientSecret: client_secret,
+    locale: paymentDetails.locale,
   });
   var type =
     paymentDetails.sdk_layout === "spaced_accordion" ||
@@ -41,6 +42,7 @@ function initializeSDK() {
 
   var unifiedCheckoutOptions = {
     displaySavedPaymentMethodsCheckbox: false,
+    displaySavedPaymentMethods: false,
     layout: {
       type: type, //accordion , tabs, spaced accordion
       spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
@@ -74,9 +76,10 @@ function initializeSDK() {
  * Use - redirect to /payment_link/status
  */
 function redirectToStatus() {
+  var paymentDetails = window.__PAYMENT_DETAILS;
   var arr = window.location.pathname.split("/");
   arr.splice(0, 2);
   arr.unshift("status");
   arr.unshift("payment_link");
-  window.location.href = window.location.origin + "/" + arr.join("/");
+  window.location.href = window.location.origin + "/" + arr.join("/") + "?locale=" + paymentDetails.locale;
 }

@@ -97,6 +97,7 @@ pub struct DecisionManagerRequest {
     pub name: Option<String>,
     pub program: Option<Program<ConditionalConfigs>>,
 }
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum DecisionManager {

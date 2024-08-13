@@ -30,7 +30,16 @@ impl ConnectorSelection {
         }
     }
 }
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct RoutingConfigRequest {
+    pub name: String,
+    pub description: String,
+    pub algorithm: RoutingAlgorithm,
+    pub profile_id: String,
+}
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
@@ -49,8 +58,6 @@ pub struct ProfileDefaultRoutingConfig {
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
-
-    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -58,6 +65,11 @@ pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingRetrieveLinkQueryWrapper {
+    pub routing_query: RoutingRetrieveQuery,
+    pub profile_id: String,
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 /// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {

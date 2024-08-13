@@ -46,6 +46,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    // Fiservemea,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -132,10 +133,10 @@ pub enum Connector {
     Stripe,
     Threedsecureio,
     Trustpay,
-    // Tsys,
     Tsys,
     Volt,
-    // Wellsfargo,
+    Wellsfargo,
+    // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
@@ -207,6 +208,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Fiservemea
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -255,7 +257,8 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
-            // | Self::Wellsfargo
+            | Self::Wellsfargo
+			// | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
@@ -299,36 +302,6 @@ impl Connector {
             .into())
         } else {
             Ok(())
-        }
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthenticationConnectors {
-    Threedsecureio,
-    Netcetera,
-    Gpayments,
-}
-
-impl AuthenticationConnectors {
-    pub fn is_separate_version_call_required(&self) -> bool {
-        match self {
-            Self::Threedsecureio | Self::Netcetera => false,
-            Self::Gpayments => true,
         }
     }
 }

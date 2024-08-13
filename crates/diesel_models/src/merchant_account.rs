@@ -36,7 +36,7 @@ pub struct MerchantAccount {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<crate::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
@@ -56,6 +56,7 @@ pub struct MerchantAccount {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -70,7 +71,7 @@ pub struct MerchantAccountSetter {
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<crate::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
@@ -90,6 +91,7 @@ pub struct MerchantAccountSetter {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -126,6 +128,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             recon_status: item.recon_status,
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
+            version: item.version,
         }
     }
 }
@@ -146,33 +149,17 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 )]
 #[diesel(table_name = merchant_account, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct MerchantAccount {
-    pub return_url: Option<String>,
-    pub enable_payment_response_hash: bool,
-    pub payment_response_hash_key: Option<String>,
-    pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
-    pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
-    pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
-    pub primary_business_details: serde_json::Value,
-    pub intent_fulfillment_time: Option<i64>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
-    pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
-    pub payment_link_config: Option<serde_json::Value>,
-    pub pm_collect_link_config: Option<serde_json::Value>,
     pub id: common_utils::id_type::MerchantId,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -180,32 +167,16 @@ impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
             id: item.id,
-            return_url: item.return_url,
-            enable_payment_response_hash: item.enable_payment_response_hash,
-            payment_response_hash_key: item.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             merchant_name: item.merchant_name,
             merchant_details: item.merchant_details,
-            webhook_details: item.webhook_details,
-            sub_merchants_enabled: item.sub_merchants_enabled,
-            parent_merchant_id: item.parent_merchant_id,
             publishable_key: item.publishable_key,
             storage_scheme: item.storage_scheme,
-            locker_id: item.locker_id,
             metadata: item.metadata,
-            routing_algorithm: item.routing_algorithm,
-            primary_business_details: item.primary_business_details,
-            intent_fulfillment_time: item.intent_fulfillment_time,
             created_at: item.created_at,
             modified_at: item.modified_at,
-            frm_routing_algorithm: item.frm_routing_algorithm,
-            payout_routing_algorithm: item.payout_routing_algorithm,
             organization_id: item.organization_id,
-            is_recon_enabled: item.is_recon_enabled,
-            default_profile: item.default_profile,
             recon_status: item.recon_status,
-            payment_link_config: item.payment_link_config,
-            pm_collect_link_config: item.pm_collect_link_config,
+            version: item.version,
         }
     }
 }
@@ -213,32 +184,16 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 pub struct MerchantAccountSetter {
     pub id: common_utils::id_type::MerchantId,
-    pub return_url: Option<String>,
-    pub enable_payment_response_hash: bool,
-    pub payment_response_hash_key: Option<String>,
-    pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub webhook_details: Option<serde_json::Value>,
-    pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
-    pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
-    pub primary_business_details: serde_json::Value,
-    pub intent_fulfillment_time: Option<i64>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
-    pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
-    pub payment_link_config: Option<serde_json::Value>,
-    pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 impl MerchantAccount {
@@ -268,7 +223,7 @@ pub struct MerchantAccountNew {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<crate::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub enable_payment_response_hash: Option<bool>,
@@ -290,6 +245,7 @@ pub struct MerchantAccountNew {
     pub recon_status: storage_enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -298,39 +254,41 @@ pub struct MerchantAccountNew {
 pub struct MerchantAccountNew {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
-    pub return_url: Option<String>,
-    pub webhook_details: Option<serde_json::Value>,
-    pub sub_merchants_enabled: Option<bool>,
-    pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub enable_payment_response_hash: Option<bool>,
-    pub payment_response_hash_key: Option<String>,
-    pub redirect_to_merchant_with_http_post: Option<bool>,
     pub publishable_key: Option<String>,
-    pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
-    pub primary_business_details: serde_json::Value,
-    pub intent_fulfillment_time: Option<i64>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
-    pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
     pub recon_status: storage_enums::ReconStatus,
-    pub payment_link_config: Option<serde_json::Value>,
-    pub pm_collect_link_config: Option<serde_json::Value>,
     pub id: common_utils::id_type::MerchantId,
+    pub version: common_enums::ApiVersion,
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
+#[diesel(table_name = merchant_account)]
+pub struct MerchantAccountUpdateInternal {
+    pub merchant_name: Option<Encryption>,
+    pub merchant_details: Option<Encryption>,
+    pub publishable_key: Option<String>,
+    pub storage_scheme: Option<storage_enums::MerchantStorageScheme>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub modified_at: time::PrimitiveDateTime,
+    pub organization_id: Option<common_utils::id_type::OrganizationId>,
+    pub recon_status: Option<storage_enums::ReconStatus>,
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
     pub return_url: Option<String>,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<crate::business_profile::WebhookDetails>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub enable_payment_response_hash: Option<bool>,
@@ -342,12 +300,12 @@ pub struct MerchantAccountUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: Option<serde_json::Value>,
-    pub modified_at: Option<time::PrimitiveDateTime>,
+    pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
-    pub is_recon_enabled: bool,
+    pub is_recon_enabled: Option<bool>,
     pub default_profile: Option<Option<String>>,
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
