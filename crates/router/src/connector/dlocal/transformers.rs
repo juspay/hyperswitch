@@ -1,5 +1,7 @@
 use api_models::payments::AddressDetails;
-use common_utils::{pii::Email, types::MinorUnit};
+use common_utils::{pii::Email, types::{MinorUnit,StringMinorUnit}};
+use common_utils::types::StringMinorUnitForConnector;
+use common_utils::types::AmountConvertor;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -453,7 +455,7 @@ impl<F, T>
 // REFUND :
 #[derive(Default, Debug, Serialize)]
 pub struct DlocalRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: StringMinorUnit,
     pub payment_id: String,
     pub currency: enums::Currency,
     pub id: String,
@@ -465,7 +467,7 @@ impl<F> TryFrom<&DlocalRouterData<&types::RefundsRouterData<F>>> for DlocalRefun
         item: &DlocalRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount,
+            amount: StringMinorUnitForConnector::convert(&StringMinorUnitForConnector,item.amount,item.router_data.request.currency).change_context(errors::ConnectorError::AmountConversionFailed)?,
             payment_id: item.router_data.request.connector_transaction_id.clone(),
             currency: item.router_data.request.currency,
             id: item.router_data.request.refund_id.clone(),
