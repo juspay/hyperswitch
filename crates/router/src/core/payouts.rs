@@ -859,6 +859,7 @@ pub async fn payouts_filtered_list_core(
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
     let db = state.store.as_ref();
+    let constraints = filters.clone().into();
     let list: Vec<(
         storage::Payouts,
         storage::PayoutAttempt,
@@ -866,7 +867,7 @@ pub async fn payouts_filtered_list_core(
     )> = db
         .filter_payouts_and_attempts(
             merchant_account.get_id(),
-            &filters.clone().into(),
+            &constraints,
             merchant_account.storage_scheme,
         )
         .await
@@ -897,13 +898,25 @@ pub async fn payouts_filtered_list_core(
     .map(ForeignFrom::foreign_from)
     .collect();
 
+    let active_payout_ids = db
+        .filter_active_payout_ids_by_constraints(
+            merchant_account.get_id(),
+            &constraints,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to filter active payout ids based on the constraints")?;
+
     let total_count = db
         .get_total_count_of_filtered_payouts(
             merchant_account.get_id(),
+            &active_payout_ids,
             filters.connector.clone(),
             filters.currency.clone(),
             filters.status.clone(),
             filters.payout_method.clone(),
+            merchant_account.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -96,6 +96,7 @@ impl Payouts {
     pub async fn get_total_count_of_payouts(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
+        active_payout_ids: &[String],
         connector: Option<Vec<String>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
@@ -105,6 +106,7 @@ impl Payouts {
             .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
             .count()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::payout_id.eq_any(active_payout_ids.to_owned()))
             .into_boxed();
 
         if let Some(connector) = connector {

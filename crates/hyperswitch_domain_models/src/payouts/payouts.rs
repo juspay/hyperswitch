@@ -61,20 +61,31 @@ pub trait PayoutsInterface {
     #[cfg(feature = "olap")]
     async fn filter_payouts_by_time_range_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
-        storage_scheme: MerchantStorageScheme,
+        _merchant_id: &id_type::MerchantId,
+        _time_range: &api_models::payments::TimeRange,
+        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
+    #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payouts(
         &self,
-        merchant_id: &id_type::MerchantId,
-        connector: Option<Vec<api_models::enums::PayoutConnectors>>,
-        currency: Option<Vec<storage_enums::Currency>>,
-        status: Option<Vec<storage_enums::PayoutStatus>>,
-        payout_method: Option<Vec<storage_enums::PayoutType>>,
+        _merchant_id: &id_type::MerchantId,
+        _active_payout_ids: &[String],
+        _connector: Option<Vec<api_models::enums::PayoutConnectors>>,
+        _currency: Option<Vec<storage_enums::Currency>>,
+        _status: Option<Vec<storage_enums::PayoutStatus>>,
+        _payout_method: Option<Vec<storage_enums::PayoutType>>,
+        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        _merchant_id: &id_type::MerchantId,
+        _constraints: &PayoutFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
