@@ -3962,7 +3962,7 @@ pub async fn list_customer_payment_method(
 
         let intent_fulfillment_time = business_profile
             .as_ref()
-            .and_then(|b_profile| b_profile.intent_fulfillment_time)
+            .and_then(|b_profile| b_profile.get_order_fulfillment_time())
             .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         let hyperswitch_token_data = pm_list_context
@@ -4235,7 +4235,7 @@ impl SavedPMLPaymentsInfo {
         let intent_fulfillment_time = self
             .business_profile
             .as_ref()
-            .and_then(|b_profile| b_profile.intent_fulfillment_time)
+            .and_then(|b_profile| b_profile.get_order_fulfillment_time())
             .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))

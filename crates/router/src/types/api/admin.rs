@@ -193,7 +193,6 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
             metadata: item.metadata,
-            intent_fulfillment_time: item.intent_fulfillment_time,
             applepay_verified_domains: item.applepay_verified_domains,
             payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),
             session_expiry: item.session_expiry,
@@ -212,6 +211,8 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
             outgoing_webhook_custom_http_headers,
+            order_fulfillment_time: item.order_fulfillment_time.map(i64::from),
+            order_fulfillment_time_origin: item.order_fulfillment_time_origin,
         })
     }
 }

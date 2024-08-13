@@ -3472,10 +3472,6 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
-        if let Some(intent_fulfillment_expiry) = &self.intent_fulfillment_time {
-            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
-        }
-
         // Generate a unique profile id
         // TODO: the profile_id should be generated from the profile_name
         let profile_id = common_utils::generate_id_with_default_len("pro");
@@ -3524,10 +3520,6 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .unwrap_or(true),
             webhook_details: webhook_details,
             metadata: self.metadata,
-            intent_fulfillment_time: self
-                .intent_fulfillment_time
-                .map(i64::from)
-                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
             is_recon_enabled: false,
             applepay_verified_domains: self.applepay_verified_domains,
             payment_link_config: payment_link_config_value,
@@ -3556,6 +3548,11 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             routing_algorithm_id: None,
             frm_routing_algorithm_id: None,
             payout_routing_algorithm_id: None,
+            order_fulfillment_time: self
+                .order_fulfillment_time
+                .map(|order_fulfillment_time| i64::from(order_fulfillment_time.into_inner()))
+                .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
+            order_fulfillment_time_origin: self.order_fulfillment_time_origin,
         })
     }
 }

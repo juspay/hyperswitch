@@ -7,6 +7,7 @@ use common_utils::{
     ext_traits::Encode,
     id_type, link_utils, pii,
 };
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
@@ -21,6 +22,7 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
+use crate::consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
@@ -1940,6 +1942,12 @@ pub struct BusinessProfileCreate {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, String>>,
 }
 
+#[nutype::nutype(
+    validate(greater_or_equal = MIN_ORDER_FULFILLMENT_EXPIRY, less_or_equal = MAX_ORDER_FULFILLMENT_EXPIRY),
+    derive(Clone, Debug, Deserialize,Serialize)
+)]
+pub struct OrderFulfillmentTime(u32);
+
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -1971,8 +1979,12 @@ pub struct BusinessProfileCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
-    #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<u32>,
+    #[schema(value_type = u32, example = 900)]
+    pub order_fulfillment_time: Option<OrderFulfillmentTime>,
+
+    /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
+    #[schema(value_type = Option<OrderFulfillmentTimeOrigin>, example = "create")]
+    pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -2150,10 +2162,6 @@ pub struct BusinessProfileResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Will be used to determine the time till which your payment will be active once the payment session starts
-    #[schema(example = 900)]
-    pub intent_fulfillment_time: Option<i64>,
-
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
@@ -2195,6 +2203,14 @@ pub struct BusinessProfileResponse {
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+
+    /// Will be used to determine the time till which your payment will be active once the payment session starts
+    #[schema(value_type = u32, example = 900)]
+    pub order_fulfillment_time: Option<i64>,
+
+    /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
+    #[schema(value_type = Option<OrderFulfillmentTimeOrigin>, example = "create")]
+    pub order_fulfillment_time_origin: Option<api_enums::OrderFulfillmentTimeOrigin>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
