@@ -1889,7 +1889,7 @@ impl PayoutsInterface for KafkaStore {
         Vec<(
             storage::Payouts,
             storage::PayoutAttempt,
-            diesel_models::Customer,
+            Option<diesel_models::Customer>,
         )>,
         errors::DataStorageError,
     > {
@@ -2399,7 +2399,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
         profile_id: &str,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<Vec<storage::RoutingAlgorithmMetadata>, errors::StorageError> {
+    ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
         self.diesel_store
             .list_routing_algorithm_metadata_by_profile_id(profile_id, limit, offset)
             .await

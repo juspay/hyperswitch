@@ -390,6 +390,9 @@ impl ConnectorData {
                 ))),
                 enums::Connector::Ebanx => Ok(ConnectorEnum::Old(Box::new(&connector::Ebanx))),
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
+                // enums::Connector::Fiservemea => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea)))
+                // }
                 enums::Connector::Forte => Ok(ConnectorEnum::Old(Box::new(&connector::Forte))),
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
@@ -473,6 +476,9 @@ impl ConnectorData {
                 enums::Connector::Wellsfargo => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Wellsfargo)))
                 }
+                // enums::Connector::Wellsfargopayout => {
+                //     Ok(Box::new(connector::Wellsfargopayout::new()))
+                // }
                 enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(&connector::Zen))),
                 enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(&connector::Zsl))),
                 enums::Connector::Plaid => {

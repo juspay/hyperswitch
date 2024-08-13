@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
 
 use api_models::payments::{Address, AddressDetails, PhoneDetails};
