@@ -464,7 +464,7 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Connector_id related to merchant
+    /// Unique identifier of the merchant connector account
     #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]
     pub merchant_connector_id: Option<String>,
 
