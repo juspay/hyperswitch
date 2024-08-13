@@ -7284,6 +7284,11 @@
             ],
             "nullable": true
           },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "The identifier for merchant connector for tax connectors",
+            "nullable": true
+          },
           "use_billing_as_payment_method_billing": {
             "type": "boolean",
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
@@ -7456,6 +7461,11 @@
                 "$ref": "#/components/schemas/AuthenticationConnectorDetails"
               }
             ],
+            "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "The identifier for merchant connector for tax connectors",
             "nullable": true
           },
           "use_billing_as_payment_method_billing": {

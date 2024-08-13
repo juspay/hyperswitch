@@ -56,6 +56,7 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
 }
 
 #[cfg(all(
@@ -96,6 +97,7 @@ pub struct BusinessProfileNew {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
 }
 
 #[cfg(all(
@@ -133,6 +135,7 @@ pub struct BusinessProfileUpdateInternal {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
 }
 
 #[cfg(all(
@@ -169,6 +172,7 @@ impl BusinessProfileUpdateInternal {
             outgoing_webhook_custom_http_headers,
             always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector,
+            tax_connector_id
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -219,6 +223,7 @@ impl BusinessProfileUpdateInternal {
             always_collect_shipping_details_from_wallet_connector:
                 always_collect_shipping_details_from_wallet_connector
                     .or(source.always_collect_shipping_details_from_wallet_connector),
+            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
         }
     }
 }
@@ -375,6 +380,8 @@ impl BusinessProfileUpdateInternal {
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
+            // default_fallback_routing,
+            tax_connector_id,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
