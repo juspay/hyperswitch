@@ -750,6 +750,7 @@ pub struct HeaderPayload {
     pub browser_name: Option<api_enums::BrowserName>,
     pub x_client_platform: Option<api_enums::ClientPlatform>,
     pub x_merchant_domain: Option<String>,
+    pub locale: Option<String>,
 }
 
 impl HeaderPayload {
@@ -5394,8 +5395,8 @@ pub struct PaymentLinkInitiateRequest {
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum PaymentLinkData {
-    PaymentLinkDetails(PaymentLinkDetails),
-    PaymentLinkStatusDetails(PaymentLinkStatusDetails),
+    PaymentLinkDetails(Box<PaymentLinkDetails>),
+    PaymentLinkStatusDetails(Box<PaymentLinkStatusDetails>),
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5416,6 +5417,8 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
+    pub locale: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -5440,6 +5443,8 @@ pub struct PaymentLinkStatusDetails {
     pub redirect: bool,
     pub theme: String,
     pub return_url: String,
+    pub locale: Option<String>,
+    pub transaction_details: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

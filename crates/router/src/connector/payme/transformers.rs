@@ -738,7 +738,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::GiftCard(_))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(_))
-            | Some(domain::PaymentMethodData::NetworkToken(_))
+            | Some(PaymentMethodData::NetworkToken(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }

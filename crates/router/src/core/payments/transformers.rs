@@ -1,16 +1,14 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    Address, CustomerDetailsResponse, FrmMessage, GetAddressFromPaymentMethodData,
-    PaymentChargeRequest, PaymentChargeResponse, RequestSurchargeDetails,
+    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest,
+    PaymentChargeResponse, RequestSurchargeDetails,
 };
-#[cfg(feature = "payouts")]
-use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
@@ -105,7 +103,9 @@ where
         customer_data: customer,
     };
 
-    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+    let customer_id = customer
+        .to_owned()
+        .map(|customer| customer.get_customer_id());
 
     let supported_connector = &state
         .conf
@@ -337,7 +337,7 @@ where
                 verify_id: Some(data.payment_intent.payment_id),
                 merchant_id: Some(data.payment_intent.merchant_id),
                 client_secret: data.payment_intent.client_secret.map(Secret::new),
-                customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
+                customer_id: customer.as_ref().map(|x| x.get_customer_id().clone()),
                 email: customer
                     .as_ref()
                     .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
@@ -766,7 +766,7 @@ where
                 .set_client_secret(payment_intent.client_secret.map(Secret::new))
                 .set_created(Some(payment_intent.created_at))
                 .set_currency(currency.to_string())
-                .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
+                .set_customer_id(customer.as_ref().map(|cus| cus.clone().get_customer_id()))
                 .set_email(
                     customer
                         .as_ref()
@@ -1115,62 +1115,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
-#[cfg(feature = "payouts")]
-impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
-    for api::PayoutCreateResponse
-{
-    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
-        let (payout, payout_attempt, customer) = item;
-        let attempt = PayoutAttemptResponse {
-            attempt_id: payout_attempt.payout_attempt_id,
-            status: payout_attempt.status,
-            amount: payout.amount,
-            currency: Some(payout.destination_currency),
-            connector: payout_attempt.connector.clone(),
-            error_code: payout_attempt.error_code.clone(),
-            error_message: payout_attempt.error_message.clone(),
-            payment_method: payout.payout_type,
-            payout_method_type: None,
-            connector_transaction_id: payout_attempt.connector_payout_id,
-            cancellation_reason: None,
-            unified_code: None,
-            unified_message: None,
-        };
-        Self {
-            payout_id: payout.payout_id,
-            merchant_id: payout.merchant_id,
-            amount: payout.amount,
-            currency: payout.destination_currency,
-            connector: payout_attempt.connector,
-            payout_type: payout.payout_type,
-            customer_id: customer.customer_id,
-            auto_fulfill: payout.auto_fulfill,
-            email: customer.email,
-            name: customer.name,
-            phone: customer.phone,
-            phone_country_code: customer.phone_country_code,
-            return_url: payout.return_url,
-            business_country: payout_attempt.business_country,
-            business_label: payout_attempt.business_label,
-            description: payout.description,
-            entity_type: payout.entity_type,
-            recurring: payout.recurring,
-            metadata: payout.metadata,
-            status: payout_attempt.status,
-            error_message: payout_attempt.error_message,
-            error_code: payout_attempt.error_code,
-            profile_id: payout.profile_id,
-            created: Some(payout.created_at),
-            connector_transaction_id: attempt.connector_transaction_id.clone(),
-            priority: payout.priority,
-            attempts: Some(vec![attempt]),
-            billing: None,
-            client_secret: None,
-            payout_link: None,
-        }
-    }
-}
-
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {
@@ -1388,7 +1332,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let customer_id = additional_data
             .customer_data
             .as_ref()
-            .map(|data| data.customer_id.clone());
+            .map(|data| data.get_customer_id().clone());
 
         let charges = match payment_data.payment_intent.charges {
             Some(charges) => charges
@@ -1406,9 +1350,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
 
         Ok(Self {
-            payment_method_data: From::from(
-                payment_method_data.get_required_value("payment_method_data")?,
-            ),
+            payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -1762,11 +1704,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             confirm: true,
             amount: Some(amount.get_amount_as_i64()), //need to change once we move to connector module
             minor_amount: Some(amount),
-            payment_method_data: From::from(
-                payment_data
-                    .payment_method_data
-                    .get_required_value("payment_method_data")?,
-            ),
+            payment_method_data: (payment_data
+                .payment_method_data
+                .get_required_value("payment_method_data")?),
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -1984,6 +1924,18 @@ impl ForeignFrom<payments::FraudCheck> for FrmMessage {
             frm_score: fraud_check.frm_score,
             frm_reason: fraud_check.frm_reason,
             frm_error: fraud_check.frm_error,
+        }
+    }
+}
+
+impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
+    fn foreign_from(customer: CustomerDetails) -> Self {
+        Self {
+            customer_id: Some(customer.id),
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            phone_country_code: customer.phone_country_code,
         }
     }
 }

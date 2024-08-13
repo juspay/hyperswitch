@@ -619,9 +619,13 @@ impl DataModelExt for PayoutAttemptUpdate {
             Self::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             } => DieselPayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             },
             Self::UpdateRouting {
                 connector,

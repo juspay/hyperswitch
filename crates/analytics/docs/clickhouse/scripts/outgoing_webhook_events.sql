@@ -12,6 +12,9 @@ CREATE TABLE outgoing_webhook_events_queue (
     `content` Nullable(String),
     `is_error` Bool,
     `error` Nullable(String),
+    `initial_attempt_id` Nullable(String),
+    `status_code` Nullable(UInt16),
+    `delivery_attempt` LowCardinality(String),
     `created_at_timestamp` DateTime64(3)
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-outgoing-webhook-events',
@@ -33,6 +36,9 @@ CREATE TABLE outgoing_webhook_events (
     `content` Nullable(String),
     `is_error` Bool,
     `error` Nullable(String),
+    `initial_attempt_id` Nullable(String),
+    `status_code` Nullable(UInt16),
+    `delivery_attempt` LowCardinality(String),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     INDEX eventIndex event_type TYPE bloom_filter GRANULARITY 1,
@@ -61,6 +67,9 @@ CREATE TABLE outgoing_webhook_events_audit (
     `content` Nullable(String),
     `is_error` Bool,
     `error` Nullable(String),
+    `initial_attempt_id` Nullable(String),
+    `status_code` Nullable(UInt16),
+    `delivery_attempt` LowCardinality(String),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4)
 ) ENGINE = MergeTree PARTITION BY merchant_id
@@ -81,6 +90,9 @@ CREATE MATERIALIZED VIEW outgoing_webhook_events_mv TO outgoing_webhook_events (
     `content` Nullable(String),
     `is_error` Bool,
     `error` Nullable(String),
+    `initial_attempt_id` Nullable(String),
+    `status_code` Nullable(UInt16),
+    `delivery_attempt` LowCardinality(String),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4)
 ) AS
@@ -98,6 +110,9 @@ SELECT
     content,
     is_error,
     error,
+    initial_attempt_id,
+    status_code,
+    delivery_attempt,
     created_at_timestamp AS created_at,
     now() AS inserted_at
 FROM
@@ -119,6 +134,9 @@ CREATE MATERIALIZED VIEW outgoing_webhook_events_audit_mv TO outgoing_webhook_ev
     `content` Nullable(String),
     `is_error` Bool,
     `error` Nullable(String),
+    `initial_attempt_id` Nullable(String),
+    `status_code` Nullable(UInt16),
+    `delivery_attempt` LowCardinality(String),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4)
 ) AS
@@ -136,6 +154,9 @@ SELECT
     content,
     is_error,
     error,
+    initial_attempt_id,
+    status_code,
+    delivery_attempt,
     created_at_timestamp AS created_at,
     now() AS inserted_at
 FROM

@@ -10,10 +10,10 @@ pub mod vault;
 use std::{borrow::Cow, collections::HashSet};
 
 pub use api_models::enums::Connector;
+use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use api_models::payment_methods;
-use common_utils::{ext_traits::Encode, id_type::CustomerId};
+use common_utils::{consts::DEFAULT_LOCALE, ext_traits::Encode, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -36,10 +36,7 @@ use crate::{
     },
     routes::{app::StorageInterface, SessionState},
     services,
-    types::{
-        api::{self, payments},
-        domain, storage,
-    },
+    types::{domain, storage},
 };
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
@@ -52,7 +49,7 @@ pub async fn retrieve_payment_method(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
         pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
@@ -255,6 +252,7 @@ pub async fn render_pm_collect_link(
                     GenericLinks {
                         allowed_domains: HashSet::from([]),
                         data: GenericLinksData::ExpiredLink(expired_link_data),
+                        locale: DEFAULT_LOCALE.to_string(),
                     },
                 )))
 
@@ -290,7 +288,7 @@ pub async fn render_pm_collect_link(
                     publishable_key: masking::Secret::new(merchant_account.publishable_key),
                     client_secret: link_data.client_secret.clone(),
                     pm_collect_link_id: pm_collect_link.link_id,
-                    customer_id: customer.customer_id,
+                    customer_id: customer.get_customer_id(),
                     session_expiry: pm_collect_link.expiry,
                     return_url: pm_collect_link.return_url,
                     ui_config: ui_config_data,
@@ -316,8 +314,8 @@ pub async fn render_pm_collect_link(
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
                         allowed_domains: HashSet::from([]),
-
                         data: GenericLinksData::PaymentMethodCollect(generic_form_data),
+                        locale: DEFAULT_LOCALE.to_string(),
                     },
                 )))
             }
@@ -361,8 +359,8 @@ pub async fn render_pm_collect_link(
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
                     allowed_domains: HashSet::from([]),
-
                     data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
+                    locale: DEFAULT_LOCALE.to_string(),
                 },
             )))
         }

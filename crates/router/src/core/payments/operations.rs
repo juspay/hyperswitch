@@ -92,7 +92,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R> {
     pub operation: BoxedOperation<'a, F, R>,
     pub customer_details: Option<CustomerDetails>,
     pub payment_data: PaymentData<F>,
-    pub business_profile: storage::business_profile::BusinessProfile,
+    pub business_profile: domain::BusinessProfile,
     pub mandate_type: Option<api::MandateTransactionType>,
 }
 
@@ -107,7 +107,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        payment_confirm_source: Option<enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R>>;
 }
 
@@ -131,7 +131,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, R>,
         Option<domain::PaymentMethodData>,
@@ -172,7 +172,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         _payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        _merchant_account: &storage::BusinessProfile,
+        _merchant_account: &domain::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
@@ -193,7 +193,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _payment_id: &str,
-        _business_profile: &storage::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
         _payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
@@ -240,7 +240,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -303,7 +303,7 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
         Option<domain::PaymentMethodData>,
@@ -366,7 +366,7 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         Option<domain::PaymentMethodData>,
@@ -441,7 +441,7 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         Option<domain::PaymentMethodData>,
@@ -505,7 +505,7 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest>,
         Option<domain::PaymentMethodData>,

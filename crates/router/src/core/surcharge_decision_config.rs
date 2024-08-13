@@ -1,31 +1,32 @@
-use api_models::{
-    routing,
-    surcharge_decision_configs::{
-        SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord,
-        SurchargeDecisionManagerResponse,
-    },
+use api_models::surcharge_decision_configs::{
+    SurchargeDecisionConfigReq, SurchargeDecisionManagerRecord, SurchargeDecisionManagerResponse,
 };
-use common_utils::ext_traits::{Encode, StringExt, ValueExt};
-use diesel_models::configs;
+use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
-use euclid::frontend::ast;
-use storage_impl::redis::cache;
 
-use super::routing::helpers::update_merchant_active_algorithm_ref;
 use crate::{
     core::errors::{self, RouterResponse},
     routes::SessionState,
     services::api as service_api,
     types::domain,
-    utils::OptionExt,
 };
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn upsert_surcharge_decision_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
     request: SurchargeDecisionConfigReq,
 ) -> RouterResponse<SurchargeDecisionManagerRecord> {
+    use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
+    use diesel_models::configs;
+    use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+
     let db = state.store.as_ref();
     let name = request.name;
 
@@ -39,7 +40,7 @@ pub async fn upsert_surcharge_decision_config(
     let merchant_surcharge_configs = request.merchant_surcharge_configs;
 
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|val| val.parse_value("routing algorithm"))
@@ -53,7 +54,7 @@ pub async fn upsert_surcharge_decision_config(
         .get_payment_method_surcharge_routing_id();
     let read_config_key = db.find_config_by_key(&key).await;
 
-    ast::lowering::lower_program(program.clone())
+    euclid::frontend::ast::lowering::lower_program(program.clone())
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid Request Data".to_string(),
         })
@@ -141,16 +142,35 @@ pub async fn upsert_surcharge_decision_config(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn upsert_surcharge_decision_config(
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+    _request: SurchargeDecisionConfigReq,
+) -> RouterResponse<SurchargeDecisionManagerRecord> {
+    todo!();
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn delete_surcharge_decision_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
 ) -> RouterResponse<()> {
+    use common_utils::ext_traits::ValueExt;
+    use storage_impl::redis::cache;
+
+    use super::routing::helpers::update_merchant_active_algorithm_ref;
+
     let db = state.store.as_ref();
     let key = merchant_account
         .get_id()
         .get_payment_method_surcharge_routing_id();
-    let mut algo_id: routing::RoutingAlgorithmRef = merchant_account
+    let mut algo_id: api_models::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
         .map(|value| value.parse_value("routing algorithm"))
@@ -170,6 +190,15 @@ pub async fn delete_surcharge_decision_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete routing config from DB")?;
     Ok(service_api::ApplicationResponse::StatusOk)
+}
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn delete_surcharge_decision_config(
+    _state: SessionState,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_account: domain::MerchantAccount,
+) -> RouterResponse<()> {
+    todo!()
 }
 
 pub async fn retrieve_surcharge_decision_config(

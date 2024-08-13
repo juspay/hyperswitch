@@ -744,7 +744,7 @@ where
             query.push_str(format!(") _ WHERE top_n <= {}", top_n.count).as_str());
         }
 
-        println!("{}", query);
+        logger::debug!(%query);
 
         Ok(query)
     }
@@ -762,7 +762,7 @@ where
             .build_query()
             .change_context(QueryBuildingError::SqlSerializeError)
             .attach_printable("Failed to execute query")?;
-        logger::debug!(?query);
+
         Ok(store.load_results(query.as_str()).await)
     }
 }

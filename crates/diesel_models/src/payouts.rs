@@ -13,8 +13,8 @@ use crate::{enums as storage_enums, schema::payouts};
 pub struct Payouts {
     pub payout_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -54,8 +54,8 @@ pub struct Payouts {
 pub struct PayoutsNew {
     pub payout_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub customer_id: common_utils::id_type::CustomerId,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -96,6 +96,8 @@ pub enum PayoutsUpdate {
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
         payout_type: Option<storage_enums::PayoutType>,
+        address_id: Option<String>,
+        customer_id: Option<common_utils::id_type::CustomerId>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -130,6 +132,8 @@ pub struct PayoutsUpdateInternal {
     pub attempt_count: Option<i16>,
     pub confirm: Option<bool>,
     pub payout_type: Option<common_enums::PayoutType>,
+    pub address_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
 impl Default for PayoutsUpdateInternal {
@@ -151,6 +155,8 @@ impl Default for PayoutsUpdateInternal {
             attempt_count: None,
             confirm: None,
             payout_type: None,
+            address_id: None,
+            customer_id: None,
         }
     }
 }
@@ -172,6 +178,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -186,6 +194,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
@@ -227,6 +237,8 @@ impl PayoutsUpdate {
             attempt_count,
             confirm,
             payout_type,
+            address_id,
+            customer_id,
         } = self.into();
         Payouts {
             amount: amount.unwrap_or(source.amount),
@@ -245,6 +257,8 @@ impl PayoutsUpdate {
             attempt_count: attempt_count.unwrap_or(source.attempt_count),
             confirm: confirm.or(source.confirm),
             payout_type: payout_type.or(source.payout_type),
+            address_id: address_id.or(source.address_id),
+            customer_id: customer_id.or(source.customer_id),
             ..source
         }
     }

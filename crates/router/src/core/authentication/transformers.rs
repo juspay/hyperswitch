@@ -47,7 +47,7 @@ pub fn construct_authentication_router_data(
     three_ds_requestor_url: String,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
-        payment_method_data: payment_method_data,
+        payment_method_data,
         billing_address,
         shipping_address,
         browser_details,
@@ -77,7 +77,7 @@ pub fn construct_authentication_router_data(
 
 pub fn construct_post_authentication_router_data(
     authentication_connector: String,
-    business_profile: storage::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: &storage::Authentication,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {

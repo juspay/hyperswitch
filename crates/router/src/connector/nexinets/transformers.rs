@@ -627,6 +627,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::NetworkToken(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nexinets"),
