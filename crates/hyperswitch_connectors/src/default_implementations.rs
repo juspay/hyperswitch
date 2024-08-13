@@ -28,17 +28,19 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
-            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize, CreateConnectorCustomer,
-            IncrementalAuthorization, PostProcessing, PreProcessing, Reject,
+            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
+            CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PreProcessing,
+            Reject,
         },
         webhooks::VerifyWebhookSource,
     },
     router_request_types::{
-        AcceptDisputeRequestData, AuthorizeSessionTokenData,PaymentsTaxCalculationData, CompleteAuthorizeData,
+        AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, RetrieveFileRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
+        RetrieveFileRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
@@ -62,9 +64,9 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
-            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,PaymentTaxCalculation,
-            PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
-            PaymentsPostProcessing, PaymentsPreProcessing,
+            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
+            PaymentIncrementalAuthorization, PaymentReject, PaymentTaxCalculation,
+            PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
@@ -113,8 +115,10 @@ default_imp_for_calculate_tax!(
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
+    connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 use crate::connectors;

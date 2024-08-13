@@ -2,16 +2,16 @@
 
 use hyperswitch_domain_models::{
     router_flow_types::payments::{
-        Approve, Authorize, AuthorizeSessionToken, Capture, CalculateTax, CompleteAuthorize,
+        Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData, PaymentsTaxCalculationData,
+        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, SetupMandateRequestData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, SetupMandateRequestData,
     },
     router_response_types::PaymentsResponseData,
 };
@@ -113,11 +113,7 @@ pub trait PaymentIncrementalAuthorization:
 
 /// trait PaymentTaxCalculation
 pub trait PaymentTaxCalculation:
-    api::ConnectorIntegration<
-    CalculateTax,
-    PaymentsTaxCalculationData,
-    PaymentsResponseData,
->
+    api::ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, PaymentsResponseData>
 {
 }
 

@@ -3172,7 +3172,6 @@ default_imp_for_authorize_session_token!(
     connector::Zsl
 );
 
-
 macro_rules! default_imp_for_calculate_tax {
     ($($path:ident::$connector:ident),*) => {
         $( impl api::PaymentTaxCalculation for $path::$connector {}
@@ -3258,6 +3257,7 @@ default_imp_for_calculate_tax!(
     connector::Tsys,
     connector::Volt,
     connector::Wellsfargo,
+    connector::Wellsfargopayout,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,

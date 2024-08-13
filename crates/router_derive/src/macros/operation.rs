@@ -108,7 +108,9 @@ impl Conversion {
             Derives::TaxCalculation => {
                 syn::Ident::new("PaymentsDynamicTaxCalculationRequest", Span::call_site())
             }
-            Derives::TaxCalculationData => syn::Ident::new("PaymentsTaxCalculationData", Span::call_site()),
+            Derives::TaxCalculationData => {
+                syn::Ident::new("PaymentsTaxCalculationData", Span::call_site())
+            }
         }
     }
 

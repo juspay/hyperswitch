@@ -30,9 +30,9 @@ use hyperswitch_domain_models::router_flow_types::{
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
     payments::{
-        Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PostProcessing,
-        PreProcessing, Reject, Session, SetupMandate, Void,
+        Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
+        CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
+        PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -127,14 +127,11 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsResponseData,
 >;
 pub type PaymentsTaxCalculationRouterData =
-    RouterData<api::CalculateTax, PaymentsTaxCalculationData, PaymentsResponseData>;
-pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
-pub type PaymentsRejectRouterData =
-    RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
-pub type PaymentsApproveRouterData =
-    RouterData<api::Approve, PaymentsApproveData, PaymentsResponseData>;
-pub type PaymentsSessionRouterData =
-    RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
+    RouterData<CalculateTax, PaymentsTaxCalculationData, PaymentsResponseData>;
+pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
+pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
+pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<RSync, RefundsData, RefundsResponseData>;

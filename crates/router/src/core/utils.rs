@@ -868,7 +868,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
     key_store: &domain::MerchantKeyStore,
     // customer: &'a Option<domain::Customer>,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
-     let key_manager_state = &state.into();
+    let key_manager_state = &state.into();
     let profile_id = get_profile_id_from_business_details(
         key_manager_state,
         key_store,

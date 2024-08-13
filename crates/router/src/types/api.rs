@@ -602,7 +602,7 @@ impl TaxCalculateConnectorData {
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
             enums::TaxCalculatorConnectors::TaxJar => {
-                Ok(ConnectorEnum::Old(Box::new(&connector::TaxJar)))
+                Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
             }
         }
     }
