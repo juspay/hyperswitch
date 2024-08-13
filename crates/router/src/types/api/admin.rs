@@ -185,7 +185,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 
         Ok(Self {
             merchant_id: item.merchant_id,
-            profile_id: item.profile_id,
+            id: item.profile_id,
             profile_name: item.profile_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,

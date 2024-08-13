@@ -2120,9 +2120,9 @@ pub struct BusinessProfileResponse {
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
-    /// The default business profile that must be used for creating merchant accounts and payments
+    /// The identifier for business profile. This must be used for creating merchant accounts, payments and payouts
     #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]
-    pub profile_id: String,
+    pub id: String,
 
     /// Name of the business profile
     #[schema(max_length = 64)]
