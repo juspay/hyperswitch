@@ -1,6 +1,3 @@
-#![forbid(unsafe_code)]
-#![recursion_limit = "256"]
-
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
