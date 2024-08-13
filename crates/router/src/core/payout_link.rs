@@ -24,6 +24,19 @@ use crate::{
     types::domain,
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn initiate_payout_link(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _req: payouts::PayoutLinkInitiateRequest,
+    _request_headers: &header::HeaderMap,
+    _locale: String,
+) -> RouterResponse<services::GenericLinkFormData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn initiate_payout_link(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -122,30 +135,8 @@ pub async fn initiate_payout_link(
                 .convert(payout.amount, payout.destination_currency)
                 .change_context(errors::ApiErrorResponse::CurrencyConversionFailed)?;
             // Fetch customer
-
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
-                    &(&state).into(),
-                    &customer_id,
-                    &req.merchant_id,
-                    &key_store,
-                    merchant_account.storage_scheme,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!(
-                        "Customer [{}] not found for link_id - {}",
-                        payout_link.primary_reference, payout_link.link_id
-                    ),
-                })
-                .attach_printable_lazy(|| {
-                    format!("customer [{}] not found", payout_link.primary_reference)
-                })?;
-
-            #[cfg(all(feature = "v2", feature = "customer_v2"))]
-            let customer = db
-                .find_customer_by_merchant_reference_id_merchant_id(
                     &(&state).into(),
                     &customer_id,
                     &req.merchant_id,

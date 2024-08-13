@@ -15,6 +15,17 @@ use crate::{
     utils,
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn validate_request_and_initiate_payment_method_collect_link(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _req: &PaymentMethodCollectLinkRequest,
+) -> RouterResult<PaymentMethodCollectLinkData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -28,35 +39,6 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     match db
         .find_customer_by_customer_id_merchant_id(
-            &state.into(),
-            &customer_id,
-            &merchant_id,
-            key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            if err.current_context().is_db_not_found() {
-                Err(err).change_context(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!(
-                        "customer [{}] not found for merchant [{:?}]",
-                        customer_id.get_string_repr(),
-                        merchant_id
-                    ),
-                })
-            } else {
-                Err(err)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("database error while finding customer")
-            }
-        }
-    }?;
-
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    match db
-        .find_customer_by_merchant_reference_id_merchant_id(
             &state.into(),
             &customer_id,
             &merchant_id,
