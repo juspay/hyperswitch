@@ -11555,6 +11555,9 @@
               }
             ],
             "nullable": true
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -11650,7 +11653,8 @@
           "primary_business_details",
           "organization_id",
           "is_recon_enabled",
-          "recon_status"
+          "recon_status",
+          "is_network_tokenization_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -11788,6 +11792,9 @@
               }
             ],
             "nullable": true
+          },
+          "is_network_tokenization_enabled": {
+            "type": "boolean"
           }
         }
       },
