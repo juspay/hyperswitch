@@ -13959,7 +13959,7 @@
           },
           "merchant_connector_id": {
             "type": "string",
-            "description": "Connector_id related to merchant",
+            "description": "Unique identifier of the merchant connector account",
             "example": "mca_sAD3OZLATetvjLOYhUSy",
             "nullable": true
           },
