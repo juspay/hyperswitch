@@ -1610,7 +1610,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
     }
 }
 
-
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsTaxCalculationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1619,7 +1618,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsTaxCalcu
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change after we move to connector module
-            shipping_cost: payment_data.payment_intent.shipping_cost.ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("missing shipping_cost in payment_data.payment_intent")?,
+            shipping_cost: payment_data
+                .payment_intent
+                .shipping_cost
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing shipping_cost in payment_data.payment_intent")?,
             shipping: payment_data.payment_intent.shipping_details,
             order_details: payment_data.payment_intent.order_details,
         })

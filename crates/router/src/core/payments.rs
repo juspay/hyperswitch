@@ -29,7 +29,7 @@ pub use common_enums::enums::CallConnectorAction;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
     id_type, pii,
-    types::{ MinorUnit, Surcharge},
+    types::{MinorUnit, Surcharge},
 };
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{report, ResultExt};
@@ -261,7 +261,7 @@ where
                 &key_store,
             )
             .await?;
-        
+
         let tax_response = operation
             .to_domain()?
             .payments_dynamic_tax_calculation(

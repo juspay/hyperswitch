@@ -71,7 +71,7 @@ impl Feature<api::CalculateTax, types::PaymentsTaxCalculationData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile:  &domain::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -113,10 +113,10 @@ impl Feature<api::CalculateTax, types::PaymentsTaxCalculationData>
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::CalculateTax,
-            types::PaymentsTaxCalculationData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
+                    api::CalculateTax,
+                    types::PaymentsTaxCalculationData,
+                    types::PaymentsResponseData,
+                > = connector.connector.get_connector_integration();
 
                 connector_integration
                     .build_request(self, &state.conf.connectors)
@@ -128,4 +128,3 @@ impl Feature<api::CalculateTax, types::PaymentsTaxCalculationData>
         Ok((request, true))
     }
 }
-

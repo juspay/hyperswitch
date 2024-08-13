@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
+
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::
-    types::keymanager::KeyManagerState
-;
+use common_utils::types::keymanager::KeyManagerState;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+
 // use crate::core::payments::Operation;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
         utils as core_utils,
     },
-     routes::{app::ReqState, SessionState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self,
@@ -55,7 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 
         let db = &*state.store;
         let key_manager_state: &KeyManagerState = &state.into();
-        let merchant_id =  merchant_account.get_id();
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
 
         let payment_intent = db
@@ -207,7 +207,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         key_store: &domain::MerchantKeyStore,
         // storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_account: &domain::MerchantAccount,
-    ) -> errors::CustomResult<(), errors::ApiErrorResponse> { 
+    ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.as_ref();
         let key_manager_state: KeyManagerState = state.into();
         // Remove these db calls
@@ -227,7 +227,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
-                 merchant_account.get_id(),
+                merchant_account.get_id(),
                 payment_intent.active_attempt.get_id().as_str(),
                 merchant_account.storage_scheme,
             )
@@ -274,12 +274,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
                     status_code: err.status_code,
                     reason: err.reason,
                 })?;
-    
 
-        // Update payment data.payment_attempt with new amount which was returned by the connector 
+        // Update payment data.payment_attempt with new amount which was returned by the connector
         //payment_data
 
-        Ok(()) 
+        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -323,7 +322,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest> for PaymentTaxCalculation {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
+    for PaymentTaxCalculation
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -363,7 +364,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
 
         payment_data.payment_intent = updated_payment_intent;
         Ok((Box::new(self), payment_data))
-
     }
 }
 
@@ -385,7 +385,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationReque
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id:merchant_account.get_id().to_owned(),
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

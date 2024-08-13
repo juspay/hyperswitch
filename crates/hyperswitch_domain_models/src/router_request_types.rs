@@ -2,7 +2,12 @@ pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::RequestSurchargeDetails;
 use common_utils::{
-    consts, crypto::Encryptable, errors, ext_traits::OptionExt, id_type, pii, types::{self as common_types, MinorUnit}
+    consts,
+    crypto::Encryptable,
+    errors,
+    ext_traits::OptionExt,
+    id_type, pii,
+    types::{self as common_types, MinorUnit},
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
