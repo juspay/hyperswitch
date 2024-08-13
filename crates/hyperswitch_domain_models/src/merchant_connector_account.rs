@@ -218,7 +218,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             profile_id: other
                 .profile_id
                 .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "proflie_id".to_string(),
+                    field_name: "profile_id".to_string(),
                 })?,
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
