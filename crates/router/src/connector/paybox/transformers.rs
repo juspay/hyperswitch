@@ -446,7 +446,7 @@ pub fn parse_url_encoded_to_struct<T: DeserializeOwned>(
     query_bytes: Bytes,
 ) -> CustomResult<T, errors::ConnectorError> {
     let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&query_bytes);
-    serde_qs::from_str::<T>(&cow.to_string()).change_context(errors::ConnectorError::ParsingFailed)
+    serde_qs::from_str::<T>(&cow.as_ref()).change_context(errors::ConnectorError::ParsingFailed)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
