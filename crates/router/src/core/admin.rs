@@ -3345,7 +3345,6 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::BusinessProfile> {
-        use crate::core;
         use common_utils::ext_traits::AsyncExt;
 
         if let Some(session_expiry) = &self.session_expiry {
@@ -3382,9 +3381,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         let payment_link_config_value = self.payment_link_config.map(ForeignInto::foreign_into);
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| {
-                core::payment_methods::cards::create_encrypted_data(state, &key_store, headers)
-            })
+            .async_map(|headers| cards::create_encrypted_data(state, &key_store, headers))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3472,7 +3469,6 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         merchant_id: &id_type::MerchantId,
     ) -> RouterResult<domain::BusinessProfile> {
         use crate::core;
-        use common_utils::ext_traits::AsyncExt;
 
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
@@ -3498,9 +3494,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         let payment_link_config_value = self.payment_link_config.map(ForeignInto::foreign_into);
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| {
-                core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
-            })
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3596,7 +3590,7 @@ pub async fn create_business_profile(
         not(feature = "business_profile_v2")
     ))]
     let business_profile = request
-        .create_domain_model_from_request(&state, &merchant_account, &key_store, merchant_id)
+        .create_domain_model_from_request(&state, &merchant_account, &key_store)
         .await?;
 
     #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
