@@ -14,7 +14,7 @@ impl utils::Connector for BokuTest {
             Box::new(Boku::new()),
             types::Connector::Boku,
             types::api::GetToken::Connector,
-        None,
+            None,
         )
     }
 
