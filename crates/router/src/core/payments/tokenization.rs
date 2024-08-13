@@ -804,15 +804,11 @@ pub async fn save_in_locker(
             payment_method_request.clone(),
             amount,
             currency,
-        ).await
-        
+        )
+        .await
     } else {
-        save_card_in_locker(
-            state,
-            merchant_account,
-            payment_method_request.clone(),
-        ).await
-     }
+        save_card_in_locker(state, merchant_account, payment_method_request.clone()).await
+    }
 }
 
 pub async fn save_card_in_locker(
@@ -859,17 +855,13 @@ pub async fn save_card_in_locker(
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
-                payment_experience: Some(vec![
-                    api_models::enums::PaymentExperience::RedirectToUrl,
-                ]), //[#219]
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
             };
             Ok((payment_method_response, None, None))
         }
     }
-
-
 }
 
 pub async fn save_token_in_locker(
@@ -940,9 +932,7 @@ pub async fn save_token_in_locker(
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
-                payment_experience: Some(vec![
-                    api_models::enums::PaymentExperience::RedirectToUrl,
-                ]), //[#219]
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
                 last_used_at: Some(common_utils::date_time::now()),
                 client_secret: None,
             };

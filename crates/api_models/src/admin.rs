@@ -339,7 +339,6 @@ pub struct MerchantAccountUpdate {
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
     pub is_network_tokenization_enabled: Option<bool>,
-
 }
 
 #[cfg(all(

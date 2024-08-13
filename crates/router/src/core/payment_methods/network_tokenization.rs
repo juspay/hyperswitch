@@ -10,6 +10,7 @@ use common_utils::{
     type_name,
     types::keymanager::Identifier,
 };
+use diesel_models::payment_method;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_method_data::NetworkTokenData;
 use josekit::jwe;
@@ -33,8 +34,6 @@ use crate::{
     },
     utils::ConnectorResponseExt,
 };
-
-use diesel_models::payment_method;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -167,14 +166,13 @@ pub async fn make_card_network_tokenization_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let card_data = match payment_method_data {
         Some(domain::PaymentMethodData::Card(card)) => CardData {
-            
-                card_number: card.card_number.clone(),
-                exp_month: card.card_exp_month.clone(),
-                exp_year: card.card_exp_year.clone(),
-                card_security_code: card.card_cvc.clone(),
-            },
-            _ => todo!(),
-        };
+            card_number: card.card_number.clone(),
+            exp_month: card.card_exp_month.clone(),
+            exp_year: card.card_exp_year.clone(),
+            card_security_code: card.card_cvc.clone(),
+        },
+        _ => todo!(),
+    };
 
     let payload = card_data
         .encode_to_string_of_json()

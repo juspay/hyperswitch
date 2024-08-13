@@ -4070,8 +4070,8 @@ async fn get_pm_list_context(
                         pm.locker_id.clone().or(Some(pm.payment_method_id.clone())),
                         pm.locker_id.clone().unwrap_or(pm.payment_method_id.clone()),
                         pm.network_token_reference_id
-                                .clone()
-                                .or(Some(pm.payment_method_id.clone())),
+                            .clone()
+                            .or(Some(pm.payment_method_id.clone())),
                     ),
                 ),
             })

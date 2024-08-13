@@ -326,7 +326,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 organization_id: None,
                 is_recon_enabled: None,
                 recon_status: None,
-                is_network_tokenization_enabled
+                is_network_tokenization_enabled,
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
