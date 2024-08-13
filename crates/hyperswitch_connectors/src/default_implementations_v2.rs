@@ -181,13 +181,13 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 }
 
 default_imp_for_new_connector_integration_payment!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_refund {
@@ -207,13 +207,13 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 }
 
 default_imp_for_new_connector_integration_refund!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
@@ -228,13 +228,13 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 }
 
 default_imp_for_new_connector_integration_connector_access_token!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -255,13 +255,13 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 }
 
 default_imp_for_new_connector_integration_accept_dispute!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
@@ -281,13 +281,13 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 }
 
 default_imp_for_new_connector_integration_submit_evidence!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
@@ -307,13 +307,13 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 }
 
 default_imp_for_new_connector_integration_defend_dispute!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
@@ -343,13 +343,13 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 }
 
 default_imp_for_new_connector_integration_file_upload!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -371,13 +371,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -399,13 +399,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -427,13 +427,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -455,13 +455,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -483,13 +483,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -511,13 +511,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -539,13 +539,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "payouts")]
@@ -567,13 +567,13 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -593,13 +593,13 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 }
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "frm")]
@@ -621,13 +621,13 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "frm")]
@@ -649,13 +649,13 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "frm")]
@@ -677,13 +677,13 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "frm")]
@@ -705,13 +705,13 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 #[cfg(feature = "frm")]
@@ -733,13 +733,13 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -758,11 +758,11 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 }
 
 default_imp_for_new_connector_integration_revoking_mandates!(
-	connectors::Taxjar,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax
+    connectors::Stax,
+    connectors::Taxjar
 );

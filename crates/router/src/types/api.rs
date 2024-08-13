@@ -443,7 +443,7 @@ impl ConnectorData {
                 enums::Connector::Stax => Ok(ConnectorEnum::Old(Box::new(&connector::Stax))),
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
-                },
+                }
                 // enums::Connector::Taxjar => Ok(ConnectorEnum::Old(Box::new(connector::Taxjar))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
                 enums::Connector::Worldline => {

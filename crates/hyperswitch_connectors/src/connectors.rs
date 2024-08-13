@@ -9,5 +9,4 @@ pub mod taxjar;
 pub use self::{
     bambora::Bambora, bitpay::Bitpay, fiserv::Fiserv, fiservemea::Fiservemea, helcim::Helcim,
     stax::Stax, taxjar::Taxjar,
-,
 };
