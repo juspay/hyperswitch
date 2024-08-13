@@ -300,6 +300,7 @@ pub async fn payouts_create_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
+    locale: &String,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer) =
@@ -314,6 +315,7 @@ pub async fn payouts_create_core(
         &payout_id,
         &profile_id,
         payout_method_data.as_ref(),
+        locale,
         customer.as_ref(),
     )
     .await?;
@@ -2237,6 +2239,7 @@ pub async fn payout_create_db_entries(
     payout_id: &String,
     profile_id: &String,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
+    locale: &String,
     customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
@@ -2258,6 +2261,7 @@ pub async fn payout_create_db_entries(
                 merchant_id,
                 req,
                 payout_id,
+                locale,
             )
             .await?,
         ),
@@ -2583,6 +2587,7 @@ pub async fn create_payout_link(
     merchant_id: &common_utils::id_type::MerchantId,
     req: &payouts::PayoutCreateRequest,
     payout_id: &String,
+    locale: &String,
 ) -> RouterResult<PayoutLink> {
     let payout_link_config_req = req.payout_link_config.to_owned();
 
@@ -2626,8 +2631,9 @@ pub async fn create_payout_link(
         .as_ref()
         .map_or(default_config.expiry, |expiry| *expiry);
     let url = format!(
-        "{base_url}/payout_link/{}/{payout_id}",
-        merchant_id.get_string_repr()
+        "{base_url}/payout_link/{}/{payout_id}?locale={}",
+        merchant_id.get_string_repr(),
+        locale
     );
     let link = url::Url::parse(&url)
         .change_context(errors::ApiErrorResponse::InternalServerError)

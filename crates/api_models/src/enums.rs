@@ -46,6 +46,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    // Fiservemea,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -132,10 +133,10 @@ pub enum Connector {
     Stripe,
     Threedsecureio,
     Trustpay,
-    // Tsys,
     Tsys,
     Volt,
     Wellsfargo,
+    // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
@@ -207,6 +208,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Fiservemea
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -256,6 +258,7 @@ impl Connector {
             | Self::Tsys
             | Self::Volt
             | Self::Wellsfargo
+			// | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
