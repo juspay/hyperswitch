@@ -337,6 +337,7 @@ pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -349,6 +350,18 @@ pub enum PaymentMethodCreateData {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Wallet)]
     Wallet(payouts::Wallet),
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+#[serde(rename = "payment_method_data")]
+pub enum PaymentMethodCreateData {
+    Card(CardDetail),
 }
 
 #[cfg(all(
