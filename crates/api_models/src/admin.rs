@@ -7,7 +7,6 @@ use common_utils::{
     ext_traits::Encode,
     id_type, link_utils, pii,
 };
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
@@ -22,13 +21,15 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-use crate::consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_account_v2")
 ))]
 use crate::routing;
-use crate::{enums as api_enums, payment_methods};
+use crate::{
+    consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
+    enums as api_enums, payment_methods,
+};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
