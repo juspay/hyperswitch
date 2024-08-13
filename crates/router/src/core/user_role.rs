@@ -364,8 +364,13 @@ pub async fn delete_user_role(
             UserRoleVersion::V2,
         )
         .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while finding user role")
+        .map_err(|e| {
+            Ok(if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidRoleOperation)
+            } else {
+                return Err(UserErrors::InternalServerError);
+            })
+        })
     {
         let target_role_info = roles::RoleInfo::from_role_id(
             &state,
@@ -383,10 +388,7 @@ pub async fn delete_user_role(
             ));
         }
 
-        if !utils::user_role::is_valid_entity_operation(
-            deletion_requestor_role_info.get_entity_type(),
-            target_role_info.get_entity_type(),
-        ) {
+        if deletion_requestor_role_info.get_entity_type() < target_role_info.get_entity_type() {
             return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
                 "Invalid operation, deletion requestor = {} cannot delete target = {}",
                 deletion_requestor_role_info.get_entity_type(),
@@ -420,8 +422,13 @@ pub async fn delete_user_role(
             UserRoleVersion::V1,
         )
         .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while finding user role")
+        .map_err(|e| {
+            Ok(if e.current_context().is_db_not_found() {
+                e.change_context(UserErrors::InvalidRoleOperation)
+            } else {
+                return Err(UserErrors::InternalServerError);
+            })
+        })
     {
         let target_role_info = roles::RoleInfo::from_role_id(
             &state,
@@ -439,10 +446,7 @@ pub async fn delete_user_role(
             ));
         }
 
-        if !utils::user_role::is_valid_entity_operation(
-            deletion_requestor_role_info.get_entity_type(),
-            target_role_info.get_entity_type(),
-        ) {
+        if deletion_requestor_role_info.get_entity_type() < target_role_info.get_entity_type() {
             return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
                 "Invalid operation, deletion requestor = {} cannot delete target = {}",
                 deletion_requestor_role_info.get_entity_type(),

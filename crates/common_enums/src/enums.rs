@@ -3083,6 +3083,8 @@ pub enum ApiVersion {
     Debug,
     Eq,
     PartialEq,
+    Ord,
+    PartialOrd,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -3093,10 +3095,10 @@ pub enum ApiVersion {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
-    Internal,
-    Organization,
-    Merchant,
-    Profile,
+    Internal = 3,
+    Organization = 2,
+    Merchant = 1,
+    Profile = 0,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

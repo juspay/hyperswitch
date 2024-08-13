@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::user_role as user_role_api;
-use common_enums::{EntityType, PermissionGroup};
+use common_enums::PermissionGroup;
 use common_utils::id_type;
 use diesel_models::user_role::UserRole;
 use error_stack::{report, ResultExt};
@@ -171,20 +171,4 @@ pub async fn get_multiple_role_info_for_user_roles(
         Ok::<_, error_stack::Report<UserErrors>>(role)
     }))
     .await
-}
-
-pub fn entity_level(entity_type: EntityType) -> u8 {
-    match entity_type {
-        EntityType::Internal => 3,
-        EntityType::Organization => 2,
-        EntityType::Merchant => 1,
-        EntityType::Profile => 0,
-    }
-}
-
-pub fn is_valid_entity_operation(
-    requestor_entity_type: EntityType,
-    target_entity_type: EntityType,
-) -> bool {
-    entity_level(requestor_entity_type) >= entity_level(target_entity_type)
 }

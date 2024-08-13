@@ -139,26 +139,24 @@ impl UserRole {
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
-        // Find from user_roles where user_id = ?
-        // && ((org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?))
-        // && version = ?
+        // (org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?)
+        let check_lineage = dsl::org_id
+            .eq(org_id.clone())
+            .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null()))
+            .or(dsl::org_id.eq(org_id.clone()).and(
+                dsl::merchant_id
+                    .eq(merchant_id.clone())
+                    .and(dsl::profile_id.is_null()),
+            ))
+            .or(dsl::org_id.eq(org_id).and(
+                dsl::merchant_id
+                    .eq(merchant_id)
+                    .and(dsl::profile_id.eq(profile_id)),
+            ));
+
         let predicate = dsl::user_id
             .eq(user_id)
-            .and(
-                (dsl::org_id
-                    .eq(org_id.clone())
-                    .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null())))
-                .or(dsl::org_id.eq(org_id.clone()).and(
-                    dsl::merchant_id
-                        .eq(merchant_id.clone())
-                        .and(dsl::profile_id.is_null()),
-                ))
-                .or(dsl::org_id.eq(org_id).and(
-                    dsl::merchant_id
-                        .eq(merchant_id)
-                        .and(dsl::profile_id.eq(profile_id)),
-                )),
-            )
+            .and(check_lineage)
             .and(dsl::version.eq(version));
 
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
@@ -173,26 +171,24 @@ impl UserRole {
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
-        // Find from user_roles where user_id = ?
-        // && ((org_id = ? && merchant_id = null && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?))
-        // && version = ?
+        // (org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?)
+        let check_lineage = dsl::org_id
+            .eq(org_id.clone())
+            .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null()))
+            .or(dsl::org_id.eq(org_id.clone()).and(
+                dsl::merchant_id
+                    .eq(merchant_id.clone())
+                    .and(dsl::profile_id.is_null()),
+            ))
+            .or(dsl::org_id.eq(org_id).and(
+                dsl::merchant_id
+                    .eq(merchant_id)
+                    .and(dsl::profile_id.eq(profile_id)),
+            ));
+
         let predicate = dsl::user_id
             .eq(user_id)
-            .and(
-                (dsl::org_id
-                    .eq(org_id.clone())
-                    .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null())))
-                .or(dsl::org_id.eq(org_id.clone()).and(
-                    dsl::merchant_id
-                        .eq(merchant_id.clone())
-                        .and(dsl::profile_id.is_null()),
-                ))
-                .or(dsl::org_id.eq(org_id).and(
-                    dsl::merchant_id
-                        .eq(merchant_id)
-                        .and(dsl::profile_id.eq(profile_id)),
-                )),
-            )
+            .and(check_lineage)
             .and(dsl::version.eq(version));
 
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(conn, predicate)
