@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Non sei autorizzato a visualizzare questo contenuto"
+    title: "Link di Pagamento"
+  status:
+    title: "Stato del Pagamento"
+    info:
+      ref_id: "ID di Riferimento"
+      error_code: "Codice di Errore"
+      error_message: "Messaggio di Errore"
+    message:
+      failed: "Impossibile elaborare il tuo pagamento. Contatta il tuo fornitore per ulteriori dettagli."
+      processing: "Il tuo pagamento dovrebbe essere elaborato entro 2-3 giorni lavorativi."
+      success: "Il tuo pagamento è stato effettuato al metodo di pagamento selezionato."
+    redirection_text:
+      redirecting: "Reindirizzamento..."
+      redirecting_in: "Reindirizzamento tra"
+      seconds: "secondi..."
+    text:
+      failed: "Pagamento Fallito"
+      processing: "Pagamento in Corso"
+      success: "Pagamento Riuscito"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Gennaio"
+  february: "Febbraio"
+  march: "Marzo"
+  april: "Aprile"
+  may: "Maggio"
+  june: "Giugno"
+  july: "Luglio"
+  august: "Agosto"
+  september: "Settembre"
+  october: "Ottobre"
+  november: "Novembre"
+  december: "Dicembre"

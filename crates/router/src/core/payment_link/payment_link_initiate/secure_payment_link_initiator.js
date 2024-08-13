@@ -13,12 +13,11 @@ try {
 
 if (!isFramed) {
   function initializeSDK() {
-    var errMsg = "You are not allowed to view this content.";
     var contentElement = document.getElementById("payment-link");
     if (contentElement instanceof HTMLDivElement) {
-      contentElement.innerHTML = errMsg;
+      contentElement.innerHTML = translations.notAllowed;
     } else {
-      document.body.innerHTML = errMsg;
+      document.body.innerHTML = translations.notAllowed;
     }
   }
 } else {
@@ -54,6 +53,7 @@ if (!isFramed) {
     widgets = hyper.widgets({
       appearance: appearance,
       clientSecret: client_secret,
+      locale: paymentDetails.locale,
     });
     var type =
       paymentDetails.sdk_layout === "spaced_accordion" ||
@@ -98,10 +98,11 @@ if (!isFramed) {
    * Use - redirect to /payment_link/status
    */
   function redirectToStatus() {
+    var paymentDetails = window.__PAYMENT_DETAILS;
     var arr = window.location.pathname.split("/");
     arr.splice(0, 3);
     arr.unshift("status");
     arr.unshift("payment_link");
-    window.location.href = window.location.origin + "/" + arr.join("/");
+    window.location.href = window.location.origin + "/" + arr.join("/")+ "?locale=" + paymentDetails.locale;
   }
 }

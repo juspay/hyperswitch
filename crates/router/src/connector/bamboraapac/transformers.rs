@@ -91,9 +91,10 @@ fn get_transaction_body(
 }
 
 fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
-    let card_holder_name = req.get_billing_full_name()?;
     let card_data = match &req.request.payment_method_data {
         domain::PaymentMethodData::Card(card) => {
+            let card_holder_name = req.get_billing_full_name()?;
+
             if req.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {
                 format!(
                     r#"
@@ -153,7 +154,7 @@ fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Err
 
 fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<u8, Error> {
     match capture_method {
-        Some(enums::CaptureMethod::Automatic) => Ok(1),
+        Some(enums::CaptureMethod::Automatic) | None => Ok(1),
         Some(enums::CaptureMethod::Manual) => Ok(2),
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
@@ -224,7 +225,7 @@ fn get_attempt_status(
 ) -> enums::AttemptStatus {
     match response_code {
         0 => match capture_method {
-            Some(enums::CaptureMethod::Automatic) => enums::AttemptStatus::Charged,
+            Some(enums::CaptureMethod::Automatic) | None => enums::AttemptStatus::Charged,
             Some(enums::CaptureMethod::Manual) => enums::AttemptStatus::Authorized,
             _ => enums::AttemptStatus::Pending,
         },

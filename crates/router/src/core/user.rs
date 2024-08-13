@@ -4,7 +4,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse},
 };
-use common_utils::types::keymanager::Identifier;
+use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
@@ -1923,13 +1923,15 @@ pub async fn update_totp(
                 totp_status: None,
                 totp_secret: Some(
                     // TODO: Impl conversion trait for User and move this there
-                    domain::types::encrypt::<String, masking::WithType>(
+                    domain::types::crypto_operation::<String, masking::WithType>(
                         &(&state).into(),
-                        totp.get_secret_base32().into(),
+                        type_name!(storage_user::User),
+                        domain::types::CryptoOperation::Encrypt(totp.get_secret_base32().into()),
                         Identifier::User(key_store.user_id.clone()),
                         key_store.key.peek(),
                     )
                     .await
+                    .and_then(|val| val.try_into_operation())
                     .change_context(UserErrors::InternalServerError)?
                     .into(),
                 ),
