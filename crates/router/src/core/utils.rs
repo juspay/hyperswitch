@@ -889,7 +889,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         None,
         key_store,
         &profile_id,
-        &payment_attempt.connector.as_ref().unwrap(),
+        payment_attempt.connector.as_ref().unwrap(),
         payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
@@ -939,7 +939,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
             amount: payment_intent.amount.clone().get_amount_as_i64(),
             shipping_cost: payment_intent
                 .shipping_cost
-                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing shipping_cost")?,
             shipping: payment_intent.shipping_details.clone(),
@@ -949,7 +948,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             merchant_account.get_id(),
-            &payment_attempt,
+            payment_attempt,
         ),
         #[cfg(feature = "payouts")]
         payout_method_data: None,

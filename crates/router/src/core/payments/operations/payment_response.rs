@@ -500,8 +500,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculatio
     where
         F: 'b + Send,
     {
-        let shipping_address = payment_data.address.get_shipping();
-        let amount = payment_data.amount;
+        let _shipping_address = payment_data.address.get_shipping();
+        let _amount = payment_data.amount;
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,

@@ -262,7 +262,7 @@ where
             )
             .await?;
 
-        let tax_response = operation
+        operation
             .to_domain()?
             .payments_dynamic_tax_calculation(
                 state,

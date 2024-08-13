@@ -208,31 +208,12 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         // storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_account: &domain::MerchantAccount,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-        let db = state.store.as_ref();
-        let key_manager_state: KeyManagerState = state.into();
-        // Remove these db calls
-        let mut payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
-                &payment_data.payment_intent.payment_id,
-                &payment_data.payment_intent.merchant_id,
-                key_store,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        // let db = state.store.as_ref();
+        let payment_intent = payment_data.payment_intent.clone();
 
-        let attempt_id = payment_intent.active_attempt.get_id().clone();
+        // let attempt_id = payment_intent.active_attempt.get_id().clone();
 
-        let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
-                merchant_account.get_id(),
-                payment_intent.active_attempt.get_id().as_str(),
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_attempt = payment_data.payment_attempt.clone();
 
         // Derive this connector from business profile
         let connector_data = api::TaxCalculateConnectorData::get_connector_by_name(
@@ -240,11 +221,11 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         )?;
 
         let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
-            &state,
+            state,
             &payment_intent,
             &payment_attempt,
-            &merchant_account,
-            &key_store,
+            merchant_account,
+            key_store,
             // &customer,
         )
         .await?;
@@ -255,7 +236,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         > = connector_data.connector.get_connector_integration();
 
         let response = services::execute_connector_processing_step(
-            &state,
+            state,
             connector_integration,
             &router_data,
             payments::CallConnectorAction::Trigger,
@@ -264,7 +245,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let tax_response =
+        let _tax_response =
             response
                 .response
                 .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
@@ -275,7 +256,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
                     reason: err.reason,
                 })?;
 
-        // Update payment data.payment_attempt with new amount which was returned by the connector
+        // Update payment_data.tax_details with new amount which was returned by the connector
+        // When constructing the router data, add this to the net amount
         //payment_data
 
         Ok(())

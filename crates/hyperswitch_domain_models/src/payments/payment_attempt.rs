@@ -476,8 +476,8 @@ pub enum PaymentAttemptUpdate {
     },
     // SessionUpdate {
     //     amount: MinorUnit,
-    //     order_tax_amount: MinorUnit,
-    //     payment_method_shipping_address_id: Option<String>,
+    // //     order_tax_amount: MinorUnit,
+    // //     payment_method_shipping_address_id: Option<String>,
     // },
 }
 
