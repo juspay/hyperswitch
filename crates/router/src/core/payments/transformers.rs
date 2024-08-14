@@ -148,10 +148,12 @@ where
             payment_data
                 .address
                 .clone()
-                .unify_with_payment_method_data_billing(payment_method_billing)
+                .unify_with_payment_data_billing(payment_method_billing)
         } else {
             payment_data.address
         };
+
+    crate::logger::debug!("unified address details {:?}", unified_address);
 
     router_data = types::RouterData {
         flow: PhantomData,
