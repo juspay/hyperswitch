@@ -49,13 +49,6 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
-    async fn delete_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError>;
-
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -173,25 +166,6 @@ impl UserRoleInterface for Store {
             user_id.to_owned(),
             org_id.to_owned(),
             update,
-            version,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn delete_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-
-        storage::UserRole::delete_by_user_id_merchant_id(
-            &conn,
-            user_id.to_owned(),
-            merchant_id.to_owned(),
             version,
         )
         .await
@@ -625,32 +599,6 @@ impl UserRoleInterface for MockDb {
         }
 
         Ok(())
-    }
-
-    async fn delete_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let mut user_roles = self.user_roles.lock().await;
-
-        let index = user_roles.iter().position(|role| {
-            role.user_id == user_id
-                && role.version == version
-                && match role.merchant_id {
-                    Some(ref mid) => mid == merchant_id,
-                    None => false,
-                }
-        });
-
-        match index {
-            Some(idx) => Ok(user_roles.remove(idx)),
-            None => Err(errors::StorageError::ValueNotFound(
-                "Cannot find user role to delete".to_string(),
-            )
-            .into()),
-        }
     }
 
     async fn list_user_roles_by_user_id(

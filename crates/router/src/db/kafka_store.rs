@@ -2645,17 +2645,6 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn delete_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .delete_user_role_by_user_id_merchant_id(user_id, merchant_id, version)
-            .await
-    }
-
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
