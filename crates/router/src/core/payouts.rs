@@ -1106,7 +1106,7 @@ pub async fn create_recipient(
         // 1. Form router data
         let router_data = core_utils::construct_payout_router_data(
             state,
-            &connector_data.connector_name,
+            connector_data,
             merchant_account,
             key_store,
             payout_data,
@@ -1273,7 +1273,7 @@ pub async fn check_payout_eligibility(
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name,
+        connector_data,
         merchant_account,
         key_store,
         payout_data,
@@ -1453,7 +1453,7 @@ pub async fn create_payout(
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name,
+        connector_data,
         merchant_account,
         key_store,
         payout_data,
@@ -1645,7 +1645,7 @@ pub async fn create_payout_retrieve(
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name,
+        connector_data,
         merchant_account,
         key_store,
         payout_data,
@@ -1787,7 +1787,7 @@ pub async fn create_recipient_disburse_account(
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name,
+        connector_data,
         merchant_account,
         key_store,
         payout_data,
@@ -1872,7 +1872,7 @@ pub async fn cancel_payout(
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name,
+        connector_data,
         merchant_account,
         key_store,
         payout_data,
@@ -1977,7 +1977,7 @@ pub async fn fulfill_payout(
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name,
+        connector_data,
         merchant_account,
         key_store,
         payout_data,
