@@ -817,6 +817,7 @@ pub async fn merchant_account_toggle_all_kv(
 }
 
 #[cfg(all(
+    feature = "olap",
     any(feature = "v1", feature = "v2"),
     not(feature = "business_profile_v2")
 ))]
@@ -850,7 +851,7 @@ pub async fn business_profile_create(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(all(feature = "olap", feature = "v2", feature = "business_profile_v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,

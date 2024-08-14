@@ -3558,6 +3558,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
     }
 }
 
+#[cfg(feature = "olap")]
 pub async fn create_business_profile(
     state: SessionState,
     request: api::BusinessProfileCreate,
