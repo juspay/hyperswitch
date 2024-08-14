@@ -1,4 +1,4 @@
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -12,8 +12,23 @@ use crate::{
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
+pub struct GlobepayRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for GlobepayRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct GlobepayPaymentsRequest {
-    price: i64,
+    price: MinorUnit,
     description: String,
     currency: enums::Currency,
     channel: GlobepayChannel,
@@ -25,9 +40,12 @@ pub enum GlobepayChannel {
     Wechat,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
+impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for GlobepayPaymentsRequest {
     type Error = Error;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &GlobepayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data.clone();
         let channel: GlobepayChannel = match &item.request.payment_method_data {
             domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 domain::WalletData::AliPayQr(_) => GlobepayChannel::Alipay,
@@ -74,7 +92,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("globepay"),
                 ))?
@@ -82,7 +101,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
         };
         let description = item.get_description()?;
         Ok(Self {
-            price: item.request.amount,
+            price: item_data.amount,
             description,
             currency: item.request.currency,
             channel,
@@ -307,15 +326,15 @@ fn get_error_response(
 
 #[derive(Debug, Serialize)]
 pub struct GlobepayRefundRequest {
-    pub fee: i64,
+    pub fee: MinorUnit,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for GlobepayRefundRequest {
+impl<F> TryFrom<&GlobepayRouterData<&types::RefundsRouterData<F>>> for GlobepayRefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            fee: item.request.refund_amount,
-        })
+    fn try_from(
+        item: &GlobepayRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self { fee: item.amount })
     }
 }
 

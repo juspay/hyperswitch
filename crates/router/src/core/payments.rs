@@ -73,7 +73,6 @@ use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     connector::utils::missing_field_err,
     core::{
-        authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::cards,
         utils,
@@ -84,17 +83,21 @@ use crate::{
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
-        api::{self, authentication, ConnectorCallType, ConnectorCommon},
+        api::{self, ConnectorCallType, ConnectorCommon},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
-        BrowserInformation,
     },
     utils::{
         add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
         ValueExt,
     },
     workflows::payment_sync,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::authentication as authentication_core,
+    types::{api::authentication, BrowserInformation},
 };
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -103,6 +106,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
+    profile_id_from_auth_layer: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -162,6 +166,11 @@ where
         )
         .await?;
 
+    utils::validate_profile_id_from_auth_layer(
+        profile_id_from_auth_layer,
+        &payment_data.payment_intent,
+    )?;
+
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
@@ -175,7 +184,13 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    call_decision_manager(state, &merchant_account, &mut payment_data).await?;
+    call_decision_manager(
+        state,
+        &merchant_account,
+        &business_profile,
+        &mut payment_data,
+    )
+    .await?;
 
     let connector = get_connector_choice(
         &operation,
@@ -485,6 +500,7 @@ where
                         call_surcharge_decision_management_for_session_flow(
                             state,
                             &merchant_account,
+                            &business_profile,
                             &mut payment_data,
                             &connectors,
                         )
@@ -615,11 +631,16 @@ where
 pub async fn call_decision_manager<O>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    _business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<O>,
 ) -> RouterResult<()>
 where
     O: Send + Clone,
 {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -628,6 +649,10 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
+
+    // TODO: Move to business profile surcharge column
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
     let output = perform_decision_management(
         state,
@@ -731,7 +756,8 @@ pub fn get_connector_data(
 #[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow<O>(
     state: &SessionState,
-    merchant_account: &domain::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
+    _business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<O>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
@@ -757,7 +783,12 @@ where
             .iter()
             .map(|session_connector_data| session_connector_data.payment_method_type)
             .collect();
-        let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
+
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_account_v2")
+        ))]
+        let algorithm_ref: api::routing::RoutingAlgorithmRef = _merchant_account
             .routing_algorithm
             .clone()
             .map(|val| val.parse_value("routing algorithm"))
@@ -765,6 +796,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not decode the routing algorithm")?
             .unwrap_or_default();
+
+        // TODO: Move to business profile surcharge column
+        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
+
         let surcharge_results =
             surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(
                 state,
@@ -788,7 +824,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     state: SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
@@ -825,6 +861,7 @@ where
             &state,
             req_state,
             merchant_account,
+            profile_id,
             key_store,
             operation.clone(),
             req,
@@ -1568,24 +1605,18 @@ where
             payment_processing_details,
         ) => {
             let apple_pay_data = match payment_data.payment_method_data.clone() {
-                Some(payment_method_data) => {
-                    let domain_data = domain::PaymentMethodData::from(payment_method_data);
-                    match domain_data {
-                        domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
-                            wallet_data,
-                        )) => Some(
-                            ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?
-                                .decrypt(
-                                    &payment_processing_details.payment_processing_certificate,
-                                    &payment_processing_details.payment_processing_certificate_key,
-                                )
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        ),
-                        _ => None,
-                    }
-                }
+                Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                    wallet_data,
+                ))) => Some(
+                    ApplePayData::token_json(domain::WalletData::ApplePay(wallet_data))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                        .decrypt(
+                            &payment_processing_details.payment_processing_certificate,
+                            &payment_processing_details.payment_processing_certificate_key,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                ),
                 _ => None,
             };
 
@@ -2061,9 +2092,9 @@ where
     }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
-        Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
-            api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+        Some(domain::PaymentMethodData::BankTransfer(data)) => match data.deref() {
+            domain::BankTransferData::AchBankTransfer { .. }
+            | domain::BankTransferData::MultibancoBankTransfer { .. }
                 if connector.connector_name == router_types::Connector::Stripe =>
             {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
@@ -2077,7 +2108,7 @@ where
             }
             _ => (router_data, should_continue_payment),
         },
-        Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+        Some(domain::PaymentMethodData::Wallet(_)) => {
             if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                 (
                     router_data.preprocessing_steps(state, connector).await?,
@@ -2087,7 +2118,7 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+        Some(domain::PaymentMethodData::Card(_)) => {
             if connector.connector_name == router_types::Connector::Payme
                 && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
             {
@@ -2136,7 +2167,7 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(api_models::payments::PaymentMethodData::GiftCard(_)) => {
+        Some(domain::PaymentMethodData::GiftCard(_)) => {
             if connector.connector_name == router_types::Connector::Adyen {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
@@ -2147,7 +2178,7 @@ where
                 (router_data, should_continue_payment)
             }
         }
-        Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
+        Some(domain::PaymentMethodData::BankDebit(_)) => {
             if connector.connector_name == router_types::Connector::Gocardless {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 let is_error_in_response = router_data.response.is_err();
@@ -2210,9 +2241,9 @@ where
         .await?;
 
     match payment_data.payment_method_data.clone() {
-        Some(api_models::payments::PaymentMethodData::OpenBanking(
-            api_models::payments::OpenBankingData::OpenBankingPIS { .. },
-        )) => {
+        Some(domain::PaymentMethodData::OpenBanking(domain::OpenBankingData::OpenBankingPIS {
+            ..
+        })) => {
             if connector.connector_name == router_types::Connector::Plaid {
                 router_data = router_data.postprocessing_steps(state, connector).await?;
                 let token = if let Ok(ref res) = router_data.response {
@@ -2699,7 +2730,7 @@ where
     pub token_data: Option<storage::PaymentTokenData>,
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
-    pub payment_method_data: Option<api::PaymentMethodData>,
+    pub payment_method_data: Option<domain::PaymentMethodData>,
     pub payment_method_info: Option<storage::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
@@ -2877,7 +2908,7 @@ pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
 pub async fn list_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
@@ -2894,6 +2925,8 @@ pub async fn list_payments(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_intents =
+        utils::filter_objects_based_on_profile_id_list(profile_id_list, payment_intents);
 
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
@@ -2950,7 +2983,7 @@ pub async fn list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
     merchant_key_store: domain::MerchantKeyStore,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
@@ -2967,7 +3000,7 @@ pub async fn apply_filters_on_payments(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
+    let list = utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
@@ -3048,10 +3081,11 @@ pub async fn get_filters_for_payments(
 pub async fn get_payment_filters(
     state: SessionState,
     merchant: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api::PaymentListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), None).await?
+        super::admin::list_payment_connectors(state, merchant.get_id().to_owned(), profile_id_list)
+            .await?
     {
         data
     } else {
@@ -3910,6 +3944,98 @@ where
     Ok(final_list)
 }
 
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+pub async fn route_connector_v1<F>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::BusinessProfile,
+    key_store: &domain::MerchantKeyStore,
+    transaction_data: TransactionData<'_, F>,
+    routing_data: &mut storage::RoutingData,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<ConnectorCallType>
+where
+    F: Send + Clone,
+{
+    let (profile_id, routing_algorithm_id) =
+        super::admin::BusinessProfileWrapper::new(business_profile.clone())
+            .get_profile_id_and_routing_algorithm_id(&transaction_data);
+
+    let connectors = routing::perform_static_routing_v1(
+        state,
+        merchant_account.get_id(),
+        routing_algorithm_id,
+        &transaction_data,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let connectors = routing::perform_eligibility_analysis_with_fallback(
+        &state.clone(),
+        key_store,
+        connectors,
+        &transaction_data,
+        eligible_connectors,
+        profile_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed eligibility analysis and fallback")?;
+
+    #[cfg(feature = "payouts")]
+    let first_connector_choice = connectors
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+        .attach_printable("Empty connector list returned")?
+        .clone();
+
+    let connector_data = connectors
+        .into_iter()
+        .map(|conn| {
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &conn.connector.to_string(),
+                api::GetToken::Connector,
+                conn.merchant_connector_id,
+            )
+        })
+        .collect::<CustomResult<Vec<_>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    match transaction_data {
+        TransactionData::Payment(payment_data) => {
+            decide_multiplex_connector_for_normal_or_recurring_payment(
+                state,
+                payment_data,
+                routing_data,
+                connector_data,
+                mandate_type,
+                business_profile.is_connector_agnostic_mit_enabled.clone(),
+            )
+            .await
+        }
+
+        #[cfg(feature = "payouts")]
+        TransactionData::Payout(_) => {
+            routing_data.routed_through = Some(first_connector_choice.connector.to_string());
+
+            routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+
+            Ok(ConnectorCallType::Retryable(connector_data))
+        }
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,
@@ -3924,35 +4050,36 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    #[allow(unused_variables)]
-    let (profile_id, routing_algorithm) = match &transaction_data {
-        TransactionData::Payment(payment_data) => (
-            payment_data.payment_intent.profile_id.clone(),
-            business_profile.routing_algorithm.clone(),
-        ),
-        #[cfg(feature = "payouts")]
-        TransactionData::Payout(payout_data) => (
-            Some(payout_data.payout_attempt.profile_id.clone()),
-            business_profile.payout_routing_algorithm.clone(),
-        ),
-    };
+    let (profile_id, routing_algorithm_id) = {
+        let (profile_id, routing_algorithm) = match &transaction_data {
+            TransactionData::Payment(payment_data) => (
+                payment_data.payment_intent.profile_id.clone(),
+                business_profile.routing_algorithm.clone(),
+            ),
+            #[cfg(feature = "payouts")]
+            TransactionData::Payout(payout_data) => (
+                Some(payout_data.payout_attempt.profile_id.clone()),
+                business_profile.payout_routing_algorithm.clone(),
+            ),
+        };
 
-    let algorithm_ref = routing_algorithm
-        .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Could not decode merchant routing algorithm ref")?
-        .unwrap_or_default();
+        let algorithm_ref = routing_algorithm
+            .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not decode merchant routing algorithm ref")?
+            .unwrap_or_default();
+        (profile_id, algorithm_ref.algorithm_id)
+    };
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
-        algorithm_ref,
+        routing_algorithm_id,
         &transaction_data,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
         key_store,
@@ -4010,6 +4137,17 @@ where
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn payment_external_authentication(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _req: api_models::payments::PaymentsExternalAuthenticationRequest,
+) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 pub async fn payment_external_authentication(
     state: SessionState,
@@ -4054,6 +4192,7 @@ pub async fn payment_external_authentication(
         &[storage_enums::IntentStatus::RequiresCustomerAction],
         "authenticate",
     )?;
+
     let optional_customer = match &payment_intent.customer_id {
         Some(customer_id) => Some(
             state
@@ -4073,6 +4212,7 @@ pub async fn payment_external_authentication(
         ),
         None => None,
     };
+
     let profile_id = payment_intent
         .profile_id
         .as_ref()

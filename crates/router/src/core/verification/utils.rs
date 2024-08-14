@@ -2,7 +2,10 @@ use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 
 use crate::{
-    core::errors::{self, utils::StorageErrorExt},
+    core::{
+        errors::{self, utils::StorageErrorExt},
+        utils,
+    },
     logger,
     routes::SessionState,
     types,
@@ -12,6 +15,7 @@ use crate::{
 pub async fn check_existence_and_add_domain_to_db(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
+    profile_id_from_auth_layer: Option<String>,
     merchant_connector_id: String,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
@@ -48,7 +52,10 @@ pub async fn check_existence_and_add_domain_to_db(
         let _ = domain_from_req;
         todo!()
     };
-
+    utils::validate_profile_id_from_auth_layer(
+        profile_id_from_auth_layer,
+        &merchant_connector_account,
+    )?;
     let mut already_verified_domains = merchant_connector_account
         .applepay_verified_domains
         .clone()

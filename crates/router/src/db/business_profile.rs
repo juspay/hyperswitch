@@ -36,6 +36,14 @@ where
         profile_id: &str,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
 
+    async fn find_business_profile_by_merchant_id_profile_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &str,
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
+
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
         key_manager_state: &KeyManagerState,
@@ -101,6 +109,26 @@ impl BusinessProfileInterface for Store {
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::BusinessProfile::find_by_profile_id(&conn, profile_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?
+            .convert(
+                key_manager_state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn find_business_profile_by_merchant_id_profile_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &str,
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::BusinessProfile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -257,6 +285,42 @@ impl BusinessProfileInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No business profile found for profile_id = {profile_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_business_profile_by_merchant_id_profile_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &str,
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        self.business_profiles
+            .lock()
+            .await
+            .iter()
+            .find(|business_profile| {
+                business_profile.merchant_id == *merchant_id
+                    && business_profile.profile_id == profile_id
+            })
+            .cloned()
+            .async_map(|business_profile| async {
+                business_profile
+                    .convert(
+                        key_manager_state,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No business profile found for merchant_id = {merchant_id:?} and profile_id = {profile_id}"
                 ))
                 .into(),
             )

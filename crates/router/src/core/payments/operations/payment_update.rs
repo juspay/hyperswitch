@@ -95,13 +95,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
+        helpers::validate_payment_status_against_allowed_statuses(
             &payment_intent.status,
             &[
-                storage_enums::IntentStatus::Failed,
-                storage_enums::IntentStatus::Succeeded,
-                storage_enums::IntentStatus::PartiallyCaptured,
-                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresPaymentMethod,
+                storage_enums::IntentStatus::RequiresConfirmation,
             ],
             "update",
         )?;
@@ -451,7 +449,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -528,7 +526,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         helpers::make_pm_data(

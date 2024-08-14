@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common_utils::{id_type, pii::Email};
+use common_utils::{id_type, pii::Email, types::StringMajorUnit};
 use error_stack::report;
 use masking::{ExposeInterface, Secret};
 use reqwest::Url;
@@ -18,26 +18,16 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct AciRouterData<T> {
-    amount: String,
+    amount: StringMajorUnit,
     router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for AciRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for AciRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -76,7 +66,7 @@ pub struct AciPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
     pub entity_id: Secret<String>,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     pub payment_type: AciPaymentType,
 }
@@ -448,7 +438,8 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?
@@ -785,7 +776,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     pub payment_type: AciPaymentType,
     pub entity_id: Secret<String>,

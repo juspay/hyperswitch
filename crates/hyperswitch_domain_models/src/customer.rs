@@ -1,7 +1,6 @@
 use api_models::customers::CustomerRequestWithEncryption;
 // #[cfg(all(feature = "v2", feature = "customer_v2"))]
 // use common_enums::SoftDeleteStatus;
-use common_enums::ApiVersion;
 use common_utils::{
     crypto, date_time,
     encryption::Encryption,
@@ -36,7 +35,7 @@ pub struct Customer {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: ApiVersion,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -54,12 +53,12 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: ApiVersion,
     pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -196,8 +195,8 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address.map(Encryption::from),
             default_shipping_address: self.default_shipping_address.map(Encryption::from),
-            // status: self.status,
             version: self.version,
+            // status: self.status,
         })
     }
 
@@ -250,8 +249,8 @@ impl super::behaviour::Conversion for Customer {
             updated_by: item.updated_by,
             default_billing_address: item.default_billing_address,
             default_shipping_address: item.default_shipping_address,
-            // status: item.status,
             version: item.version,
+            // status: item.status,
         })
     }
 
@@ -275,7 +274,7 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
             // status: self.status,
-            version: self.version,
+            version: crate::consts::API_VERSION,
         })
     }
 }
@@ -291,6 +290,9 @@ pub enum CustomerUpdate {
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
         connector_customer: Option<pii::SecretSerdeValue>,
+        default_billing_address: Option<Encryption>,
+        default_shipping_address: Option<Encryption>,
+        default_payment_method_id: Option<Option<String>>,
     },
     ConnectorCustomer {
         connector_customer: Option<pii::SecretSerdeValue>,
@@ -312,6 +314,9 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
+                default_billing_address,
+                default_shipping_address,
+                default_payment_method_id,
             } => Self {
                 name: name.map(Encryption::from),
                 email: email.map(Encryption::from),
@@ -321,20 +326,24 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata,
                 connector_customer,
                 modified_at: date_time::now(),
-                default_payment_method_id: None,
+                default_billing_address,
+                default_shipping_address,
+                default_payment_method_id,
                 updated_by: None,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: date_time::now(),
                 name: None,
                 email: None,
                 phone: None,
                 description: None,
                 phone_country_code: None,
                 metadata: None,
+                modified_at: date_time::now(),
                 default_payment_method_id: None,
                 updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
@@ -349,6 +358,8 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata: None,
                 connector_customer: None,
                 updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
             },
         }
     }

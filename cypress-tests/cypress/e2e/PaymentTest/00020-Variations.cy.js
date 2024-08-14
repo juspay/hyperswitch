@@ -482,7 +482,7 @@ describe("Corner cases", () => {
       });
     });
 
-    after("flush global state", () => {
+    afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 

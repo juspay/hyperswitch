@@ -116,9 +116,8 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let event = db
             .insert_event(key_manager_state, new_event, &key_store)
             .await
-            .map_err(|error| {
+            .inspect_err(|error| {
                 logger::error!(?error, "Failed to insert event in events table");
-                error
             })?;
 
         match &event.request {
@@ -505,7 +504,8 @@ async fn get_outgoing_webhook_content_and_event_type(
             );
 
             let payout_data =
-                payouts::make_payout_data(&state, &merchant_account, &key_store, &request).await?;
+                payouts::make_payout_data(&state, &merchant_account, None, &key_store, &request)
+                    .await?;
 
             let router_response =
                 payouts::response_handler(&merchant_account, &payout_data).await?;
