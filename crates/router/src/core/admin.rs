@@ -21,6 +21,12 @@ use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+use crate::core::routing;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -28,10 +34,7 @@ use crate::{
     core::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{
-            cards::{self, create_encrypted_data},
-            transformers,
-        },
+        payment_methods::{cards, transformers},
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing::helpers as routing_helpers,
@@ -52,7 +55,6 @@ use crate::{
     },
     utils,
 };
-
 const IBAN_MAX_LENGTH: usize = 34;
 const BACS_SORT_CODE_LENGTH: usize = 6;
 const BACS_MAX_ACCOUNT_NUMBER_LENGTH: usize = 8;
@@ -400,6 +402,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config,
+                    version: hyperswitch_domain_models::consts::API_VERSION,
                 },
             )
         }
@@ -680,17 +683,11 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                             .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
-                    routing_algorithm: Some(serde_json::json!({
-                        "algorithm_id": null,
-                        "timestamp": 0
-                    })),
                     publishable_key,
                     metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),
-                    frm_routing_algorithm: None,
-                    payout_routing_algorithm: None,
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                 }),
@@ -955,7 +952,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                         key_manager_state,
                         type_name!(storage::MerchantAccount),
                         domain_types::CryptoOperation::EncryptOptional(inner),
-                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        identifier.clone(),
                         key,
                     )
                     .await
@@ -1049,9 +1046,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 .attach_printable("Unable to encrypt merchant details")?,
             metadata,
             publishable_key: None,
-            frm_routing_algorithm: None,
-            payout_routing_algorithm: None,
-            routing_algorithm: None,
         })
     }
 }
@@ -2817,7 +2811,7 @@ async fn validate_pm_auth(
 pub async fn retrieve_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -2847,6 +2841,7 @@ pub async fn retrieve_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.clone(),
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
     Ok(service_api::ApplicationResponse::Json(
         mca.foreign_try_into()?,
@@ -2897,7 +2892,7 @@ pub async fn retrieve_connector(
 pub async fn list_payment_connectors(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -2925,6 +2920,10 @@ pub async fn list_payment_connectors(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+    let merchant_connector_accounts = core_utils::filter_objects_based_on_profile_id_list(
+        profile_id_list,
+        merchant_connector_accounts,
+    );
     let mut response = vec![];
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
@@ -2938,7 +2937,7 @@ pub async fn list_payment_connectors(
 pub async fn update_connector(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
@@ -2968,6 +2967,7 @@ pub async fn update_connector(
             key_manager_state,
         )
         .await?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
     let payment_connector = req
         .clone()
@@ -3313,7 +3313,7 @@ pub async fn create_and_insert_business_profile(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
+    not(any(feature = "merchant_account_v2", feature = "business_profile_v2"))
 ))]
 pub async fn create_business_profile(
     state: SessionState,
@@ -3379,7 +3379,11 @@ pub async fn create_business_profile(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "merchant_account_v2",
+    feature = "business_profile_v2"
+))]
 pub async fn create_business_profile(
     _state: SessionState,
     _request: api::BusinessProfileCreate,
@@ -3462,6 +3466,10 @@ pub async fn delete_business_profile(
     Ok(service_api::ApplicationResponse::Json(delete_result))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 pub async fn update_business_profile(
     state: SessionState,
     profile_id: &str,
@@ -3537,7 +3545,7 @@ pub async fn update_business_profile(
         .map(Secret::new);
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(&state, &key_store, headers))
+        .async_map(|headers| cards::create_encrypted_data(&state, &key_store, headers))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3605,6 +3613,167 @@ pub async fn update_business_profile(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse business profile details")?,
     ))
+}
+#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+pub async fn update_business_profile(
+    _state: SessionState,
+    _profile_id: &str,
+    _merchant_id: &id_type::MerchantId,
+    _request: api::BusinessProfileUpdate,
+) -> RouterResponse<api::BusinessProfileResponse> {
+    todo!()
+}
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+#[derive(Clone, Debug)]
+pub struct BusinessProfileWrapper {
+    pub profile: domain::BusinessProfile,
+}
+
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+impl BusinessProfileWrapper {
+    pub fn new(profile: domain::BusinessProfile) -> Self {
+        Self { profile }
+    }
+    fn get_routing_config_cache_key(self) -> storage_impl::redis::cache::CacheKind<'static> {
+        let merchant_id = self.profile.merchant_id.clone();
+
+        let profile_id = self.profile.profile_id.clone();
+
+        storage_impl::redis::cache::CacheKind::Routing(
+            format!(
+                "routing_config_{}_{profile_id}",
+                merchant_id.get_string_repr()
+            )
+            .into(),
+        )
+    }
+
+    pub async fn update_business_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
+        self,
+        db: &dyn StorageInterface,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        algorithm_id: String,
+        transaction_type: &storage::enums::TransactionType,
+    ) -> RouterResult<()> {
+        let routing_cache_key = self.clone().get_routing_config_cache_key();
+
+        let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
+            storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
+            #[cfg(feature = "payouts")]
+            storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
+        };
+
+        let business_profile_update = domain::BusinessProfileUpdate::RoutingAlgorithmUpdate {
+            routing_algorithm_id,
+            payout_routing_algorithm_id,
+        };
+
+        let profile = self.profile;
+
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+
+        storage_impl::redis::cache::publish_into_redact_channel(
+            db.get_cache_store().as_ref(),
+            [routing_cache_key],
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate routing cache")?;
+        Ok(())
+    }
+
+    pub fn get_profile_id_and_routing_algorithm_id<F>(
+        &self,
+        transaction_data: &routing::TransactionData<'_, F>,
+    ) -> (Option<String>, Option<String>)
+    where
+        F: Send + Clone,
+    {
+        match transaction_data {
+            routing::TransactionData::Payment(payment_data) => (
+                payment_data.payment_intent.profile_id.clone(),
+                self.profile.routing_algorithm_id.clone(),
+            ),
+            #[cfg(feature = "payouts")]
+            routing::TransactionData::Payout(payout_data) => (
+                Some(payout_data.payout_attempt.profile_id.clone()),
+                self.profile.payout_routing_algorithm_id.clone(),
+            ),
+        }
+    }
+    pub fn get_default_fallback_list_of_connector_under_profile(
+        &self,
+    ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
+        use common_utils::ext_traits::OptionExt;
+        use masking::ExposeOptionInterface;
+
+        self.profile
+            .default_fallback_routing
+            .clone()
+            .expose_option()
+            .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                "Vec<RoutableConnectorChoice>",
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant default config has invalid structure")
+    }
+    pub fn get_default_routing_configs_from_profile(
+        &self,
+    ) -> RouterResult<routing_types::ProfileDefaultRoutingConfig> {
+        let profile_id = self.profile.profile_id.clone();
+        let connectors = self.get_default_fallback_list_of_connector_under_profile()?;
+
+        Ok(routing_types::ProfileDefaultRoutingConfig {
+            profile_id,
+            connectors,
+        })
+    }
+
+    pub async fn update_default_routing_for_profile(
+        self,
+        db: &dyn StorageInterface,
+        updated_config: &Vec<routing_types::RoutableConnectorChoice>,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<()> {
+        let default_fallback_routing = Secret::from(
+            updated_config
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert routing ref to value")?,
+        );
+        let business_profile_update = domain::BusinessProfileUpdate::DefaultRoutingFallbackUpdate {
+            default_fallback_routing: Some(default_fallback_routing),
+        };
+
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            self.profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+        Ok(())
+    }
 }
 
 pub async fn extended_card_info_toggle(

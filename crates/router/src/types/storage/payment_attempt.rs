@@ -87,7 +87,7 @@ impl AttemptStatusExt for enums::AttemptStatus {
 #[cfg(test)]
 #[cfg(feature = "dummy_connector")]
 mod tests {
-    #![allow(clippy::expect_used, clippy::unwrap_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
     use tokio::sync::oneshot;
     use uuid::Uuid;
 

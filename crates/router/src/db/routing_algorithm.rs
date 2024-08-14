@@ -41,7 +41,7 @@ pub trait RoutingAlgorithmInterface {
         profile_id: &str,
         limit: i64,
         offset: i64,
-    ) -> StorageResult<Vec<routing_storage::RoutingAlgorithmMetadata>>;
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
 
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
@@ -127,7 +127,7 @@ impl RoutingAlgorithmInterface for Store {
         profile_id: &str,
         limit: i64,
         offset: i64,
-    ) -> StorageResult<Vec<routing_storage::RoutingAlgorithmMetadata>> {
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
         let conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_profile_id(
             &conn, profile_id, limit, offset,
@@ -212,7 +212,7 @@ impl RoutingAlgorithmInterface for MockDb {
         _profile_id: &str,
         _limit: i64,
         _offset: i64,
-    ) -> StorageResult<Vec<routing_storage::RoutingAlgorithmMetadata>> {
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
         Err(errors::StorageError::MockDbError)?
     }
 
