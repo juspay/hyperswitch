@@ -12175,6 +12175,7 @@
           "connector_type",
           "connector_name",
           "merchant_connector_id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -12198,7 +12199,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "payment_methods_enabled": {
@@ -12326,6 +12326,7 @@
           "connector_type",
           "connector_name",
           "merchant_connector_id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -12349,7 +12350,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "connector_account_details": {
