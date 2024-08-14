@@ -3501,6 +3501,8 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
+            tax_connector_id: None,
+            is_tax_connector_enabled: self.is_tax_connector_enabled,
             always_collect_billing_details_from_wallet_connector: self
                 .always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector: self
@@ -3605,6 +3607,8 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             default_fallback_routing: None,
+            tax_connector_id: None,
+            is_tax_connector_enabled: self.is_tax_connector_enabled,
         })
     }
 }
@@ -3871,6 +3875,8 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                tax_connector_id: self.tax_connector_id,
+                is_tax_connector_enabled: self.is_tax_connector_enabled,
             },
         )))
     }

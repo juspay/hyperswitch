@@ -207,6 +207,7 @@ diesel::table! {
         always_collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
+        is_tax_connector_enabled -> Bool,
     }
 }
 

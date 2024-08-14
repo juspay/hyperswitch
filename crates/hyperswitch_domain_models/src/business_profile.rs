@@ -54,6 +54,7 @@ pub struct BusinessProfile {
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: bool,
 }
 
 #[cfg(all(
@@ -87,6 +88,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -144,6 +146,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_billing_details_from_wallet_connector,
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
+                    is_tax_connector_enabled,
                 } = *update;
 
                 Self {
@@ -176,6 +179,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_billing_details_from_wallet_connector,
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
+                    is_tax_connector_enabled,
                 }
             }
             BusinessProfileUpdate::RoutingAlgorithmUpdate {
@@ -210,6 +214,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_billing_details_from_wallet_connector: None,
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
+                is_tax_connector_enabled: None,
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -242,6 +247,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_billing_details_from_wallet_connector: None,
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
+                is_tax_connector_enabled: None,
             },
             BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -274,6 +280,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_billing_details_from_wallet_connector: None,
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
+                is_tax_connector_enabled: None,
             },
         }
     }
@@ -327,6 +334,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             always_collect_shipping_details_from_wallet_connector: self
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: self.tax_connector_id,
+            is_tax_connector_enabled: self.is_tax_connector_enabled,
         })
     }
 
@@ -389,6 +397,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                     })
                     .await?,
                 tax_connector_id: item.tax_connector_id,
+                is_tax_connector_enabled: item.is_tax_connector_enabled,
             })
         }
         .await
@@ -436,6 +445,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             always_collect_shipping_details_from_wallet_connector: self
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: self.tax_connector_id,
+            is_tax_connector_enabled: self.is_tax_connector_enabled,
         })
     }
 }

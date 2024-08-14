@@ -57,6 +57,7 @@ pub struct BusinessProfile {
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: bool,
 }
 
 #[cfg(all(
@@ -98,6 +99,7 @@ pub struct BusinessProfileNew {
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: bool,
 }
 
 #[cfg(all(
@@ -136,6 +138,7 @@ pub struct BusinessProfileUpdateInternal {
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -173,6 +176,7 @@ impl BusinessProfileUpdateInternal {
             always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector,
             tax_connector_id,
+            is_tax_connector_enabled,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -224,6 +228,7 @@ impl BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector
                     .or(source.always_collect_shipping_details_from_wallet_connector),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
+            is_tax_connector_enabled: is_tax_connector_enabled.unwrap_or(source.is_tax_connector_enabled),
         }
     }
 }
@@ -380,7 +385,6 @@ impl BusinessProfileUpdateInternal {
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
-            // default_fallback_routing,
             tax_connector_id,
         } = self;
         BusinessProfile {

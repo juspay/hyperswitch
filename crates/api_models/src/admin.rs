@@ -1956,6 +1956,11 @@ pub struct BusinessProfileCreate {
 
     /// Merchant Connector id to be stored for tax_calculator connector
     pub tax_connector_id: Option<String>,
+
+    /// Indicates if tax_calculator connector is enabled or not.
+    /// If set to `true` tax_connector_id will be checked.
+    #[serde(default)]
+    pub is_tax_connector_enabled: bool,
 }
 
 #[nutype::nutype(
@@ -2166,6 +2171,11 @@ pub struct BusinessProfileResponse {
 
     /// Merchant Connector id to be stored for tax_calculator connector
     pub tax_connector_id: Option<String>,
+
+    /// Indicates if tax_calculator connector is enabled or not.
+    /// If set to `true` tax_connector_id will be checked.
+    #[serde(default)]
+    pub is_tax_connector_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -2373,6 +2383,10 @@ pub struct BusinessProfileUpdate {
 
     /// Merchant Connector id to be stored for tax_calculator connector
     pub tax_connector_id: Option<String>,
+
+    /// Indicates if tax_calculator connector is enabled or not.
+    /// If set to `true` tax_connector_id will be checked.
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
