@@ -1,15 +1,17 @@
 use crate::{
     router_data::RouterData,
     router_flow_types::{
-        Authorize, Capture, CompleteAuthorize, CreateConnectorCustomer, PSync, PaymentMethodToken,
-        RSync, SetupMandate, Void,
+        dispute::Evidence, files::Upload, Authorize, Capture, CompleteAuthorize,
+        CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, SetupMandate, Void,
     },
     router_request_types::{
         CompleteAuthorizeData, ConnectorCustomerData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        RefundsData, SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        PaymentsResponseData, RefundsResponseData, SubmitEvidenceResponse, UploadFileResponse,
+    },
 };
 
 pub type PaymentsAuthorizeRouterData =
@@ -27,3 +29,6 @@ pub type ConnectorCustomerRouterData =
     RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
+pub type UploadFileRouterData = RouterData<Upload, UploadFileRequestData, UploadFileResponse>;
+pub type SubmitEvidenceRouterData =
+    RouterData<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;

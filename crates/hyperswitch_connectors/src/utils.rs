@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
 use common_enums::{enums, enums::FutureUsage};
 use common_utils::{
@@ -16,6 +18,7 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
+    router_response_types::CaptureSyncResponse,
 };
 use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -1213,6 +1216,55 @@ impl BrowserInformationData for BrowserInformation {
         self.java_script_enabled
             .ok_or_else(missing_field_err("browser_info.java_script_enabled"))
     }
+}
+
+pub trait MultipleCaptureSyncResponse {
+    fn get_connector_capture_id(&self) -> String;
+    fn get_capture_attempt_status(&self) -> enums::AttemptStatus;
+    fn is_capture_response(&self) -> bool;
+    fn get_connector_reference_id(&self) -> Option<String> {
+        None
+    }
+    fn get_amount_captured(
+        &self,
+    ) -> Result<Option<MinorUnit>, error_stack::Report<common_utils::errors::ParsingError>>;
+}
+
+pub fn construct_captures_response_hashmap<T>(
+    capture_sync_response_list: Vec<T>,
+) -> CustomResult<HashMap<String, CaptureSyncResponse>, errors::ConnectorError>
+where
+    T: MultipleCaptureSyncResponse,
+{
+    let mut hashmap = HashMap::new();
+    for capture_sync_response in capture_sync_response_list {
+        let connector_capture_id = capture_sync_response.get_connector_capture_id();
+        if capture_sync_response.is_capture_response() {
+            hashmap.insert(
+                connector_capture_id.clone(),
+                CaptureSyncResponse::Success {
+                    resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                    status: capture_sync_response.get_capture_attempt_status(),
+                    connector_response_reference_id: capture_sync_response
+                        .get_connector_reference_id(),
+                    amount: capture_sync_response
+                        .get_amount_captured()
+                        .change_context(errors::ConnectorError::AmountConversionFailed)
+                        .attach_printable(
+                            "failed to convert back captured response amount to minor unit",
+                        )?,
+                },
+            );
+        }
+    }
+
+    Ok(hashmap)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ErrorCodeAndMessage {
+    pub error_code: String,
+    pub error_message: String,
 }
 
 #[macro_export]

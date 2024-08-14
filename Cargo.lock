@@ -3852,6 +3852,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
+ "reqwest",
  "ring 0.17.8",
  "router_env",
  "serde",
