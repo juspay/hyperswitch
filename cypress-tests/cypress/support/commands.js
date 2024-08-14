@@ -484,7 +484,8 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": globalState.get("adminApiKey"),
+      "x-merchant-id": merchant_id,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -530,7 +531,8 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
+        "api-key": globalState.get("adminApiKey"),
+        "x-merchant-id": merchant_id,
       },
       body: updateConnectorBody,
       failOnStatusCode: false,
@@ -549,12 +551,15 @@ Cypress.Commands.add(
 // Generic function to list all connectors
 Cypress.Commands.add("connectorListByMid", (globalState) => {
   const merchant_id = globalState.get("merchantId");
+  console.log("merchant_id", merchant_id);
+  console.log("\n\n\n\n\n\n\n\n\n\n");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": globalState.get("adminApiKey"),
+      "X-Merchant-Id": merchant_id,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -2062,7 +2067,8 @@ Cypress.Commands.add("ListMCAbyMID", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": globalState.get("adminApiKey"),
+      "X-Merchant-Id": merchantId,
     },
     failOnStatusCode: false,
   }).then((response) => {
