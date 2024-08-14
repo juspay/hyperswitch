@@ -365,11 +365,11 @@ pub async fn delete_user_role(
         )
         .await
         .map_err(|e| {
-            Ok(if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidRoleOperation)
+            if e.current_context().is_db_not_found() {
+                Ok(e.change_context(UserErrors::InvalidRoleOperation))
             } else {
                 return Err(UserErrors::InternalServerError);
-            })
+            }
         })
     {
         let target_role_info = roles::RoleInfo::from_role_id(
@@ -423,11 +423,11 @@ pub async fn delete_user_role(
         )
         .await
         .map_err(|e| {
-            Ok(if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::InvalidRoleOperation)
+            if e.current_context().is_db_not_found() {
+                Ok(e.change_context(UserErrors::InvalidRoleOperation))
             } else {
                 return Err(UserErrors::InternalServerError);
-            })
+            }
         })
     {
         let target_role_info = roles::RoleInfo::from_role_id(
