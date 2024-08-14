@@ -771,7 +771,7 @@ pub async fn construct_upload_file_router_data<'a>(
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    create_file_request: &types::api::CreateFileRequest,
+    create_file_request: &api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
 ) -> RouterResult<types::UploadFileRouterData> {
