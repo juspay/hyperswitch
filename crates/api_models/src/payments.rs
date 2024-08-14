@@ -5435,6 +5435,8 @@ pub struct PaymentLinkStatusDetails {
     pub return_url: String,
     pub locale: Option<String>,
     pub transaction_details: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]

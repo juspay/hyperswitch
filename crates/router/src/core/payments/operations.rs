@@ -229,6 +229,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         response: types::RouterData<F, R, PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;

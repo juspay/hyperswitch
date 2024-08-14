@@ -204,6 +204,8 @@ where
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
+    let locale = header_payload.locale.clone();
+
     payment_data = tokenize_in_router_when_confirm_false_or_external_authentication(
         state,
         &operation,
@@ -349,6 +351,7 @@ where
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
+                            &locale
                         )
                         .await?;
 
@@ -472,6 +475,7 @@ where
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
+                            &locale,
                         )
                         .await?;
 

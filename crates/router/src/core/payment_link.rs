@@ -222,6 +222,8 @@ pub async fn form_payment_link_data(
             return_url: return_url.clone(),
             locale: locale.clone(),
             transaction_details: payment_link_config.transaction_details.clone(),
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         };
 
         return Ok((
@@ -776,6 +778,8 @@ pub async fn get_payment_link_status(
         return_url,
         locale,
         transaction_details: payment_link_config.transaction_details,
+        unified_code: payment_attempt.unified_code,
+        unified_message: payment_attempt.unified_message,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,
