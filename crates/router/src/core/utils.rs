@@ -22,7 +22,7 @@ use super::payments::helpers;
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
 #[cfg(feature = "payouts")]
-use crate::core::payments;
+use crate::{core::payments, types::api};
 use crate::{
     configs::Settings,
     consts,
@@ -30,7 +30,7 @@ use crate::{
     db::StorageInterface,
     routes::SessionState,
     types::{
-        self, api, domain,
+        self, domain,
         storage::{self, enums},
         PollConfig,
     },
