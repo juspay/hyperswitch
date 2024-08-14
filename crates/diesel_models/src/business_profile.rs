@@ -164,7 +164,7 @@ impl BusinessProfileUpdateInternal {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
-            tax_connector_id
+            tax_connector_id,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
