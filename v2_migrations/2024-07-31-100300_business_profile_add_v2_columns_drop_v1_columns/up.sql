@@ -8,7 +8,6 @@ ADD COLUMN routing_algorithm_id VARCHAR(64) DEFAULT NULL,
   ADD COLUMN payout_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
   ADD COLUMN default_fallback_routing JSONB DEFAULT NULL;
 
--- ADD COLUMN default_fallback_routing JSONB DEFAULT NULL;
 -- Note: This query should not be run on higher environments as this leads to data loss.
 -- The application will work fine even without these queries being run.
 ALTER TABLE business_profile DROP COLUMN routing_algorithm,
