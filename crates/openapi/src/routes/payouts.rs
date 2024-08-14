@@ -127,7 +127,7 @@ pub async fn payouts_list_filters() {}
     path = "/payouts/list",
     request_body=PayoutListFilterConstraints,
     responses(
-        (status = 200, description = "Payouts filtered", body = PayoutListResponseV2),
+        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
         (status = 404, description = "Payout not found")
     ),
     tag = "Payouts",

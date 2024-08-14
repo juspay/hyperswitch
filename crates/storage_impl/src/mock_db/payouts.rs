@@ -95,7 +95,6 @@ impl PayoutsInterface for MockDb {
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,
         _payout_method: Option<Vec<storage_enums::PayoutType>>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?

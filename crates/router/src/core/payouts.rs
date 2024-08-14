@@ -846,6 +846,7 @@ pub async fn payouts_list_core(
         api::PayoutListResponse {
             size: data.len(),
             data,
+            total_count: None,
         },
     ))
 }
@@ -857,7 +858,7 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
-) -> RouterResponse<payouts::PayoutListResponseV2> {
+) -> RouterResponse<payouts::PayoutListResponse> {
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
     let db = state.store.as_ref();
@@ -901,11 +902,7 @@ pub async fn payouts_filtered_list_core(
     .collect();
 
     let active_payout_ids = db
-        .filter_active_payout_ids_by_constraints(
-            merchant_account.get_id(),
-            &constraints,
-            merchant_account.storage_scheme,
-        )
+        .filter_active_payout_ids_by_constraints(merchant_account.get_id(), &constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to filter active payout ids based on the constraints")?;
@@ -918,7 +915,6 @@ pub async fn payouts_filtered_list_core(
             filters.currency.clone(),
             filters.status.clone(),
             filters.payout_method.clone(),
-            merchant_account.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -930,10 +926,10 @@ pub async fn payouts_filtered_list_core(
         })?;
 
     Ok(services::ApplicationResponse::Json(
-        api::PayoutListResponseV2 {
+        api::PayoutListResponse {
             size: data.len(),
             data,
-            total_count,
+            total_count: Some(total_count),
         },
     ))
 }

@@ -359,7 +359,6 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         currency: Option<Vec<storage_enums::Currency>>,
         status: Option<Vec<storage_enums::PayoutStatus>>,
         payout_method: Option<Vec<storage_enums::PayoutType>>,
-        storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<i64, StorageError> {
         self.router_store
             .get_total_count_of_filtered_payouts(
@@ -369,7 +368,6 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 currency,
                 status,
                 payout_method,
-                storage_scheme,
             )
             .await
     }
@@ -379,10 +377,9 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PayoutFetchConstraints,
-        storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         self.router_store
-            .filter_active_payout_ids_by_constraints(merchant_id, constraints, storage_scheme)
+            .filter_active_payout_ids_by_constraints(merchant_id, constraints)
             .await
     }
 }
@@ -736,7 +733,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         currency: Option<Vec<storage_enums::Currency>>,
         status: Option<Vec<storage_enums::PayoutStatus>>,
         payout_type: Option<Vec<storage_enums::PayoutType>>,
-        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<i64, StorageError> {
         let conn = self
             .db_store
@@ -772,7 +768,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         constraints: &PayoutFetchConstraints,
-        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);

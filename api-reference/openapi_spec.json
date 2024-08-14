@@ -4345,7 +4345,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PayoutListResponseV2"
+                  "$ref": "#/components/schemas/PayoutListResponse"
                 }
               }
             }
@@ -19120,33 +19120,12 @@
               "$ref": "#/components/schemas/PayoutCreateResponse"
             },
             "description": "The list of payouts response objects"
-          }
-        }
-      },
-      "PayoutListResponseV2": {
-        "type": "object",
-        "required": [
-          "size",
-          "data",
-          "total_count"
-        ],
-        "properties": {
-          "size": {
-            "type": "integer",
-            "description": "The number of payouts included in the list",
-            "minimum": 0
-          },
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PayoutCreateResponse"
-            },
-            "description": "The list of payouts response objects"
           },
           "total_count": {
             "type": "integer",
             "format": "int64",
-            "description": "The total number of available payouts for given constraints"
+            "description": "The total number of available payouts for given constraints",
+            "nullable": true
           }
         }
       },

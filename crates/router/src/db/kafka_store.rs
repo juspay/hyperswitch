@@ -1919,7 +1919,6 @@ impl PayoutsInterface for KafkaStore {
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
         payout_method: Option<Vec<enums::PayoutType>>,
-        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
             .get_total_count_of_filtered_payouts(
@@ -1929,7 +1928,6 @@ impl PayoutsInterface for KafkaStore {
                 currency,
                 status,
                 payout_method,
-                storage_scheme,
             )
             .await
     }
@@ -1939,10 +1937,9 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         constraints: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
-        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<String>, errors::DataStorageError> {
         self.diesel_store
-            .filter_active_payout_ids_by_constraints(merchant_id, constraints, storage_scheme)
+            .filter_active_payout_ids_by_constraints(merchant_id, constraints)
             .await
     }
 }

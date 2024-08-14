@@ -76,7 +76,6 @@ pub trait PayoutsInterface {
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,
         _payout_method: Option<Vec<storage_enums::PayoutType>>,
-        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 
     #[cfg(feature = "olap")]
@@ -84,7 +83,6 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _constraints: &PayoutFetchConstraints,
-        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
