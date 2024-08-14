@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use api_models::user_role::{GroupInfo, ParentGroup, ParentInfo, PermissionInfo};
+use api_models::user_role::{GroupInfo, ParentGroup, PermissionInfo};
 use common_enums::PermissionGroup;
 use strum::{EnumIter, IntoEnumIterator};
 
@@ -15,25 +13,6 @@ pub fn get_module_authorization_info() -> Vec<ModuleInfo> {
 pub fn get_group_authorization_info() -> Vec<GroupInfo> {
     PermissionGroup::iter()
         .map(get_group_info_from_permission_group)
-        .collect()
-}
-
-pub fn get_group_authorization_info_with_group_tag() -> Vec<ParentInfo> {
-    PermissionGroup::iter()
-        .map(|value| (get_parent_name(value), value))
-        .fold(
-            HashMap::new(),
-            |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
-                acc.entry(key).or_default().push(value);
-                acc
-            },
-        )
-        .into_iter()
-        .map(|(name, value)| ParentInfo {
-            name: name.clone(),
-            description: get_parent_group_description(name),
-            groups: value,
-        })
         .collect()
 }
 
@@ -239,7 +218,7 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
     }
 }
 
-fn get_parent_name(group: PermissionGroup) -> ParentGroup {
+pub fn get_parent_name(group: PermissionGroup) -> ParentGroup {
     match group {
         PermissionGroup::OperationsView | PermissionGroup::OperationsManage => {
             ParentGroup::Operations
@@ -257,7 +236,7 @@ fn get_parent_name(group: PermissionGroup) -> ParentGroup {
     }
 }
 
-fn get_parent_group_description(group: ParentGroup) -> &'static str {
+pub fn get_parent_group_description(group: ParentGroup) -> &'static str {
     match group {
         ParentGroup::Operations => "Payments, Refunds, Payouts, Mandates, Disputes and Customers",
         ParentGroup::Connectors => "Create, modify and delete connectors like Payment Processors, Payout Processors and Fraud & Risk Manager",
