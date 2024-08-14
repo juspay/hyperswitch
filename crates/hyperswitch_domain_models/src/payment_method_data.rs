@@ -1,4 +1,9 @@
-use common_utils::pii::{self, Email};
+use api_models::payments::ExtendedCardInfo;
+use common_enums::enums as api_enums;
+use common_utils::{
+    id_type,
+    pii::{self, Email},
+};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::Date;
@@ -23,6 +28,7 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
     CardToken(CardToken),
     OpenBanking(OpenBankingData),
+    NetworkToken(NetworkTokenData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,7 +40,7 @@ pub enum ApplePayFlow {
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
-            Self::Card(_) => Some(common_enums::PaymentMethod::Card),
+            Self::Card(_) | Self::NetworkToken(_) => Some(common_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(common_enums::PaymentMethod::PayLater),
@@ -466,6 +472,20 @@ pub struct SepaAndBacsBillingDetails {
     pub email: Email,
     /// The billing name for SEPA and BACS billing
     pub name: Secret<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct NetworkTokenData {
+    pub token_number: cards::CardNumber,
+    pub token_exp_month: Secret<String>,
+    pub token_exp_year: Secret<String>,
+    pub token_cryptogram: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
 }
 
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
@@ -949,6 +969,262 @@ impl From<api_models::payments::OpenBankingData> for OpenBankingData {
     fn from(value: api_models::payments::OpenBankingData) -> Self {
         match value {
             api_models::payments::OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
+        }
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue1 {
+    pub card_number: String,
+    pub exp_year: String,
+    pub exp_month: String,
+    pub nickname: Option<String>,
+    pub card_last_four: Option<String>,
+    pub card_token: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCardValue2 {
+    pub card_security_code: Option<String>,
+    pub card_fingerprint: Option<String>,
+    pub external_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue1 {
+    pub data: WalletData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedWalletValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue1 {
+    pub data: BankTransferData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue1 {
+    pub data: BankRedirectData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+pub trait GetPaymentMethodType {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType;
+}
+
+impl GetPaymentMethodType for CardRedirectData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Knet {} => api_enums::PaymentMethodType::Knet,
+            Self::Benefit {} => api_enums::PaymentMethodType::Benefit,
+            Self::MomoAtm {} => api_enums::PaymentMethodType::MomoAtm,
+            Self::CardRedirect {} => api_enums::PaymentMethodType::CardRedirect,
+        }
+    }
+}
+
+impl GetPaymentMethodType for WalletData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
+            Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
+            Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
+            Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
+            Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
+            Self::GcashRedirect(_) => api_enums::PaymentMethodType::Gcash,
+            Self::ApplePay(_) | Self::ApplePayRedirect(_) | Self::ApplePayThirdPartySdk(_) => {
+                api_enums::PaymentMethodType::ApplePay
+            }
+            Self::DanaRedirect {} => api_enums::PaymentMethodType::Dana,
+            Self::GooglePay(_) | Self::GooglePayRedirect(_) | Self::GooglePayThirdPartySdk(_) => {
+                api_enums::PaymentMethodType::GooglePay
+            }
+            Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
+            Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
+            Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
+            Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
+            Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
+            Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
+                api_enums::PaymentMethodType::WeChatPay
+            }
+            Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
+            Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
+            Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
+        }
+    }
+}
+
+impl GetPaymentMethodType for PayLaterData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
+            Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
+            Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
+            Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
+            Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
+            Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
+        }
+    }
+}
+
+impl GetPaymentMethodType for BankRedirectData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::BancontactCard { .. } => api_enums::PaymentMethodType::BancontactCard,
+            Self::Bizum {} => api_enums::PaymentMethodType::Bizum,
+            Self::Blik { .. } => api_enums::PaymentMethodType::Blik,
+            Self::Eps { .. } => api_enums::PaymentMethodType::Eps,
+            Self::Giropay { .. } => api_enums::PaymentMethodType::Giropay,
+            Self::Ideal { .. } => api_enums::PaymentMethodType::Ideal,
+            Self::Interac { .. } => api_enums::PaymentMethodType::Interac,
+            Self::OnlineBankingCzechRepublic { .. } => {
+                api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            }
+            Self::OnlineBankingFinland { .. } => api_enums::PaymentMethodType::OnlineBankingFinland,
+            Self::OnlineBankingPoland { .. } => api_enums::PaymentMethodType::OnlineBankingPoland,
+            Self::OnlineBankingSlovakia { .. } => {
+                api_enums::PaymentMethodType::OnlineBankingSlovakia
+            }
+            Self::OpenBankingUk { .. } => api_enums::PaymentMethodType::OpenBankingUk,
+            Self::Przelewy24 { .. } => api_enums::PaymentMethodType::Przelewy24,
+            Self::Sofort { .. } => api_enums::PaymentMethodType::Sofort,
+            Self::Trustly { .. } => api_enums::PaymentMethodType::Trustly,
+            Self::OnlineBankingFpx { .. } => api_enums::PaymentMethodType::OnlineBankingFpx,
+            Self::OnlineBankingThailand { .. } => {
+                api_enums::PaymentMethodType::OnlineBankingThailand
+            }
+            Self::LocalBankRedirect { .. } => api_enums::PaymentMethodType::LocalBankRedirect,
+        }
+    }
+}
+
+impl GetPaymentMethodType for BankDebitData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
+            Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
+            Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
+            Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
+        }
+    }
+}
+
+impl GetPaymentMethodType for BankTransferData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::AchBankTransfer { .. } => api_enums::PaymentMethodType::Ach,
+            Self::SepaBankTransfer { .. } => api_enums::PaymentMethodType::Sepa,
+            Self::BacsBankTransfer { .. } => api_enums::PaymentMethodType::Bacs,
+            Self::MultibancoBankTransfer { .. } => api_enums::PaymentMethodType::Multibanco,
+            Self::PermataBankTransfer { .. } => api_enums::PaymentMethodType::PermataBankTransfer,
+            Self::BcaBankTransfer { .. } => api_enums::PaymentMethodType::BcaBankTransfer,
+            Self::BniVaBankTransfer { .. } => api_enums::PaymentMethodType::BniVa,
+            Self::BriVaBankTransfer { .. } => api_enums::PaymentMethodType::BriVa,
+            Self::CimbVaBankTransfer { .. } => api_enums::PaymentMethodType::CimbVa,
+            Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
+            Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
+            Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::Pse {} => api_enums::PaymentMethodType::Pse,
+            Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
+        }
+    }
+}
+
+impl GetPaymentMethodType for CryptoData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        api_enums::PaymentMethodType::CryptoCurrency
+    }
+}
+
+impl GetPaymentMethodType for RealTimePaymentData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Fps {} => api_enums::PaymentMethodType::Fps,
+            Self::DuitNow {} => api_enums::PaymentMethodType::DuitNow,
+            Self::PromptPay {} => api_enums::PaymentMethodType::PromptPay,
+            Self::VietQr {} => api_enums::PaymentMethodType::VietQr,
+        }
+    }
+}
+
+impl GetPaymentMethodType for UpiData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::UpiCollect(_) => api_enums::PaymentMethodType::UpiCollect,
+            Self::UpiIntent(_) => api_enums::PaymentMethodType::UpiIntent,
+        }
+    }
+}
+impl GetPaymentMethodType for VoucherData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Boleto(_) => api_enums::PaymentMethodType::Boleto,
+            Self::Efecty => api_enums::PaymentMethodType::Efecty,
+            Self::PagoEfectivo => api_enums::PaymentMethodType::PagoEfectivo,
+            Self::RedCompra => api_enums::PaymentMethodType::RedCompra,
+            Self::RedPagos => api_enums::PaymentMethodType::RedPagos,
+            Self::Alfamart(_) => api_enums::PaymentMethodType::Alfamart,
+            Self::Indomaret(_) => api_enums::PaymentMethodType::Indomaret,
+            Self::Oxxo => api_enums::PaymentMethodType::Oxxo,
+            Self::SevenEleven(_) => api_enums::PaymentMethodType::SevenEleven,
+            Self::Lawson(_) => api_enums::PaymentMethodType::Lawson,
+            Self::MiniStop(_) => api_enums::PaymentMethodType::MiniStop,
+            Self::FamilyMart(_) => api_enums::PaymentMethodType::FamilyMart,
+            Self::Seicomart(_) => api_enums::PaymentMethodType::Seicomart,
+            Self::PayEasy(_) => api_enums::PaymentMethodType::PayEasy,
+        }
+    }
+}
+impl GetPaymentMethodType for GiftCardData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Givex(_) => api_enums::PaymentMethodType::Givex,
+            Self::PaySafeCard {} => api_enums::PaymentMethodType::PaySafeCard,
+        }
+    }
+}
+
+impl GetPaymentMethodType for OpenBankingData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::OpenBankingPIS {} => api_enums::PaymentMethodType::OpenBankingPIS,
+        }
+    }
+}
+
+impl From<Card> for ExtendedCardInfo {
+    fn from(value: Card) -> Self {
+        Self {
+            card_number: value.card_number,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: None,
+            card_cvc: value.card_cvc,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
         }
     }
 }

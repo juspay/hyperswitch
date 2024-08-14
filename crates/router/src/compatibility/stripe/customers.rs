@@ -53,7 +53,7 @@ pub async fn customer_create(
         |state, auth, req, _| {
             customers::create_customer(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -85,9 +85,9 @@ pub async fn customer_retrieve(
         &req,
         payload,
         |state, auth, req, _| {
-            customers::retrieve_customer(state, auth.merchant_account, auth.key_store, req)
+            customers::retrieve_customer(state, auth.merchant_account, None, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -110,8 +110,9 @@ pub async fn customer_update(
     };
 
     let customer_id = path.into_inner();
-    let mut cust_update_req: customer_types::CustomerRequest = payload.into();
+    let mut cust_update_req: customer_types::CustomerUpdateRequest = payload.into();
     cust_update_req.customer_id = Some(customer_id);
+    let customer_update_id = customer_types::UpdateCustomerId::new("temp_global_id".to_string());
 
     let flow = Flow::CustomersUpdate;
 
@@ -130,9 +131,15 @@ pub async fn customer_update(
         &req,
         cust_update_req,
         |state, auth, req, _| {
-            customers::update_customer(state, auth.merchant_account, req, auth.key_store)
+            customers::update_customer(
+                state,
+                auth.merchant_account,
+                req,
+                auth.key_store,
+                customer_update_id.clone(),
+            )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -166,7 +173,7 @@ pub async fn customer_delete(
         |state, auth: auth::AuthenticationData, req, _| {
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -208,7 +215,7 @@ pub async fn list_customer_payment_method_api(
                 None,
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

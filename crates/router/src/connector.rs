@@ -37,6 +37,7 @@ pub mod noon;
 pub mod nuvei;
 pub mod opayo;
 pub mod opennode;
+pub mod paybox;
 pub mod payeezy;
 pub mod payme;
 pub mod payone;
@@ -59,6 +60,7 @@ pub mod tsys;
 pub mod utils;
 pub mod volt;
 pub mod wellsfargo;
+pub mod wellsfargopayout;
 pub mod wise;
 pub mod worldline;
 pub mod worldpay;
@@ -66,8 +68,8 @@ pub mod zen;
 pub mod zsl;
 
 pub use hyperswitch_connectors::connectors::{
-    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, helcim,
-    helcim::Helcim, stax, stax::Stax,
+    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, fiservemea,
+    fiservemea::Fiservemea, helcim, helcim::Helcim, stax, stax::Stax, taxjar, taxjar::Taxjar,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -81,10 +83,11 @@ pub use self::{
     globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
     iatapay::Iatapay, itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, mollie::Mollie,
     multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon,
-    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, payone::Payone,
-    paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz,
-    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4,
-    signifyd::Signifyd, square::Square, stripe::Stripe, threedsecureio::Threedsecureio,
-    trustpay::Trustpay, tsys::Tsys, volt::Volt, wellsfargo::Wellsfargo, wise::Wise,
-    worldline::Worldline, worldpay::Worldpay, zen::Zen, zsl::Zsl,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme,
+    payone::Payone, paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid,
+    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
+    riskified::Riskified, shift4::Shift4, signifyd::Signifyd, square::Square, stripe::Stripe,
+    threedsecureio::Threedsecureio, trustpay::Trustpay, tsys::Tsys, volt::Volt,
+    wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
+    worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };

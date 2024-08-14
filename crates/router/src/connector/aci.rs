@@ -1,13 +1,15 @@
 mod result_codes;
 pub mod transformers;
-use std::fmt::Debug;
 
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
 
-use super::utils::{is_mandate_supported, PaymentsAuthorizeRequestData};
+use super::utils::{convert_amount, is_mandate_supported, PaymentsAuthorizeRequestData};
 use crate::{
     configs::settings,
     connector::utils::PaymentMethodDataType,
@@ -26,8 +28,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Aci;
+#[derive(Clone)]
+pub struct Aci {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Aci {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl ConnectorCommon for Aci {
     fn id(&self) -> &'static str {
@@ -312,12 +324,14 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         // encode only for for urlencoded things.
-        let connector_router_data = aci::AciRouterData::try_from((
-            &self.get_currency_unit(),
+
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = aci::AciRouterData::from((amount, req));
         let connector_req = aci::AciPaymentsRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
@@ -514,12 +528,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = aci::AciRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = aci::AciRouterData::from((amount, req));
         let connector_req = aci::AciRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }

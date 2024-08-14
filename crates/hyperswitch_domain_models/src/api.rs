@@ -5,6 +5,8 @@ use common_utils::{
     impl_api_event_type,
 };
 
+use super::payment_method_data::PaymentMethodData;
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
     Json(R),
@@ -33,7 +35,7 @@ impl_api_event_type!(Miscellaneous, (PaymentLinkFormData, GenericLinkFormData));
 #[derive(Debug, Eq, PartialEq)]
 pub struct RedirectionFormData {
     pub redirect_form: crate::router_response_types::RedirectForm,
-    pub payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodData>,
     pub amount: String,
     pub currency: String,
 }
@@ -62,6 +64,7 @@ pub struct PaymentLinkStatusData {
 pub struct GenericLinks {
     pub allowed_domains: HashSet<String>,
     pub data: GenericLinksData,
+    pub locale: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]

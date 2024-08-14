@@ -26,7 +26,7 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -63,7 +63,15 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            retrieve_customer(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -84,11 +92,12 @@ pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> Htt
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
+                None,
                 auth.key_store,
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerRead),
             req.headers(),
         ),
@@ -103,19 +112,63 @@ pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
-    mut json_payload: web::Json<customers::CustomerRequest>,
+    mut json_payload: web::Json<customers::CustomerUpdateRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
     let customer_id = path.into_inner();
     json_payload.customer_id = Some(customer_id);
+    let customer_update_id = customers::UpdateCustomerId::new("temp_global_id".to_string());
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| update_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth, req, _| {
+            update_customer(
+                state,
+                auth.merchant_account,
+                req,
+                auth.key_store,
+                customer_update_id.clone(),
+            )
+        },
         auth::auth_type(
             &auth::ApiKeyAuth,
+            &auth::JWTAuth(Permission::CustomerWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
+pub async fn customers_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<customers::CustomerUpdateRequest>,
+) -> HttpResponse {
+    let flow = Flow::CustomersUpdate;
+    let id = path.into_inner().clone();
+    let customer_update_id = customers::UpdateCustomerId::new(id);
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, auth, req, _| {
+            update_customer(
+                state,
+                auth.merchant_account,
+                req,
+                auth.key_store,
+                customer_update_id.clone(),
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -144,7 +197,7 @@ pub async fn customers_delete(
         payload,
         |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::CustomerWrite),
             req.headers(),
         ),
@@ -179,7 +232,7 @@ pub async fn get_customer_mandates(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::MandateRead),
             req.headers(),
         ),

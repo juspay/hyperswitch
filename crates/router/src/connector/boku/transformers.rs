@@ -1,5 +1,6 @@
 use std::fmt;
 
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -12,6 +13,21 @@ use crate::{
     types::{self, api, domain, storage::enums},
 };
 
+#[derive(Debug, Serialize)]
+pub struct BokuRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for BokuRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum BokuPaymentsRequest {
@@ -21,7 +37,7 @@ pub enum BokuPaymentsRequest {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SingleChargeData {
-    total_amount: i64,
+    total_amount: MinorUnit,
     currency: String,
     country: String,
     merchant_id: Secret<String>,
@@ -74,10 +90,12 @@ struct BokuHostedData {
     forward_url: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
+impl TryFrom<&BokuRouterData<&types::PaymentsAuthorizeRouterData>> for BokuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &BokuRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, &wallet_data)),
             domain::PaymentMethodData::Card(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -93,7 +111,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("boku"),
                 ))?
@@ -102,12 +121,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
     }
 }
 
-impl TryFrom<(&types::PaymentsAuthorizeRouterData, &domain::WalletData)> for BokuPaymentsRequest {
+impl
+    TryFrom<(
+        &BokuRouterData<&types::PaymentsAuthorizeRouterData>,
+        &domain::WalletData,
+    )> for BokuPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        value: (&types::PaymentsAuthorizeRouterData, &domain::WalletData),
+        value: (
+            &BokuRouterData<&types::PaymentsAuthorizeRouterData>,
+            &domain::WalletData,
+        ),
     ) -> Result<Self, Self::Error> {
-        let (item, wallet_data) = value;
+        let (item_router_data, wallet_data) = value;
+        let item = item_router_data.router_data;
         let address = item.get_billing_address()?;
         let country = address.get_country()?.to_string();
         let payment_method = get_wallet_type(wallet_data)?;
@@ -115,7 +143,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &domain::WalletData)> for Bok
         let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
         let merchant_item_description = item.get_description()?;
         let payment_data = SingleChargeData {
-            total_amount: item.request.amount,
+            total_amount: item_router_data.amount,
             currency: item.request.currency.to_string(),
             country,
             merchant_id: auth_type.merchant_id,
@@ -320,7 +348,7 @@ fn get_psync_response(
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename = "refund-charge-request")]
 pub struct BokuRefundRequest {
-    refund_amount: i64,
+    refund_amount: MinorUnit,
     merchant_id: Secret<String>,
     merchant_request_id: String,
     merchant_refund_id: Secret<String>,
@@ -341,16 +369,20 @@ impl fmt::Display for BokuRefundReasonCode {
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BokuRefundRequest {
+impl<F> TryFrom<&BokuRouterData<&types::RefundsRouterData<F>>> for BokuRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let auth_type = BokuAuthType::try_from(&item.connector_auth_type)?;
+    fn try_from(item: &BokuRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+        let auth_type = BokuAuthType::try_from(&item.router_data.connector_auth_type)?;
         let payment_data = Self {
-            refund_amount: item.request.refund_amount,
+            refund_amount: item.amount,
             merchant_id: auth_type.merchant_id,
-            merchant_refund_id: Secret::new(item.request.refund_id.to_string()),
+            merchant_refund_id: Secret::new(item.router_data.request.refund_id.to_string()),
             merchant_request_id: Uuid::new_v4().to_string(),
-            charge_id: item.request.connector_transaction_id.to_string(),
+            charge_id: item
+                .router_data
+                .request
+                .connector_transaction_id
+                .to_string(),
             reason_code: BokuRefundReasonCode::NonFulfillment.to_string(),
         };
 

@@ -1,10 +1,11 @@
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
-        DbCaptureStatus as CaptureStatus, DbConnectorStatus as ConnectorStatus,
-        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
+        DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
         DbDashboardMetadata as DashboardMetadata, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
@@ -12,6 +13,7 @@ pub mod diesel_exports {
         DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
+        DbOrderFulfillmentTimeOrigin as OrderFulfillmentTimeOrigin,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,

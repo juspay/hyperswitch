@@ -663,6 +663,12 @@ pub struct ApiKeys {
     // Specifies the number of days before API key expiry when email reminders should be sent
     #[cfg(feature = "email")]
     pub expiry_reminder_days: Vec<u8>,
+
+    #[cfg(feature = "partial-auth")]
+    pub checksum_auth_context: Secret<String>,
+
+    #[cfg(feature = "partial-auth")]
+    pub checksum_auth_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -754,10 +760,14 @@ impl Settings<SecuredSecret> {
         self.master_database.get_inner().validate()?;
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
+
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.redis.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             ApplicationError::InvalidConfigurationValueError("Redis configuration".into())
         })?;
+
         if self.log.file.enabled {
             if self.log.file.file_name.is_default_or_empty() {
                 return Err(error_stack::Report::from(

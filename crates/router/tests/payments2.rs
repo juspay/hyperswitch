@@ -1,4 +1,9 @@
-#![allow(clippy::expect_used, clippy::unwrap_in_result, clippy::unwrap_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    clippy::unwrap_used,
+    clippy::print_stdout
+)]
 
 mod utils;
 
@@ -145,6 +150,7 @@ async fn payments_create_core() {
         state.clone(),
         state.get_req_state(),
         merchant_account,
+        None,
         key_store,
         payments::PaymentCreate,
         req,
@@ -339,6 +345,7 @@ async fn payments_create_core_adyen_no_redirect() {
         state.clone(),
         state.get_req_state(),
         merchant_account,
+        None,
         key_store,
         payments::PaymentCreate,
         req,

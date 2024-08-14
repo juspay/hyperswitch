@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = ["v1"]
+default = []
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector"]
 v1 = []
 v2 = []
@@ -33,3 +33,6 @@ criterion = "0.5"
 [[bench]]
 name = "evaluation"
 harness = false
+
+[lints]
+workspace = true

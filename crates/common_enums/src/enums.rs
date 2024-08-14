@@ -6,11 +6,11 @@ use utoipa::ToSchema;
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
-        DbCaptureStatus as CaptureStatus, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
+        DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFutureUsage as FutureUsage,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentType as PaymentType,
@@ -210,6 +210,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Fiserv,
+    // Fiservemea,
     Forte,
     Globalpay,
     Globepay,
@@ -228,6 +229,7 @@ pub enum RoutableConnectors {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    // Paybox, added as template code for future usage
     Payme,
     Payone,
     Paypal,
@@ -243,11 +245,13 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Trustpay,
     // Tsys,
     Tsys,
     Volt,
-    // Wellsfargo,
+    Wellsfargo,
+    // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
@@ -1412,8 +1416,8 @@ pub enum PaymentMethodStatus {
 impl From<AttemptStatus> for PaymentMethodStatus {
     fn from(attempt_status: AttemptStatus) -> Self {
         match attempt_status {
-            AttemptStatus::Failure => Self::Inactive,
-            AttemptStatus::Voided
+            AttemptStatus::Failure
+            | AttemptStatus::Voided
             | AttemptStatus::Started
             | AttemptStatus::Pending
             | AttemptStatus::Unresolved
@@ -1433,9 +1437,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Charged
-            | AttemptStatus::Authorized => Self::Active,
+            | AttemptStatus::DeviceDataCollectionPending => Self::Inactive,
+            AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
 }
@@ -2518,6 +2521,36 @@ pub enum ReconStatus {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticationConnectors {
+    Threedsecureio,
+    Netcetera,
+    Gpayments,
+}
+
+impl AuthenticationConnectors {
+    pub fn is_separate_version_call_required(&self) -> bool {
+        match self {
+            Self::Threedsecureio | Self::Netcetera => false,
+            Self::Gpayments => true,
+        }
+    }
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     Default,
@@ -3026,9 +3059,72 @@ pub enum Owner {
     Internal,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ApiVersion {
+    V1,
+    V2,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum EntityType {
+    Internal,
+    Organization,
+    Merchant,
+    Profile,
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OrderFulfillmentTimeOrigin {
+    Create,
+    Confirm,
 }

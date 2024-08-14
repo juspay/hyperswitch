@@ -89,8 +89,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://country-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
+braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -101,6 +100,7 @@ dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -122,6 +122,7 @@ noon.key_mode = "Test"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
+paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
@@ -140,6 +141,7 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -147,6 +149,7 @@ trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
+wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
@@ -184,6 +187,7 @@ cards = [
     "dummyconnector",
     "ebanx",
     "fiserv",
+    "fiservemea",
     "forte",
     "globalpay",
     "globepay",
@@ -201,6 +205,7 @@ cards = [
     "nuvei",
     "opayo",
     "opennode",
+    "paybox",
     "payeezy",
     "payme",
     "payone",
@@ -214,11 +219,13 @@ cards = [
     "square",
     "stax",
     "stripe",
+    "taxjar",
     "threedsecureio",
     "trustpay",
     "tsys",
     "volt",
     "wellsfargo",
+    "wellsfargopayout",
     "wise",
     "worldline",
     "worldpay",
@@ -287,9 +294,6 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 [payouts]
 payout_eligibility = true
 
-[multiple_api_version_supported_connectors]
-supported_connectors = "braintree"
-
 [mandates.supported_payment_methods]
 pay_later.klarna = {connector_list = "adyen"}
 wallet.google_pay = {connector_list = "stripe,adyen,bankofamerica"}
@@ -343,7 +347,7 @@ client_secret = ""
 partner_id = ""
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [multitenancy]
 enabled = false

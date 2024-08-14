@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use api_models::user as user_api;
 use common_enums::UserAuthType;
 use common_utils::{
-    encryption::Encryption, errors::CustomResult, id_type, types::keymanager::Identifier,
+    encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
 use diesel_models::{enums::UserStatus, user_role::UserRole};
 use error_stack::{report, ResultExt};
@@ -81,7 +81,7 @@ impl UserFromToken {
     }
 }
 
-pub async fn generate_jwt_auth_token(
+pub async fn generate_jwt_auth_token_without_profile(
     state: &SessionState,
     user: &UserFromStorage,
     user_role: &UserRole,
@@ -102,6 +102,7 @@ pub async fn generate_jwt_auth_token(
             .ok_or(report!(UserErrors::InternalServerError))
             .attach_printable("org_id not found for user_role")?
             .clone(),
+        None,
     )
     .await?;
     Ok(Secret::new(token))
@@ -113,6 +114,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
+    profile_id: Option<String>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
@@ -120,6 +122,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
         role_id,
         &state.conf,
         org_id,
+        profile_id,
     )
     .await?;
     Ok(Secret::new(token))
@@ -257,15 +260,18 @@ pub async fn construct_public_and_private_db_configs(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to convert auth config to json")?;
 
-            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-                &state.into(),
-                private_config_value.into(),
-                Identifier::UserAuth(id),
-                encryption_key,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to encrypt auth config")?;
+            let encrypted_config =
+                domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+                    &state.into(),
+                    type_name!(diesel_models::user::User),
+                    domain::types::CryptoOperation::Encrypt(private_config_value.into()),
+                    Identifier::UserAuth(id),
+                    encryption_key,
+                )
+                .await
+                .and_then(|val| val.try_into_operation())
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to encrypt auth config")?;
 
             Ok((
                 Some(encrypted_config.into()),
@@ -306,13 +312,15 @@ pub async fn decrypt_oidc_private_config(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let private_config = domain::types::decrypt_optional::<serde_json::Value, masking::WithType>(
+    let private_config = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
-        encrypted_config,
+        type_name!(diesel_models::user::User),
+        domain::types::CryptoOperation::DecryptOptional(encrypted_config),
         Identifier::UserAuth(id),
         &user_auth_key,
     )
     .await
+    .and_then(|val| val.try_into_optionaloperation())
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decrypt private config")?
     .ok_or(UserErrors::InternalServerError)

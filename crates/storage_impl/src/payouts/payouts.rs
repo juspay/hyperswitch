@@ -2,13 +2,17 @@
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel::{JoinOnDsl, NullableExpressionMethods};
 #[cfg(feature = "olap")]
 use diesel_models::{
-    customers::Customer as DieselCustomer,
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    query::generics::db_metrics,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
+    customers::Customer as DieselCustomer, query::generics::db_metrics,
+    schema::payouts::dsl as po_dsl,
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -17,6 +21,15 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
+};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel_models::{
+    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
+    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
@@ -35,6 +48,15 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
 use crate::connection;
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use crate::store::schema::{
+    customers::all_columns as cust_all_columns, payout_attempt::all_columns as poa_all_columns,
+    payouts::all_columns as po_all_columns,
+};
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
@@ -307,7 +329,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError>
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
     {
         self.router_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
@@ -517,14 +539,19 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        feature = "olap",
+        not(feature = "customer_v2")
+    ))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
+    {
         use common_utils::errors::ReportSwitchExt;
 
         let conn = connection::pg_connection_read(self).await.switch()?;
@@ -536,7 +563,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             )
             .inner_join(
                 diesel_models::schema::customers::table
-                    .on(cust_dsl::customer_id.eq(po_dsl::customer_id)),
+                    .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
@@ -628,7 +655,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         query
-            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, DieselCustomer)>(conn)
+            .select((po_all_columns, poa_all_columns, cust_all_columns.nullable()))
+            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, Option<DieselCustomer>)>(conn)
             .await
             .map(|results| {
                 results
@@ -649,6 +677,19 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 )
                 .into()
             })
+    }
+
+    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn filter_payouts_and_attempts(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _filters: &PayoutFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
+    {
+        todo!()
     }
 
     #[cfg(feature = "olap")]
@@ -807,6 +848,8 @@ impl DataModelExt for PayoutsUpdate {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             } => DieselPayoutsUpdate::Update {
                 amount,
                 destination_currency,
@@ -821,6 +864,8 @@ impl DataModelExt for PayoutsUpdate {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             },
             Self::PayoutMethodIdUpdate { payout_method_id } => {
                 DieselPayoutsUpdate::PayoutMethodIdUpdate { payout_method_id }
