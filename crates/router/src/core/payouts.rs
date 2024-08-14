@@ -955,7 +955,11 @@ pub async fn call_connector_payout(
             merchant_account,
             payout_data,
             &connector_data.connector_name.to_string(),
-            connector_data.merchant_connector_id.as_ref(),
+            payout_attempt
+                .merchant_connector_id
+                .clone()
+                .or(connector_data.merchant_connector_id.clone())
+                .as_ref(),
             key_store,
             false,
         )
@@ -2423,21 +2427,27 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
-    let merchant_connector_account = match payout_attempt.connector.clone() {
-        Some(connector_name) => Some(
-            payment_helpers::get_merchant_connector_account(
-                state,
-                merchant_account.get_id(),
-                None,
-                key_store,
-                &profile_id,
-                connector_name.as_str(),
-                payout_attempt.merchant_connector_id.as_ref(),
+    let merchant_connector_account =
+        if payout_attempt.connector.is_some() && payout_attempt.merchant_connector_id.is_some() {
+            let connector_name = payout_attempt
+                .connector
+                .clone()
+                .get_required_value("connector_name")?;
+            Some(
+                payment_helpers::get_merchant_connector_account(
+                    state,
+                    merchant_account.get_id(),
+                    None,
+                    key_store,
+                    &profile_id,
+                    connector_name.as_str(),
+                    payout_attempt.merchant_connector_id.as_ref(),
+                )
+                .await?,
             )
-            .await?,
-        ),
-        None => None,
-    };
+        } else {
+            None
+        };
 
     let payout_link = payouts
         .payout_link_id
