@@ -151,6 +151,7 @@ impl UserRole {
             .or(dsl::org_id.eq(org_id).and(
                 dsl::merchant_id
                     .eq(merchant_id)
+                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
                     .and(dsl::profile_id.eq(profile_id)),
             ));
 
@@ -183,6 +184,7 @@ impl UserRole {
             .or(dsl::org_id.eq(org_id).and(
                 dsl::merchant_id
                     .eq(merchant_id)
+                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
                     .and(dsl::profile_id.eq(profile_id)),
             ));
 
