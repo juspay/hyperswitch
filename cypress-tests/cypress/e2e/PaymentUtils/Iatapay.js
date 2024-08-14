@@ -1,6 +1,6 @@
 export const connectorDetails = {
   bank_redirect_pm: {
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",

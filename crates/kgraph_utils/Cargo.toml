@@ -33,3 +33,6 @@ criterion = "0.5"
 [[bench]]
 name = "evaluation"
 harness = false
+
+[lints]
+workspace = true

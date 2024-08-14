@@ -401,7 +401,7 @@ where
 pub async fn refund_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
@@ -419,7 +419,7 @@ pub async fn refund_retrieve_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
-
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
     let payment_id = refund.payment_id.as_str();
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
@@ -987,11 +987,15 @@ pub async fn refund_manual_update(
 pub async fn get_filters_for_refunds(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, merchant_account.get_id().to_owned(), None)
-            .await?
+        super::admin::list_payment_connectors(
+            state,
+            merchant_account.get_id().to_owned(),
+            profile_id_list,
+        )
+        .await?
     {
         data
     } else {

@@ -405,11 +405,16 @@ pub async fn connector_retrieve(
         state,
         &req,
         payload,
-        |state, _, req, _| {
-            retrieve_connector(state, req.merchant_id, None, req.merchant_connector_id)
+        |state, auth, req, _| {
+            retrieve_connector(
+                state,
+                req.merchant_id,
+                auth.profile_id,
+                req.merchant_connector_id,
+            )
         },
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
@@ -518,9 +523,9 @@ pub async fn payment_connector_list(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, _, merchant_id, _| list_payment_connectors(state, merchant_id, None),
+        |state, _auth, merchant_id, _| list_payment_connectors(state, merchant_id, None),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
@@ -570,9 +575,17 @@ pub async fn connector_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| update_connector(state, &merchant_id, None, &merchant_connector_id, req),
+        |state, auth, req, _| {
+            update_connector(
+                state,
+                &merchant_id,
+                auth.profile_id,
+                &merchant_connector_id,
+                req,
+            )
+        },
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
@@ -1011,18 +1024,18 @@ pub async fn merchant_account_transfer_keys(
 pub async fn toggle_extended_card_info(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, String)>,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
     json_payload: web::Json<api_models::admin::ExtendedCardInfoChoice>,
 ) -> HttpResponse {
     let flow = Flow::ToggleExtendedCardInfo;
-    let (_, profile_id) = path.into_inner();
+    let (merchant_id, profile_id) = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| extended_card_info_toggle(state, &profile_id, req),
+        |state, _, req, _| extended_card_info_toggle(state, &merchant_id, &profile_id, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

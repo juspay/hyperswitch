@@ -1,4 +1,9 @@
-#![allow(clippy::expect_used, clippy::unwrap_in_result, clippy::unwrap_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_in_result,
+    clippy::unwrap_used,
+    clippy::print_stdout
+)]
 
 mod utils;
 

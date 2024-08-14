@@ -484,7 +484,7 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -530,7 +530,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        "api-key": globalState.get("apiKey"),
       },
       body: updateConnectorBody,
       failOnStatusCode: false,
@@ -554,7 +554,7 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -1250,7 +1250,9 @@ Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, req_data, res_data, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
+    if (req_data.setup_future_usage === "on_session") {
+      saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
+    }
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     cy.request({
@@ -2060,7 +2062,7 @@ Cypress.Commands.add("ListMCAbyMID", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
+      "api-key": globalState.get("apiKey"),
     },
     failOnStatusCode: false,
   }).then((response) => {
