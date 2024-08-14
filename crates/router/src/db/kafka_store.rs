@@ -2663,14 +2663,15 @@ impl UserRoleInterface for KafkaStore {
         profile_id: Option<&String>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.find_user_role_by_user_id_and_lineage(
-            user_id,
-            org_id,
-            merchant_id,
-            profile_id,
-            version,
-        )
-        .await
+        self.diesel_store
+            .find_user_role_by_user_id_and_lineage(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                version,
+            )
+            .await
     }
 
     async fn delete_user_role_by_user_id_and_lineage(
@@ -2681,14 +2682,15 @@ impl UserRoleInterface for KafkaStore {
         profile_id: Option<&String>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        self.delete_user_role_by_user_id_and_lineage(
-            user_id,
-            org_id,
-            merchant_id,
-            profile_id,
-            version,
-        )
-        .await
+        self.diesel_store
+            .delete_user_role_by_user_id_and_lineage(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                version,
+            )
+            .await
     }
 
     async fn transfer_org_ownership_between_users(
