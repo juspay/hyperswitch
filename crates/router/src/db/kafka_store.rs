@@ -668,23 +668,6 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn list_events_by_profile_id_initial_attempt_id(
-        &self,
-        state: &KeyManagerState,
-        profile_id: &str,
-        initial_attempt_id: &str,
-        merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        self.diesel_store
-            .list_events_by_profile_id_initial_attempt_id(
-                state,
-                profile_id,
-                initial_attempt_id,
-                merchant_key_store,
-            )
-            .await
-    }
-
     async fn update_event_by_merchant_id_event_id(
         &self,
         state: &KeyManagerState,
@@ -2267,6 +2250,23 @@ impl BusinessProfileInterface for KafkaStore {
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
+            .await
+    }
+
+    async fn find_business_profile_by_merchant_id_profile_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &str,
+    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        self.diesel_store
+            .find_business_profile_by_merchant_id_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                merchant_id,
+                profile_id,
+            )
             .await
     }
 
