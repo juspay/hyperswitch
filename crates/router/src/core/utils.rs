@@ -21,8 +21,6 @@ use uuid::Uuid;
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
-#[cfg(feature = "payouts")]
-use crate::{core::payments, types::api};
 use crate::{
     configs::Settings,
     consts,
@@ -36,6 +34,8 @@ use crate::{
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
+#[cfg(feature = "payouts")]
+use crate::{core::payments, types::api};
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
