@@ -351,7 +351,7 @@ where
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
-                            &locale
+                            &locale,
                         )
                         .await?;
 
