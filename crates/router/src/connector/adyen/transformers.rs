@@ -4921,7 +4921,7 @@ pub struct Evidence {
 #[serde(rename_all = "camelCase")]
 
 pub struct DefenseDocuments {
-    content: String,
+    content: Secret<String>,
     content_type: Option<String>,
     defense_document_type_code: String,
 }
@@ -4947,14 +4947,14 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     let mut defense_documents: Vec<DefenseDocuments> = Vec::new();
     if let Some(shipping_documentation) = item.shipping_documentation {
         defense_documents.push(DefenseDocuments {
-            content: get_content(shipping_documentation),
+            content: get_content(shipping_documentation).into(),
             content_type: item.receipt_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(receipt) = item.receipt {
         defense_documents.push(DefenseDocuments {
-            content: get_content(receipt),
+            content: get_content(receipt).into(),
             content_type: item.shipping_documentation_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
@@ -4962,56 +4962,56 @@ fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseD
     if let Some(invoice_showing_distinct_transactions) = item.invoice_showing_distinct_transactions
     {
         defense_documents.push(DefenseDocuments {
-            content: get_content(invoice_showing_distinct_transactions),
+            content: get_content(invoice_showing_distinct_transactions).into(),
             content_type: item.invoice_showing_distinct_transactions_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(customer_communication) = item.customer_communication {
         defense_documents.push(DefenseDocuments {
-            content: get_content(customer_communication),
+            content: get_content(customer_communication).into(),
             content_type: item.customer_communication_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(refund_policy) = item.refund_policy {
         defense_documents.push(DefenseDocuments {
-            content: get_content(refund_policy),
+            content: get_content(refund_policy).into(),
             content_type: item.refund_policy_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(recurring_transaction_agreement) = item.recurring_transaction_agreement {
         defense_documents.push(DefenseDocuments {
-            content: get_content(recurring_transaction_agreement),
+            content: get_content(recurring_transaction_agreement).into(),
             content_type: item.recurring_transaction_agreement_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(uncategorized_file) = item.uncategorized_file {
         defense_documents.push(DefenseDocuments {
-            content: get_content(uncategorized_file),
+            content: get_content(uncategorized_file).into(),
             content_type: item.uncategorized_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(cancellation_policy) = item.cancellation_policy {
         defense_documents.push(DefenseDocuments {
-            content: get_content(cancellation_policy),
+            content: get_content(cancellation_policy).into(),
             content_type: item.cancellation_policy_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(customer_signature) = item.customer_signature {
         defense_documents.push(DefenseDocuments {
-            content: get_content(customer_signature),
+            content: get_content(customer_signature).into(),
             content_type: item.customer_signature_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
     }
     if let Some(service_documentation) = item.service_documentation {
         defense_documents.push(DefenseDocuments {
-            content: get_content(service_documentation),
+            content: get_content(service_documentation).into(),
             content_type: item.service_documentation_file_type,
             defense_document_type_code: "DefenseMaterial".into(),
         })
@@ -5028,14 +5028,10 @@ fn get_content(item: Vec<u8>) -> String {
     String::from_utf8_lossy(&item).to_string()
 }
 
-impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
-    for types::AcceptDisputeRouterData
-{
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::AcceptDisputeRouterData {
     type Error = errors::ConnectorError;
 
-    fn foreign_try_from(
-        item: (&Self, AdyenDisputeResponse),
-    ) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
         let (data, response) = item;
 
         if response.success {
@@ -5072,13 +5068,9 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
     }
 }
 
-impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
-    for types::SubmitEvidenceRouterData
-{
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::SubmitEvidenceRouterData {
     type Error = errors::ConnectorError;
-    fn foreign_try_from(
-        item: (&Self, AdyenDisputeResponse),
-    ) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
         let (data, response) = item;
         if response.success {
             Ok(types::SubmitEvidenceRouterData {
@@ -5114,14 +5106,10 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
     }
 }
 
-impl ForeignTryFrom<(&Self, AdyenDisputeResponse)>
-    for types::DefendDisputeRouterData
-{
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::DefendDisputeRouterData {
     type Error = errors::ConnectorError;
 
-    fn foreign_try_from(
-        item: (&Self, AdyenDisputeResponse),
-    ) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
         let (data, response) = item;
 
         if response.success {

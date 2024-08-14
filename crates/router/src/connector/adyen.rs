@@ -2218,7 +2218,8 @@ impl api::FileUpload for Adyen {
                 }
                 //10 MB
                 if (file_type.to_string().as_str() == "image/jpeg"
-                    || file_type.to_string().as_str() == "image/jpg" || file_type.to_string().as_str() == "image/png")
+                    || file_type.to_string().as_str() == "image/jpg"
+                    || file_type.to_string().as_str() == "image/png")
                     && file_size > 10000000
                 {
                     Err(errors::ConnectorError::FileValidationFailed {

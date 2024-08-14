@@ -143,7 +143,7 @@ pub struct AdyenParamsWithThreeBaseUrls {
     /// base url
     pub base_url: String,
     /// secondary base url
-    #[cfg(feature="payouts")]
+    #[cfg(feature = "payouts")]
     pub payout_base_url: String,
     /// third base url
     pub dispute_base_url: String,
