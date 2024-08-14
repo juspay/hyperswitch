@@ -3718,6 +3718,62 @@ impl BusinessProfileWrapper {
             ),
         }
     }
+    pub fn get_default_fallback_list_of_connector_under_profile(
+        &self,
+    ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
+        use common_utils::ext_traits::OptionExt;
+        use masking::ExposeOptionInterface;
+
+        self.profile
+            .default_fallback_routing
+            .clone()
+            .expose_option()
+            .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                "Vec<RoutableConnectorChoice>",
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant default config has invalid structure")
+    }
+    pub fn get_default_routing_configs_from_profile(
+        &self,
+    ) -> RouterResult<routing_types::ProfileDefaultRoutingConfig> {
+        let profile_id = self.profile.profile_id.clone();
+        let connectors = self.get_default_fallback_list_of_connector_under_profile()?;
+
+        Ok(routing_types::ProfileDefaultRoutingConfig {
+            profile_id,
+            connectors,
+        })
+    }
+
+    pub async fn update_default_routing_for_profile(
+        self,
+        db: &dyn StorageInterface,
+        updated_config: &Vec<routing_types::RoutableConnectorChoice>,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<()> {
+        let default_fallback_routing = Secret::from(
+            updated_config
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert routing ref to value")?,
+        );
+        let business_profile_update = domain::BusinessProfileUpdate::DefaultRoutingFallbackUpdate {
+            default_fallback_routing: Some(default_fallback_routing),
+        };
+
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            self.profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+        Ok(())
+    }
 }
 
 pub async fn extended_card_info_toggle(
