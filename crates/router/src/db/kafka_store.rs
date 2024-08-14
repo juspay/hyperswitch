@@ -1975,6 +1975,39 @@ impl PayoutsInterface for KafkaStore {
             .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        active_payout_ids: &[String],
+        connector: Option<Vec<api_models::enums::PayoutConnectors>>,
+        currency: Option<Vec<enums::Currency>>,
+        status: Option<Vec<enums::PayoutStatus>>,
+        payout_method: Option<Vec<enums::PayoutType>>,
+    ) -> CustomResult<i64, errors::DataStorageError> {
+        self.diesel_store
+            .get_total_count_of_filtered_payouts(
+                merchant_id,
+                active_payout_ids,
+                connector,
+                currency,
+                status,
+                payout_method,
+            )
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
+    ) -> CustomResult<Vec<String>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_active_payout_ids_by_constraints(merchant_id, constraints)
+            .await
+    }
 }
 
 #[async_trait::async_trait]

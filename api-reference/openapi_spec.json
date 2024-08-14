@@ -19129,7 +19129,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PayoutCreateResponse"
-            }
+            },
+            "description": "The list of payouts response objects"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of available payouts for given constraints",
+            "nullable": true
           }
         }
       },
