@@ -1,4 +1,4 @@
-use api_models::{ user as user_api, user_role as user_role_api};
+use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     user_role::UserRoleUpdate,
@@ -496,7 +496,7 @@ pub async fn delete_user_role(
         .change_context(UserErrors::InternalServerError)?;
 
     // If user has no more role associated with him then deleting user
-    if user_roles_v2.is_empty() && user_roles_v1.is_empty(){
+    if user_roles_v2.is_empty() && user_roles_v1.is_empty() {
         state
             .global_store
             .delete_user_by_user_id(user_from_db.get_user_id())
