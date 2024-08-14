@@ -135,7 +135,7 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl From<CustomerUpdateRequest> for api::CustomerRequest {
+impl From<CustomerUpdateRequest> for api::CustomerUpdateRequest {
     fn from(req: CustomerUpdateRequest) -> Self {
         Self {
             name: req.name,

@@ -3,12 +3,12 @@
 /// List all Events associated with a Merchant Account or Business Profile.
 #[utoipa::path(
     get,
-    path = "/events/{merchant_id_or_profile_id}",
+    path = "/events/{merchant_id}",
     params(
         (
-            "merchant_id_or_profile_id" = String,
+            "merchant_id" = String,
             Path,
-            description = "The unique identifier for the Merchant Account or Business Profile"
+            description = "The unique identifier for the Merchant Account."
         ),
         (
             "created_after" = Option<PrimitiveDateTime>,
@@ -40,6 +40,11 @@
             description = "Only include Events associated with the specified object (Payment Intent ID, Refund ID, etc.). \
                            Either only `object_id` must be specified, or one or more of `created_after`, `created_before`, `limit` and `offset` must be specified."
         ),
+        (
+            "profile_id" = Option<String>,
+            Query,
+            description = "Only include Events associated with the Business Profile identified by the specified Business Profile ID."
+        ),
     ),
     responses(
         (status = 200, description = "List of Events retrieved successfully", body = Vec<EventListItemResponse>),
@@ -55,9 +60,9 @@ pub fn list_initial_webhook_delivery_attempts() {}
 /// List all delivery attempts for the specified Event.
 #[utoipa::path(
     get,
-    path = "/events/{merchant_id_or_profile_id}/{event_id}/attempts",
+    path = "/events/{merchant_id}/{event_id}/attempts",
     params(
-        ("merchant_id_or_profile_id" = String, Path, description = "The unique identifier for the Merchant Account or Business Profile"),
+        ("merchant_id" = String, Path, description = "The unique identifier for the Merchant Account."),
         ("event_id" = String, Path, description = "The unique identifier for the Event"),
     ),
     responses(
@@ -74,9 +79,9 @@ pub fn list_webhook_delivery_attempts() {}
 /// Manually retry the delivery of the specified Event.
 #[utoipa::path(
     post,
-    path = "/events/{merchant_id_or_profile_id}/{event_id}/retry",
+    path = "/events/{merchant_id}/{event_id}/retry",
     params(
-        ("merchant_id_or_profile_id" = String, Path, description = "The unique identifier for the Merchant Account or Business Profile"),
+        ("merchant_id" = String, Path, description = "The unique identifier for the Merchant Account."),
         ("event_id" = String, Path, description = "The unique identifier for the Event"),
     ),
     responses(
