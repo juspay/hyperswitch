@@ -31,7 +31,6 @@ export const connectorDetails = {
                 payment_method_data: {
                     card: successfulNo3DSCardDetails,
                 },
-                currency: "EUR",
                 customer_acceptance: null,
                 setup_future_usage: "on_session",
             },
