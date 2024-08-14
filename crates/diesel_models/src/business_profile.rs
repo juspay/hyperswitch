@@ -55,6 +55,7 @@ pub struct BusinessProfile {
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: bool,
 }
 
 #[cfg(all(
@@ -94,6 +95,7 @@ pub struct BusinessProfileNew {
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: bool,
 }
 
 #[cfg(all(
@@ -130,6 +132,7 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -165,6 +168,7 @@ impl BusinessProfileUpdateInternal {
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
             tax_connector_id,
+            is_tax_connector_enabled,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -210,6 +214,7 @@ impl BusinessProfileUpdateInternal {
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
+            is_tax_connector_enabled: is_tax_connector_enabled.unwrap_or(source.is_tax_connector_enabled),
         }
     }
 }
@@ -358,7 +363,6 @@ impl BusinessProfileUpdateInternal {
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
-            // default_fallback_routing,
             tax_connector_id,
         } = self;
         BusinessProfile {

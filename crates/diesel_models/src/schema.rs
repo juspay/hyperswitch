@@ -205,6 +205,7 @@ diesel::table! {
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
         #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
+        is_tax_connector_enabled -> Bool,
     }
 }
 

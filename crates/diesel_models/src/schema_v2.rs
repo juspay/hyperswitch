@@ -202,6 +202,9 @@ diesel::table! {
         collect_billing_details_from_wallet_connector -> Nullable<Bool>,
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
         #[max_length = 64]
+        tax_connector_id -> Nullable<Varchar>,
+        is_tax_connector_enabled -> Bool,
+        #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
@@ -210,8 +213,6 @@ diesel::table! {
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
-        #[max_length = 64]
-        tax_connector_id -> Nullable<Varchar>,
     }
 }
 
@@ -654,9 +655,9 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         recon_status -> ReconStatus,
+        version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
-        version -> ApiVersion,
     }
 }
 
@@ -687,9 +688,9 @@ diesel::table! {
         status -> ConnectorStatus,
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
+        version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
-        version -> ApiVersion,
     }
 }
 
