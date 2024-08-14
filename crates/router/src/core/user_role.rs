@@ -353,8 +353,8 @@ pub async fn delete_user_role(
 
     let mut user_role_deleted_flag = false;
 
-    // Find in V2 and delete
-    if let Ok(role_to_be_deleted) = state
+    // Find in V2
+    let user_role_v2 = match state
         .store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
@@ -364,14 +364,18 @@ pub async fn delete_user_role(
             UserRoleVersion::V2,
         )
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                Ok(e.change_context(UserErrors::InvalidRoleOperation))
-            } else {
-                return Err(UserErrors::InternalServerError);
-            }
-        })
     {
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if let Some(role_to_be_deleted) = user_role_v2 {
         let target_role_info = roles::RoleInfo::from_role_id(
             &state,
             &role_to_be_deleted.role_id,
@@ -411,8 +415,8 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?;
     }
 
-    // Find in V1 and delete
-    if let Ok(role_to_be_deleted) = state
+    // Find in V1
+    let user_role_v1 = match state
         .store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
@@ -422,14 +426,18 @@ pub async fn delete_user_role(
             UserRoleVersion::V1,
         )
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                Ok(e.change_context(UserErrors::InvalidRoleOperation))
-            } else {
-                return Err(UserErrors::InternalServerError);
-            }
-        })
     {
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if let Some(role_to_be_deleted) = user_role_v1 {
         let target_role_info = roles::RoleInfo::from_role_id(
             &state,
             &role_to_be_deleted.role_id,
