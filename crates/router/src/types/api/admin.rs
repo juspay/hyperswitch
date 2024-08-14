@@ -183,6 +183,11 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             })
             .transpose()?;
 
+        let order_fulfillment_time = item
+            .order_fulfillment_time
+            .map(|time| u32::try_from(time))
+            .transpose()?;
+
         Ok(Self {
             merchant_id: item.merchant_id,
             id: item.profile_id,
@@ -211,7 +216,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
             outgoing_webhook_custom_http_headers,
-            order_fulfillment_time: item.order_fulfillment_time.map(i64::from),
+            order_fulfillment_time,
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
         })
     }

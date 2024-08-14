@@ -2207,7 +2207,7 @@ pub struct BusinessProfileResponse {
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(value_type = u32, example = 900)]
-    pub order_fulfillment_time: Option<i64>,
+    pub order_fulfillment_time: Option<OrderFulfillmentTime>,
 
     /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
     #[schema(value_type = Option<OrderFulfillmentTimeOrigin>, example = "create")]
@@ -2229,7 +2229,7 @@ pub struct BusinessProfileUpdate {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -2260,7 +2260,7 @@ pub struct BusinessProfileUpdate {
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
-    /// Verified applepay domains for a particular profile
+    /// Verified Apple Pay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 
     /// Client Secret Default expiry for all payments created under this business profile
@@ -2279,11 +2279,11 @@ pub struct BusinessProfileUpdate {
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
 
