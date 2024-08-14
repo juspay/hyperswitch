@@ -386,7 +386,9 @@ impl ConnectorData {
                 enums::Connector::DummyConnector7 => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<7>,
                 ))),
-                enums::Connector::Ebanx => Ok(ConnectorEnum::Old(Box::new(&connector::Ebanx))),
+                enums::Connector::Ebanx => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
+                }
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
                 // enums::Connector::Fiservemea => {
                 //     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea)))
