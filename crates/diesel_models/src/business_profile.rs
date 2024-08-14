@@ -172,7 +172,7 @@ impl BusinessProfileUpdateInternal {
             outgoing_webhook_custom_http_headers,
             always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector,
-            tax_connector_id
+            tax_connector_id,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
