@@ -1,5 +1,6 @@
 use crate::types::{
-    api, domain, storage,
+    api::{self, payments},
+    domain, storage,
     transformers::{ForeignFrom, ForeignInto},
 };
 
@@ -8,6 +9,7 @@ impl
         storage::Payouts,
         storage::PayoutAttempt,
         Option<domain::Customer>,
+        Option<payments::Address>,
     )> for api::PayoutCreateResponse
 {
     fn foreign_from(
@@ -15,9 +17,10 @@ impl
             storage::Payouts,
             storage::PayoutAttempt,
             Option<domain::Customer>,
+            Option<payments::Address>,
         ),
     ) -> Self {
-        let (payout, payout_attempt, customer) = item;
+        let (payout, payout_attempt, customer, address) = item;
         let attempt = api::PayoutAttemptResponse {
             attempt_id: payout_attempt.payout_attempt_id,
             status: payout_attempt.status,
@@ -58,7 +61,7 @@ impl
             connector_transaction_id: attempt.connector_transaction_id.clone(),
             priority: payout.priority,
             attempts: Some(vec![attempt]),
-            billing: None,
+            billing: address,
             client_secret: None,
             payout_link: None,
             email: customer

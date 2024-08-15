@@ -204,7 +204,7 @@ pub type PayoutsResponseRouterData<F, R> =
 pub type PayoutActionData = Vec<(
     storage::Payouts,
     storage::PayoutAttempt,
-    domain::Customer,
+    Option<domain::Customer>,
     Option<payment_enums::Address>,
 )>;
 

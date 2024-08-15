@@ -16,7 +16,9 @@ use diesel::{JoinOnDsl, NullableExpressionMethods};
 #[cfg(feature = "olap")]
 use diesel_models::{
     address::Address as DieselAddress,
-    customers::Customer as DieselCustomer, enums as storage_enums, query::generics::db_metrics,
+    customers::Customer as DieselCustomer,
+    enums as storage_enums,
+    query::generics::db_metrics,
     schema::{address::dsl as add_dsl, payouts::dsl as po_dsl},
 };
 use diesel_models::{
@@ -59,8 +61,8 @@ use crate::connection;
     not(feature = "customer_v2")
 ))]
 use crate::store::schema::{
-    customers::all_columns as cust_all_columns, payout_attempt::all_columns as poa_all_columns,
-    payouts::all_columns as po_all_columns,
+    address::all_columns as addr_all_columns, customers::all_columns as cust_all_columns,
+    payout_attempt::all_columns as poa_all_columns, payouts::all_columns as po_all_columns,
 };
 use crate::{
     diesel_error_to_data_error,
@@ -605,7 +607,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             )
             .left_outer_join(
                 diesel_models::schema::address::table
-                    .on(add_dsl::address_id.eq(po_dsl::address_id)),
+                    .on(add_dsl::address_id.nullable().eq(po_dsl::address_id)),
             )
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
@@ -697,8 +699,18 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         query
-            .select((po_all_columns, poa_all_columns, cust_all_columns.nullable(), addr_all_columns.nullable()))
-            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, Option<DieselCustomer>, Option<DieselAddress>,)>(conn)
+            .select((
+                po_all_columns,
+                poa_all_columns,
+                cust_all_columns.nullable(),
+                addr_all_columns.nullable(),
+            ))
+            .get_results_async::<(
+                DieselPayouts,
+                DieselPayoutAttempt,
+                Option<DieselCustomer>,
+                Option<DieselAddress>,
+            )>(conn)
             .await
             .map(|results| {
                 results

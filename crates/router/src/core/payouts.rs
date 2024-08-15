@@ -809,29 +809,31 @@ pub async fn payouts_list_core(
                             match payment_helpers::create_or_find_address_for_payment_by_request(
                                 &state,
                                 None,
-                                Some(&payouts.address_id.to_owned()),
+                                payout.address_id.as_deref(),
                                 merchant_id,
-                                Some(&payouts.customer_id.to_owned()),
+                                payout.customer_id.as_ref(),
                                 &key_store,
-                                &payouts.payout_id,
+                                &payout.payout_id,
                                 merchant_account.storage_scheme,
                             )
                             .await
                             {
-                                Ok(billing_address) => Some(Ok((
-                                    payouts,
+                                Ok(billing_address) => Ok((
+                                    payout,
                                     payout_attempt.to_owned(),
                                     Some(customer),
                                     billing_address.map(payment_enums::Address::foreign_from),
-                                ))),
-                                Err(error) => Some(Err(error.change_context(
-                                    StorageError::ValueNotFound(format!(
+                                )),
+                                Err(err) => {
+                                    let err_msg = format!(
                                         "billing_address missing for address_id : {:?}",
-                                        payouts.address_id
-                                    )),
-                                ))),
+                                        payout.address_id
+                                    );
+                                    logger::warn!(?err, err_msg);
+                                    Err(err.attach_printable(err_msg))
+                                }
                             }
-                        },
+                        }
                         Err(err) => {
                             let err_msg = format!(
                                 "failed while fetching customer for customer_id - {:?}",
@@ -839,7 +841,7 @@ pub async fn payouts_list_core(
                             );
                             logger::warn!(?err, err_msg);
                             if err.current_context().is_db_not_found() {
-                                Ok((payout, payout_attempt.to_owned(), None))
+                                Ok((payout, payout_attempt.to_owned(), None, None))
                             } else {
                                 Err(err
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -848,7 +850,7 @@ pub async fn payouts_list_core(
                         }
                     }
                 }
-                None => Ok((payout.to_owned(), payout_attempt.to_owned(), None)),
+                None => Ok((payout.to_owned(), payout_attempt.to_owned(), None, None)),
             },
             Err(err) => {
                 let err_msg = format!(
@@ -866,7 +868,6 @@ pub async fn payouts_list_core(
     let pi_pa_tuple_vec: Result<PayoutActionData, _> = join_all(collected_futures)
         .await
         .into_iter()
-        .flatten()
         .collect::<Result<PayoutActionData, _>>();
 
     let data: Vec<api::PayoutCreateResponse> = pi_pa_tuple_vec
@@ -910,9 +911,9 @@ pub async fn payouts_filtered_list_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
-    let data: Vec<api::PayoutCreateResponse> = join_all(list.into_iter().map(|(p, pa, c, b)| async {
-        c
-            .async_and_then(|cust| async {
+    let data: Vec<api::PayoutCreateResponse> =
+        join_all(list.into_iter().map(|(p, pa, c, b)| async {
+            c.async_and_then(|cust| async {
                 match domain::Customer::convert_back(
                     &(&state).into(),
                     cust,
@@ -923,28 +924,30 @@ pub async fn payouts_filtered_list_core(
                 .map_err(|err| {
                     let msg = format!("failed to convert customer for id: {:?}", p.customer_id);
                     logger::warn!(?err, msg);
-                })
-                {
+                }) {
                     Ok(domain_cust) => match b {
                         Some(addr) => {
-                            let payment_addr: Option<payment_enums::Address> = domain::Address::convert_back(
-                                &(&state).into(),
-                                addr,
-                                &key_store.key,
-                                key_store.merchant_id.clone().into(),
-                            )
-                            .await
-                            .map(ForeignFrom::foreign_from)
-                            .map_err(|err| {
-                                let msg = format!("failed to convert address for id: {:?}", p.address_id);
-                                logger::warn!(?err, msg);
-                            })
-                            .ok();
+                            let payment_addr: Option<payment_enums::Address> =
+                                domain::Address::convert_back(
+                                    &(&state).into(),
+                                    addr,
+                                    &key_store.key,
+                                    key_store.merchant_id.clone().into(),
+                                )
+                                .await
+                                .map(ForeignFrom::foreign_from)
+                                .map_err(|err| {
+                                    let msg = format!(
+                                        "failed to convert address for id: {:?}",
+                                        p.address_id
+                                    );
+                                    logger::warn!(?err, msg);
+                                })
+                                .ok();
 
-                            Some((p,pa,Some(domain_cust), payment_addr))
-                        },
-                        None => Some((p, pa, Some(domain_cust), None))
-                        
+                            Some((p, pa, Some(domain_cust), payment_addr))
+                        }
+                        None => Some((p, pa, Some(domain_cust), None)),
                     },
                     Err(err) => {
                         logger::warn!(
@@ -957,12 +960,12 @@ pub async fn payouts_filtered_list_core(
                 }
             })
             .await
-    }))
-    .await
-    .into_iter()
-    .flatten()
-    .map(ForeignFrom::foreign_from)
-    .collect();
+        }))
+        .await
+        .into_iter()
+        .flatten()
+        .map(ForeignFrom::foreign_from)
+        .collect();
 
     let active_payout_ids = db
         .filter_active_payout_ids_by_constraints(merchant_account.get_id(), &constraints)
