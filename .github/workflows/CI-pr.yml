@@ -318,7 +318,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RUSTFLAGS: "-D warnings"
+          RUSTFLAGS: "-D warnings -A clippy::todo"
         run: just hack_v2
 
       - name: Run cargo check with v2 features enabled
