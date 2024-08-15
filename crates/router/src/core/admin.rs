@@ -1434,7 +1434,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 opennode::transformers::OpennodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Paybox => todo!(), added for future usage
+            api_enums::Connector::Paybox => {
+                paybox::transformers::PayboxAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1765,7 +1768,7 @@ struct PMAuthConfigValidation<'a> {
     pm_auth_config: &'a Option<pii::SecretSerdeValue>,
     db: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
-    profile_id: &'a Option<String>,
+    profile_id: &'a String,
     key_store: &'a domain::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
 }
@@ -2333,7 +2336,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 }
                 None => None,
             },
-            profile_id: Some(business_profile.profile_id.clone()),
+            profile_id: business_profile.profile_id.clone(),
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
@@ -2353,11 +2356,10 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             } else {
                 None
             },
+            version: hyperswitch_domain_models::consts::API_VERSION,
         })
     }
 
-    /// If profile_id is not passed, use default profile if available
-    /// or return a `MissingRequiredField` error
     async fn validate_and_get_profile_id(
         self,
         merchant_account: &domain::MerchantAccount,
@@ -2366,25 +2368,19 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         key_store: &domain::MerchantKeyStore,
         should_validate: bool,
     ) -> RouterResult<String> {
-        match self.profile_id {
-            Some(profile_id) => {
-                // Check whether this business profile belongs to the merchant
-                if should_validate {
-                    let _ = core_utils::validate_and_get_business_profile(
-                        db,
-                        key_manager_state,
-                        key_store,
-                        Some(&profile_id),
-                        merchant_account.get_id(),
-                    )
-                    .await?;
-                }
-                Ok(profile_id.clone())
-            }
-            None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id"
-            })),
+        let profile_id = self.profile_id;
+        // Check whether this business profile belongs to the merchant
+        if should_validate {
+            let _ = core_utils::validate_and_get_business_profile(
+                db,
+                key_manager_state,
+                key_store,
+                Some(&profile_id),
+                merchant_account.get_id(),
+            )
+            .await?;
         }
+        Ok(profile_id.clone())
     }
 }
 
@@ -2506,7 +2502,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 }
                 None => None,
             },
-            profile_id: Some(business_profile.profile_id.clone()),
+            profile_id: business_profile.profile_id.clone(),
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
@@ -2530,6 +2526,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             } else {
                 None
             },
+            version: hyperswitch_domain_models::consts::API_VERSION,
         })
     }
 
@@ -2646,7 +2643,7 @@ pub async fn create_connector(
         pm_auth_config: &req.pm_auth_config,
         db: store,
         merchant_id,
-        profile_id: &Some(profile_id.clone()),
+        profile_id: &profile_id.clone(),
         key_store: &key_store,
         key_manager_state,
     };
@@ -2762,7 +2759,7 @@ async fn validate_pm_auth(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
-    profile_id: &Option<String>,
+    profile_id: &String,
 ) -> RouterResponse<()> {
     let config =
         serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val.expose())
@@ -2981,11 +2978,7 @@ pub async fn update_connector(
         .await?;
 
     // Profile id should always be present
-    let profile_id = mca
-        .profile_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Missing `profile_id` in merchant connector account")?;
+    let profile_id = mca.profile_id.clone();
 
     let request_connector_label = req.connector_label;
 
@@ -3717,6 +3710,62 @@ impl BusinessProfileWrapper {
                 self.profile.payout_routing_algorithm_id.clone(),
             ),
         }
+    }
+    pub fn get_default_fallback_list_of_connector_under_profile(
+        &self,
+    ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
+        use common_utils::ext_traits::OptionExt;
+        use masking::ExposeOptionInterface;
+
+        self.profile
+            .default_fallback_routing
+            .clone()
+            .expose_option()
+            .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                "Vec<RoutableConnectorChoice>",
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant default config has invalid structure")
+    }
+    pub fn get_default_routing_configs_from_profile(
+        &self,
+    ) -> RouterResult<routing_types::ProfileDefaultRoutingConfig> {
+        let profile_id = self.profile.profile_id.clone();
+        let connectors = self.get_default_fallback_list_of_connector_under_profile()?;
+
+        Ok(routing_types::ProfileDefaultRoutingConfig {
+            profile_id,
+            connectors,
+        })
+    }
+
+    pub async fn update_default_routing_for_profile(
+        self,
+        db: &dyn StorageInterface,
+        updated_config: &Vec<routing_types::RoutableConnectorChoice>,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<()> {
+        let default_fallback_routing = Secret::from(
+            updated_config
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert routing ref to value")?,
+        );
+        let business_profile_update = domain::BusinessProfileUpdate::DefaultRoutingFallbackUpdate {
+            default_fallback_routing: Some(default_fallback_routing),
+        };
+
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            self.profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+        Ok(())
     }
 }
 

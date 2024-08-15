@@ -640,7 +640,90 @@ pub async fn unlink_routing_config(
     }
 }
 
-//feature update
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+pub async fn update_default_fallback_routing(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile_id: String,
+    updated_list_of_connectors: Vec<routing_types::RoutableConnectorChoice>,
+) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_UPDATE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")?;
+    let profile_wrapper = admin::BusinessProfileWrapper::new(profile);
+    let default_list_of_connectors =
+        profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
+
+    utils::when(
+        default_list_of_connectors.len() != updated_list_of_connectors.len(),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "current config and updated config have different lengths".to_string(),
+            })
+        },
+    )?;
+
+    let existing_set_of_default_connectors: FxHashSet<String> = FxHashSet::from_iter(
+        default_list_of_connectors
+            .iter()
+            .map(|conn_choice| conn_choice.to_string()),
+    );
+    let updated_set_of_default_connectors: FxHashSet<String> = FxHashSet::from_iter(
+        updated_list_of_connectors
+            .iter()
+            .map(|conn_choice| conn_choice.to_string()),
+    );
+
+    let symmetric_diff_between_existing_and_updated_connectors: Vec<String> =
+        existing_set_of_default_connectors
+            .symmetric_difference(&updated_set_of_default_connectors)
+            .cloned()
+            .collect();
+
+    utils::when(
+        !symmetric_diff_between_existing_and_updated_connectors.is_empty(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "connector mismatch between old and new configs ({})",
+                    symmetric_diff_between_existing_and_updated_connectors.join(", ")
+                ),
+            })
+        },
+    )?;
+    profile_wrapper
+        .update_default_routing_for_profile(
+            db,
+            &updated_list_of_connectors,
+            key_manager_state,
+            &key_store,
+        )
+        .await?;
+
+    metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    Ok(service_api::ApplicationResponse::Json(
+        updated_list_of_connectors,
+    ))
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 pub async fn update_default_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -693,6 +776,42 @@ pub async fn update_default_routing_config(
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
 
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+pub async fn retrieve_default_fallback_algorithm_for_profile(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile_id: String,
+) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+    let profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")?;
+
+    let connectors_choice = admin::BusinessProfileWrapper::new(profile)
+        .get_default_fallback_list_of_connector_under_profile()?;
+
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
+    Ok(service_api::ApplicationResponse::Json(connectors_choice))
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
+
 pub async fn retrieve_default_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -712,7 +831,6 @@ pub async fn retrieve_default_routing_config(
         service_api::ApplicationResponse::Json(conn_choice)
     })
 }
-
 #[cfg(all(
     feature = "v2",
     feature = "routing_v2",
