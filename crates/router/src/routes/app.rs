@@ -947,7 +947,7 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
-                .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
+            .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
                 .service(
                     web::resource("/{id}/manual-update")
@@ -1365,7 +1365,7 @@ impl Disputes {
         web::scope("/disputes")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
-            .service(web::resource("/filter").route(web::get().to(retrieve_disputes_list)))
+            .service(web::resource("/filter").route(web::get().to(get_disputes_filters)))
             .service(web::resource("/accept/{dispute_id}").route(web::post().to(accept_dispute)))
             .service(
                 web::resource("/evidence")
