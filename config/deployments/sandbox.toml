@@ -38,8 +38,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
+braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -50,6 +49,7 @@ dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -90,11 +90,13 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
+wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
@@ -158,8 +160,6 @@ card.debit = { connector_list = "cybersource" }             # Update Mandate sup
 [network_transaction_id_supported_connectors]
 connector_list = "stripe,adyen,cybersource"
 
-[multiple_api_version_supported_connectors]
-supported_connectors = "braintree"
 
 [payouts]
 payout_eligibility = true               # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
@@ -374,7 +374,7 @@ outgoing_enabled = true
 connectors_with_webhook_source_verification_call = "paypal"        # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"

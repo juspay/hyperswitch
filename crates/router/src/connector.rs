@@ -60,6 +60,7 @@ pub mod tsys;
 pub mod utils;
 pub mod volt;
 pub mod wellsfargo;
+pub mod wellsfargopayout;
 pub mod wise;
 pub mod worldline;
 pub mod worldpay;
@@ -67,8 +68,8 @@ pub mod zen;
 pub mod zsl;
 
 pub use hyperswitch_connectors::connectors::{
-    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, helcim,
-    helcim::Helcim, stax, stax::Stax,
+    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, fiservemea,
+    fiservemea::Fiservemea, helcim, helcim::Helcim, stax, stax::Stax, taxjar, taxjar::Taxjar,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -87,6 +88,6 @@ pub use self::{
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     riskified::Riskified, shift4::Shift4, signifyd::Signifyd, square::Square, stripe::Stripe,
     threedsecureio::Threedsecureio, trustpay::Trustpay, tsys::Tsys, volt::Volt,
-    wellsfargo::Wellsfargo, wise::Wise, worldline::Worldline, worldpay::Worldpay, zen::Zen,
-    zsl::Zsl,
+    wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
+    worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };

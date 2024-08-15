@@ -3,7 +3,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    pii,
+    pii, type_name,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
@@ -11,7 +11,7 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
 use super::behaviour;
-use crate::type_encryption::{decrypt, decrypt_optional, AsyncLift};
+use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -36,12 +36,13 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
-    pub profile_id: Option<String>,
+    pub profile_id: String,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
     pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -70,12 +71,13 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
-    pub profile_id: Option<String>,
+    pub profile_id: String,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
     pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -165,12 +167,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 created_at: self.created_at,
                 modified_at: self.modified_at,
                 connector_webhook_details: self.connector_webhook_details,
-                profile_id: self.profile_id,
+                profile_id: Some(self.profile_id),
                 applepay_verified_domains: self.applepay_verified_domains,
                 pm_auth_config: self.pm_auth_config,
                 status: self.status,
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+                version: self.version,
             },
         )
     }
@@ -185,13 +188,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         Ok(Self {
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
-            connector_account_details: decrypt(
+            connector_account_details: crypto_operation(
                 state,
-                other.connector_account_details,
+                type_name!(Self::DstType),
+                CryptoOperation::Decrypt(other.connector_account_details),
                 identifier.clone(),
                 key.peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting connector account details".to_string(),
             })?,
@@ -210,28 +215,50 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: other.created_at,
             modified_at: other.modified_at,
             connector_webhook_details: other.connector_webhook_details,
-            profile_id: other.profile_id,
+            profile_id: other
+                .profile_id
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "profile_id".to_string(),
+                })?,
             applepay_verified_domains: other.applepay_verified_domains,
             pm_auth_config: other.pm_auth_config,
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_lift(|inner| decrypt_optional(state, inner, identifier.clone(), key.peek()))
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),
                 })?,
             additional_merchant_data: if let Some(data) = other.additional_merchant_data {
                 Some(
-                    decrypt(state, data, identifier, key.peek())
-                        .await
-                        .change_context(ValidationError::InvalidValue {
-                            message: "Failed while decrypting additional_merchant_data".to_string(),
-                        })?,
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::Decrypt(data),
+                        identifier,
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_operation())
+                    .change_context(ValidationError::InvalidValue {
+                        message: "Failed while decrypting additional_merchant_data".to_string(),
+                    })?,
                 )
             } else {
                 None
             },
+            version: other.version,
         })
     }
 
@@ -256,12 +283,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: now,
             modified_at: now,
             connector_webhook_details: self.connector_webhook_details,
-            profile_id: self.profile_id,
+            profile_id: Some(self.profile_id),
             applepay_verified_domains: self.applepay_verified_domains,
             pm_auth_config: self.pm_auth_config,
             status: self.status,
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+            version: self.version,
         })
     }
 }
@@ -294,6 +322,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 status: self.status,
                 connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+                version: self.version,
             },
         )
     }
@@ -309,13 +338,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             id: other.id,
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
-            connector_account_details: decrypt(
+            connector_account_details: crypto_operation(
                 state,
-                other.connector_account_details,
+                type_name!(Self::DstType),
+                CryptoOperation::Decrypt(other.connector_account_details),
                 identifier.clone(),
                 key.peek(),
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting connector account details".to_string(),
             })?,
@@ -335,22 +366,40 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: other.status,
             connector_wallets_details: other
                 .connector_wallets_details
-                .async_lift(|inner| decrypt_optional(state, inner, identifier.clone(), key.peek()))
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting connector wallets details".to_string(),
                 })?,
             additional_merchant_data: if let Some(data) = other.additional_merchant_data {
                 Some(
-                    decrypt(state, data, identifier, key.peek())
-                        .await
-                        .change_context(ValidationError::InvalidValue {
-                            message: "Failed while decrypting additional_merchant_data".to_string(),
-                        })?,
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::Decrypt(data),
+                        identifier,
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_operation())
+                    .change_context(ValidationError::InvalidValue {
+                        message: "Failed while decrypting additional_merchant_data".to_string(),
+                    })?,
                 )
             } else {
                 None
             },
+            version: other.version,
         })
     }
 
@@ -376,6 +425,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             status: self.status,
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
+            version: self.version,
         })
     }
 }

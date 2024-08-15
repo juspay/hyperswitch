@@ -11,7 +11,7 @@ use crate::{
     },
     routes::SessionState,
     services::{self, api::ConnectorValidation, logger},
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -67,7 +67,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<

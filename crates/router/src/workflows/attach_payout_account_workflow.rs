@@ -47,7 +47,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
 
         let mut payout_data =
-            payouts::make_payout_data(state, &merchant_account, &key_store, &request).await?;
+            payouts::make_payout_data(state, &merchant_account, None, &key_store, &request).await?;
 
         payouts::payouts_core(
             state,

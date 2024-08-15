@@ -1,7 +1,6 @@
 use api_models::customers::CustomerRequestWithEncryption;
 // #[cfg(all(feature = "v2", feature = "customer_v2"))]
 // use common_enums::SoftDeleteStatus;
-use common_enums::ApiVersion;
 use common_utils::{
     crypto, date_time,
     encryption::Encryption,
@@ -36,7 +35,7 @@ pub struct Customer {
     pub address_id: Option<String>,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: ApiVersion,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -54,12 +53,12 @@ pub struct Customer {
     pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<String>,
     pub updated_by: Option<String>,
-    pub version: ApiVersion,
     pub merchant_reference_id: Option<id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     // pub status: Option<SoftDeleteStatus>,
     pub id: String,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -85,8 +84,8 @@ impl super::behaviour::Conversion for Customer {
         Ok(diesel_models::customers::Customer {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
-            name: self.name.map(|value| value.into()),
-            email: self.email.map(|value| value.into()),
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
             phone: self.phone.map(Encryption::from),
             phone_country_code: self.phone_country_code,
             description: self.description,
@@ -110,17 +109,21 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
-        let decrypted = types::batch_decrypt(
+        let decrypted = types::crypto_operation(
             state,
-            CustomerRequestWithEncryption::to_encryptable(CustomerRequestWithEncryption {
-                name: item.name.clone(),
-                phone: item.phone.clone(),
-                email: item.email.clone(),
-            }),
+            common_utils::type_name!(Self::DstType),
+            types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
+                CustomerRequestWithEncryption {
+                    name: item.name.clone(),
+                    phone: item.phone.clone(),
+                    email: item.email.clone(),
+                },
+            )),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
             key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
         })?;
@@ -179,8 +182,8 @@ impl super::behaviour::Conversion for Customer {
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
             merchant_id: self.merchant_id,
-            name: self.name.map(|value| value.into()),
-            email: self.email.map(|value| value.into()),
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
             phone: self.phone.map(Encryption::from),
             phone_country_code: self.phone_country_code,
             description: self.description,
@@ -192,8 +195,8 @@ impl super::behaviour::Conversion for Customer {
             updated_by: self.updated_by,
             default_billing_address: self.default_billing_address.map(Encryption::from),
             default_shipping_address: self.default_shipping_address.map(Encryption::from),
-            // status: self.status,
             version: self.version,
+            // status: self.status,
         })
     }
 
@@ -206,17 +209,21 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
-        let decrypted = types::batch_decrypt(
+        let decrypted = types::crypto_operation(
             state,
-            CustomerRequestWithEncryption::to_encryptable(CustomerRequestWithEncryption {
-                name: item.name.clone(),
-                phone: item.phone.clone(),
-                email: item.email.clone(),
-            }),
+            common_utils::type_name!(Self::DstType),
+            types::CryptoOperation::BatchDecrypt(CustomerRequestWithEncryption::to_encryptable(
+                CustomerRequestWithEncryption {
+                    name: item.name.clone(),
+                    phone: item.phone.clone(),
+                    email: item.email.clone(),
+                },
+            )),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
             key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting customer data".to_string(),
         })?;
@@ -242,8 +249,8 @@ impl super::behaviour::Conversion for Customer {
             updated_by: item.updated_by,
             default_billing_address: item.default_billing_address,
             default_shipping_address: item.default_shipping_address,
-            // status: item.status,
             version: item.version,
+            // status: item.status,
         })
     }
 
@@ -267,7 +274,7 @@ impl super::behaviour::Conversion for Customer {
             default_billing_address: self.default_billing_address,
             default_shipping_address: self.default_shipping_address,
             // status: self.status,
-            version: self.version,
+            version: crate::consts::API_VERSION,
         })
     }
 }
@@ -318,23 +325,41 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
-                modified_at: Some(date_time::now()),
+                modified_at: date_time::now(),
                 default_billing_address,
                 default_shipping_address,
                 default_payment_method_id,
-                ..Default::default()
+                updated_by: None,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                modified_at: date_time::now(),
+                default_payment_method_id: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
             } => Self {
                 default_payment_method_id,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
             },
         }
     }
@@ -382,21 +407,38 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
-                modified_at: Some(date_time::now()),
+                modified_at: date_time::now(),
                 address_id,
-                ..Default::default()
+                default_payment_method_id: None,
+                updated_by: None,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                default_payment_method_id: None,
+                updated_by: None,
+                address_id: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
             } => Self {
                 default_payment_method_id,
-                modified_at: Some(date_time::now()),
-                ..Default::default()
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                address_id: None,
             },
         }
     }

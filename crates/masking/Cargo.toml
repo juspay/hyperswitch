@@ -30,3 +30,6 @@ zeroize = { version = "1.7", default-features = false }
 
 [dev-dependencies]
 serde_json = "1.0.115"
+
+[lints]
+workspace = true
