@@ -63,20 +63,19 @@ check_v2 *FLAGS:
     cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
     set +x
 
-run_v2 *FLAGS:
+run_v2:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    FEATURES="$(cargo metadata --all-features --format-version 1 | \
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
         jq -r '
-            [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
-            | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v1") ) ) ) # Exclude some features from features list
+            [ .packages[] | select(.name == "router") | .features | keys[] # Obtain features of `router` package
+            | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
     set -x
-    cargo run --features "${FEATURES}"  {{ FLAGS }}
+    cargo run --package router --features "${FEATURES}"
     set +x
 
 check *FLAGS:
