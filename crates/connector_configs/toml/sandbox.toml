@@ -1615,6 +1615,7 @@ merchant_secret="Source verification key"
 [itaubank.connector_auth.BodyKey]
 key1="Client Id"
 api_key="Client Secret"
+api_secret="Certificates"
 
 [klarna]
 [[klarna.pay_later]]

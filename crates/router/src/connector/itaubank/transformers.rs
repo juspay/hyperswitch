@@ -133,7 +133,7 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
 pub struct ItaubankAuthType {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
-    pub(super) certificate: Secret<String>,
+    pub(super) certificate: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ItaubankAuthType {
@@ -147,7 +147,12 @@ impl TryFrom<&types::ConnectorAuthType> for ItaubankAuthType {
             } => Ok(Self {
                 client_secret: api_key.to_owned(),
                 client_id: key1.to_owned(),
-                certificate: api_secret.to_owned(),
+                certificate: Some(api_secret.to_owned()),
+            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                client_secret: api_key.to_owned(),
+                client_id: key1.to_owned(),
+                certificate: None,
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
