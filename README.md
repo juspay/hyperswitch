@@ -35,6 +35,17 @@ The single API to access payment ecosystems across 130+ countries</div>
     <img src="https://img.shields.io/badge/Made_in-Rust-orange" />
   </a>
 </p>
+<p align="center">
+  <a href="https://www.linkedin.com/company/hyperswitch/">
+    <img src="https://img.shields.io/badge/follow-hyperswitch-blue?logo=linkedin&labelColor=grey"/>
+  </a>
+  <a href="https://x.com/hyperswitchio">
+    <img src="https://img.shields.io/badge/follow-%40hyperswitchio-white?logo=x&labelColor=grey"/>
+  </a>
+  <a href="https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw">
+    <img src="https://img.shields.io/badge/chat-on_slack-blue?logo=slack&labelColor=grey&color=%233f0e40"/>
+  </a>
+</p>
 
 <hr>
 <img src="./docs/imgs/switch.png" />

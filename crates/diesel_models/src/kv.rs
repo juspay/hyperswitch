@@ -138,14 +138,19 @@ impl DBOperation {
                     )
                     .await?,
                 )),
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
                     Customer::update_by_customer_id_merchant_id(
                         conn,
-                        cust.orig.customer_id.clone(),
+                        cust.orig.get_customer_id().clone(),
                         cust.orig.merchant_id.clone(),
                         cust.update_data,
                     )
                     .await?,
+                )),
+                #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
+                    Customer::update_by_id(conn, cust.orig.id.clone(), cust.update_data).await?,
                 )),
             },
         })

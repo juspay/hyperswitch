@@ -118,6 +118,7 @@ cards = [
     "dummyconnector",
     "ebanx",
     "fiserv",
+    "fiservemea",
     "forte",
     "globalpay",
     "globepay",
@@ -149,11 +150,13 @@ cards = [
     "square",
     "stax",
     "stripe",
+    "taxjar",
     "threedsecureio",
     "trustpay",
     "tsys",
     "volt",
     "wellsfargo",
+    "wellsfargopayout",
     "wise",
     "worldline",
     "worldpay",
@@ -195,8 +198,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
+braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -207,6 +209,7 @@ dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -247,6 +250,7 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
@@ -256,6 +260,7 @@ trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
+wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
@@ -579,8 +584,6 @@ merchant_ids_send_payment_id_as_connector_request_id = []
 [payouts]
 payout_eligibility = true
 
-[multiple_api_version_supported_connectors]
-supported_connectors = "braintree"
 
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"

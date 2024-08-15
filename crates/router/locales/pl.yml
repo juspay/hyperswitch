@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Nie masz uprawnień do wyświetlania tej treści"
+    title: "Linki do wypłat"
+  status:
+    title: "Status wypłaty"
+    info:
+      ref_id: "ID referencyjny"
+      error_code: "Kod błędu"
+      error_message: "Komunikat o błędzie"
+    message:
+      failed: "Nie udało się przetworzyć Twojej wypłaty. Skontaktuj się z dostawcą w celu uzyskania szczegółowych informacji."
+      processing: "Twoja wypłata powinna zostać przetworzona w ciągu 2-3 dni roboczych."
+      success: "Twoja wypłata została zrealizowana metodą płatności, którą wybrałeś."
+    redirection_text:
+      redirecting: "Przekierowywanie..."
+      redirecting_in: "Przekierowywanie za"
+      seconds: "sekund..."
+    text:
+      failed: "Wypłata Nieudana"
+      processing: "Wypłata w Trakcie"
+      success: "Wypłata Udała się"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Styczeń"
+  february: "Luty"
+  march: "Marzec"
+  april: "Kwiecień"
+  may: "Maj"
+  june: "Czerwiec"
+  july: "Lipiec"
+  august: "Sierpień"
+  september: "Wrzesień"
+  october: "Październik"
+  november: "Listopad"
+  december: "Grudzień"

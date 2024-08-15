@@ -60,6 +60,7 @@ transforms:
       - plus_1_events
     source: |-
       .timestamp = from_unix_timestamp!(.created_at, unit: "seconds")
+      ."@timestamp" = from_unix_timestamp(.created_at, unit: "seconds") ?? now()
 
   sdk_transformed:
     type: throttle

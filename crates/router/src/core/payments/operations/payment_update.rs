@@ -50,7 +50,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
 
@@ -61,10 +61,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let storage_scheme = merchant_account.storage_scheme;
 
         let db = &*state.store;
+        let key_manager_state = &state.into();
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
+                key_manager_state,
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -94,13 +95,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
+        helpers::validate_payment_status_against_allowed_statuses(
             &payment_intent.status,
             &[
-                storage_enums::IntentStatus::Failed,
-                storage_enums::IntentStatus::Succeeded,
-                storage_enums::IntentStatus::PartiallyCaptured,
-                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresPaymentMethod,
+                storage_enums::IntentStatus::RequiresConfirmation,
             ],
             "update",
         )?;
@@ -417,7 +416,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = db
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
                 id: profile_id.to_string(),
@@ -450,7 +449,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -524,10 +523,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         helpers::make_pm_data(
@@ -677,7 +676,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_id = customer.clone().map(|c| c.customer_id);
+        let customer_id = customer.clone().map(|c| c.get_customer_id());
 
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;
@@ -772,6 +771,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     merchant_order_reference_id,
                     billing_details,
                     shipping_details,
+                    is_payment_processor_token_flow: None,
                 })),
                 key_store,
                 storage_scheme,
