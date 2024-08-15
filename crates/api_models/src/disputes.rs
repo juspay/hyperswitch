@@ -1,9 +1,15 @@
+use std::collections::HashMap;
+
 use masking::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
-use crate::files;
+use crate::{
+    admin::MerchantConnectorInfo,
+    enums, files,
+    payments::{AmountFilter, TimeRange},
+};
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
@@ -106,37 +112,45 @@ pub struct DisputeEvidenceBlock {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeListConstraints {
-    /// limit on the number of objects to return
-    pub limit: Option<i64>,
+    /// The identifier for dispute
+    pub dispute_id: Option<String>,
+    /// The payment_id against which dispute is raised
+    pub payment_id: Option<String>,
+    /// Limit on the number of objects to return
+    pub limit: Option<u32>,
+    /// The starting point within a list of objects
+    pub offset: Option<u32>,
     /// The identifier for business profile
     pub profile_id: Option<String>,
-    /// status of the dispute
-    pub dispute_status: Option<DisputeStatus>,
-    /// stage of the dispute
-    pub dispute_stage: Option<DisputeStage>,
-    /// reason for the dispute
+    /// Status of the dispute
+    pub dispute_status: Option<Vec<DisputeStatus>>,
+    /// Stage of the dispute
+    pub dispute_stage: Option<Vec<DisputeStage>>,
+    /// Reason for the dispute
     pub reason: Option<String>,
-    /// connector linked to dispute
-    pub connector: Option<String>,
-    /// The time at which dispute is received
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    pub received_time: Option<PrimitiveDateTime>,
-    /// Time less than the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.lt")]
-    pub received_time_lt: Option<PrimitiveDateTime>,
-    /// Time greater than the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.gt")]
-    pub received_time_gt: Option<PrimitiveDateTime>,
-    /// Time less than or equals to the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.lte")]
-    pub received_time_lte: Option<PrimitiveDateTime>,
-    /// Time greater than or equals to the dispute received time
-    #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(rename = "received_time.gte")]
-    pub received_time_gte: Option<PrimitiveDateTime>,
+    /// Connector linked to dispute
+    pub connector: Option<Vec<String>>,
+    /// The list of merchant connector ids to filter the disputes list for selected label
+    pub merchant_connector_id: Option<Vec<String>>,
+    /// Currency of the dispute
+    pub currency: Option<Vec<enums::Currency>>,
+    /// The amount to filter dispute list. Amount takes two option fields start_amount and end_amount from which objects can be filtered as per required scenarios (less_than, greater_than, equal_to and range)
+    pub amount_filter: Option<AmountFilter>,
+    /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
+    pub time_range: Option<TimeRange>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct DisputeListFilters {
+    /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
+    pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    pub currency: Vec<enums::Currency>,
+    /// The list of available dispute status filters
+    pub dispute_status: Vec<DisputeStatus>,
+    /// The list of available dispute stage filters
+    pub dispute_stage: Vec<DisputeStage>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, ToSchema)]

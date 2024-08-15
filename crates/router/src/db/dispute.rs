@@ -28,7 +28,7 @@ pub trait DisputeInterface {
         dispute_id: &str,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_merchant_id_and_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
@@ -92,7 +92,7 @@ impl DisputeInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_merchant_id_and_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
@@ -210,7 +210,7 @@ impl DisputeInterface for MockDb {
             .into())
     }
 
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_merchant_id_and_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
@@ -221,16 +221,16 @@ impl DisputeInterface for MockDb {
             .iter()
             .filter(|d| {
                 d.merchant_id == *merchant_id
-                    && dispute_constraints
-                        .dispute_status
-                        .as_ref()
-                        .map(|status| status == &d.dispute_status)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .dispute_stage
-                        .as_ref()
-                        .map(|stage| stage == &d.dispute_stage)
-                        .unwrap_or(true)
+                    // && dispute_constraints
+                    //     .dispute_status
+                    //     .as_ref()
+                    //     .map(|status| status == &d.dispute_status)
+                    //     .unwrap_or(true)
+                    // && dispute_constraints
+                    //     .dispute_stage
+                    //     .as_ref()
+                    //     .map(|stage| stage == &d.dispute_stage)
+                    //     .unwrap_or(true)
                     && dispute_constraints
                         .reason
                         .as_ref()
@@ -240,36 +240,11 @@ impl DisputeInterface for MockDb {
                                 .map(|connector_reason| connector_reason == reason)
                         })
                         .unwrap_or(true)
-                    && dispute_constraints
-                        .connector
-                        .as_ref()
-                        .map(|connector| connector == &d.connector)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .received_time
-                        .as_ref()
-                        .map(|received_time| received_time == &d.created_at)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .received_time_lt
-                        .as_ref()
-                        .map(|received_time_lt| received_time_lt > &d.created_at)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .received_time_gt
-                        .as_ref()
-                        .map(|received_time_gt| received_time_gt < &d.created_at)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .received_time_lte
-                        .as_ref()
-                        .map(|received_time_lte| received_time_lte >= &d.created_at)
-                        .unwrap_or(true)
-                    && dispute_constraints
-                        .received_time_gte
-                        .as_ref()
-                        .map(|received_time_gte| received_time_gte <= &d.created_at)
-                        .unwrap_or(true)
+                // && dispute_constraints
+                //     .connector
+                //     .as_ref()
+                //     .map(|connector| connector == &d.connector)
+                //     .unwrap_or(true)
             })
             .take(
                 dispute_constraints
@@ -559,20 +534,22 @@ mod tests {
                 .unwrap();
 
             let found_disputes = mockdb
-                .find_disputes_by_merchant_id(
+                .find_disputes_by_merchant_id_and_constraints(
                     &merchant_id,
                     DisputeListConstraints {
+                        dispute_id: None,
+                        payment_id: None,
+                        profile_id: None,
+                        connector: None,
+                        merchant_connector_id: None,
+                        currency: None,
+                        amount_filter: None,
                         limit: None,
+                        offset: None,
                         dispute_status: None,
                         dispute_stage: None,
                         reason: None,
-                        connector: None,
-                        received_time: None,
-                        received_time_lt: None,
-                        received_time_gt: None,
-                        received_time_lte: None,
-                        received_time_gte: None,
-                        profile_id: None,
+                        time_range: None,
                     },
                 )
                 .await

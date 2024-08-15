@@ -31,35 +31,20 @@ impl DisputeDbExt for Dispute {
         if let Some(profile_id) = dispute_list_constraints.profile_id {
             filter = filter.filter(dsl::profile_id.eq(profile_id));
         }
-        if let Some(received_time) = dispute_list_constraints.received_time {
-            filter = filter.filter(dsl::created_at.eq(received_time));
-        }
-        if let Some(received_time_lt) = dispute_list_constraints.received_time_lt {
-            filter = filter.filter(dsl::created_at.lt(received_time_lt));
-        }
-        if let Some(received_time_gt) = dispute_list_constraints.received_time_gt {
-            filter = filter.filter(dsl::created_at.gt(received_time_gt));
-        }
-        if let Some(received_time_lte) = dispute_list_constraints.received_time_lte {
-            filter = filter.filter(dsl::created_at.le(received_time_lte));
-        }
-        if let Some(received_time_gte) = dispute_list_constraints.received_time_gte {
-            filter = filter.filter(dsl::created_at.ge(received_time_gte));
-        }
         if let Some(connector) = dispute_list_constraints.connector {
-            filter = filter.filter(dsl::connector.eq(connector));
+            filter = filter.filter(dsl::connector.eq_any(connector));
         }
         if let Some(reason) = dispute_list_constraints.reason {
             filter = filter.filter(dsl::connector_reason.eq(reason));
         }
         if let Some(dispute_stage) = dispute_list_constraints.dispute_stage {
-            filter = filter.filter(dsl::dispute_stage.eq(dispute_stage));
+            filter = filter.filter(dsl::dispute_stage.eq_any(dispute_stage));
         }
         if let Some(dispute_status) = dispute_list_constraints.dispute_status {
-            filter = filter.filter(dsl::dispute_status.eq(dispute_status));
+            filter = filter.filter(dsl::dispute_status.eq_any(dispute_status));
         }
         if let Some(limit) = dispute_list_constraints.limit {
-            filter = filter.limit(limit);
+            filter = filter.limit(limit.into());
         }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());

@@ -150,3 +150,9 @@ impl<T> ApiEventMetric for MetricsResponse<T> {
         Some(ApiEventsType::Miscellaneous)
     }
 }
+
+impl ApiEventMetric for DisputeListFilters {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}

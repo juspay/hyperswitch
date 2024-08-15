@@ -565,13 +565,13 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 
-    async fn find_disputes_by_merchant_id(
+    async fn find_disputes_by_merchant_id_and_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
-            .find_disputes_by_merchant_id(merchant_id, dispute_constraints)
+            .find_disputes_by_merchant_id_and_constraints(merchant_id, dispute_constraints)
             .await
     }
 
