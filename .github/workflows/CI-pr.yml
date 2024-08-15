@@ -283,10 +283,6 @@ jobs:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
 
-    env:
-      # Allow the `clippy::todo` lint for v2 checks
-      RUSTFLAGS: "-D warnings -A clippy::todo"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -318,8 +314,17 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Cargo hack_v2
+      - name: Run cargo-hack on v2 features in select crates
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RUSTFLAGS: "-D warnings"
         run: just hack_v2
+
+      - name: Run cargo check with v2 features enabled
+        shell: bash
+        # env:
+        #   # Not denying warnings for now.
+        #   # We only want to ensure successful compilation for now.
+        #   RUSTFLAGS: "-D warnings -A clippy::todo"
+        run: just check_v2
