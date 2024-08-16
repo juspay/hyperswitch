@@ -7,7 +7,7 @@ use common_utils::errors::ReportSwitchExt;
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
-#[cfg(all(feature = "olap", feature = "customer_v2", feature = "v2"))]
+#[cfg(feature = "olap")]
 use diesel::{JoinOnDsl, NullableExpressionMethods};
 #[cfg(feature = "olap")]
 use diesel_models::{
@@ -21,11 +21,7 @@ use diesel_models::{
         PayoutsUpdate as DieselPayoutsUpdate,
     },
 };
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
+#[cfg(feature = "olap")]
 use diesel_models::{
     payout_attempt::PayoutAttempt as DieselPayoutAttempt,
     schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
