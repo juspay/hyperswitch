@@ -50,9 +50,9 @@ pub enum ParsingError {
     /// Failed to parse String value to Decimal value conversion because `error`
     #[error("Failed to parse String value to Decimal value conversion because {error}")]
     StringToDecimalConversionFailure { error: String },
-    /// Failed to convert i64 value to u32 value
-    #[error("Failed to parse i64 value to u32 value")]
-    I64ToU32ConversionFailure,
+    /// Failed to convert the given integer because of integer overflow error
+    #[error("Integer Overflow error")]
+    IntegerOverflow,
 }
 
 /// Validation errors.

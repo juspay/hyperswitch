@@ -185,8 +185,9 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 
         let order_fulfillment_time = item
             .order_fulfillment_time
-            .map(|time| u32::try_from(time))
-            .transpose()?;
+            .map(|time| api_models::admin::OrderFulfillmentTime::new(time))
+            .transpose()
+            .change_context(errors::ParsingError::IntegerOverflow)?;
 
         Ok(Self {
             merchant_id: item.merchant_id,
