@@ -190,6 +190,7 @@ where
                 .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let merchant_id = merchant_account.get_id();
+                let is_network_tokenization_enabled = merchant_account.is_network_tokenization_enabled;
                 let ((mut resp, duplication_check, network_token_requestor_ref_id), token_resp) =
                     if !state.conf.locker.locker_enabled {
                         let (res, dc) = skip_saving_card_in_locker(
@@ -212,19 +213,28 @@ where
                             currency,
                         ))
                         .await?;
+                        
+                        if is_network_tokenization_enabled {
+                            let (res2, dc2, network_token_requestor_ref_id) = Box::pin(save_in_locker(
+                                state,
+                                merchant_account,
+                                Some(&save_payment_method_data.request.get_payment_method_data()),
+                                payment_method_create_request.to_owned(),
+                                true,
+                                amount,
+                                currency,
+                            ))
+                            .await?;
 
-                        let (res2, dc2, network_token_requestor_ref_id) = Box::pin(save_in_locker(
-                            state,
-                            merchant_account,
-                            Some(&save_payment_method_data.request.get_payment_method_data()),
-                            payment_method_create_request.to_owned(),
-                            true,
-                            amount,
-                            currency,
-                        ))
-                        .await?;
+                            ((res, dc, network_token_requestor_ref_id), Some(res2))
 
-                        ((res, dc, network_token_requestor_ref_id), Some(res2))
+                        }
+                        else{
+
+                            ((res, dc, None), None)
+
+                        }
+                        
                     };
                 let token_locker_id = match token_resp {
                     Some(ref token_resp) => Some(token_resp.payment_method_id.clone()),
@@ -886,7 +896,7 @@ pub async fn save_token_in_locker(
             let (token_response, network_token_requestor_ref_id) =
                 network_tokenization::make_card_network_tokenization_request(
                     state,
-                    payment_method_data,
+                    &card,
                     &payment_method_request.customer_id,
                     amount,
                     currency,

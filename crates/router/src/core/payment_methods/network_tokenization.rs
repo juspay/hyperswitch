@@ -59,14 +59,20 @@ pub struct ApiPayload {
     service: String,
     card_data: String,
     order_data: OrderData,
-    sub_merchant_id: String,
     key_id: String,
     should_send_token: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub struct CardNetworkTokenResponse {
     payload: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum CardNTResponse {
+    CardNetworkTokenResponse(CardNetworkTokenResponse),
+    CardNetworkTokenErrorResponse(NetworkTokenErrorResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -155,7 +161,7 @@ pub struct DeleteNetworkTokenResponse {
 
 pub async fn make_card_network_tokenization_request(
     state: &routes::SessionState,
-    payment_method_data: Option<&domain::PaymentMethodData>,
+    card: &domain::Card,
     customer_id: &Option<id_type::CustomerId>,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
@@ -164,14 +170,11 @@ pub async fn make_card_network_tokenization_request(
         .clone()
         .get_required_value("customer_id")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let card_data = match payment_method_data {
-        Some(domain::PaymentMethodData::Card(card)) => CardData {
-            card_number: card.card_number.clone(),
-            exp_month: card.card_exp_month.clone(),
-            exp_year: card.card_exp_year.clone(),
-            card_security_code: card.card_cvc.clone(),
-        },
-        _ => todo!(),
+    let card_data = CardData {
+        card_number: card.card_number.clone(),
+        exp_month: card.card_exp_month.clone(),
+        exp_year: card.card_exp_year.clone(),
+        card_security_code: card.card_cvc.clone(),
     };
 
     let payload = card_data
@@ -188,10 +191,17 @@ pub async fn make_card_network_tokenization_request(
     let enc_key = tokenization_service.public_key.peek().clone();
 
     let key_id = tokenization_service.key_id.clone();
+    println!("payloadd bytess {:?}", payload_bytes);
 
-    let jwt = encryption::encrypt_jwe(payload_bytes, enc_key, "A128GCM", Some(key_id.as_str()))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let jwt = encryption::encrypt_jwe(
+        payload_bytes,
+        enc_key,
+        "A128GCM",
+        Some(key_id.as_str()),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    println!("jwttt: {:?}", jwt);
     let amount_str = amount.map_or_else(String::new, |a| a.to_string());
     let currency_str = currency.map_or_else(String::new, |c| c.to_string());
     let order_data = OrderData {
@@ -205,7 +215,6 @@ pub async fn make_card_network_tokenization_request(
         service: "NETWORK_TOKEN".to_string(),
         card_data: jwt,
         order_data,
-        sub_merchant_id: "visa_sbx_working".to_string(), //should be sent in req if env is sbx, else this is not needed todo!
         key_id,
         should_send_token: true,
     };
@@ -225,11 +234,11 @@ pub async fn make_card_network_tokenization_request(
     );
     request.set_body(RequestContent::Json(Box::new(api_payload)));
 
+    println!("reqq to eulerr: {:?}", request);
+
     let response = services::call_connector_api(state, request, "generate_token")
         .await
         .change_context(errors::VaultError::SaveCardFailed);
-
-    logger::debug!("Responsee from euler: {:?}", response);
 
     let res: CardNetworkTokenResponse = response
         .get_response_inner("cardNetworkTokenResponse")
