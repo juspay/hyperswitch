@@ -1947,7 +1947,7 @@ pub struct BusinessProfileCreate {
     validate(greater_or_equal = MIN_ORDER_FULFILLMENT_EXPIRY, less_or_equal = MAX_ORDER_FULFILLMENT_EXPIRY),
     derive(Clone, Debug, Deserialize,Serialize)
 )]
-pub struct OrderFulfillmentTime(u32);
+pub struct OrderFulfillmentTime(i64);
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 #[derive(Clone, Debug, Deserialize, ToSchema, Default, Serialize)]
