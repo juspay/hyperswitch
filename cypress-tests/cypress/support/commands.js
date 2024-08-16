@@ -551,8 +551,6 @@ Cypress.Commands.add(
 // Generic function to list all connectors
 Cypress.Commands.add("connectorListByMid", (globalState) => {
   const merchant_id = globalState.get("merchantId");
-  console.log("merchant_id", merchant_id);
-  console.log("\n\n\n\n\n\n\n\n\n\n");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors`,
