@@ -1,14 +1,16 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
+#[cfg(feature = "payouts")]
+use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as ebanx;
 
+#[cfg(feature = "payouts")]
+use crate::connector::utils::convert_amount;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -25,9 +27,20 @@ use crate::{
     headers,
     services::{self, request},
 };
+#[derive(Clone)]
+pub struct Ebanx {
+    #[cfg(feature = "payouts")]
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
 
-#[derive(Debug, Clone)]
-pub struct Ebanx;
+impl Ebanx {
+    pub fn new() -> &'static Self {
+        &Self {
+            #[cfg(feature = "payouts")]
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Ebanx {}
 impl api::PaymentSession for Ebanx {}
@@ -138,12 +151,12 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         req: &types::PayoutsRouterData<api::PoCreate>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = ebanx::EbanxRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.source_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = ebanx::EbanxRouterData::from((amount, req));
         let connector_req = ebanx::EbanxPayoutCreateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -221,12 +234,12 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = ebanx::EbanxRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.source_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = ebanx::EbanxRouterData::from((amount, req));
         let connector_req = ebanx::EbanxPayoutFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

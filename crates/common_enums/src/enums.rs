@@ -229,7 +229,7 @@ pub enum RoutableConnectors {
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Paybox, added as template code for future usage
+    Paybox,
     Payme,
     Payone,
     Paypal,
@@ -3085,6 +3085,8 @@ pub enum ApiVersion {
     Debug,
     Eq,
     PartialEq,
+    Ord,
+    PartialOrd,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -3095,10 +3097,10 @@ pub enum ApiVersion {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
-    Internal,
-    Organization,
-    Merchant,
-    Profile,
+    Internal = 3,
+    Organization = 2,
+    Merchant = 1,
+    Profile = 0,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

@@ -13,7 +13,7 @@ impl utils::Connector for GlobepayTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Globepay;
         utils::construct_connector_data_old(
-            Box::new(&Globepay),
+            Box::new(Globepay::new()),
             types::Connector::Globepay,
             types::api::GetToken::Connector,
             None,

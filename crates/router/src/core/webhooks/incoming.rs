@@ -347,12 +347,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 )?,
         };
 
-        let profile_id = merchant_connector_account
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not find profile_id in merchant connector account")?;
+        let profile_id = merchant_connector_account.profile_id.as_ref();
 
         let business_profile = state
             .store

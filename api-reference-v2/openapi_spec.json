@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/connector_accounts": {
+    "/v2/connector_accounts": {
       "post": {
         "tags": [
           "Merchant Connector Account"
@@ -95,7 +95,7 @@
         ]
       }
     },
-    "/connector_accounts/{id}": {
+    "/v2/connector_accounts/{id}": {
       "get": {
         "tags": [
           "Merchant Connector Account"
@@ -3577,6 +3577,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",
@@ -7177,6 +7178,7 @@
         "required": [
           "connector_type",
           "connector_name",
+          "profile_id",
           "merchant_id"
         ],
         "properties": {
@@ -7188,14 +7190,13 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`",
             "example": "stripe_US_travel",
             "nullable": true
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account"
           },
           "connector_account_details": {
             "allOf": [
@@ -7394,6 +7395,7 @@
           "connector_type",
           "connector_name",
           "id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -7417,7 +7419,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "payment_methods_enabled": {
@@ -7518,6 +7519,7 @@
           "connector_type",
           "connector_name",
           "id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -7541,7 +7543,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "connector_account_details": {
@@ -7666,7 +7667,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`",
             "example": "stripe_US_travel",
             "nullable": true
           },
@@ -14276,7 +14277,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PayoutCreateResponse"
-            }
+            },
+            "description": "The list of payouts response objects"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of available payouts for given constraints",
+            "nullable": true
           }
         }
       },
@@ -15517,6 +15525,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",
