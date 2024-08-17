@@ -4705,7 +4705,7 @@ pub async fn get_unified_translation(
             .map_err(|err| {
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
-                        "Transalation missing for unified_code - {}, unified_message - {:?}, locale - {:?}",
+                        "Translation missing for unified_code - {}, unified_message - {:?}, locale - {:?}",
                         unified_code,
                         unified_message,
                         locale

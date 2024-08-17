@@ -21,7 +21,7 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
-use super::errors::{self, RouterResult, StorageErrorExt};
+use super::{errors::{self, RouterResult, StorageErrorExt}, payments::helpers};
 use crate::{
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
@@ -762,6 +762,24 @@ pub async fn get_payment_link_status(
                 field_name: "return_url",
             })?
     };
+    let unified_translated_message = if let Some((code, message, locale_str)) =
+                        payment_attempt.unified_code
+                            .as_ref()
+                            .zip(payment_attempt.unified_message.as_ref())
+                            .zip(locale.as_ref())
+                            .map(|((code, message), locale)| (code, message, locale))
+                    {
+                        helpers::get_unified_translation(
+                            &state,
+                            code.clone(),
+                            message.clone(),
+                            locale_str.clone(),
+                        )
+                        .await
+                    } else {
+                        None
+                    };
+    
 
     let payment_details = api_models::payments::PaymentLinkStatusDetails {
         amount,
@@ -779,7 +797,7 @@ pub async fn get_payment_link_status(
         locale,
         transaction_details: payment_link_config.transaction_details,
         unified_code: payment_attempt.unified_code,
-        unified_message: payment_attempt.unified_message,
+        unified_message: unified_translated_message,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,
