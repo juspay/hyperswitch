@@ -30,7 +30,7 @@ use crate::{
     db::StorageInterface,
     routes::SessionState,
     types::{
-        self, domain,
+        self, api, domain,
         storage::{self, enums},
         PollConfig,
     },
@@ -49,7 +49,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 #[instrument(skip_all)]
 pub async fn get_mca_for_payout<'a>(
     state: &'a SessionState,
-    connector_id: &str,
+    connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &PayoutData,
@@ -63,8 +63,8 @@ pub async fn get_mca_for_payout<'a>(
                 None,
                 key_store,
                 &payout_data.profile_id,
-                connector_id,
-                payout_data.payout_attempt.merchant_connector_id.as_ref(),
+                &connector_data.connector_name.to_string(),
+                connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
             Ok(merchant_connector_account)
@@ -76,19 +76,20 @@ pub async fn get_mca_for_payout<'a>(
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &'a SessionState,
-    connector_name: &api_models::enums::Connector,
+    connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     let merchant_connector_account = get_mca_for_payout(
         state,
-        &connector_name.to_string(),
+        connector_data,
         merchant_account,
         key_store,
         payout_data,
     )
     .await?;
+    let connector_name = connector_data.connector_name;
     payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -770,7 +771,7 @@ pub async fn construct_upload_file_router_data<'a>(
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    create_file_request: &types::api::CreateFileRequest,
+    create_file_request: &api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
 ) -> RouterResult<types::UploadFileRouterData> {
@@ -1335,7 +1336,7 @@ pub(super) trait GetProfileId {
 
 impl GetProfileId for MerchantConnectorAccount {
     fn get_profile_id(&self) -> Option<&String> {
-        self.profile_id.as_ref()
+        Some(&self.profile_id)
     }
 }
 

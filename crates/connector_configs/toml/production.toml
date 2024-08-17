@@ -2680,6 +2680,46 @@ key1 = "Merchant ID"
 api_key="Private Api Key"
 key1="Public Api Key"
 
+[paybox]
+[[paybox.credit]]
+  payment_method_type = "Mastercard"
+[[paybox.credit]]
+  payment_method_type = "Visa"
+[[paybox.credit]]
+  payment_method_type = "Interac"
+[[paybox.credit]]
+  payment_method_type = "AmericanExpress"
+[[paybox.credit]]
+  payment_method_type = "JCB"
+[[paybox.credit]]
+  payment_method_type = "DinersClub"
+[[paybox.credit]]
+  payment_method_type = "Discover"
+[[paybox.credit]]
+  payment_method_type = "CartesBancaires"
+[[paybox.credit]]
+  payment_method_type = "UnionPay"
+[[paybox.debit]]
+  payment_method_type = "Mastercard"
+[[paybox.debit]]
+  payment_method_type = "Visa"
+[[paybox.debit]]
+  payment_method_type = "Interac"
+[[paybox.debit]]
+  payment_method_type = "AmericanExpress"
+[[paybox.debit]]
+  payment_method_type = "JCB"
+[[paybox.debit]]
+  payment_method_type = "DinersClub"
+[[paybox.debit]]
+  payment_method_type = "Discover"
+[[paybox.debit]]
+  payment_method_type = "CartesBancaires"
+[paybox.connector_auth.SignatureKey]
+api_key="SITE Key"
+key1="Rang Identifier"
+api_secret="CLE Secret"
+
 [datatrans]
 [[datatrans.credit]]
   payment_method_type = "Mastercard"

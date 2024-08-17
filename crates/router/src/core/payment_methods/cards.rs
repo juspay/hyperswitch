@@ -32,13 +32,14 @@ use common_utils::{
     },
 };
 use diesel_models::payment_method;
-use domain::CustomerUpdate;
 use error_stack::{report, ResultExt};
 use euclid::{
     dssa::graph::{AnalysisContext, CgraphExt},
     frontend::dir,
 };
 use hyperswitch_constraint_graph as cgraph;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use hyperswitch_domain_models::customer::CustomerUpdate;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
 use router_env::{instrument, metrics::add_attributes, tracing};
@@ -50,11 +51,14 @@ use super::surcharge_decision_configs::{
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::utils::{self};
 use crate::{
     configs::settings,
     core::{
@@ -80,9 +84,34 @@ use crate::{
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::{self, ConnectorResponseExt, OptionExt},
+    utils::{ConnectorResponseExt, OptionExt},
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_payment_method(
+    state: &routes::SessionState,
+    req: &api::PaymentMethodCreate,
+    customer_id: &id_type::CustomerId,
+    payment_method_id: &str,
+    locker_id: Option<String>,
+    merchant_id: &id_type::MerchantId,
+    pm_metadata: Option<serde_json::Value>,
+    customer_acceptance: Option<serde_json::Value>,
+    payment_method_data: Option<Encryption>,
+    key_store: &domain::MerchantKeyStore,
+    connector_mandate_details: Option<serde_json::Value>,
+    status: Option<enums::PaymentMethodStatus>,
+    network_transaction_id: Option<String>,
+    storage_scheme: MerchantStorageScheme,
+    payment_method_billing_address: Option<Encryption>,
+    card_scheme: Option<String>,
+) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
@@ -451,6 +480,19 @@ impl
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn skip_locker_call_and_migrate_payment_method(
+    _state: routes::SessionState,
+    _req: &api::PaymentMethodMigrate,
+    _merchant_id: id_type::MerchantId,
+    _key_store: &domain::MerchantKeyStore,
+    _merchant_account: &domain::MerchantAccount,
+    _card: api_models::payment_methods::CardDetailFromLocker,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn skip_locker_call_and_migrate_payment_method(
     state: routes::SessionState,
     req: &api::PaymentMethodMigrate,
@@ -693,6 +735,19 @@ pub fn authenticate_pm_client_secret_and_check_expiry(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+pub async fn add_payment_method_data(
+    _state: routes::SessionState,
+    _req: api::PaymentMethodCreate,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _pm_id: String,
+) -> errors::RouterResponse<api::PaymentMethodResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 pub async fn add_payment_method_data(
     state: routes::SessionState,
@@ -723,6 +778,7 @@ pub async fn add_payment_method_data(
     }
 
     let customer_id = payment_method.customer_id.clone();
+
     let customer = db
         .find_customer_by_customer_id_merchant_id(
             &(&state).into(),
@@ -2225,7 +2281,17 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn list_payment_methods(
+    _state: routes::SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    mut _req: api::PaymentMethodListRequest,
+) -> errors::RouterResponse<api::PaymentMethodListResponse> {
+    todo!()
+}
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn list_payment_methods(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3645,7 +3711,11 @@ fn filter_recurring_based(
     recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
 pub async fn list_customer_payment_method_util(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3700,7 +3770,8 @@ pub async fn list_customer_payment_method_util(
 
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     state: routes::SessionState,
@@ -3775,7 +3846,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
@@ -4275,7 +4347,11 @@ impl SavedPMLPaymentsInfo {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -4290,7 +4366,7 @@ pub async fn list_customer_payment_method(
     // let key = key_store.key.get_inner().peek();
 
     let customer = db
-        .find_customer_by_customer_id_merchant_id(
+        .find_customer_by_merchant_reference_id_merchant_id(
             key_manager_state,
             customer_id,
             merchant_account.get_id(),
@@ -4534,7 +4610,9 @@ pub async fn get_mca_status(
         let mut mca_ids = HashSet::new();
         let mcas = mcas
             .into_iter()
-            .filter(|mca| mca.disabled == Some(false) && profile_id.clone() == mca.profile_id)
+            .filter(|mca| {
+                mca.disabled == Some(false) && profile_id.clone() == Some(mca.profile_id.clone())
+            })
             .collect::<Vec<_>>();
 
         for mca in mcas {
@@ -4802,6 +4880,20 @@ async fn get_bank_account_connector_details(
         None => Ok(None),
     }
 }
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn set_default_payment_method(
+    _state: &routes::SessionState,
+    _merchant_id: &id_type::MerchantId,
+    _key_store: domain::MerchantKeyStore,
+    _customer_id: &id_type::CustomerId,
+    _payment_method_id: String,
+    _storage_scheme: MerchantStorageScheme,
+) -> errors::RouterResponse<CustomerDefaultPaymentMethodResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn set_default_payment_method(
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
@@ -4851,13 +4943,13 @@ pub async fn set_default_payment_method(
         },
     )?;
 
+    let customer_id = customer.get_customer_id().clone();
+
     let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
         default_payment_method_id: Some(Some(payment_method_id.to_owned())),
     };
-
-    let customer_id = customer.get_customer_id().clone();
-
     // update the db with the default payment method id
+
     let updated_customer_details = db
         .update_customer_by_customer_id_merchant_id(
             key_manager_state,
@@ -5093,6 +5185,18 @@ pub async fn retrieve_payment_method(
 }
 
 #[instrument(skip_all)]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn delete_payment_method(
+    _state: routes::SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _pm_id: api::PaymentMethodId,
+    _key_store: domain::MerchantKeyStore,
+) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[instrument(skip_all)]
 pub async fn delete_payment_method(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -5149,7 +5253,6 @@ pub async fn delete_payment_method(
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(None),
         };
-
         db.update_customer_by_customer_id_merchant_id(
             key_manager_state,
             key.customer_id,
