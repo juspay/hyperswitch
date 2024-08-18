@@ -190,7 +190,8 @@ where
                 .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let merchant_id = merchant_account.get_id();
-                let is_network_tokenization_enabled = merchant_account.is_network_tokenization_enabled;
+                let is_network_tokenization_enabled =
+                    merchant_account.is_network_tokenization_enabled;
                 let ((mut resp, duplication_check, network_token_requestor_ref_id), token_resp) =
                     if !state.conf.locker.locker_enabled {
                         let (res, dc) = skip_saving_card_in_locker(
@@ -213,28 +214,27 @@ where
                             currency,
                         ))
                         .await?;
-                        
+
                         if is_network_tokenization_enabled {
-                            let (res2, dc2, network_token_requestor_ref_id) = Box::pin(save_in_locker(
-                                state,
-                                merchant_account,
-                                Some(&save_payment_method_data.request.get_payment_method_data()),
-                                payment_method_create_request.to_owned(),
-                                true,
-                                amount,
-                                currency,
-                            ))
-                            .await?;
+                            println!("tokennn");
+                            let (res2, dc2, network_token_requestor_ref_id) =
+                                Box::pin(save_in_locker(
+                                    state,
+                                    merchant_account,
+                                    Some(
+                                        &save_payment_method_data.request.get_payment_method_data(),
+                                    ),
+                                    payment_method_create_request.to_owned(),
+                                    true,
+                                    amount,
+                                    currency,
+                                ))
+                                .await?;
 
                             ((res, dc, network_token_requestor_ref_id), Some(res2))
-
-                        }
-                        else{
-
+                        } else {
                             ((res, dc, None), None)
-
                         }
-                        
                     };
                 let token_locker_id = match token_resp {
                     Some(ref token_resp) => Some(token_resp.payment_method_id.clone()),
@@ -891,41 +891,62 @@ pub async fn save_token_in_locker(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
+
+    // if (card) {
+    //     if let Ok(a) = try_tokenize() {
+    //        return a
+    //     }
+    //  }
+
+    //  rest of the flow
     match payment_method_data {
         Some(domain::PaymentMethodData::Card(card)) => {
-            let (token_response, network_token_requestor_ref_id) =
+            let tokenization_result =
                 network_tokenization::make_card_network_tokenization_request(
                     state,
                     &card,
-                    &payment_method_request.customer_id,
+                    &customer_id,
                     amount,
                     currency,
                 )
-                .await?;
-            let card_data = api::CardDetail {
-                card_number: token_response.token.clone(),
-                card_exp_month: token_response.token_expiry_month.clone(),
-                card_exp_year: token_response.token_expiry_year.clone(),
-                card_holder_name: None,
-                nick_name: None,
-                card_issuing_country: None,
-                card_network: Some(token_response.card_brand.clone()),
-                card_issuer: None,
-                card_type: None,
-            };
-            let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
-                state,
-                payment_method_request,
-                &card_data,
-                &customer_id,
-                merchant_account,
-                None,
-            ))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")?;
+                .await;
+            match tokenization_result {
+                Ok((token_response, network_token_requestor_ref_id)) => {
+                    // Only proceed if the tokenization was successful
+    
+                    let card_data = api::CardDetail {
+                        card_number: token_response.token.clone(),
+                        card_exp_month: token_response.token_expiry_month.clone(),
+                        card_exp_year: token_response.token_expiry_year.clone(),
+                        card_holder_name: None,
+                        nick_name: None,
+                        card_issuing_country: None,
+                        card_network: Some(token_response.card_brand.clone()),
+                        card_issuer: None,
+                        card_type: None,
+                    };
+    
+                    let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
+                        state,
+                        payment_method_request,
+                        &card_data,
+                        &customer_id,
+                        merchant_account,
+                        None,
+                    ))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Add Card Failed")?;
+    
+                    Ok((res, dc, network_token_requestor_ref_id))
+                }
+                Err(e) => {
+                    // If tokenization fails, return the error without propagating further
+                    logger::error!(error=?e, "Card network tokenization failed");
+                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!("Card network tokenization failed: {e:?}"))
+                }
+            }
 
-            Ok((res, dc, network_token_requestor_ref_id))
         }
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");

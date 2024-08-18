@@ -4,7 +4,7 @@ use api_models::{enums as api_enums, payment_methods::PaymentMethodsData};
 use cards::CardNumber;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{Encode, OptionExt},
+    ext_traits::{BytesExt, Encode},
     id_type,
     request::RequestContent,
     type_name,
@@ -121,6 +121,7 @@ pub struct AuthenticationDetails {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenResponse {
     authentication_details: AuthenticationDetails,
+    network: api_enums::CardNetwork,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -159,33 +160,14 @@ pub struct DeleteNetworkTokenResponse {
     status: DeleteNetworkTokenStatus,
 }
 
-pub async fn make_card_network_tokenization_request(
+pub async fn mk_tokenization_req(
     state: &routes::SessionState,
-    card: &domain::Card,
-    customer_id: &Option<id_type::CustomerId>,
-    amount: Option<i64>,
-    currency: Option<storage_enums::Currency>,
-) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::ApiErrorResponse> {
-    let customer_id = customer_id
-        .clone()
-        .get_required_value("customer_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let card_data = CardData {
-        card_number: card.card_number.clone(),
-        exp_month: card.card_exp_month.clone(),
-        exp_year: card.card_exp_year.clone(),
-        card_security_code: card.card_cvc.clone(),
-    };
-
-    let payload = card_data
-        .encode_to_string_of_json()
-        .and_then(|x| x.encode_to_string_of_json())
-        .change_context(errors::VaultError::FetchCardFailed)
-        .map_err(|e| {
-            logger::error!(fetch_err=?e);
-            errors::ApiErrorResponse::InternalServerError
-        })?;
-    let payload_bytes = payload.as_bytes();
+    payload_bytes: &[u8],
+    amount: String,
+    currency: String,
+    customer_id: id_type::CustomerId,
+) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::NetworkTokenizationError>
+{
     let tokenization_service = &state.conf.network_tokenization_service.get_inner();
 
     let enc_key = tokenization_service.public_key.peek().clone();
@@ -200,15 +182,14 @@ pub async fn make_card_network_tokenization_request(
         Some(key_id.as_str()),
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    println!("jwttt: {:?}", jwt);
-    let amount_str = amount.map_or_else(String::new, |a| a.to_string());
-    let currency_str = currency.map_or_else(String::new, |c| c.to_string());
+    .change_context(errors::NetworkTokenizationError::SaveTokenFailed)
+    .attach_printable("Error on jwe encrypt")?;
+
     let order_data = OrderData {
         consent_id: "test12324".to_string(), // ??
-        customer_id: customer_id.clone(),
-        amount: amount_str,
-        currency: currency_str,
+        customer_id,
+        amount,
+        currency,
     };
 
     let api_payload = ApiPayload {
@@ -238,35 +219,95 @@ pub async fn make_card_network_tokenization_request(
 
     let response = services::call_connector_api(state, request, "generate_token")
         .await
-        .change_context(errors::VaultError::SaveCardFailed);
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
 
-    let res: CardNetworkTokenResponse = response
-        .get_response_inner("cardNetworkTokenResponse")
-        .change_context(errors::VaultError::FetchCardFailed)
-        .map_err(|e| {
-            logger::error!(fetch_err=?e);
-            errors::ApiErrorResponse::InternalServerError
+    let res = response
+        .map_err(|error| {
+            error.change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+        })
+        .attach_printable("Error while receiving response")
+        .and_then(|inner| match inner {
+            Err(err_res) => {
+                let parsed_error: NetworkTokenErrorResponse = err_res
+                    .response
+                    .parse_struct("Card Network Tokenization Response")
+                    .change_context(
+                        errors::NetworkTokenizationError::ResponseDeserializationFailed,
+                    )?;
+                logger::error!(
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
+                    "Network tokenization error: {}",
+                    parsed_error.error_message
+                );
+                Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+                    .attach_printable(format!("Response Deserialization Failed: {err_res:?}"))
+            }
+            Ok(res) => Ok(res),
+        })
+        .inspect_err(|err| {
+            logger::error!("Error while deserializing response: {:?}", err);
         })?;
+
+    let network_response: CardNetworkTokenResponse = res
+        .response
+        .parse_struct("Card Network Tokenization Response")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+
     let dec_key = tokenization_service.private_key.peek().clone();
 
     let card_network_token_response = services::decrypt_jwe(
-        &res.payload,
+        &network_response.payload,
         services::KeyIdCheck::SkipKeyIdCheck,
         dec_key,
         jwe::RSA_OAEP_256,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::NetworkTokenizationError::SaveTokenFailed)
     .attach_printable(
         "Failed to decrypt the tokenization response from the tokenization service",
     )?;
 
     let cn_response: CardNetworkTokenResponsePayload =
         serde_json::from_str(&card_network_token_response)
-            .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
+            .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
     Ok((cn_response.clone(), Some(cn_response.card_reference)))
+}
+
+pub async fn make_card_network_tokenization_request(
+    state: &routes::SessionState,
+    card: &domain::Card,
+    customer_id: &id_type::CustomerId,
+    amount: Option<i64>,
+    currency: Option<storage_enums::Currency>,
+) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::NetworkTokenizationError>
+{
+    let card_data = CardData {
+        card_number: card.card_number.clone(),
+        exp_month: card.card_exp_month.clone(),
+        exp_year: card.card_exp_year.clone(),
+        card_security_code: card.card_cvc.clone(),
+    };
+
+    let payload = card_data
+        .encode_to_string_of_json()
+        .and_then(|x| x.encode_to_string_of_json())
+        .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)
+        .map_err(|e| {
+            logger::error!(fetch_err=?e);
+            errors::NetworkTokenizationError::RequestEncodingFailed
+        })?;
+    println!("payloaddd: {}", payload);
+    let payload_bytes = payload.as_bytes();
+    let amount_str = amount.map_or_else(String::new, |a| a.to_string());
+    let currency_str = currency.map_or_else(String::new, |c| c.to_string());
+
+    mk_tokenization_req(state, payload_bytes, amount_str, currency_str, customer_id.clone())
+    .await
+    .inspect_err(|e| logger::error!(error = %e, "Error while making tokenization request"))
+
+
+
 }
 
 pub async fn get_token_from_tokenization_service(
@@ -309,7 +350,7 @@ pub async fn get_token_from_tokenization_service(
     // Send the request using `call_connector_api`
     let response = services::call_connector_api(state, request, "get network token")
         .await
-        .change_context(errors::VaultError::SaveCardFailed);
+        .change_context(errors::NetworkTokenizationError::SaveTokenFailed);
 
     let res: TokenResponse = response
         .get_response_inner("cardNetworkTokenResponse")
@@ -353,7 +394,7 @@ pub async fn get_token_from_tokenization_service(
             .unwrap_or_default(),
         nick_name: card_decrypted.clone().unwrap().card_holder_name,
         card_issuer: None,
-        card_network: Some(common_enums::CardNetwork::Visa),
+        card_network: Some(res.network),
         card_type: None,
         card_issuing_country: None,
         bank_code: None,

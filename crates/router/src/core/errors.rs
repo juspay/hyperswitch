@@ -329,3 +329,31 @@ pub enum ConditionalConfigError {
     #[error("Error constructing the Input")]
     InputConstructionError,
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum NetworkTokenizationError {
+    #[error("Failed to save card in card vault")]
+    SaveTokenFailed,
+    #[error("Failed to fetch card details from card vault")]
+    FetchTokenFailed,
+    #[error("Failed to encode card vault request")]
+    RequestEncodingFailed,
+    #[error("Failed to deserialize token service response")]
+    ResponseDeserializationFailed,
+    #[error("Failed to create payment method")]
+    PaymentMethodCreationFailed,
+    #[error("The given payment method is currently not supported in vault")]
+    PaymentMethodNotSupported,
+    #[error("The given payout method is currently not supported in vault")]
+    PayoutMethodNotSupported,
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
+    #[error("The card vault returned an unexpected response: {0:?}")]
+    UnexpectedResponseError(bytes::Bytes),
+    #[error("Failed to update in PMD table")]
+    UpdateInPaymentMethodDataTableFailed,
+    #[error("Failed to fetch payment method in vault")]
+    FetchPaymentMethodFailed,
+    #[error("Failed to save payment method in vault")]
+    SavePaymentMethodFailed,
+}
