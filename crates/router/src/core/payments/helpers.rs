@@ -124,14 +124,13 @@ pub fn create_certificate(
 
 pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<&String>,
+    profile_id: &String,
     connector_type: ConnectorType,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
         .into_iter()
         .filter(|mca| {
-            profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
-                && mca.connector_type == connector_type
+            mca.profile_id.as_ref() == Some(profile_id) && mca.connector_type == connector_type
         })
         .collect()
 }
@@ -4305,7 +4304,7 @@ where
         let profile_specific_merchant_connector_account_list =
             filter_mca_based_on_profile_and_connector_type(
                 merchant_connector_account_list,
-                Some(profile_id),
+                profile_id,
                 ConnectorType::PaymentProcessor,
             );
 

@@ -91,8 +91,8 @@ use crate::{
         BrowserInformation,
     },
     utils::{
-        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
-        ValueExt,
+        self as r_utils, add_apple_pay_flow_metrics, add_connector_http_status_code_metrics,
+        Encode, OptionExt, ValueExt,
     },
     workflows::payment_sync,
 };
@@ -3523,7 +3523,7 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let profile_id = payment_data.payment_intent.profile_id.clone();
+            // let profile_id = payment_data.payment_intent.profile_id.clone();
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
@@ -3531,7 +3531,7 @@ where
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                profile_id,
+                business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3558,7 +3558,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
+            business_profile.is_connector_agnostic_mit_enabled.clone(),
         )
         .await;
     }
@@ -3572,7 +3572,7 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let profile_id = payment_data.payment_intent.profile_id.clone();
+            // let profile_id = payment_data.payment_intent.profile_id.clone();
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
@@ -3580,7 +3580,7 @@ where
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                profile_id,
+                business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3607,7 +3607,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled,
+            business_profile.is_connector_agnostic_mit_enabled.clone(),
         )
         .await;
     }
@@ -3959,14 +3959,22 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
+    let profile_wrapper = super::admin::BusinessProfileWrapper::new(business_profile.clone());
     let (profile_id, routing_algorithm_id) =
-        super::admin::BusinessProfileWrapper::new(business_profile.clone())
-            .get_profile_id_and_routing_algorithm_id(&transaction_data);
+        profile_wrapper.get_profile_id_and_routing_algorithm_id(&transaction_data)?;
+
+    // Validate that the profile_id being passed in intent should be same as the profile_id passed from the business profile parameter
+    r_utils::when(&business_profile.profile_id != profile_id, || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Business Profile mismatch".to_string(),
+        })
+    })?;
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
         routing_algorithm_id,
+        business_profile,
         &transaction_data,
     )
     .await
@@ -3978,7 +3986,7 @@ where
         connectors,
         &transaction_data,
         eligible_connectors,
-        profile_id,
+        business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4050,12 +4058,16 @@ where
     let (profile_id, routing_algorithm_id) = {
         let (profile_id, routing_algorithm) = match &transaction_data {
             TransactionData::Payment(payment_data) => (
-                payment_data.payment_intent.profile_id.clone(),
+                payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")?,
                 business_profile.routing_algorithm.clone(),
             ),
             #[cfg(feature = "payouts")]
             TransactionData::Payout(payout_data) => (
-                Some(payout_data.payout_attempt.profile_id.clone()),
+                &payout_data.payout_attempt.profile_id,
                 business_profile.payout_routing_algorithm.clone(),
             ),
         };
@@ -4068,11 +4080,18 @@ where
             .unwrap_or_default();
         (profile_id, algorithm_ref.algorithm_id)
     };
+    // Validate that the profile_id being passed in intent should be same as the profile_id passed from the business profile parameter
+    r_utils::when(&business_profile.profile_id != profile_id, || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Business Profile mismatch".to_string(),
+        })
+    })?;
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
         routing_algorithm_id,
+        business_profile,
         &transaction_data,
     )
     .await
@@ -4083,7 +4102,7 @@ where
         connectors,
         &transaction_data,
         eligible_connectors,
-        profile_id,
+        business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

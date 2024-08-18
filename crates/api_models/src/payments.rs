@@ -15,9 +15,9 @@ use common_utils::{
     types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
-use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
+use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
     ser::Serializer,

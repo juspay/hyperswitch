@@ -55,6 +55,7 @@ use crate::{
     },
     utils,
 };
+
 const IBAN_MAX_LENGTH: usize = 34;
 const BACS_SORT_CODE_LENGTH: usize = 6;
 const BACS_MAX_ACCOUNT_NUMBER_LENGTH: usize = 8;
@@ -2692,6 +2693,7 @@ pub async fn create_connector(
 
     let transaction_type = req.get_transaction_type();
 
+    //for all profiles under merchant
     let mut default_routing_config = routing_helpers::get_merchant_default_config(
         &*state.store,
         merchant_id.get_string_repr(),
@@ -3699,24 +3701,33 @@ impl BusinessProfileWrapper {
         Ok(())
     }
 
-    pub fn get_profile_id_and_routing_algorithm_id<F>(
-        &self,
-        transaction_data: &routing::TransactionData<'_, F>,
-    ) -> (Option<String>, Option<String>)
+    pub fn get_profile_id_and_routing_algorithm_id<'a, F>(
+        &'a self,
+        transaction_data: &'a routing::TransactionData<'_, F>,
+    ) -> RouterResult<(&String, Option<String>)>
     where
         F: Send + Clone,
     {
-        match transaction_data {
+        use common_utils::ext_traits::OptionExt;
+        let (profile_id, routing_algorithm_id) = match transaction_data {
             routing::TransactionData::Payment(payment_data) => (
-                payment_data.payment_intent.profile_id.clone(),
+                payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "profile_id",
+                    })?,
                 self.profile.routing_algorithm_id.clone(),
             ),
             #[cfg(feature = "payouts")]
             routing::TransactionData::Payout(payout_data) => (
-                Some(payout_data.payout_attempt.profile_id.clone()),
+                &payout_data.payout_attempt.profile_id,
                 self.profile.payout_routing_algorithm_id.clone(),
             ),
-        }
+        };
+        Ok((profile_id, routing_algorithm_id))
     }
     pub fn get_default_fallback_list_of_connector_under_profile(
         &self,
@@ -3746,7 +3757,7 @@ impl BusinessProfileWrapper {
         })
     }
 
-    pub async fn update_default_routing_for_profile(
+    pub async fn update_default_fallback_routing_of_connectors_under_profile(
         self,
         db: &dyn StorageInterface,
         updated_config: &Vec<routing_types::RoutableConnectorChoice>,

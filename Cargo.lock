@@ -453,6 +453,7 @@ dependencies = [
  "mime",
  "reqwest",
  "router_derive",
+ "rustc-hash",
  "serde",
  "serde_json",
  "strum 0.26.2",
