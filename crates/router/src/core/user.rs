@@ -1354,6 +1354,13 @@ pub async fn create_merchant_account(
     Ok(ApplicationResponse::StatusOk)
 }
 
+pub async fn list_orgs_for_user(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<Vec<String>> {
+    todo!()
+}
+
 pub async fn list_merchants_for_user(
     state: SessionState,
     user_from_token: auth::UserIdFromAuth,
