@@ -73,7 +73,6 @@ use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
     connector::utils::missing_field_err,
     core::{
-        authentication as authentication_core,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization::do_status_check_for_network_token},
         utils,
@@ -84,17 +83,21 @@ use crate::{
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
-        api::{self, authentication, ConnectorCallType, ConnectorCommon},
+        api::{self, ConnectorCallType, ConnectorCommon},
         domain,
         storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryInto},
-        BrowserInformation,
     },
     utils::{
         add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
         ValueExt,
     },
     workflows::payment_sync,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::authentication as authentication_core,
+    types::{api::authentication, BrowserInformation},
 };
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -4186,6 +4189,17 @@ where
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn payment_external_authentication(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _req: api_models::payments::PaymentsExternalAuthenticationRequest,
+) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 pub async fn payment_external_authentication(
     state: SessionState,
@@ -4230,6 +4244,7 @@ pub async fn payment_external_authentication(
         &[storage_enums::IntentStatus::RequiresCustomerAction],
         "authenticate",
     )?;
+
     let optional_customer = match &payment_intent.customer_id {
         Some(customer_id) => Some(
             state
@@ -4249,6 +4264,7 @@ pub async fn payment_external_authentication(
         ),
         None => None,
     };
+
     let profile_id = payment_intent
         .profile_id
         .as_ref()

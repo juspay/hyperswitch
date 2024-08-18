@@ -4658,7 +4658,7 @@
         ]
       }
     },
-    "/events/{merchant_id_or_profile_id}": {
+    "/events/{merchant_id}": {
       "get": {
         "tags": [
           "Event"
@@ -4668,9 +4668,9 @@
         "operationId": "List all Events associated with a Merchant Account or Business Profile",
         "parameters": [
           {
-            "name": "merchant_id_or_profile_id",
+            "name": "merchant_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account or Business Profile",
+            "description": "The unique identifier for the Merchant Account.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4729,6 +4729,16 @@
               "type": "string",
               "nullable": true
             }
+          },
+          {
+            "name": "profile_id",
+            "in": "query",
+            "description": "Only include Events associated with the Business Profile identified by the specified Business Profile ID.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -4753,7 +4763,7 @@
         ]
       }
     },
-    "/events/{merchant_id_or_profile_id}/{event_id}/attempts": {
+    "/events/{merchant_id}/{event_id}/attempts": {
       "get": {
         "tags": [
           "Event"
@@ -4763,9 +4773,9 @@
         "operationId": "List all delivery attempts for an Event",
         "parameters": [
           {
-            "name": "merchant_id_or_profile_id",
+            "name": "merchant_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account or Business Profile",
+            "description": "The unique identifier for the Merchant Account.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4803,7 +4813,7 @@
         ]
       }
     },
-    "/events/{merchant_id_or_profile_id}/{event_id}/retry": {
+    "/events/{merchant_id}/{event_id}/retry": {
       "post": {
         "tags": [
           "Event"
@@ -4813,9 +4823,9 @@
         "operationId": "Manually retry the delivery of an Event",
         "parameters": [
           {
-            "name": "merchant_id_or_profile_id",
+            "name": "merchant_id",
             "in": "path",
-            "description": "The unique identifier for the Merchant Account or Business Profile",
+            "description": "The unique identifier for the Merchant Account.",
             "required": true,
             "schema": {
               "type": "string"
@@ -8045,6 +8055,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",
@@ -12175,6 +12186,7 @@
           "connector_type",
           "connector_name",
           "merchant_connector_id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -12198,7 +12210,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "payment_methods_enabled": {
@@ -12326,6 +12337,7 @@
           "connector_type",
           "connector_name",
           "merchant_connector_id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -12349,7 +12361,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "connector_account_details": {
@@ -19129,7 +19140,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PayoutCreateResponse"
-            }
+            },
+            "description": "The list of payouts response objects"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of available payouts for given constraints",
+            "nullable": true
           }
         }
       },
@@ -20766,6 +20784,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",
