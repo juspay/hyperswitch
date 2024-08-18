@@ -493,13 +493,7 @@ Once you're done with setting up the dependencies, proceed with
 
    Run the migrations
 
-   - If you have just installed
-
-   ```shell
-   just migrate
-   ```
-
-   - Using the diesel-cli command
+   - If you have just installed just migrate using the diesel-cli command
 
    ```shell
    diesel migration run
