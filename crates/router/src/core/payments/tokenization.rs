@@ -237,7 +237,13 @@ where
                         }
                     };
                 let token_locker_id = match token_resp {
-                    Some(ref token_resp) => Some(token_resp.payment_method_id.clone()),
+                    Some(ref token_resp) => {
+                        if network_token_requestor_ref_id.is_some() {
+                            Some(token_resp.payment_method_id.clone())
+                        } else {
+                            None
+                        }
+                    }
                     None => None,
                 };
 
@@ -891,29 +897,30 @@ pub async fn save_token_in_locker(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
+    let network_tokenization_supported_card_networks = &state
+        .conf
+        .network_tokenization_supported_card_networks
+        .card_networks;
 
-    // if (card) {
-    //     if let Ok(a) = try_tokenize() {
-    //        return a
-    //     }
-    //  }
-
-    //  rest of the flow
-    match payment_method_data {
-        Some(domain::PaymentMethodData::Card(card)) => {
-            let tokenization_result =
-                network_tokenization::make_card_network_tokenization_request(
-                    state,
-                    &card,
-                    &customer_id,
-                    amount,
-                    currency,
-                )
-                .await;
-            match tokenization_result {
-                Ok((token_response, network_token_requestor_ref_id)) => {
+    if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data {
+        println!("tokenn entered ");
+        println!("cardd {:?}", card);
+        if let Some(card_network) = &card.card_network {
+            println!("tokenn cn verified");
+            if network_tokenization_supported_card_networks.contains(card_network) {
+                println!("calling tn serivce");
+                if let Ok((token_response, network_token_requestor_ref_id)) =
+                    network_tokenization::make_card_network_tokenization_request(
+                        state,
+                        &card,
+                        &customer_id,
+                        amount,
+                        currency,
+                    )
+                    .await
+                {
                     // Only proceed if the tokenization was successful
-    
+                    println!("tokenn success");
                     let card_data = api::CardDetail {
                         card_number: token_response.token.clone(),
                         card_exp_month: token_response.token_expiry_month.clone(),
@@ -925,7 +932,7 @@ pub async fn save_token_in_locker(
                         card_issuer: None,
                         card_type: None,
                     };
-    
+
                     let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
                         state,
                         payment_method_request,
@@ -937,39 +944,32 @@ pub async fn save_token_in_locker(
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Add Card Failed")?;
-    
-                    Ok((res, dc, network_token_requestor_ref_id))
-                }
-                Err(e) => {
-                    // If tokenization fails, return the error without propagating further
-                    logger::error!(error=?e, "Card network tokenization failed");
-                    Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!("Card network tokenization failed: {e:?}"))
+
+                    return Ok((res, dc, network_token_requestor_ref_id));
                 }
             }
-
-        }
-        _ => {
-            let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = api::PaymentMethodResponse {
-                merchant_id: merchant_id.clone(),
-                customer_id: Some(customer_id),
-                payment_method_id: pm_id,
-                payment_method: payment_method_request.payment_method,
-                payment_method_type: payment_method_request.payment_method_type,
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
-                card: None,
-                metadata: None,
-                created: Some(common_utils::date_time::now()),
-                recurring_enabled: false,           //[#219]
-                installment_payment_enabled: false, //[#219]
-                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
-                last_used_at: Some(common_utils::date_time::now()),
-                client_secret: None,
-            };
-            Ok((payment_method_response, None, None))
         }
     }
+
+    let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+    let payment_method_response = api::PaymentMethodResponse {
+        merchant_id: merchant_id.clone(),
+        customer_id: Some(customer_id),
+        payment_method_id: pm_id,
+        payment_method: payment_method_request.payment_method,
+        payment_method_type: payment_method_request.payment_method_type,
+        #[cfg(feature = "payouts")]
+        bank_transfer: None,
+        card: None,
+        metadata: None,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: false,           //[#219]
+        installment_payment_enabled: false, //[#219]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+    };
+    Ok((payment_method_response, None, None))
 }
 
 pub fn create_payment_method_metadata(
