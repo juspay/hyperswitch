@@ -3491,6 +3491,7 @@ where
                         .merchant_connector_id
                         .clone()
                         .as_ref(),
+                    business_profile.clone(),
                 )
                 .await?;
 
@@ -3558,7 +3559,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled.clone(),
+            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await;
     }
@@ -3607,7 +3608,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
-            business_profile.is_connector_agnostic_mit_enabled.clone(),
+            business_profile.is_connector_agnostic_mit_enabled,
         )
         .await;
     }
@@ -3946,6 +3947,7 @@ where
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
+#[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -4021,7 +4023,7 @@ where
                 routing_data,
                 connector_data,
                 mandate_type,
-                business_profile.is_connector_agnostic_mit_enabled.clone(),
+                business_profile.is_connector_agnostic_mit_enabled,
             )
             .await
         }

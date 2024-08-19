@@ -129,7 +129,7 @@ pub async fn validate_create_request(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(payout_token),
-                &customer.customer_id,
+                &customer.get_customer_id(),
                 merchant_account.get_id(),
                 req.payout_type,
                 merchant_key_store,
