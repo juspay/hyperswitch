@@ -2,7 +2,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::id_type;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, result::Error as DieselError,
-    BoolExpressionMethods, ExpressionMethods, QueryDsl, Table,
+    BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
 
@@ -189,8 +189,8 @@ impl UserRole {
     pub async fn generic_user_roles_list(
         conn: &PgPooledConn,
         user_id: String,
-        org_id: Option<String>,
-        merchant_id: Option<String>,
+        org_id: Option<id_type::OrganizationId>,
+        merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<String>,
         entity_id: Option<String>,
         version: Option<UserRoleVersion>,
