@@ -135,9 +135,7 @@ pub fn filter_mca_based_on_profile_and_connector_type(
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
         .into_iter()
-        .filter(|mca| {
-            mca.profile_id.as_ref() == Some(profile_id) && mca.connector_type == connector_type
-        })
+        .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
         .collect()
 }
 
@@ -1451,6 +1449,7 @@ pub async fn get_customer_from_details<F: Clone>(
         None => Ok(None),
         Some(customer_id) => {
             let db = &*state.store;
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
                     &state.into(),
@@ -1460,6 +1459,18 @@ pub async fn get_customer_from_details<F: Clone>(
                     storage_scheme,
                 )
                 .await?;
+
+            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            let customer = db
+                .find_optional_by_merchant_id_merchant_reference_id(
+                    &state.into(),
+                    &customer_id,
+                    merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await?;
+
             payment_data.email = payment_data.email.clone().or_else(|| {
                 customer.as_ref().and_then(|inner| {
                     inner

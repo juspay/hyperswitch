@@ -24,6 +24,19 @@ use crate::{
     types::domain,
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn initiate_payout_link(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _req: payouts::PayoutLinkInitiateRequest,
+    _request_headers: &header::HeaderMap,
+    _locale: String,
+) -> RouterResponse<services::GenericLinkFormData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn initiate_payout_link(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -140,6 +153,7 @@ pub async fn initiate_payout_link(
                 .attach_printable_lazy(|| {
                     format!("customer [{}] not found", payout_link.primary_reference)
                 })?;
+
             let enabled_payout_methods =
                 filter_payout_methods(&state, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods

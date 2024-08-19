@@ -232,7 +232,8 @@ pub async fn list_payment_method_api(
 
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 /// List payment methods for a Customer
 ///
@@ -355,7 +356,11 @@ pub async fn list_customer_payment_method_for_payment(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "payment_methods_v2",
+    feature = "customer_v2"
+))]
 /// List payment methods for a Customer v2
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
@@ -418,7 +423,8 @@ pub async fn list_customer_payment_method_api(
 
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
-    not(feature = "payment_methods_v2")
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
 ))]
 /// List payment methods for a Customer
 ///

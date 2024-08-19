@@ -867,7 +867,6 @@ pub struct Customers;
 #[cfg(all(
     feature = "v2",
     feature = "customer_v2",
-    feature = "payment_methods_v2",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -875,7 +874,9 @@ impl Customers {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
-            route = route.service(web::resource("").route(web::post().to(customers_create)))
+            route = route
+                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(web::resource("/{id}").route(web::put().to(customers_update)))
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
@@ -1174,7 +1175,7 @@ pub struct MerchantConnectorAccount;
 ))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/connector_accounts").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/connector_accounts").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1762,7 +1763,7 @@ pub struct WebhookEvents;
 #[cfg(feature = "olap")]
 impl WebhookEvents {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/events/{merchant_id_or_profile_id}")
+        web::scope("/events/{merchant_id}")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(
