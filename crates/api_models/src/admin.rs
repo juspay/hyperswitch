@@ -1980,7 +1980,7 @@ pub struct BusinessProfileCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
-    #[schema(value_type = u32, example = 900)]
+    #[schema(value_type = Option<u32>, example = 900)]
     pub order_fulfillment_time: Option<OrderFulfillmentTime>,
 
     /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
@@ -2206,7 +2206,7 @@ pub struct BusinessProfileResponse {
     pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
-    #[schema(value_type = u32, example = 900)]
+    #[schema(value_type = Option<u32>, example = 900)]
     pub order_fulfillment_time: Option<OrderFulfillmentTime>,
 
     /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
@@ -2337,7 +2337,7 @@ pub struct BusinessProfileUpdate {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
-    #[schema(value_type = u32, example = 900)]
+    #[schema(value_type = Option<u32>, example = 900)]
     pub order_fulfillment_time: Option<OrderFulfillmentTime>,
 
     /// Whether the order fulfillment time is calculated from the origin or the time of creating the payment, or confirming the payment
