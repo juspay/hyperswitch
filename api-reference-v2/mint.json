@@ -49,6 +49,14 @@
         "api-reference/merchant-connector-account/merchant-connector--retrieve",
         "api-reference/merchant-connector-account/merchant-connector--update"
       ]
+    },
+    {
+      "group": "Business Profile",
+      "pages": [
+        "api-reference/business-profile/business-profile--create",
+        "api-reference/business-profile/business-profile--update",
+        "api-reference/business-profile/business-profile--retrieve"
+      ]
     }
   ],
   "footerSocials": {
