@@ -185,7 +185,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 
         let order_fulfillment_time = item
             .order_fulfillment_time
-            .map(|time| api_models::admin::OrderFulfillmentTime::new(time))
+            .map(api_models::admin::OrderFulfillmentTime::new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
 
