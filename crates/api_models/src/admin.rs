@@ -1920,11 +1920,11 @@ pub struct BusinessProfileCreate {
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
 
@@ -2003,11 +2003,11 @@ pub struct BusinessProfileCreate {
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
 
@@ -2052,7 +2052,7 @@ pub struct BusinessProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response.
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -2103,11 +2103,11 @@ pub struct BusinessProfileResponse {
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
 
@@ -2149,7 +2149,7 @@ pub struct BusinessProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response.
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -2183,11 +2183,11 @@ pub struct BusinessProfileResponse {
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
 
