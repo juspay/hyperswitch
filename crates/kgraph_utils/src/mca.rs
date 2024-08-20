@@ -1002,6 +1002,7 @@ mod tests {
     fn test_sandbox_applepay_bug_usecase() {
         let value = serde_json::json!([
             {
+                "profile_id": "test_profile",
                 "connector_type": "payment_processor",
                 "connector_name": "bluesnap",
                 "merchant_connector_id": "REDACTED",
@@ -1084,6 +1085,7 @@ mod tests {
                 "frm_configs": null
             },
             {
+                "profile_id": "test_profile",
                 "connector_type": "payment_processor",
                 "connector_name": "stripe",
                 "merchant_connector_id": "REDACTED",
