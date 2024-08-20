@@ -1869,20 +1869,13 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
 }
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(any(
-        feature = "routing_v2",
-        feature = "business_profile_v2",
-        feature = "merchant_account_v2",
-        feature = "merchant_connector_account_v2"
-    ))
+    not(any(feature = "routing_v2", feature = "business_profile_v2",))
 ))]
 struct MerchantDefaultConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a String,
     store: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
-    default_routing_config: &'a Vec<api_models::routing::RoutableConnectorChoice>,
-    default_routing_config_for_profile: &'a Vec<api_models::routing::RoutableConnectorChoice>,
     profile_id: &'a String,
     transaction_type: &'a api_enums::TransactionType,
 }
@@ -1891,10 +1884,21 @@ struct MerchantDefaultConfigUpdate<'a> {
     not(any(feature = "routing_v2", feature = "business_profile_v2",))
 ))]
 impl<'a> MerchantDefaultConfigUpdate<'a> {
-    async fn update_merchant_default_config(&self) -> RouterResult<()> {
-        let mut default_routing_config = self.default_routing_config.to_owned();
-        let mut default_routing_config_for_profile =
-            self.default_routing_config_for_profile.to_owned();
+    async fn retrieve_and_update_default_fallback_routing_for_profile(&self) -> RouterResult<()> {
+        let mut default_routing_config = routing::helpers::get_merchant_default_config(
+            self.store,
+            self.merchant_id.get_string_repr(),
+            &self.transaction_type,
+        )
+        .await?;
+
+        let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
+            self.store,
+            self.profile_id,
+            self.transaction_type,
+        )
+        .await?;
+
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
                 choice_kind: routing_types::RoutableChoiceKind::FullStruct,
@@ -1934,8 +1938,7 @@ struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a String,
     store: &'a dyn StorageInterface,
-    default_routing_config_for_profile: &'a Vec<api_models::routing::RoutableConnectorChoice>,
-    business_profile: BusinessProfileWrapper,
+    business_profile: domain::BusinessProfile,
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
 }
@@ -1945,9 +1948,10 @@ struct DefaultFallbackRoutingConfigUpdate<'a> {
     feature = "business_profile_v2"
 ))]
 impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
-    async fn update_default_fallback_routing_for_profile(&self) -> RouterResult<()> {
+    async fn retrieve_and_update_default_fallback_routing_algorithm(&self) -> RouterResult<()> {
+        let profile_wrapper = BusinessProfileWrapper::new(self.business_profile.clone());
         let default_routing_config_for_profile =
-            &mut self.default_routing_config_for_profile.clone();
+            &mut profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
                 choice_kind: routing_types::RoutableChoiceKind::FullStruct,
@@ -1956,8 +1960,8 @@ impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
             };
             if !default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.push(choice);
-                self.business_profile
-                    .clone()
+
+                profile_wrapper
                     .update_default_fallback_routing_of_connectors_under_profile(
                         self.store,
                         &default_routing_config_for_profile,
@@ -2276,7 +2280,7 @@ trait MerchantConnectorAccountCreateBridge {
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<hyperswitch_domain_models::business_profile::BusinessProfile>;
+    ) -> RouterResult<domain::BusinessProfile>;
 }
 
 #[cfg(all(
@@ -2416,7 +2420,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<hyperswitch_domain_models::business_profile::BusinessProfile> {
+    ) -> RouterResult<domain::BusinessProfile> {
         let profile_id = self.profile_id;
         // Check whether this business profile belongs to the merchant
 
@@ -2590,7 +2594,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<hyperswitch_domain_models::business_profile::BusinessProfile> {
+    ) -> RouterResult<domain::BusinessProfile> {
         match self.profile_id.or(merchant_account.default_profile.clone()) {
             Some(profile_id) => {
                 // Check whether this business profile belongs to the merchant
@@ -2634,15 +2638,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         }
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap"),
-    not(any(
-        feature = "routing_v2",
-        feature = "business_profile_v2",
-        feature = "merchant_account_v2",
-        feature = "merchant_connector_account_v2"
-    ))
-))]
+
 pub async fn create_connector(
     state: SessionState,
     req: api::MerchantConnectorCreate,
@@ -2679,6 +2675,10 @@ pub async fn create_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     helpers::validate_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -2731,23 +2731,6 @@ pub async fn create_connector(
         )
         .await?;
 
-    let transaction_type = req.get_transaction_type();
-
-    //for all profiles under merchant
-    let mut default_routing_config = routing::helpers::get_merchant_default_config(
-        &*state.store,
-        merchant_id.get_string_repr(),
-        &transaction_type,
-    )
-    .await?;
-
-    let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
-        &*state.clone().store,
-        &business_profile.profile_id,
-        &transaction_type,
-    )
-    .await?;
-
     let mca = state
         .store
         .insert_merchant_connector_account(
@@ -2765,158 +2748,37 @@ pub async fn create_connector(
             },
         )?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(any(feature = "routing_v2", feature = "business_profile_v2",))
+    ))]
     //update merchant default config
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
         store,
         merchant_id,
-        default_routing_config: &mut default_routing_config,
-        default_routing_config_for_profile: &mut default_routing_config_for_profile,
         profile_id: &business_profile.profile_id,
-        transaction_type: &transaction_type,
+        transaction_type: &req.get_transaction_type(),
     };
 
-    merchant_default_config_update
-        .update_merchant_default_config()
-        .await?;
-
-    metrics::MCA_CREATE.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([
-            ("connector", req.connector_name.to_string()),
-            ("merchant", merchant_id.get_string_repr().to_owned()),
-        ]),
-    );
-
-    let mca_response = mca.foreign_try_into()?;
-    Ok(service_api::ApplicationResponse::Json(mca_response))
-}
-#[cfg(all(
-    feature = "v2",
-    feature = "olap",
-    feature = "routing_v2",
-    feature = "business_profile_v2",
-    feature = "merchant_account_v2",
-    feature = "merchant_connector_account_v2"
-))]
-pub async fn create_connector(
-    state: SessionState,
-    req: api::MerchantConnectorCreate,
-    merchant_id: &id_type::MerchantId,
-) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let store = state.store.as_ref();
-    let key_manager_state = &(&state).into();
-    #[cfg(feature = "dummy_connector")]
-    req.connector_name
-        .clone()
-        .validate_dummy_connector_enabled(state.conf.dummy_connector.enabled)
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Invalid connector name".to_string(),
-        })?;
-
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let connector_metadata = ConnectorMetadata {
-        connector_metadata: &req.metadata,
-    };
-
-    connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
-
-    let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let business_profile = req
-        .clone()
-        .validate_and_get_business_profile(&merchant_account, store, key_manager_state, &key_store)
-        .await?;
-    let pm_auth_config_validation = PMAuthConfigValidation {
-        connector_type: &req.connector_type,
-        pm_auth_config: &req.pm_auth_config,
-        db: store,
-        merchant_id,
-        profile_id: &business_profile.profile_id,
-        key_store: &key_store,
-        key_manager_state,
-    };
-    pm_auth_config_validation.validate_pm_auth_config().await?;
-
-    let connector_type_and_connector_enum = ConnectorTypeAndConnectorName {
-        connector_type: &req.connector_type,
-        connector_name: &req.connector_name,
-    };
-    let routable_connector = connector_type_and_connector_enum.get_routable_connector()?;
-
-    // The purpose of this merchant account update is just to update the
-    // merchant account `modified_at` field for KGraph cache invalidation
-    state
-        .store
-        .update_specific_fields_in_merchant(
-            key_manager_state,
-            merchant_id,
-            storage::MerchantAccountUpdate::ModifiedAtUpdate,
-            &key_store,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error updating the merchant account when creating payment connector")?;
-
-    let merchant_connector_account = req
-        .clone()
-        .create_domain_model_from_request(
-            &state,
-            key_store.clone(),
-            &business_profile,
-            key_manager_state,
-        )
-        .await?;
-
-    let profile_wrapper = BusinessProfileWrapper::new(business_profile);
-    // For a single profile
-    let default_routing_config_for_profile =
-        &profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
-
-    let mca = state
-        .store
-        .insert_merchant_connector_account(
-            key_manager_state,
-            merchant_connector_account.clone(),
-            &key_store,
-        )
-        .await
-        .to_duplicate_response(
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id: req.profile_id.clone(),
-                connector_label: merchant_connector_account
-                    .connector_label
-                    .unwrap_or_default(),
-            },
-        )?;
-
+    #[cfg(all(
+        feature = "v2",
+        feature = "routing_v2",
+        feature = "business_profile_v2",
+    ))]
     //update merchant default config
     let merchant_default_config_update = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
         store,
-        default_routing_config_for_profile,
-        business_profile: profile_wrapper,
+        business_profile,
         key_store,
         key_manager_state,
     };
 
     merchant_default_config_update
-        .update_default_fallback_routing_for_profile()
+        .retrieve_and_update_default_fallback_routing_algorithm()
         .await?;
 
     metrics::MCA_CREATE.add(
