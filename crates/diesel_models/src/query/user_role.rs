@@ -147,6 +147,46 @@ impl UserRole {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
     }
 
+    pub async fn update_by_user_id_org_id_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        user_id: String,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: Option<String>,
+        update: UserRoleUpdate,
+        version: UserRoleVersion,
+    ) -> StorageResult<Self> {
+        // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
+        // (org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?)
+        let check_lineage = dsl::org_id
+            .eq(org_id.clone())
+            .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null()))
+            .or(dsl::org_id.eq(org_id.clone()).and(
+                dsl::merchant_id
+                    .eq(merchant_id.clone())
+                    .and(dsl::profile_id.is_null()),
+            ))
+            .or(dsl::org_id.eq(org_id).and(
+                dsl::merchant_id
+                    .eq(merchant_id)
+                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
+                    .and(dsl::profile_id.eq(profile_id)),
+            ));
+
+        let predicate = dsl::user_id
+            .eq(user_id)
+            .and(check_lineage)
+            .and(dsl::version.eq(version));
+
+        generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            UserRoleUpdateInternal,
+            _,
+            _,
+        >(conn, predicate, update.into())
+        .await
+    }
+
     pub async fn delete_by_user_id_org_id_merchant_id_profile_id(
         conn: &PgPooledConn,
         user_id: String,

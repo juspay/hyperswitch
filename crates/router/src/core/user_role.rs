@@ -4,10 +4,8 @@ use diesel_models::{
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
-use router_env::logger;
 
 use crate::{
-    consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::{app::ReqState, SessionState},
     services::{
@@ -100,82 +98,36 @@ pub async fn update_user_role(
         ));
     }
 
-    state
-        .store
-        .update_user_role_by_user_id_merchant_id(
-            user_to_be_updated.get_user_id(),
-            &user_role_to_be_updated
-                .merchant_id
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("merchant_id not found in user_role")?,
-            UserRoleUpdate::UpdateRole {
-                role_id: req.role_id.clone(),
-                modified_by: user_from_token.user_id,
-            },
-            UserRoleVersion::V1,
-        )
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleOperation)
-        .attach_printable("User with given email is not found in the organization")?;
+    let (updated_v1_role, updated_v2_role) = utils::user_role::update_v1_and_v2_user_roles_in_db(
+        &state,
+        user_to_be_updated.get_user_id(),
+        &user_from_token.org_id,
+        &user_from_token.merchant_id,
+        UserRoleUpdate::UpdateRole {
+            role_id: req.role_id.clone(),
+            modified_by: user_from_token.user_id,
+        },
+    )
+    .await;
+
+    if updated_v1_role
+        .as_ref()
+        .is_err_and(|err| !err.current_context().is_db_not_found())
+        || updated_v2_role
+            .as_ref()
+            .is_err_and(|err| !err.current_context().is_db_not_found())
+    {
+        return Err(report!(UserErrors::InternalServerError));
+    }
+
+    if updated_v1_role.is_err() && updated_v2_role.is_err() {
+        return Err(report!(UserErrors::InvalidRoleOperation))
+            .attach_printable("User with given email is not found in the organization")?;
+    }
 
     auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
 
     Ok(ApplicationResponse::StatusOk)
-}
-
-pub async fn transfer_org_ownership(
-    state: SessionState,
-    user_from_token: auth::UserFromToken,
-    req: user_role_api::TransferOrgOwnershipRequest,
-    _req_state: ReqState,
-) -> UserResponse<user_api::DashboardEntryResponse> {
-    if user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "role_id = {} is not org_admin",
-            user_from_token.role_id
-        ));
-    }
-
-    let user_to_be_updated =
-        utils::user::get_user_from_db_by_email(&state, domain::UserEmail::try_from(req.email)?)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleOperation)
-            .attach_printable("User not found in our records".to_string())?;
-
-    if user_from_token.user_id == user_to_be_updated.get_user_id() {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User transferring ownership to themselves".to_string());
-    }
-
-    state
-        .store
-        .transfer_org_ownership_between_users(
-            &user_from_token.user_id,
-            user_to_be_updated.get_user_id(),
-            &user_from_token.org_id,
-            UserRoleVersion::V1,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    auth::blacklist::insert_user_in_blacklist(&state, user_to_be_updated.get_user_id()).await?;
-    auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
-
-    let user_from_db = user_from_token.get_user_from_db(&state).await?;
-    let user_role = user_from_db
-        .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
-
-    utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
-
-    let token =
-        utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-            .await?;
-    let response =
-        utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
-
-    auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn accept_invitation(
@@ -183,30 +135,42 @@ pub async fn accept_invitation(
     user_token: auth::UserFromToken,
     req: user_role_api::AcceptInvitationRequest,
 ) -> UserResponse<()> {
-    futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
-        state
-            .store
-            .update_user_role_by_user_id_merchant_id(
-                user_token.user_id.as_str(),
-                merchant_id,
-                UserRoleUpdate::UpdateStatus {
-                    status: UserStatus::Active,
-                    modified_by: user_token.user_id.clone(),
-                },
-                UserRoleVersion::V1,
-            )
-            .await
-            .map_err(|e| {
-                logger::error!("Error while accepting invitation {e:?}");
-            })
-            .ok()
-    }))
-    .await
-    .into_iter()
-    .reduce(Option::or)
-    .flatten()
-    .ok_or(UserErrors::MerchantIdNotFound.into())
-    .map(|_| ApplicationResponse::StatusOk)
+    let merchant_accounts = state
+        .store
+        .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let update_result =
+        futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
+            let (updated_v1_role, updated_v2_role) =
+                utils::user_role::update_v1_and_v2_user_roles_in_db(
+                    &state,
+                    user_token.user_id.as_str(),
+                    &merchant_account.organization_id,
+                    merchant_account.get_id(),
+                    UserRoleUpdate::UpdateStatus {
+                        status: UserStatus::Active,
+                        modified_by: user_token.user_id.clone(),
+                    },
+                )
+                .await;
+
+            if updated_v1_role.is_err_and(|err| !err.current_context().is_db_not_found())
+                || updated_v2_role.is_err_and(|err| !err.current_context().is_db_not_found())
+            {
+                Err(report!(UserErrors::InternalServerError))
+            } else {
+                Ok(())
+            }
+        }))
+        .await;
+
+    if update_result.iter().all(Result::is_err) {
+        return Err(UserErrors::MerchantIdNotFound.into());
+    }
+
+    Ok(ApplicationResponse::StatusOk)
 }
 
 pub async fn merchant_select(
@@ -214,37 +178,50 @@ pub async fn merchant_select(
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::MerchantSelectRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
-    let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
-        state
-            .store
-            .update_user_role_by_user_id_merchant_id(
-                user_token.user_id.as_str(),
-                merchant_id,
-                UserRoleUpdate::UpdateStatus {
-                    status: UserStatus::Active,
-                    modified_by: user_token.user_id.clone(),
-                },
-                UserRoleVersion::V1,
-            )
-            .await
-            .map_err(|e| {
-                logger::error!("Error while accepting invitation {e:?}");
-            })
-            .ok()
-    }))
-    .await
-    .into_iter()
-    .reduce(Option::or)
-    .flatten()
-    .ok_or(UserErrors::MerchantIdNotFound)?;
+    let merchant_accounts = state
+        .store
+        .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let update_result =
+        futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
+            let (updated_v1_role, updated_v2_role) =
+                utils::user_role::update_v1_and_v2_user_roles_in_db(
+                    &state,
+                    user_token.user_id.as_str(),
+                    &merchant_account.organization_id,
+                    merchant_account.get_id(),
+                    UserRoleUpdate::UpdateStatus {
+                        status: UserStatus::Active,
+                        modified_by: user_token.user_id.clone(),
+                    },
+                )
+                .await;
+
+            if updated_v1_role.is_err_and(|err| !err.current_context().is_db_not_found())
+                || updated_v2_role.is_err_and(|err| !err.current_context().is_db_not_found())
+            {
+                Err(report!(UserErrors::InternalServerError))
+            } else {
+                Ok(())
+            }
+        }))
+        .await;
+
+    if update_result.iter().all(Result::is_err) {
+        return Err(UserErrors::MerchantIdNotFound.into());
+    }
 
     if let Some(true) = req.need_dashboard_entry_response {
-        let user_from_db = state
+        let user_from_db: domain::UserFromStorage = state
             .global_store
             .find_user_by_id(user_token.user_id.as_str())
             .await
             .change_context(UserErrors::InternalServerError)?
             .into();
+
+        let user_role = user_from_db.get_role_from_db(state.clone()).await?;
 
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
@@ -271,29 +248,40 @@ pub async fn merchant_select_token_only_flow(
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::MerchantSelectRequest,
 ) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
-    let user_role = futures::future::join_all(req.merchant_ids.iter().map(|merchant_id| async {
-        state
-            .store
-            .update_user_role_by_user_id_merchant_id(
-                user_token.user_id.as_str(),
-                merchant_id,
-                UserRoleUpdate::UpdateStatus {
-                    status: UserStatus::Active,
-                    modified_by: user_token.user_id.clone(),
-                },
-                UserRoleVersion::V1,
-            )
-            .await
-            .map_err(|e| {
-                logger::error!("Error while accepting invitation {e:?}");
-            })
-            .ok()
-    }))
-    .await
-    .into_iter()
-    .reduce(Option::or)
-    .flatten()
-    .ok_or(UserErrors::MerchantIdNotFound)?;
+    let merchant_accounts = state
+        .store
+        .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let update_result =
+        futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
+            let (updated_v1_role, updated_v2_role) =
+                utils::user_role::update_v1_and_v2_user_roles_in_db(
+                    &state,
+                    user_token.user_id.as_str(),
+                    &merchant_account.organization_id,
+                    merchant_account.get_id(),
+                    UserRoleUpdate::UpdateStatus {
+                        status: UserStatus::Active,
+                        modified_by: user_token.user_id.clone(),
+                    },
+                )
+                .await;
+
+            if updated_v1_role.is_err_and(|err| !err.current_context().is_db_not_found())
+                || updated_v2_role.is_err_and(|err| !err.current_context().is_db_not_found())
+            {
+                Err(report!(UserErrors::InternalServerError))
+            } else {
+                Ok(())
+            }
+        }))
+        .await;
+
+    if update_result.iter().all(Result::is_err) {
+        return Err(UserErrors::MerchantIdNotFound.into());
+    }
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
@@ -301,6 +289,8 @@ pub async fn merchant_select_token_only_flow(
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
+
+    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
 
     let current_flow =
         domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
