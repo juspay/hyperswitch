@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use error_stack::ResultExt;
+
 use crate::{
     consts::{
         CELL_IDENTIFIER_LENGTH, MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
@@ -8,7 +10,6 @@ use crate::{
     errors, generate_time_ordered_id,
     id_type::LengthId,
 };
-use error_stack::ResultExt;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 /// A global id that can be used to identify any entity
