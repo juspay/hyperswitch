@@ -1175,7 +1175,7 @@ pub struct MerchantConnectorAccount;
 ))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/connector_accounts").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/connector_accounts").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {

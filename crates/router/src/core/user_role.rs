@@ -378,68 +378,169 @@ pub async fn delete_user_role(
             .attach_printable("User deleting himself");
     }
 
-    let user_roles = state
+    let deletion_requestor_role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    let mut user_role_deleted_flag = false;
+
+    // Find in V2
+    let user_role_v2 = match state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V2,
+        )
+        .await
+    {
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if let Some(role_to_be_deleted) = user_role_v2 {
+        let target_role_info = roles::RoleInfo::from_role_id(
+            &state,
+            &role_to_be_deleted.role_id,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+        if !target_role_info.is_deletable() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, role_id = {} is not deletable",
+                role_to_be_deleted.role_id
+            ));
+        }
+
+        if deletion_requestor_role_info.get_entity_type() < target_role_info.get_entity_type() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, deletion requestor = {} cannot delete target = {}",
+                deletion_requestor_role_info.get_entity_type(),
+                target_role_info.get_entity_type()
+            ));
+        }
+
+        user_role_deleted_flag = true;
+        state
+            .store
+            .delete_user_role_by_user_id_and_lineage(
+                user_from_db.get_user_id(),
+                &user_from_token.org_id,
+                &user_from_token.merchant_id,
+                user_from_token.profile_id.as_ref(),
+                UserRoleVersion::V2,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user role")?;
+    }
+
+    // Find in V1
+    let user_role_v1 = match state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V1,
+        )
+        .await
+    {
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if let Some(role_to_be_deleted) = user_role_v1 {
+        let target_role_info = roles::RoleInfo::from_role_id(
+            &state,
+            &role_to_be_deleted.role_id,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+        if !target_role_info.is_deletable() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, role_id = {} is not deletable",
+                role_to_be_deleted.role_id
+            ));
+        }
+
+        if deletion_requestor_role_info.get_entity_type() < target_role_info.get_entity_type() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, deletion requestor = {} cannot delete target = {}",
+                deletion_requestor_role_info.get_entity_type(),
+                target_role_info.get_entity_type()
+            ));
+        }
+
+        user_role_deleted_flag = true;
+        state
+            .store
+            .delete_user_role_by_user_id_and_lineage(
+                user_from_db.get_user_id(),
+                &user_from_token.org_id,
+                &user_from_token.merchant_id,
+                user_from_token.profile_id.as_ref(),
+                UserRoleVersion::V1,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user role")?;
+    }
+
+    if !user_role_deleted_flag {
+        return Err(report!(UserErrors::InvalidDeleteOperation))
+            .attach_printable("User is not associated with the merchant");
+    }
+
+    // Check if user has any more role associations
+    let user_roles_v2 = state
+        .store
+        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V2)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_roles_v1 = state
         .store
         .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    for user_role in user_roles.iter() {
-        let Some(merchant_id) = user_role.merchant_id.as_ref() else {
-            return Err(report!(UserErrors::InternalServerError))
-                .attach_printable("merchant_id not found for user_role");
-        };
-
-        if merchant_id == &user_from_token.merchant_id {
-            let role_info = roles::RoleInfo::from_role_id(
-                &state,
-                &user_role.role_id,
-                &user_from_token.merchant_id,
-                &user_from_token.org_id,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-            if !role_info.is_deletable() {
-                return Err(report!(UserErrors::InvalidDeleteOperation))
-                    .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));
-            }
-        } else {
-            return Err(report!(UserErrors::InvalidDeleteOperation))
-                .attach_printable("User is not associated with the merchant");
-        }
-    }
-
-    let deleted_user_role = if user_roles.len() > 1 {
-        state
-            .store
-            .delete_user_role_by_user_id_merchant_id(
-                user_from_db.get_user_id(),
-                &user_from_token.merchant_id,
-                UserRoleVersion::V1,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?
-    } else {
+    // If user has no more role associated with him then deleting user
+    if user_roles_v2.is_empty() && user_roles_v1.is_empty() {
         state
             .global_store
             .delete_user_by_user_id(user_from_db.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user entry")?;
+    }
 
-        state
-            .store
-            .delete_user_role_by_user_id_merchant_id(
-                user_from_db.get_user_id(),
-                &user_from_token.merchant_id,
-                UserRoleVersion::V1,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?
-    };
-
-    auth::blacklist::insert_user_in_blacklist(&state, &deleted_user_role.user_id).await?;
+    auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
     Ok(ApplicationResponse::StatusOk)
 }

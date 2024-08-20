@@ -130,7 +130,7 @@ pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts
         .into_iter()
         .filter(|mca| {
-            profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
+            profile_id.map_or(true, |id| &mca.profile_id == id)
                 && mca.connector_type == connector_type
         })
         .collect()
