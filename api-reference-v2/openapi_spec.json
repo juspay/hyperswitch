@@ -2808,11 +2808,13 @@
       },
       "BusinessProfileCreate": {
         "type": "object",
+        "required": [
+          "profile_name"
+        ],
         "properties": {
           "profile_name": {
             "type": "string",
             "description": "The name of business profile",
-            "nullable": true,
             "maxLength": 64
           },
           "return_url": {
