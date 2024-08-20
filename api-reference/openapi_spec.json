@@ -8055,6 +8055,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",
@@ -12174,6 +12175,7 @@
           "connector_type",
           "connector_name",
           "merchant_connector_id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -12197,7 +12199,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "payment_methods_enabled": {
@@ -12325,6 +12326,7 @@
           "connector_type",
           "connector_name",
           "merchant_connector_id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -12348,7 +12350,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "connector_account_details": {
@@ -19134,7 +19135,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PayoutCreateResponse"
-            }
+            },
+            "description": "The list of payouts response objects"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of available payouts for given constraints",
+            "nullable": true
           }
         }
       },
@@ -20771,6 +20779,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",

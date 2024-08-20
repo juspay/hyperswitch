@@ -41,9 +41,9 @@ pub trait PayoutAttemptInterface {
 
     async fn get_filters_for_payouts(
         &self,
-        payout: &[Payouts],
-        merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
+        _payout: &[Payouts],
+        _merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutListFilters, errors::StorageError>;
 }
 

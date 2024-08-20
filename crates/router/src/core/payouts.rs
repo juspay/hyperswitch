@@ -855,6 +855,7 @@ pub async fn payouts_list_core(
         api::PayoutListResponse {
             size: data.len(),
             data,
+            total_count: None,
         },
     ))
 }
@@ -870,6 +871,7 @@ pub async fn payouts_filtered_list_core(
     let limit = &filters.limit;
     validator::validate_payout_list_request_for_joins(*limit)?;
     let db = state.store.as_ref();
+    let constraints = filters.clone().into();
     let list: Vec<(
         storage::Payouts,
         storage::PayoutAttempt,
@@ -877,7 +879,7 @@ pub async fn payouts_filtered_list_core(
     )> = db
         .filter_payouts_and_attempts(
             merchant_account.get_id(),
-            &filters.clone().into(),
+            &constraints,
             merchant_account.storage_scheme,
         )
         .await
@@ -908,10 +910,35 @@ pub async fn payouts_filtered_list_core(
     .map(ForeignFrom::foreign_from)
     .collect();
 
+    let active_payout_ids = db
+        .filter_active_payout_ids_by_constraints(merchant_account.get_id(), &constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to filter active payout ids based on the constraints")?;
+
+    let total_count = db
+        .get_total_count_of_filtered_payouts(
+            merchant_account.get_id(),
+            &active_payout_ids,
+            filters.connector.clone(),
+            filters.currency.clone(),
+            filters.status.clone(),
+            filters.payout_method.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to fetch total count of filtered payouts for the given constraints - {:?}",
+                filters
+            )
+        })?;
+
     Ok(services::ApplicationResponse::Json(
         api::PayoutListResponse {
             size: data.len(),
             data,
+            total_count: Some(total_count),
         },
     ))
 }
@@ -1128,7 +1155,8 @@ pub async fn create_recipient(
     if should_call_connector {
         // 1. Form router data
         let router_data = core_utils::construct_payout_router_data(
-            &connector_data.connector_name,
+            state,
+            connector_data,
             merchant_account,
             payout_data,
         )
@@ -1309,7 +1337,8 @@ pub async fn check_payout_eligibility(
 ) -> RouterResult<()> {
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
-        &connector_data.connector_name,
+        state,
+        connector_data,
         merchant_account,
         payout_data,
     )
@@ -1484,7 +1513,8 @@ pub async fn create_payout(
 ) -> RouterResult<()> {
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
-        &connector_data.connector_name,
+        state,
+        connector_data,
         merchant_account,
         payout_data,
     )
@@ -1666,7 +1696,8 @@ pub async fn create_payout_retrieve(
 ) -> RouterResult<()> {
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
-        &connector_data.connector_name,
+        state,
+        connector_data,
         merchant_account,
         payout_data,
     )
@@ -1798,7 +1829,8 @@ pub async fn create_recipient_disburse_account(
 ) -> RouterResult<()> {
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
-        &connector_data.connector_name,
+        state,
+        connector_data,
         merchant_account,
         payout_data,
     )
@@ -1880,7 +1912,8 @@ pub async fn cancel_payout(
 ) -> RouterResult<()> {
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
-        &connector_data.connector_name,
+        state,
+        connector_data,
         merchant_account,
         payout_data,
     )
@@ -1983,7 +2016,8 @@ pub async fn fulfill_payout(
 ) -> RouterResult<()> {
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
-        &connector_data.connector_name,
+        state,
+        connector_data,
         merchant_account,
         payout_data,
     )

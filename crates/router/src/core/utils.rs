@@ -30,7 +30,7 @@ use crate::{
     db::StorageInterface,
     routes::SessionState,
     types::{
-        self, domain,
+        self, api, domain,
         storage::{self, enums},
         PollConfig,
     },
@@ -48,7 +48,8 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
-    connector_name: &api_models::enums::Connector,
+    state: &'a SessionState,
+    connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
@@ -56,6 +57,7 @@ pub async fn construct_payout_router_data<'a, F>(
         .merchant_connector_account
         .clone()
         .get_required_value("merchant_connector_account")?;
+    let connector_name = connector_data.connector_name;
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -736,7 +738,7 @@ pub async fn construct_upload_file_router_data<'a>(
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    create_file_request: &types::api::CreateFileRequest,
+    create_file_request: &api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
 ) -> RouterResult<types::UploadFileRouterData> {
@@ -1301,7 +1303,7 @@ pub(super) trait GetProfileId {
 
 impl GetProfileId for MerchantConnectorAccount {
     fn get_profile_id(&self) -> Option<&String> {
-        self.profile_id.as_ref()
+        Some(&self.profile_id)
     }
 }
 

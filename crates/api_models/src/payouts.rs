@@ -719,8 +719,11 @@ pub struct PayoutListFilterConstraints {
 pub struct PayoutListResponse {
     /// The number of payouts included in the list
     pub size: usize,
-    // The list of payouts response objects
+    /// The list of payouts response objects
     pub data: Vec<PayoutCreateResponse>,
+    /// The total number of available payouts for given constraints
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_count: Option<i64>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
