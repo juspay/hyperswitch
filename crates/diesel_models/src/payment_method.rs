@@ -371,7 +371,9 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             merchant_id: payment_method_new.merchant_id.clone(),
             payment_method_id: payment_method_new.payment_method_id.clone(),
             locker_id: payment_method_new.locker_id.clone(),
-            network_token_requestor_reference_id: payment_method_new.network_token_requestor_reference_id.clone(),
+            network_token_requestor_reference_id: payment_method_new
+                .network_token_requestor_reference_id
+                .clone(),
             accepted_currency: payment_method_new.accepted_currency.clone(),
             scheme: payment_method_new.scheme.clone(),
             token: payment_method_new.token.clone(),
@@ -401,7 +403,9 @@ impl From<&PaymentMethodNew> for PaymentMethod {
                 .payment_method_billing_address
                 .clone(),
             network_token_locker_id: payment_method_new.network_token_locker_id.clone(),
-            network_token_payment_method_data: payment_method_new.network_token_payment_method_data.clone(),
+            network_token_payment_method_data: payment_method_new
+                .network_token_payment_method_data
+                .clone(),
         }
     }
 }

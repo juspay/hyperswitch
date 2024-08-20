@@ -94,30 +94,31 @@ impl MandateResponseExt for MandateResponse {
             //     payment_methods::transformers::get_card_detail(&payment_method, card)
             //         .change_context(errors::ApiErrorResponse::InternalServerError)
             //         .attach_printable("Failed while getting card details")?
-            let token_data =
-                if payment_method.network_token_locker_id.is_some() && state.conf.locker.locker_enabled {
-                    let card = payment_methods::cards::get_card_from_locker(
-                        state,
-                        &payment_method.customer_id,
-                        &payment_method.merchant_id,
-                        payment_method
-                            .network_token_locker_id
-                            .as_ref()
-                            .unwrap_or(&payment_method.payment_method_id),
-                    )
-                    .await?;
+            let token_data = if payment_method.network_token_locker_id.is_some()
+                && state.conf.locker.locker_enabled
+            {
+                let card = payment_methods::cards::get_card_from_locker(
+                    state,
+                    &payment_method.customer_id,
+                    &payment_method.merchant_id,
+                    payment_method
+                        .network_token_locker_id
+                        .as_ref()
+                        .unwrap_or(&payment_method.payment_method_id),
+                )
+                .await?;
 
-                    payment_methods::transformers::get_card_detail(&payment_method, card)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while getting card details")?
-                } else {
-                    payment_methods::cards::get_card_details_without_locker_fallback(
-                        &payment_method,
-                        state,
-                        &key_store,
-                    )
-                    .await?
-                };
+                payment_methods::transformers::get_card_detail(&payment_method, card)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while getting card details")?
+            } else {
+                payment_methods::cards::get_card_details_without_locker_fallback(
+                    &payment_method,
+                    state,
+                    &key_store,
+                )
+                .await?
+            };
 
             Some(MandateCardDetails::from(token_data).into_inner())
         } else {

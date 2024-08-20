@@ -435,7 +435,9 @@ pub async fn do_status_check_for_network_token(
             &state.into(),
             type_name!(payment_method::PaymentMethod),
             domain::types::CryptoOperation::DecryptOptional(
-                payment_method_info.network_token_payment_method_data.clone(),
+                payment_method_info
+                    .network_token_payment_method_data
+                    .clone(),
             ),
             identifier,
             key,
@@ -452,8 +454,9 @@ pub async fn do_status_check_for_network_token(
             PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
             _ => None,
         });
-    let network_token_requestor_reference_id =
-        payment_method_info.network_token_requestor_reference_id.clone();
+    let network_token_requestor_reference_id = payment_method_info
+        .network_token_requestor_reference_id
+        .clone();
 
     is_token_active(
         state,
@@ -568,7 +571,9 @@ pub async fn delete_network_token_from_locker_and_token_service(
         &state,
         customer_id,
         merchant_id,
-        network_token_locker_id.as_ref().unwrap_or(&payment_method_id),
+        network_token_locker_id
+            .as_ref()
+            .unwrap_or(&payment_method_id),
     )
     .await?;
     if delete_network_token_from_tokenization_service(
