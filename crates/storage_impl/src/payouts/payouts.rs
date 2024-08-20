@@ -734,8 +734,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             })
     }
 
-    #[cfg(feature = "olap")]
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
@@ -799,7 +798,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        feature = "olap",
+        not(feature = "customer_v2")
+    ))]
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
         &self,
@@ -874,6 +877,16 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             )
             .into()
         })
+    }
+
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PayoutFetchConstraints,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        todo!()
     }
 }
 
