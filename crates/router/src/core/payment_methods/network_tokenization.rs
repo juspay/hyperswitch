@@ -464,7 +464,8 @@ pub async fn do_status_check_for_network_token(
     .await
 }
 
-pub async fn is_token_active( //should be re-reviewed once more 
+pub async fn is_token_active(
+    //should be re-reviewed once more
     state: &routes::SessionState,
     token_data_decrypted: Option<api::CardDetailFromLocker>,
     customer_id: id_type::CustomerId,
@@ -478,8 +479,10 @@ pub async fn is_token_active( //should be re-reviewed once more
         Ok(true)
     } else {
         if let Some(ref_id) = network_token_requestor_reference_id {
-            let status = check_token_status_with_tokenization_service(state, &customer_id, ref_id).await.change_context(errors::ApiErrorResponse::InternalServerError)?;
-            return Ok(status)
+            let status = check_token_status_with_tokenization_service(state, &customer_id, ref_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            return Ok(status);
         }
         Ok(false)
     }
