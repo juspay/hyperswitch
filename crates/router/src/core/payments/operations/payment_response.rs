@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::{
-    ext_traits::Encode,
+    ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, MinorUnit},
 };
 use error_stack::{report, ResultExt};
@@ -17,6 +17,7 @@ use tracing_futures::Instrument;
 use super::{Operation, PostUpdateTracker};
 use crate::{
     connector::utils::PaymentResponseRouterData,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
@@ -842,25 +843,33 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     )
                     .await;
 
-                    let unified_code = option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
-                    let unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
-                    let unified_translated_message = if let Some((code, message, locale_str)) =
-                        unified_code
-                            .as_ref()
-                            .zip(unified_message.as_ref())
-                            .zip(locale.as_ref())
-                            .map(|((code, message), locale)| (code, message, locale))
+                    let gsm_unified_code =
+                        option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
+                    let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
+
+                    let (unified_code, unified_message) = if let Some((code, message)) =
+                        gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
                     {
-                        payments_helpers::get_unified_translation(
-                            state,
-                            code.clone(),
-                            message.clone(),
-                            locale_str.clone(),
-                        )
-                        .await
+                        (code.to_owned(), message.to_owned())
                     } else {
-                        None
+                        (
+                            consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+                            consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+                        )
                     };
+                    let unified_translated_message = locale
+                        .as_ref()
+                        .async_and_then(|locale_str| async {
+                            payments_helpers::get_unified_translation(
+                                state,
+                                unified_code.to_owned(),
+                                unified_message.to_owned(),
+                                locale_str.to_owned(),
+                            )
+                            .await
+                        })
+                        .await
+                        .or(Some(unified_message));
 
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
@@ -902,8 +911,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .get_amount_capturable(&payment_data, status)
                                 .map(MinorUnit::new),
                             updated_by: storage_scheme.to_string(),
-                            unified_code: Some(unified_code),
-                            unified_message: Some(unified_translated_message.or(unified_message)),
+                            unified_code: Some(Some(unified_code)),
+                            unified_message: Some(unified_translated_message),
                             connector_transaction_id: err.connector_transaction_id,
                             payment_method_data: additional_payment_method_data,
                             authentication_type: auth_update,
