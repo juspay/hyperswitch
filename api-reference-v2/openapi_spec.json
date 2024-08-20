@@ -2684,7 +2684,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -2738,7 +2738,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Verified applepay domains for a particular profile",
+            "description": "Verified Apple Pay domains for a particular profile",
             "nullable": true
           },
           "session_expiry": {
@@ -2861,7 +2861,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -2913,7 +2913,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Verified applepay domains for a particular profile",
+            "description": "Verified Apple Pay domains for a particular profile",
             "nullable": true
           },
           "session_expiry": {
