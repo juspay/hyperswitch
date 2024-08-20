@@ -132,30 +132,6 @@ pub async fn create_payment_method(
     storage_scheme: MerchantStorageScheme,
     payment_method_billing_address: Option<Encryption>,
     card_scheme: Option<String>,
-) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
-    todo!()
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-#[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-pub async fn create_payment_method(
-    state: &routes::SessionState,
-    req: &api::PaymentMethodCreate,
-    customer_id: &id_type::CustomerId,
-    payment_method_id: &str,
-    locker_id: Option<String>,
-    merchant_id: &id_type::MerchantId,
-    pm_metadata: Option<serde_json::Value>,
-    customer_acceptance: Option<serde_json::Value>,
-    payment_method_data: Option<Encryption>,
-    key_store: &domain::MerchantKeyStore,
-    connector_mandate_details: Option<serde_json::Value>,
-    status: Option<enums::PaymentMethodStatus>,
-    network_transaction_id: Option<String>,
-    storage_scheme: MerchantStorageScheme,
-    payment_method_billing_address: Option<Encryption>,
-    card_scheme: Option<String>,
     network_token_reference_id: Option<String>,
     token_locker_id: Option<String>,
     token_payment_method_data: Option<Encryption>,
@@ -1653,7 +1629,6 @@ pub async fn add_card_to_locker(
     errors::VaultError,
 > {
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
-    println!("add_card_to_lockerrr");
     let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
         async {
             add_card_hs(

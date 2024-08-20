@@ -61,6 +61,7 @@ pub struct ApiPayload {
     order_data: OrderData,
     key_id: String,
     should_send_token: bool,
+    sub_merchant_id: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
@@ -160,6 +161,31 @@ pub struct DeleteNetworkTokenResponse {
     status: DeleteNetworkTokenStatus,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckTokenStatus {
+    card_reference: String,
+    customer_id: id_type::CustomerId,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum TokenStatus {
+    Active,
+    Inactive,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckTokenStatusResponsePayload {
+    token_expiry_month: Secret<String>,
+    token_expiry_year: Secret<String>,
+    token_status: TokenStatus,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckTokenStatusResponse {
+    payload: CheckTokenStatusResponsePayload,
+}
+
 pub async fn mk_tokenization_req(
     state: &routes::SessionState,
     payload_bytes: &[u8],
@@ -169,11 +195,9 @@ pub async fn mk_tokenization_req(
 ) -> CustomResult<(CardNetworkTokenResponsePayload, Option<String>), errors::NetworkTokenizationError>
 {
     let tokenization_service = &state.conf.network_tokenization_service.get_inner();
-
     let enc_key = tokenization_service.public_key.peek().clone();
 
     let key_id = tokenization_service.key_id.clone();
-    println!("payloadd bytess {:?}", payload_bytes);
 
     let jwt = encryption::encrypt_jwe(
         payload_bytes,
@@ -182,7 +206,7 @@ pub async fn mk_tokenization_req(
         Some(key_id.as_str()),
     )
     .await
-    .change_context(errors::NetworkTokenizationError::SaveTokenFailed)
+    .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
     .attach_printable("Error on jwe encrypt")?;
 
     let order_data = OrderData {
@@ -198,6 +222,7 @@ pub async fn mk_tokenization_req(
         order_data,
         key_id,
         should_send_token: true,
+        sub_merchant_id: "visa_sbx_working".to_string(),
     };
 
     let mut request = services::Request::new(
@@ -214,8 +239,6 @@ pub async fn mk_tokenization_req(
             .into_masked(),
     );
     request.set_body(RequestContent::Json(Box::new(api_payload)));
-
-    println!("reqq to eulerr: {:?}", request);
 
     let response = services::call_connector_api(state, request, "generate_token")
         .await
@@ -263,7 +286,7 @@ pub async fn mk_tokenization_req(
         jwe::RSA_OAEP_256,
     )
     .await
-    .change_context(errors::NetworkTokenizationError::SaveTokenFailed)
+    .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
     .attach_printable(
         "Failed to decrypt the tokenization response from the tokenization service",
     )?;
@@ -297,17 +320,20 @@ pub async fn make_card_network_tokenization_request(
             logger::error!(fetch_err=?e);
             errors::NetworkTokenizationError::RequestEncodingFailed
         })?;
-    println!("payloaddd: {}", payload);
+
     let payload_bytes = payload.as_bytes();
     let amount_str = amount.map_or_else(String::new, |a| a.to_string());
     let currency_str = currency.map_or_else(String::new, |c| c.to_string());
 
-    mk_tokenization_req(state, payload_bytes, amount_str, currency_str, customer_id.clone())
+    mk_tokenization_req(
+        state,
+        payload_bytes,
+        amount_str,
+        currency_str,
+        customer_id.clone(),
+    )
     .await
     .inspect_err(|e| logger::error!(error = %e, "Error while making tokenization request"))
-
-
-
 }
 
 pub async fn get_token_from_tokenization_service(
@@ -350,11 +376,11 @@ pub async fn get_token_from_tokenization_service(
     // Send the request using `call_connector_api`
     let response = services::call_connector_api(state, request, "get network token")
         .await
-        .change_context(errors::NetworkTokenizationError::SaveTokenFailed);
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
 
     let res: TokenResponse = response
         .get_response_inner("cardNetworkTokenResponse")
-        .change_context(errors::VaultError::FetchCardFailed)
+        .change_context(errors::NetworkTokenizationError::FetchNetworkTokenFailed)
         .map_err(|e| {
             logger::error!(fetch_err=?e);
             errors::ApiErrorResponse::InternalServerError
@@ -406,7 +432,6 @@ pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     payment_method_info: &storage::PaymentMethod,
-    //input either network token ref or network token
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
@@ -432,12 +457,23 @@ pub async fn do_status_check_for_network_token(
             PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
             _ => None,
         });
+    let network_token_requestor_reference_id =
+        payment_method_info.network_token_reference_id.clone();
 
-    is_token_active(token_data_decrypted)
+    is_token_active(
+        state,
+        token_data_decrypted,
+        payment_method_info.customer_id.clone(),
+        network_token_requestor_reference_id,
+    )
+    .await
 }
 
-fn is_token_active(
+pub async fn is_token_active( //should be re-reviewed once more 
+    state: &routes::SessionState,
     token_data_decrypted: Option<api::CardDetailFromLocker>,
+    customer_id: id_type::CustomerId,
+    network_token_requestor_reference_id: Option<String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     if let Some(token_data) = token_data_decrypted {
         if let (Some(exp_month), Some(exp_year)) = (token_data.expiry_month, token_data.expiry_year)
@@ -446,12 +482,80 @@ fn is_token_active(
         }
         Ok(true)
     } else {
-        check_token_status_with_tokenization_service()
+        if let Some(ref_id) = network_token_requestor_reference_id {
+            let status = check_token_status_with_tokenization_service(state, &customer_id, ref_id).await.change_context(errors::ApiErrorResponse::InternalServerError)?;
+            return Ok(status)
+        }
+        Ok(false)
     }
 }
 
-fn check_token_status_with_tokenization_service() -> CustomResult<bool, errors::ApiErrorResponse> {
-    Ok(true)
+pub async fn check_token_status_with_tokenization_service(
+    state: &routes::SessionState,
+    customer_id: &id_type::CustomerId,
+    network_token_requestor_reference_id: String,
+) -> CustomResult<bool, errors::NetworkTokenizationError> {
+    let tokenization_service = &state.conf.network_tokenization_service.get_inner();
+
+    let mut request = services::Request::new(
+        services::Method::Post,
+        tokenization_service.check_token_status_url.as_str(),
+    );
+    let payload = CheckTokenStatus {
+        card_reference: network_token_requestor_reference_id,
+        customer_id: customer_id.clone(),
+    };
+
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::AUTHORIZATION,
+        tokenization_service
+            .token_service_api_key
+            .clone()
+            .peek()
+            .clone()
+            .into_masked(),
+    );
+    request.set_body(RequestContent::Json(Box::new(payload)));
+
+    // Send the request using `call_connector_api`
+    let response = services::call_connector_api(state, request, "Check Network token Status")
+        .await
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
+    let res = response
+        .map_err(|error| {
+            error.change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+        })
+        .attach_printable("Error while receiving response")
+        .and_then(|inner| match inner {
+            Err(err_res) => {
+                let parsed_error: NetworkTokenErrorResponse = err_res
+                    .response
+                    .parse_struct("Delete Network Tokenization Response")
+                    .change_context(
+                        errors::NetworkTokenizationError::ResponseDeserializationFailed,
+                    )?;
+                logger::error!(
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
+                    "Network tokenization error: {}",
+                    parsed_error.error_message
+                );
+                Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+                    .attach_printable(format!("Response Deserialization Failed: {err_res:?}"))
+            }
+            Ok(res) => Ok(res),
+        })?;
+
+    let check_token_status_response: CheckTokenStatusResponse = res
+        .response
+        .parse_struct("Delete Network Tokenization Response")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+
+    match check_token_status_response.payload.token_status {
+        TokenStatus::Active => Ok(true),
+        TokenStatus::Inactive => Ok(false),
+    }
 }
 
 pub async fn delete_network_token_from_locker_and_token_service(
@@ -469,18 +573,17 @@ pub async fn delete_network_token_from_locker_and_token_service(
         token_locker_id.as_ref().unwrap_or(&payment_method_id),
     )
     .await?;
-    let _delete_token_resp = delete_network_token_from_tokenization_service(
+    if delete_network_token_from_tokenization_service(
         state,
         network_token_requestor_reference_id,
         customer_id,
     )
-    .await?;
-
-    if resp.status == "Ok" {
-        logger::info!("Card From locker deleted Successfully!");
+    .await
+    .is_ok()
+    {
+        logger::info!("Token From Tokenization Service deleted Successfully!");
     } else {
-        logger::error!("Error: Deleting Card From Locker!\n{:#?}", resp);
-        Err(errors::ApiErrorResponse::InternalServerError)?
+        logger::error!("Error while deleting Token From Tokenization Service!");
     }
 
     Ok(resp)
@@ -490,7 +593,7 @@ pub async fn delete_network_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_reference_id: String,
     customer_id: &id_type::CustomerId,
-) -> CustomResult<bool, errors::ApiErrorResponse> {
+) -> CustomResult<bool, errors::NetworkTokenizationError> {
     let tokenization_service = &state.conf.network_tokenization_service.get_inner();
     let mut request = services::Request::new(
         services::Method::Post,
@@ -516,23 +619,45 @@ pub async fn delete_network_token_from_tokenization_service(
     // Send the request using `call_connector_api`
     let response = services::call_connector_api(state, request, "delete network token")
         .await
-        .change_context(errors::VaultError::SaveCardFailed);
-
-    let res: DeleteNTResponse = response
-        .get_response_inner("cardNetworkTokenResponse")
-        .change_context(errors::VaultError::FetchCardFailed)
-        .map_err(|e| {
-            logger::error!(fetch_err=?e);
-            errors::ApiErrorResponse::InternalServerError
+        .change_context(errors::NetworkTokenizationError::DeleteNetworkTokenFailed);
+    let res = response
+        .map_err(|error| {
+            error.change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+        })
+        .attach_printable("Error while receiving response")
+        .and_then(|inner| match inner {
+            Err(err_res) => {
+                let parsed_error: NetworkTokenErrorResponse = err_res
+                    .response
+                    .parse_struct("Delete Network Tokenization Response")
+                    .change_context(
+                        errors::NetworkTokenizationError::ResponseDeserializationFailed,
+                    )?;
+                logger::error!(
+                    error_code = %parsed_error.error_info.code,
+                    developer_message = %parsed_error.error_info.developer_message,
+                    "Network tokenization error: {}",
+                    parsed_error.error_message
+                );
+                Err(errors::NetworkTokenizationError::ResponseDeserializationFailed)
+                    .attach_printable(format!("Response Deserialization Failed: {err_res:?}"))
+            }
+            Ok(res) => Ok(res),
         })?;
 
-    if res
+    let delete_token_response: DeleteNTResponse = res
+        .response
+        .parse_struct("Delete Network Tokenization Response")
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
+
+    if delete_token_response
         == DeleteNTResponse::DeleteNetworkTokenResponse(DeleteNetworkTokenResponse {
             status: DeleteNetworkTokenStatus::Success,
         })
     {
         Ok(true)
     } else {
-        Err(errors::ApiErrorResponse::InternalServerError)?
+        Err(errors::NetworkTokenizationError::DeleteNetworkTokenFailed)
+            .attach_printable(format!("Delete Token at Token service failed"))
     }
 }

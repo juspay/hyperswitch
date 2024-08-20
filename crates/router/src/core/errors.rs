@@ -332,13 +332,13 @@ pub enum ConditionalConfigError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum NetworkTokenizationError {
-    #[error("Failed to save card in card vault")]
-    SaveTokenFailed,
-    #[error("Failed to fetch card details from card vault")]
-    FetchTokenFailed,
-    #[error("Failed to encode card vault request")]
+    #[error("Failed to save network token in vault")]
+    SaveNetworkTokenFailed,
+    #[error("Failed to fetch network token details from vault")]
+    FetchNetworkTokenFailed,
+    #[error("Failed to encode network token vault request")]
     RequestEncodingFailed,
-    #[error("Failed to deserialize token service response")]
+    #[error("Failed to deserialize network token service response")]
     ResponseDeserializationFailed,
     #[error("Failed to create payment method")]
     PaymentMethodCreationFailed,
@@ -356,4 +356,6 @@ pub enum NetworkTokenizationError {
     FetchPaymentMethodFailed,
     #[error("Failed to save payment method in vault")]
     SavePaymentMethodFailed,
+    #[error("Failed to delete network token")]
+    DeleteNetworkTokenFailed,
 }

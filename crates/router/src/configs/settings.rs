@@ -410,6 +410,7 @@ pub struct NetworkTokenizationService {
     pub private_key: Secret<String>,
     pub key_id: String,
     pub delete_token_url: String,
+    pub check_token_status_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
