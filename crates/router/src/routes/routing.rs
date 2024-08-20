@@ -77,6 +77,7 @@ pub async fn routing_link_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                auth.profile_id,
                 algorithm_id.0,
                 transaction_type,
             )
@@ -156,6 +157,7 @@ pub async fn routing_retrieve_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                auth.profile_id,
                 algorithm_id,
             )
         },
@@ -190,6 +192,7 @@ pub async fn list_routing_configs(
             routing::retrieve_merchant_routing_dictionary(
                 state,
                 auth.merchant_account,
+                auth.profile_id,
                 query_params,
                 transaction_type,
             )
@@ -266,6 +269,7 @@ pub async fn routing_unlink_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                auth.profile_id,
                 payload_req,
                 transaction_type,
             )
@@ -555,6 +559,7 @@ pub async fn routing_retrieve_linked_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                auth.profile_id,
                 query_params,
                 transaction_type,
             )
@@ -634,6 +639,7 @@ pub async fn routing_update_default_config_for_profile(
                 auth.key_store,
                 wrapper.updated_config,
                 wrapper.profile_id,
+                auth.profile_id,
                 transaction_type,
             )
         },

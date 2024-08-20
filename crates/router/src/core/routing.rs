@@ -113,11 +113,13 @@ impl RoutingAlgorithmUpdate {
 pub async fn retrieve_merchant_routing_dictionary(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    authentication_profile_id: Option<String>,
     query_params: RoutingRetrieveQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
 
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &query_params)?;
     let routing_metadata = state
         .store
         .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
@@ -357,6 +359,7 @@ pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<String>,
     algorithm_id: String,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -384,6 +387,8 @@ pub async fn link_routing_config(
     .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
         id: routing_algorithm.profile_id.clone(),
     })?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     let mut routing_ref: routing_types::RoutingAlgorithmRef = business_profile
         .routing_algorithm
@@ -466,6 +471,7 @@ pub async fn retrieve_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<String>,
     algorithm_id: routing_types::RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -480,7 +486,7 @@ pub async fn retrieve_routing_config(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
@@ -490,6 +496,8 @@ pub async fn retrieve_routing_config(
     .await?
     .get_required_value("BusinessProfile")
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -573,10 +581,13 @@ pub async fn unlink_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<String>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &request)?;
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -730,10 +741,12 @@ pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<String>,
     query_params: RoutingRetrieveLinkQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &query_params)?;
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -844,9 +857,25 @@ pub async fn update_default_routing_config_for_profile(
     key_store: domain::MerchantKeyStore,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: String,
+    authentication_profile_id: Option<String>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
+
+    if let Some(authentication_profile_id) = authentication_profile_id {
+        if profile_id != authentication_profile_id {
+            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Profile id authentication failed. Please use the correct JWT token"
+                    .to_string(),
+            }
+            .into());
+        }
+    } else {
+        return Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Couldn't find profile_id in record for authentication".to_string(),
+        }
+        .into());
+    };
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
