@@ -225,6 +225,13 @@ impl ConnectorApiIntegrationPayload {
             }
         }
 
+        let open_banking = DashboardPaymentMethodPayload {
+            payment_method: api_models::enums::PaymentMethod::OpenBanking,
+            payment_method_type: api_models::enums::PaymentMethod::OpenBanking.to_string(),
+            provider: Some(open_banking_details),
+            card_provider: None,
+        };
+
         let upi = DashboardPaymentMethodPayload {
             payment_method: api_models::enums::PaymentMethod::Upi,
             payment_method_type: api_models::enums::PaymentMethod::Upi.to_string(),
@@ -322,6 +329,7 @@ impl ConnectorApiIntegrationPayload {
         DashboardRequestPayload {
             connector: response.connector_name,
             payment_methods_enabled: Some(vec![
+                open_banking,
                 upi,
                 voucher,
                 reward,
