@@ -3444,13 +3444,17 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector
+                .collect_shipping_details_from_wallet_connector_if_required
                 .or(Some(false)),
             collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector
+                .collect_billing_details_from_wallet_connector_if_required
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
         })
     }
 
@@ -3538,6 +3542,10 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
             routing_algorithm_id: None,
             frm_routing_algorithm_id: None,
             payout_routing_algorithm_id: None,

@@ -728,6 +728,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
                 routing_algorithm_id: None,
                 payout_routing_algorithm_id: None,
                 order_fulfillment_time: None,

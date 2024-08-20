@@ -219,6 +219,10 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector: item
                 .collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: item
+                .always_collect_shipping_details_from_wallet_connector,
+            always_collect_billing_details_from_wallet_connector: item
+                .always_collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
             outgoing_webhook_custom_http_headers,
             order_fulfillment_time,

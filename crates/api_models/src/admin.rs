@@ -2023,6 +2023,16 @@ pub struct BusinessProfileCreate {
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
 
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
     /// initiated transaction) based on the routing rules.
@@ -2214,6 +2224,16 @@ pub struct BusinessProfileResponse {
     /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
