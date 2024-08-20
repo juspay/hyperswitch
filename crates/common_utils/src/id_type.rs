@@ -7,6 +7,8 @@ mod customer;
 mod merchant;
 mod organization;
 
+mod global_id;
+
 pub use customer::CustomerId;
 use diesel::{
     backend::Backend,
@@ -141,6 +143,25 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
     /// Use this function only if you are sure that the length is within the range
     pub(crate) fn new_unchecked(alphanumeric_id: AlphaNumericId) -> Self {
         Self(alphanumeric_id)
+    }
+
+    /// Create a new LengthId from aplhanumeric id
+    pub(crate) fn from_alphanumeric_id(
+        alphanumeric_id: AlphaNumericId,
+    ) -> Result<Self, LengthIdError<MAX_LENGTH, MIN_LENGTH>> {
+        let length_of_input_string = alphanumeric_id.0.len();
+        let length_of_input_string =
+            u8::try_from(length_of_input_string).map_err(|_| LengthIdError::MaxLengthViolated)?;
+
+        when(length_of_input_string > MAX_LENGTH, || {
+            Err(LengthIdError::MaxLengthViolated)
+        })?;
+
+        when(length_of_input_string < MIN_LENGTH, || {
+            Err(LengthIdError::MinLengthViolated)
+        })?;
+
+        Ok(Self(alphanumeric_id))
     }
 }
 
