@@ -1449,6 +1449,7 @@ pub async fn payments_manual_update(
 
     tracing::Span::current().record("payment_id", &payment_id);
 
+    let merchant_id = payload.merchant_id.clone();
     payload.payment_id = payment_id;
 
     Box::pin(api::server_wrap(
@@ -1457,7 +1458,7 @@ pub async fn payments_manual_update(
         &req,
         payload,
         |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
-        &auth::AdminApiAuth,
+        &auth::AdminApiAuthWithMerchantId(merchant_id),
         locking_action,
     ))
     .await

@@ -76,6 +76,9 @@ pub enum AuthenticationType {
         key_id: String,
     },
     AdminApiKey,
+    AdminApiAuthWithMerchantId {
+        merchant_id: id_type::MerchantId,
+    },
     MerchantJwt {
         merchant_id: id_type::MerchantId,
         user_id: Option<String>,
@@ -128,7 +131,8 @@ impl AuthenticationType {
                 merchant_id,
                 user_id: _,
             }
-            | Self::WebhookAuth { merchant_id } => Some(merchant_id),
+            | Self::WebhookAuth { merchant_id }
+            | Self::AdminApiAuthWithMerchantId { merchant_id } => Some(merchant_id),
             Self::AdminApiKey
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
@@ -652,6 +656,39 @@ where
         } else {
             Err(errors::ApiErrorResponse::InvalidJwtToken.into())
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct AdminApiAuthWithMerchantId(pub id_type::MerchantId);
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for AdminApiAuthWithMerchantId
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let request_admin_api_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let conf = state.conf();
+
+        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
+
+        if request_admin_api_key != admin_api_key.peek() {
+            Err(report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Admin Authentication Failure"))?;
+        }
+
+        Ok((
+            (),
+            AuthenticationType::MerchantId {
+                merchant_id: self.0.clone(),
+            },
+        ))
     }
 }
 
