@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
 
 use api_models::payments::{Address, AddressDetails, PhoneDetails};
@@ -5,7 +7,6 @@ use common_utils::id_type;
 use masking::Secret;
 use router::{
     configs::settings::Settings,
-    connector::aci,
     core::payments,
     db::StorageImpl,
     routes, services,
@@ -212,9 +213,9 @@ async fn payments_create_success() {
         .get_session_state("public", || {})
         .unwrap();
 
-    static CV: aci::Aci = aci::Aci;
+    use router::connector::Aci;
     let connector = utils::construct_connector_data_old(
-        Box::new(&CV),
+        Box::new(Aci::new()),
         types::Connector::Aci,
         types::api::GetToken::Connector,
         None,
@@ -245,7 +246,7 @@ async fn payments_create_success() {
 async fn payments_create_failure() {
     {
         let conf = Settings::new().unwrap();
-        static CV: aci::Aci = aci::Aci;
+        use router::connector::Aci;
         let tx: oneshot::Sender<()> = oneshot::channel().0;
 
         let app_state = Box::pin(routes::AppState::with_storage(
@@ -259,7 +260,7 @@ async fn payments_create_failure() {
             .get_session_state("public", || {})
             .unwrap();
         let connector = utils::construct_connector_data_old(
-            Box::new(&CV),
+            Box::new(Aci::new()),
             types::Connector::Aci,
             types::api::GetToken::Connector,
             None,
@@ -302,9 +303,9 @@ async fn payments_create_failure() {
 
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
-    static CV: aci::Aci = aci::Aci;
+    use router::connector::Aci;
     let connector = utils::construct_connector_data_old(
-        Box::new(&CV),
+        Box::new(Aci::new()),
         types::Connector::Aci,
         types::api::GetToken::Connector,
         None,
@@ -372,9 +373,9 @@ async fn refund_for_successful_payments() {
 #[ignore]
 async fn refunds_create_failure() {
     let conf = Settings::new().unwrap();
-    static CV: aci::Aci = aci::Aci;
+    use router::connector::Aci;
     let connector = utils::construct_connector_data_old(
-        Box::new(&CV),
+        Box::new(Aci::new()),
         types::Connector::Aci,
         types::api::GetToken::Connector,
         None,

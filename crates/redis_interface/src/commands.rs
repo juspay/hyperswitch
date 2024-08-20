@@ -15,7 +15,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use fred::{
-    interfaces::{HashesInterface, KeysInterface, SetsInterface, StreamsInterface},
+    interfaces::{HashesInterface, KeysInterface, ListInterface, SetsInterface, StreamsInterface},
     prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
@@ -372,6 +372,19 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn increment_field_in_hash(
+        &self,
+        key: &str,
+        field: &str,
+        increment: i64,
+    ) -> CustomResult<usize, errors::RedisError> {
+        self.pool
+            .hincrby(self.add_prefix(key), field, increment)
+            .await
+            .change_context(errors::RedisError::IncrementHashFieldFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn hscan(
         &self,
         key: &str,
@@ -628,6 +641,55 @@ impl super::RedisConnectionPool {
             }
             _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
         })
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn append_elements_to_list<V>(
+        &self,
+        key: &str,
+        elements: V,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send,
+        V::Error: Into<fred::error::RedisError> + Send,
+    {
+        self.pool
+            .rpush(self.add_prefix(key), elements)
+            .await
+            .change_context(errors::RedisError::AppendElementsToListFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_list_elements(
+        &self,
+        key: &str,
+        start: i64,
+        stop: i64,
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        self.pool
+            .lrange(self.add_prefix(key), start, stop)
+            .await
+            .change_context(errors::RedisError::GetListElementsFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_list_length(&self, key: &str) -> CustomResult<usize, errors::RedisError> {
+        self.pool
+            .llen(self.add_prefix(key))
+            .await
+            .change_context(errors::RedisError::GetListLengthFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn lpop_list_elements(
+        &self,
+        key: &str,
+        count: Option<usize>,
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        self.pool
+            .lpop(self.add_prefix(key), count)
+            .await
+            .change_context(errors::RedisError::PopListElementsFailed)
     }
 
     //                                              Consumer Group API

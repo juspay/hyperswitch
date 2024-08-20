@@ -68,8 +68,8 @@ pub mod zen;
 pub mod zsl;
 
 pub use hyperswitch_connectors::connectors::{
-    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, helcim,
-    helcim::Helcim, stax, stax::Stax,
+    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, fiservemea,
+    fiservemea::Fiservemea, helcim, helcim::Helcim, stax, stax::Stax, taxjar, taxjar::Taxjar,
 };
 
 #[cfg(feature = "dummy_connector")]

@@ -109,7 +109,10 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
         })
     }
 }
-
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "business_profile_v2", feature = "merchant_account_v2",))
+))]
 impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
@@ -163,7 +166,71 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "merchant_account_v2",
+    feature = "business_profile_v2"
+))]
+impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+        let outgoing_webhook_custom_http_headers = item
+            .outgoing_webhook_custom_http_headers
+            .map(|headers| {
+                headers
+                    .into_inner()
+                    .expose()
+                    .parse_value::<HashMap<String, Secret<String>>>(
+                        "HashMap<String, Secret<String>>",
+                    )
+            })
+            .transpose()?;
+
+        Ok(Self {
+            merchant_id: item.merchant_id,
+            profile_id: item.profile_id,
+            profile_name: item.profile_name,
+            return_url: item.return_url,
+            enable_payment_response_hash: item.enable_payment_response_hash,
+            payment_response_hash_key: item.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+            webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
+            metadata: item.metadata,
+            // TODO: Remove routing algorithm from api models of business profile
+            routing_algorithm: todo!(),
+            intent_fulfillment_time: item.intent_fulfillment_time,
+            // TODO: Remove frm algorithm from api models of business profile
+            frm_routing_algorithm: todo!(),
+            #[cfg(feature = "payouts")]
+            // TODO: Remove payout algorithm from api models of business profile
+            payout_routing_algorithm: todo!(),
+            applepay_verified_domains: item.applepay_verified_domains,
+            payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),
+            session_expiry: item.session_expiry,
+            authentication_connector_details: item
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config: item.payout_link_config.map(ForeignInto::foreign_into),
+            use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
+            extended_card_info_config: item
+                .extended_card_info_config
+                .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
+                .transpose()?,
+            collect_shipping_details_from_wallet_connector: item
+                .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector: item
+                .collect_billing_details_from_wallet_connector,
+            is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
+            outgoing_webhook_custom_http_headers,
+        })
+    }
+}
+#[cfg(all(
+    feature = "v2",
+    feature = "merchant_account_v2",
+    feature = "business_profile_v2"
+))]
 pub async fn create_business_profile(
     _state: &SessionState,
     _request: BusinessProfileCreate,
@@ -174,7 +241,7 @@ pub async fn create_business_profile(
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
+    not(any(feature = "merchant_account_v2", feature = "business_profile_v2"))
 ))]
 pub async fn create_business_profile(
     state: &SessionState,
@@ -241,10 +308,7 @@ pub async fn create_business_profile(
             .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
         webhook_details: webhook_details.or(merchant_account.webhook_details),
         metadata: request.metadata,
-        routing_algorithm: Some(serde_json::json!({
-            "algorithm_id": null,
-            "timestamp": 0
-        })),
+        routing_algorithm: None,
         intent_fulfillment_time: request
             .intent_fulfillment_time
             .map(i64::from)

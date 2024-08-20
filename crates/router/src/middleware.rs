@@ -284,9 +284,8 @@ where
                         content_length_header.to_str().map(ToOwned::to_owned)
                     })
                     .transpose()
-                    .map_err(|error| {
+                    .inspect_err(|error| {
                         logger::warn!("Could not convert content length to string {error:?}");
-                        error
                     })
                     .ok()
                     .flatten();
