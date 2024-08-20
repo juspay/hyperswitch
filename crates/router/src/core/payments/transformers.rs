@@ -1,16 +1,14 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
-    Address, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest, PaymentChargeResponse,
-    RequestSurchargeDetails,
+    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, PaymentChargeRequest,
+    PaymentChargeResponse, RequestSurchargeDetails,
 };
-#[cfg(feature = "payouts")]
-use api_models::payouts::PayoutAttemptResponse;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::CustomerData;
+use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
@@ -44,7 +42,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -137,6 +135,26 @@ where
         Some(merchant_connector_account),
     );
 
+    let unified_address =
+        if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
+            let payment_method_billing =
+                crate::core::payment_methods::cards::decrypt_generic_data::<Address>(
+                    state,
+                    payment_method_info.payment_method_billing_address,
+                    key_store,
+                )
+                .await
+                .attach_printable("unable to decrypt payment method billing address details")?;
+            payment_data
+                .address
+                .clone()
+                .unify_with_payment_data_billing(payment_method_billing)
+        } else {
+            payment_data.address
+        };
+
+    crate::logger::debug!("unified address details {:?}", unified_address);
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -149,7 +167,7 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        address: payment_data.address.clone(),
+        address: unified_address,
         auth_type: payment_data
             .payment_attempt
             .authentication_type
@@ -1094,62 +1112,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     }
 }
 
-#[cfg(feature = "payouts")]
-impl ForeignFrom<(storage::Payouts, storage::PayoutAttempt, domain::Customer)>
-    for api::PayoutCreateResponse
-{
-    fn foreign_from(item: (storage::Payouts, storage::PayoutAttempt, domain::Customer)) -> Self {
-        let (payout, payout_attempt, customer) = item;
-        let attempt = PayoutAttemptResponse {
-            attempt_id: payout_attempt.payout_attempt_id,
-            status: payout_attempt.status,
-            amount: payout.amount,
-            currency: Some(payout.destination_currency),
-            connector: payout_attempt.connector.clone(),
-            error_code: payout_attempt.error_code.clone(),
-            error_message: payout_attempt.error_message.clone(),
-            payment_method: payout.payout_type,
-            payout_method_type: None,
-            connector_transaction_id: payout_attempt.connector_payout_id,
-            cancellation_reason: None,
-            unified_code: None,
-            unified_message: None,
-        };
-        Self {
-            payout_id: payout.payout_id,
-            merchant_id: payout.merchant_id,
-            amount: payout.amount,
-            currency: payout.destination_currency,
-            connector: payout_attempt.connector,
-            payout_type: payout.payout_type,
-            customer_id: customer.get_customer_id(),
-            auto_fulfill: payout.auto_fulfill,
-            email: customer.email,
-            name: customer.name,
-            phone: customer.phone,
-            phone_country_code: customer.phone_country_code,
-            return_url: payout.return_url,
-            business_country: payout_attempt.business_country,
-            business_label: payout_attempt.business_label,
-            description: payout.description,
-            entity_type: payout.entity_type,
-            recurring: payout.recurring,
-            metadata: payout.metadata,
-            status: payout_attempt.status,
-            error_message: payout_attempt.error_message,
-            error_code: payout_attempt.error_code,
-            profile_id: payout.profile_id,
-            created: Some(payout.created_at),
-            connector_transaction_id: attempt.connector_transaction_id.clone(),
-            priority: payout.priority,
-            attempts: Some(vec![attempt]),
-            billing: None,
-            client_secret: None,
-            payout_link: None,
-        }
-    }
-}
-
 impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
     fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
         Self {
@@ -1959,6 +1921,18 @@ impl ForeignFrom<payments::FraudCheck> for FrmMessage {
             frm_score: fraud_check.frm_score,
             frm_reason: fraud_check.frm_reason,
             frm_error: fraud_check.frm_error,
+        }
+    }
+}
+
+impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
+    fn foreign_from(customer: CustomerDetails) -> Self {
+        Self {
+            customer_id: Some(customer.id),
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            phone_country_code: customer.phone_country_code,
         }
     }
 }

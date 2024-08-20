@@ -188,6 +188,7 @@ diesel::table! {
         redirect_to_merchant_with_http_post -> Bool,
         webhook_details -> Nullable<Json>,
         metadata -> Nullable<Json>,
+        intent_fulfillment_time -> Nullable<Int8>,
         is_recon_enabled -> Bool,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         payment_link_config -> Nullable<Jsonb>,
@@ -205,8 +206,6 @@ diesel::table! {
         always_collect_shipping_details_from_wallet_connector -> Nullable<Bool>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
-        order_fulfillment_time -> Nullable<Int8>,
-        order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
         #[max_length = 64]
         frm_routing_algorithm_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -649,16 +648,14 @@ diesel::table! {
         publishable_key -> Nullable<Varchar>,
         storage_scheme -> MerchantStorageScheme,
         metadata -> Nullable<Jsonb>,
-        routing_algorithm -> Nullable<Json>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        frm_routing_algorithm -> Nullable<Jsonb>,
-        payout_routing_algorithm -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
         recon_status -> ReconStatus,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
@@ -683,7 +680,7 @@ diesel::table! {
         connector_webhook_details -> Nullable<Jsonb>,
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
         #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
+        profile_id -> Varchar,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
         pm_auth_config -> Nullable<Jsonb>,
         status -> ConnectorStatus,
@@ -691,6 +688,7 @@ diesel::table! {
         connector_wallets_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
@@ -982,11 +980,11 @@ diesel::table! {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        address_id -> Varchar,
+        address_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector -> Nullable<Varchar>,
         #[max_length = 128]
@@ -1021,9 +1019,9 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
-        address_id -> Varchar,
+        address_id -> Nullable<Varchar>,
         payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,

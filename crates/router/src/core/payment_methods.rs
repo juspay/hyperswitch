@@ -6,21 +6,24 @@ pub mod utils;
 mod validator;
 pub mod vault;
 
-use std::{borrow::Cow, collections::HashSet};
+use std::borrow::Cow;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use std::collections::HashSet;
 
 pub use api_models::enums::Connector;
 use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-use common_utils::{ext_traits::Encode, id_type::CustomerId};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::ext_traits::Encode;
+use common_utils::{consts::DEFAULT_LOCALE, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    api::{GenericLinks, GenericLinksData},
-    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
-};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
+use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -204,6 +207,17 @@ pub async fn create_pm_collect_db_entry(
         })
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn render_pm_collect_link(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _req: payment_methods::PaymentMethodCollectLinkRenderRequest,
+) -> RouterResponse<services::GenericLinkFormData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn render_pm_collect_link(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -251,6 +265,7 @@ pub async fn render_pm_collect_link(
                     GenericLinks {
                         allowed_domains: HashSet::from([]),
                         data: GenericLinksData::ExpiredLink(expired_link_data),
+                        locale: DEFAULT_LOCALE.to_string(),
                     },
                 )))
 
@@ -262,6 +277,7 @@ pub async fn render_pm_collect_link(
                             field_name: "customer_id",
                         })?;
                 // Fetch customer
+
                 let customer = db
                     .find_customer_by_customer_id_merchant_id(
                         &(&state).into(),
@@ -312,8 +328,8 @@ pub async fn render_pm_collect_link(
                 Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                     GenericLinks {
                         allowed_domains: HashSet::from([]),
-
                         data: GenericLinksData::PaymentMethodCollect(generic_form_data),
+                        locale: DEFAULT_LOCALE.to_string(),
                     },
                 )))
             }
@@ -357,8 +373,8 @@ pub async fn render_pm_collect_link(
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
                     allowed_domains: HashSet::from([]),
-
                     data: GenericLinksData::PaymentMethodCollectStatus(generic_status_data),
+                    locale: DEFAULT_LOCALE.to_string(),
                 },
             )))
         }

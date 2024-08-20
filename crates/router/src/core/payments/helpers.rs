@@ -130,7 +130,7 @@ pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts
         .into_iter()
         .filter(|mca| {
-            profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
+            profile_id.map_or(true, |id| &mca.profile_id == id)
                 && mca.connector_type == connector_type
         })
         .collect()
@@ -1446,6 +1446,7 @@ pub async fn get_customer_from_details<F: Clone>(
         None => Ok(None),
         Some(customer_id) => {
             let db = &*state.store;
+            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
                     &state.into(),
@@ -1455,6 +1456,18 @@ pub async fn get_customer_from_details<F: Clone>(
                     storage_scheme,
                 )
                 .await?;
+
+            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            let customer = db
+                .find_optional_by_merchant_id_merchant_reference_id(
+                    &state.into(),
+                    &customer_id,
+                    merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await?;
+
             payment_data.email = payment_data.email.clone().or_else(|| {
                 customer.as_ref().and_then(|inner| {
                     inner
@@ -1729,7 +1742,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: common_enums::ApiVersion::V1,
+                        version: hyperswitch_domain_models::consts::API_VERSION,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -4681,10 +4694,9 @@ pub async fn get_gsm_record(
     };
     get_gsm()
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             // warn log should suffice here because we are not propagating this error
             logger::warn!(get_gsm_decision_fetch_error=?err, "error fetching gsm decision");
-            err
         })
         .ok()
 }

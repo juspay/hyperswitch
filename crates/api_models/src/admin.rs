@@ -539,7 +539,7 @@ pub struct MerchantAccountResponse {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct MerchantAccountResponse {
     /// The identifier for the Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub id: id_type::MerchantId,
 
     /// Name of the Merchant Account
@@ -691,12 +691,12 @@ pub struct MerchantConnectorCreate {
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
-    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`
+    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    pub profile_id: Option<String>,
+    pub profile_id: String,
 
     /// An object containing the required details/credentials for a Connector account.
     #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -1061,7 +1061,7 @@ pub struct MerchantConnectorResponse {
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
-    pub profile_id: Option<String>,
+    pub profile_id: String,
 
     /// An object containing the required details/credentials for a Connector account.
     #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -1168,7 +1168,7 @@ pub struct MerchantConnectorResponse {
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
-    pub profile_id: Option<String>,
+    pub profile_id: String,
 
     /// An object containing the required details/credentials for a Connector account.
     #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -1292,7 +1292,7 @@ pub struct MerchantConnectorListResponse {
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
-    pub profile_id: Option<String>,
+    pub profile_id: String,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
@@ -1401,7 +1401,7 @@ pub struct MerchantConnectorListResponse {
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
-    pub profile_id: Option<String>,
+    pub profile_id: String,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
@@ -1563,7 +1563,7 @@ pub struct MerchantConnectorUpdate {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
 
-    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`
+    /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 

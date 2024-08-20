@@ -49,6 +49,7 @@ pub struct MerchantAccount {
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -85,6 +86,7 @@ pub struct MerchantAccountSetter {
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -121,6 +123,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             recon_status: item.recon_status,
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
+            version: item.version,
         }
     }
 }
@@ -135,11 +138,8 @@ pub struct MerchantAccountSetter {
     pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
 }
@@ -154,11 +154,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             publishable_key,
             storage_scheme,
             metadata,
-            routing_algorithm,
-            frm_routing_algorithm,
             created_at,
             modified_at,
-            payout_routing_algorithm,
             organization_id,
             recon_status,
         } = item;
@@ -169,11 +166,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             publishable_key,
             storage_scheme,
             metadata,
-            routing_algorithm,
-            frm_routing_algorithm,
             created_at,
             modified_at,
-            payout_routing_algorithm,
             organization_id,
             recon_status,
         }
@@ -189,11 +183,8 @@ pub struct MerchantAccount {
     pub publishable_key: String,
     pub storage_scheme: MerchantStorageScheme,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub routing_algorithm: Option<serde_json::Value>,
-    pub frm_routing_algorithm: Option<serde_json::Value>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
 }
@@ -263,9 +254,6 @@ pub enum MerchantAccountUpdate {
         merchant_details: OptionalEncryptableValue,
         publishable_key: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
-        routing_algorithm: Option<serde_json::Value>,
-        frm_routing_algorithm: Option<serde_json::Value>,
-        payout_routing_algorithm: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -455,20 +443,14 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
             MerchantAccountUpdate::Update {
                 merchant_name,
                 merchant_details,
-                routing_algorithm,
                 publishable_key,
                 metadata,
-                frm_routing_algorithm,
-                payout_routing_algorithm,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
-                frm_routing_algorithm,
-                routing_algorithm,
                 publishable_key,
                 metadata,
                 modified_at: now,
-                payout_routing_algorithm,
                 storage_scheme: None,
                 organization_id: None,
                 recon_status: None,
@@ -480,9 +462,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 merchant_details: None,
                 publishable_key: None,
                 metadata: None,
-                routing_algorithm: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
                 organization_id: None,
                 recon_status: None,
             },
@@ -494,9 +473,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key: None,
                 storage_scheme: None,
                 metadata: None,
-                routing_algorithm: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
                 organization_id: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
@@ -506,9 +482,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key: None,
                 storage_scheme: None,
                 metadata: None,
-                routing_algorithm: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
                 organization_id: None,
                 recon_status: None,
             },
@@ -531,13 +504,11 @@ impl super::behaviour::Conversion for MerchantAccount {
             publishable_key: Some(self.publishable_key),
             storage_scheme: self.storage_scheme,
             metadata: self.metadata,
-            routing_algorithm: self.routing_algorithm,
             created_at: self.created_at,
             modified_at: self.modified_at,
-            frm_routing_algorithm: self.frm_routing_algorithm,
-            payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
+            version: crate::consts::API_VERSION,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -593,11 +564,8 @@ impl super::behaviour::Conversion for MerchantAccount {
                 publishable_key,
                 storage_scheme: item.storage_scheme,
                 metadata: item.metadata,
-                routing_algorithm: item.routing_algorithm,
-                frm_routing_algorithm: item.frm_routing_algorithm,
                 created_at: item.created_at,
                 modified_at: item.modified_at,
-                payout_routing_algorithm: item.payout_routing_algorithm,
                 organization_id: item.organization_id,
                 recon_status: item.recon_status,
             })
@@ -616,13 +584,11 @@ impl super::behaviour::Conversion for MerchantAccount {
             merchant_details: self.merchant_details.map(Encryption::from),
             publishable_key: Some(self.publishable_key),
             metadata: self.metadata,
-            routing_algorithm: self.routing_algorithm,
             created_at: now,
             modified_at: now,
-            frm_routing_algorithm: self.frm_routing_algorithm,
-            payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             recon_status: self.recon_status,
+            version: crate::consts::API_VERSION,
         })
     }
 }
@@ -664,6 +630,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            version: self.version,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -740,6 +707,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 recon_status: item.recon_status,
                 payment_link_config: item.payment_link_config,
                 pm_collect_link_config: item.pm_collect_link_config,
+                version: item.version,
             })
         }
         .await
@@ -777,6 +745,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             recon_status: self.recon_status,
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
+            version: crate::consts::API_VERSION,
         })
     }
 }

@@ -667,6 +667,7 @@ diesel::table! {
         recon_status -> ReconStatus,
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
+        version -> ApiVersion,
     }
 }
 
@@ -706,6 +707,7 @@ diesel::table! {
         status -> ConnectorStatus,
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
+        version -> ApiVersion,
     }
 }
 
@@ -999,11 +1001,11 @@ diesel::table! {
         #[max_length = 64]
         payout_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        address_id -> Varchar,
+        address_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector -> Nullable<Varchar>,
         #[max_length = 128]
@@ -1038,9 +1040,9 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
-        address_id -> Varchar,
+        address_id -> Nullable<Varchar>,
         payout_type -> Nullable<PayoutType>,
         #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
