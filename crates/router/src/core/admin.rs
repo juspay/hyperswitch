@@ -5,6 +5,12 @@ use api_models::{
     enums as api_enums, routing as routing_types,
 };
 use base64::Engine;
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+use common_utils::ext_traits::OptionExt;
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, ValueExt},
@@ -48,12 +54,6 @@ use crate::{
     },
     utils,
 };
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
-use common_utils::ext_traits::OptionExt;
 
 const IBAN_MAX_LENGTH: usize = 34;
 const BACS_SORT_CODE_LENGTH: usize = 6;
