@@ -4081,7 +4081,7 @@ where
             .unwrap_or_default();
         (profile_id, algorithm_ref.algorithm_id)
     };
-    // Validate that the profile_id being passed in intent shoulld be same as the profile_id passed from the business profile parameter
+    // Validate that the profile_id being passed in intent should be same as the profile_id passed from the business profile parameter
     r_utils::when(&business_profile.profile_id != profile_id, || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "Business Profile mismatch".to_string(),
