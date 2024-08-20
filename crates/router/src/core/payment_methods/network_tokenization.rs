@@ -175,15 +175,10 @@ pub async fn mk_tokenization_req(
     let key_id = tokenization_service.key_id.clone();
     println!("payloadd bytess {:?}", payload_bytes);
 
-    let jwt = encryption::encrypt_jwe(
-        payload_bytes,
-        enc_key,
-        "A128GCM",
-        Some(key_id.as_str()),
-    )
-    .await
-    .change_context(errors::NetworkTokenizationError::SaveTokenFailed)
-    .attach_printable("Error on jwe encrypt")?;
+    let jwt = encryption::encrypt_jwe(payload_bytes, enc_key, "A128GCM", Some(key_id.as_str()))
+        .await
+        .change_context(errors::NetworkTokenizationError::SaveTokenFailed)
+        .attach_printable("Error on jwe encrypt")?;
 
     let order_data = OrderData {
         consent_id: "test12324".to_string(), // ??
@@ -302,12 +297,15 @@ pub async fn make_card_network_tokenization_request(
     let amount_str = amount.map_or_else(String::new, |a| a.to_string());
     let currency_str = currency.map_or_else(String::new, |c| c.to_string());
 
-    mk_tokenization_req(state, payload_bytes, amount_str, currency_str, customer_id.clone())
+    mk_tokenization_req(
+        state,
+        payload_bytes,
+        amount_str,
+        currency_str,
+        customer_id.clone(),
+    )
     .await
     .inspect_err(|e| logger::error!(error = %e, "Error while making tokenization request"))
-
-
-
 }
 
 pub async fn get_token_from_tokenization_service(
