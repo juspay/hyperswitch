@@ -287,7 +287,7 @@ impl<'a> HeaderMapStruct<'a> {
                 common_utils::id_type::MerchantId::wrap(merchant_id)
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                        "Error while converting MerchantId from merchant_id string header",
+                        "Error while converting MerchantId from `x-merchant-id` string header",
                     )
             })
     }

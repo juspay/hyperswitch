@@ -3371,7 +3371,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             .or(merchant_account.payment_response_hash_key.clone())
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
-        let payment_link_config_value = self.payment_link_config.map(ForeignInto::foreign_into);
+        let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
@@ -3428,7 +3428,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             payout_routing_algorithm: None,
             is_recon_enabled: merchant_account.is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,
-            payment_link_config: payment_link_config_value,
+            payment_link_config,
             session_expiry: self
                 .session_expiry
                 .map(i64::from)
@@ -3478,7 +3478,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             .payment_response_hash_key
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
-        let payment_link_config_value = self.payment_link_config.map(ForeignInto::foreign_into);
+        let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
@@ -3515,7 +3515,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             metadata: self.metadata,
             is_recon_enabled: false,
             applepay_verified_domains: self.applepay_verified_domains,
-            payment_link_config: payment_link_config_value,
+            payment_link_config,
             session_expiry: self
                 .session_expiry
                 .map(i64::from)

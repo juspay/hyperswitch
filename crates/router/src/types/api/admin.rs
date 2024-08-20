@@ -250,7 +250,7 @@ pub async fn create_business_profile_from_merchant_account(
         .or(merchant_account.payment_response_hash_key)
         .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
-    let payment_link_config_value = request.payment_link_config.map(ForeignInto::foreign_into);
+    let payment_link_config = request.payment_link_config.map(ForeignInto::foreign_into);
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| {
@@ -309,7 +309,7 @@ pub async fn create_business_profile_from_merchant_account(
         payout_routing_algorithm: None,
         is_recon_enabled: merchant_account.is_recon_enabled,
         applepay_verified_domains: request.applepay_verified_domains,
-        payment_link_config: payment_link_config_value,
+        payment_link_config,
         session_expiry: request
             .session_expiry
             .map(i64::from)
