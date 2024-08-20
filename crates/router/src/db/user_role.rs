@@ -30,14 +30,6 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
-    async fn update_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        update: storage::UserRoleUpdate,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError>;
-
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -117,26 +109,6 @@ impl UserRoleInterface for Store {
             &conn,
             user_id.to_owned(),
             merchant_id.to_owned(),
-            version,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    #[instrument(skip_all)]
-    async fn update_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        update: storage::UserRoleUpdate,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::UserRole::update_by_user_id_merchant_id(
-            &conn,
-            user_id.to_owned(),
-            merchant_id.to_owned(),
-            update,
             version,
         )
         .await
@@ -319,53 +291,6 @@ impl UserRoleInterface for MockDb {
             "No user role available for user_id = {} and merchant_id = {}",
             user_id,
             merchant_id.get_string_repr()
-        ))
-        .into())
-    }
-
-    async fn update_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        update: storage::UserRoleUpdate,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let mut user_roles = self.user_roles.lock().await;
-
-        for user_role in user_roles.iter_mut() {
-            let Some(user_role_merchant_id) = &user_role.merchant_id else {
-                return Err(errors::StorageError::DatabaseError(
-                    report!(errors::DatabaseError::Others)
-                        .attach_printable("merchant_id not found for user_role"),
-                )
-                .into());
-            };
-            if user_role.user_id == user_id
-                && user_role_merchant_id == merchant_id
-                && user_role.version == version
-            {
-                match &update {
-                    storage::UserRoleUpdate::UpdateRole {
-                        role_id,
-                        modified_by,
-                    } => {
-                        user_role.role_id = role_id.to_string();
-                        user_role.last_modified_by = modified_by.to_string();
-                    }
-                    storage::UserRoleUpdate::UpdateStatus {
-                        status,
-                        modified_by,
-                    } => {
-                        user_role.status = *status;
-                        user_role.last_modified_by = modified_by.to_string();
-                    }
-                };
-                return Ok(user_role.clone());
-            }
-        }
-
-        Err(errors::StorageError::ValueNotFound(format!(
-            "No user role available for user_id = {user_id} and merchant_id = {merchant_id:?}"
         ))
         .into())
     }
