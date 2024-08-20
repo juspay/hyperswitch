@@ -747,6 +747,7 @@ where
                     e.change_context(errors::ApiErrorResponse::Unauthorized)
                 } else {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch merchant account for the merchant id")
                 }
             })?;
 
