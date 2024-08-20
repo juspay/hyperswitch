@@ -438,9 +438,6 @@
                 "$ref": "#/components/schemas/BusinessProfileCreate"
               },
               "examples": {
-                "Create a business profile with minimal fields": {
-                  "value": {}
-                },
                 "Create a business profile with profile name": {
                   "value": {
                     "profile_name": "shoe_business"

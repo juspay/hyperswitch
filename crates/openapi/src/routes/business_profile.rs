@@ -46,11 +46,6 @@ pub async fn business_profile_create() {}
         content = BusinessProfileCreate,
         examples(
             (
-                "Create a business profile with minimal fields" = (
-                    value = json!({})
-                )
-            ),
-            (
                 "Create a business profile with profile name" = (
                     value = json!({
                         "profile_name": "shoe_business"
