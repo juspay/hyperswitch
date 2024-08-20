@@ -668,7 +668,7 @@ impl PaymentMethodInterface for MockDb {
             merchant_id: payment_method_new.merchant_id,
             payment_method_id: payment_method_new.payment_method_id,
             locker_id: payment_method_new.locker_id,
-            network_token_reference_id: payment_method_new.network_token_reference_id,
+            network_token_requestor_reference_id: payment_method_new.network_token_requestor_reference_id,
             accepted_currency: payment_method_new.accepted_currency,
             scheme: payment_method_new.scheme,
             token: payment_method_new.token,
@@ -695,8 +695,8 @@ impl PaymentMethodInterface for MockDb {
             network_transaction_id: payment_method_new.network_transaction_id,
             updated_by: payment_method_new.updated_by,
             payment_method_billing_address: payment_method_new.payment_method_billing_address,
-            token_locker_id: payment_method_new.token_locker_id,
-            token_payment_method_data: payment_method_new.token_payment_method_data,
+            network_token_locker_id: payment_method_new.network_token_locker_id,
+            network_token_payment_method_data: payment_method_new.network_token_payment_method_data,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)

@@ -3860,7 +3860,7 @@ pub async fn is_network_token_with_transaction_id_flow(
         && is_network_tokenization_enabled == Some(true)
         && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
         && payment_method_info.network_transaction_id.is_some()
-        && payment_method_info.token_locker_id.is_some()
+        && payment_method_info.network_token_locker_id.is_some()
         && do_status_check_for_network_token(state, key_store, payment_method_info)
             .await
             .is_ok()

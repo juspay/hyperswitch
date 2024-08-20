@@ -988,10 +988,10 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         #[max_length = 64]
-        network_token_reference_id -> Nullable<Varchar>,
+        network_token_requestor_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
-        token_locker_id -> Nullable<Varchar>,
-        token_payment_method_data -> Nullable<Bytea>,
+        network_token_locker_id -> Nullable<Varchar>,
+        network_token_payment_method_data -> Nullable<Bytea>,
     }
 }
 

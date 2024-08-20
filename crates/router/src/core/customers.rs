@@ -541,13 +541,13 @@ pub async fn delete_customer(
                     .await
                     .switch()?;
 
-                    if let Some(network_token_ref_id) = pm.network_token_reference_id {
+                    if let Some(network_token_ref_id) = pm.network_token_requestor_reference_id {
                         let resp = network_tokenization::delete_network_token_from_locker_and_token_service(
                             &state,
                             &req.customer_id,
                         merchant_account.get_id(),
                             pm.payment_method_id.clone(),
-                            pm.token_locker_id,
+                            pm.network_token_locker_id,
                             network_token_ref_id,
                         )
                         .await

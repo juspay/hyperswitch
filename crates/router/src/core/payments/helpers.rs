@@ -2080,8 +2080,8 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                             .locker_id
                             .clone()
                             .unwrap_or(payment_method_info.payment_method_id.clone()),
-                        token_locker_id: payment_method_info
-                            .network_token_reference_id
+                        network_token_locker_id: payment_method_info
+                            .network_token_requestor_reference_id
                             .clone()
                             .or(Some(payment_method_info.payment_method_id.clone())),
                     }));

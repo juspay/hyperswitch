@@ -52,13 +52,13 @@ impl MandateResponseExt for MandateResponse {
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("payment_method not found")?;
 
-        // let token_data = if payment_method.token_locker_id.is_some() && state.conf.locker.locker_enabled {
+        // let token_data = if payment_method.network_token_locker_id.is_some() && state.conf.locker.locker_enabled {
         //     let card = payment_methods::cards::get_card_from_locker(
         //         state,
         //         &payment_method.customer_id,
         //         &payment_method.merchant_id,
         //         payment_method
-        //             .token_locker_id
+        //             .network_token_locker_id
         //             .as_ref()
         //             .unwrap_or(&payment_method.payment_method_id),
         //     )
@@ -95,13 +95,13 @@ impl MandateResponseExt for MandateResponse {
             //         .change_context(errors::ApiErrorResponse::InternalServerError)
             //         .attach_printable("Failed while getting card details")?
             let token_data =
-                if payment_method.token_locker_id.is_some() && state.conf.locker.locker_enabled {
+                if payment_method.network_token_locker_id.is_some() && state.conf.locker.locker_enabled {
                     let card = payment_methods::cards::get_card_from_locker(
                         state,
                         &payment_method.customer_id,
                         &payment_method.merchant_id,
                         payment_method
-                            .token_locker_id
+                            .network_token_locker_id
                             .as_ref()
                             .unwrap_or(&payment_method.payment_method_id),
                     )

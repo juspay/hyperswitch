@@ -344,7 +344,7 @@ pub async fn get_token_from_tokenization_service(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let token_ref = pm_data.clone().network_token_reference_id;
+    let token_ref = pm_data.clone().network_token_requestor_reference_id;
 
     let tokenization_service = &state.conf.network_tokenization_service.get_inner();
     let mut request = services::Request::new(
@@ -435,7 +435,7 @@ pub async fn do_status_check_for_network_token(
             &state.into(),
             type_name!(payment_method::PaymentMethod),
             domain::types::CryptoOperation::DecryptOptional(
-                payment_method_info.token_payment_method_data.clone(),
+                payment_method_info.network_token_payment_method_data.clone(),
             ),
             identifier,
             key,
@@ -453,7 +453,7 @@ pub async fn do_status_check_for_network_token(
             _ => None,
         });
     let network_token_requestor_reference_id =
-        payment_method_info.network_token_reference_id.clone();
+        payment_method_info.network_token_requestor_reference_id.clone();
 
     is_token_active(
         state,
@@ -561,14 +561,14 @@ pub async fn delete_network_token_from_locker_and_token_service(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     payment_method_id: String,
-    token_locker_id: Option<String>,
+    network_token_locker_id: Option<String>,
     network_token_requestor_reference_id: String,
 ) -> errors::RouterResult<DeleteCardResp> {
     let resp = payment_methods::cards::delete_card_from_locker(
         &state,
         customer_id,
         merchant_id,
-        token_locker_id.as_ref().unwrap_or(&payment_method_id),
+        network_token_locker_id.as_ref().unwrap_or(&payment_method_id),
     )
     .await?;
     if delete_network_token_from_tokenization_service(

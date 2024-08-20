@@ -235,7 +235,7 @@ where
                             ((res, dc, None), None)
                         }
                     };
-                let token_locker_id = match token_resp {
+                let network_token_locker_id = match token_resp {
                     Some(ref token_resp) => {
                         if network_token_requestor_ref_id.is_some() {
                             Some(token_resp.payment_method_id.clone())
@@ -390,7 +390,7 @@ where
                                                     .map(|card_network| card_network.to_string())
                                             }),
                                             network_token_requestor_ref_id, //todo!
-                                            token_locker_id,
+                                            network_token_locker_id,
                                             pm_token_data_encrypted.map(Into::into),
                                         )
                                         .await
@@ -491,7 +491,7 @@ where
                                                     })
                                                 }),
                                                 network_token_requestor_ref_id, //todo!
-                                                token_locker_id,
+                                                network_token_locker_id,
                                                 pm_token_data_encrypted.map(Into::into),
                                             )
                                             .await
@@ -691,7 +691,7 @@ where
                                         .map(|card_network| card_network.to_string())
                                 }),
                                 network_token_requestor_ref_id, //todo!
-                                token_locker_id,                //todo!
+                                network_token_locker_id,                //todo!
                                 pm_token_data_encrypted.map(Into::into), //todo!
                             )
                             .await?;

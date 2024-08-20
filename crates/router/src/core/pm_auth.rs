@@ -505,7 +505,7 @@ async fn store_bank_details_in_payment_methods(
                 created_at: now,
                 last_modified: now,
                 locker_id: None,
-                network_token_reference_id: None,
+                network_token_requestor_reference_id: None,
                 last_used_at: now,
                 connector_mandate_details: None,
                 customer_acceptance: None,
@@ -513,8 +513,8 @@ async fn store_bank_details_in_payment_methods(
                 client_secret: None,
                 payment_method_billing_address: None,
                 updated_by: None,
-                token_locker_id: None,
-                token_payment_method_data: None,
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
             };
 
             new_entries.push(pm_new);
