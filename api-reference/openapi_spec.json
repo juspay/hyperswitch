@@ -6378,9 +6378,6 @@
             "properties": {
               "przelewy24": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "bank_name": {
                     "allOf": [
@@ -6391,7 +6388,12 @@
                     "nullable": true
                   },
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
