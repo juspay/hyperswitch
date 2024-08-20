@@ -35,7 +35,7 @@
       ]
     },
     {
-      "group": "Merchant Connector Account",
+      "group": "Merchant Account",
       "pages": [
         "api-reference/merchant-account/merchant-account--create",
         "api-reference/merchant-account/merchant-account--retrieve",
