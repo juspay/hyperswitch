@@ -687,12 +687,6 @@ where
 #[derive(Debug, Default)]
 pub struct AdminApiAuthWithMerchantId(AdminApiAuth);
 
-// impl AdminApiAuthWithMerchantId {
-//     pub fn new() -> Self {
-//         Self(AdminApiAuth)
-//     }
-// }
-
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for AdminApiAuthWithMerchantId
 where
