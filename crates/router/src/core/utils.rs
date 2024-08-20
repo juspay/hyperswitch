@@ -48,7 +48,6 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
-    state: &'a SessionState,
     connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
     payout_data: &mut PayoutData,
