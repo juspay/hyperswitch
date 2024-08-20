@@ -4016,7 +4016,7 @@ where
                 routing_data,
                 connector_data,
                 mandate_type,
-                business_profile.is_connector_agnostic_mit_enabled.clone(),
+                business_profile.is_connector_agnostic_mit_enabled,
             )
             .await
         }
