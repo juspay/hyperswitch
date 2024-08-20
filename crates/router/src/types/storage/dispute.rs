@@ -28,12 +28,48 @@ impl DisputeDbExt for Dispute {
             .order(dsl::modified_at.desc())
             .into_boxed();
 
+        let mut search_by_payment_or_dispute_id = false;
+
+        if let (Some(payment_id), Some(dispute_id)) = (
+            &dispute_list_constraints.payment_id,
+            &dispute_list_constraints.dispute_id,
+        ) {
+            search_by_payment_or_dispute_id = true;
+            filter = filter
+                .filter(dsl::payment_id.eq(payment_id.to_owned()))
+                .or_filter(dsl::dispute_id.eq(dispute_id.to_owned()));
+        };
+
+        if !search_by_payment_or_dispute_id {
+            if let Some(payment_id) = dispute_list_constraints.payment_id {
+                filter = filter.filter(dsl::payment_id.eq(payment_id));
+            };
+        }
+        if !search_by_payment_or_dispute_id {
+            if let Some(dispute_id) = dispute_list_constraints.dispute_id {
+                filter = filter.filter(dsl::dispute_id.eq(dispute_id));
+            };
+        }
+
+        if let Some(time_range) = dispute_list_constraints.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
+        }
+
         if let Some(profile_id) = dispute_list_constraints.profile_id {
             filter = filter.filter(dsl::profile_id.eq(profile_id));
         }
-        if let Some(connector) = dispute_list_constraints.connector {
+        if let Some(connector_list) = dispute_list_constraints.connector {
+            let connector: Vec<String> = connector_list
+                .into_iter()
+                .map(|connector| connector.to_string())
+                .collect();
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
+
         if let Some(reason) = dispute_list_constraints.reason {
             filter = filter.filter(dsl::connector_reason.eq(reason));
         }
@@ -43,8 +79,20 @@ impl DisputeDbExt for Dispute {
         if let Some(dispute_status) = dispute_list_constraints.dispute_status {
             filter = filter.filter(dsl::dispute_status.eq_any(dispute_status));
         }
+
+        if let Some(currency_list) = dispute_list_constraints.currency {
+            let currency: Vec<String> = currency_list
+                .into_iter()
+                .map(|currency| currency.to_string())
+                .collect();
+
+            filter = filter.filter(dsl::currency.eq_any(currency));
+        }
         if let Some(limit) = dispute_list_constraints.limit {
             filter = filter.limit(limit.into());
+        }
+        if let Some(offset) = dispute_list_constraints.offset {
+            filter = filter.offset(offset.into());
         }
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());

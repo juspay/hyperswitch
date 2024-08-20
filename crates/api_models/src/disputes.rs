@@ -5,11 +5,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
-use crate::{
-    admin::MerchantConnectorInfo,
-    enums, files,
-    payments::{AmountFilter, TimeRange},
-};
+use crate::{admin::MerchantConnectorInfo, enums, files, payments::TimeRange};
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
@@ -129,13 +125,11 @@ pub struct DisputeListConstraints {
     /// Reason for the dispute
     pub reason: Option<String>,
     /// Connector linked to dispute
-    pub connector: Option<Vec<String>>,
+    pub connector: Option<Vec<enums::Connector>>,
     /// The list of merchant connector ids to filter the disputes list for selected label
     pub merchant_connector_id: Option<Vec<String>>,
     /// Currency of the dispute
     pub currency: Option<Vec<enums::Currency>>,
-    /// The amount to filter dispute list. Amount takes two option fields start_amount and end_amount from which objects can be filtered as per required scenarios (less_than, greater_than, equal_to and range)
-    pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
