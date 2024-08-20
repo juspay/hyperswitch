@@ -116,7 +116,7 @@ pub enum Connector {
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
-    // Paybox, added as template code for future usage
+    Paybox,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
     Payone,
@@ -131,6 +131,7 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Threedsecureio,
     Trustpay,
     Tsys,
@@ -208,6 +209,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Taxjar
 			// | Self::Fiservemea
             | Self::Adyen
             | Self::Adyenplatform
@@ -242,8 +244,8 @@ impl Connector {
             | Self::Nexinets
             | Self::Nuvei
             | Self::Opennode
-			// | Self::Paybox  added as template code for future usage
-            | Self::Payme
+			| Self::Paybox
+			| Self::Payme
             | Self::Payone
             | Self::Paypal
             | Self::Payu

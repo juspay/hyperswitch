@@ -411,10 +411,8 @@ async fn create_applepay_session_token(
                             "Retry apple pay session call with the merchant configured domain {error:?}"
                         );
                         let merchant_configured_domain = merchant_configured_domain_optional
-                            .ok_or(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to get initiative_context for apple pay session call retry",
-                            )?;
+                            .get_required_value("apple pay domain")
+                            .attach_printable("Failed to get domain for apple pay session call")?;
                         let apple_pay_retry_session_request =
                             payment_types::ApplepaySessionRequest {
                                 initiative_context: merchant_configured_domain,
@@ -496,15 +494,16 @@ fn get_session_request_for_manual_apple_pay(
     session_token_data: payment_types::SessionTokenInfo,
     merchant_domain: Option<String>,
 ) -> RouterResult<payment_types::ApplepaySessionRequest> {
-    let initiative_context = session_token_data
-        .initiative_context
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get initiative_context for apple pay session call")?;
+    let initiative_context = merchant_domain
+        .or_else(|| session_token_data.initiative_context.clone())
+        .get_required_value("apple pay domain")
+        .attach_printable("Failed to get domain for apple pay session call")?;
+
     Ok(payment_types::ApplepaySessionRequest {
         merchant_identifier: session_token_data.merchant_identifier.clone(),
         display_name: session_token_data.display_name.clone(),
         initiative: session_token_data.initiative.to_string(),
-        initiative_context: merchant_domain.unwrap_or(initiative_context),
+        initiative_context,
     })
 }
 
