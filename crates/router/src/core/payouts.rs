@@ -921,10 +921,7 @@ pub async fn payouts_filtered_list_core(
                     key_store.merchant_id.clone().into(),
                 )
                 .await
-                .map_err(|err| {
-                    let msg = format!("failed to convert customer for id: {:?}", p.customer_id);
-                    logger::warn!(?err, msg);
-                }) {
+                {
                     Ok(domain_cust) => match b {
                         Some(addr) => {
                             let payment_addr: Option<payment_enums::Address> =
@@ -950,11 +947,8 @@ pub async fn payouts_filtered_list_core(
                         None => Some((p, pa, Some(domain_cust), None)),
                     },
                     Err(err) => {
-                        logger::warn!(
-                            ?err,
-                            "failed to convert customer for id: {:?}",
-                            p.customer_id
-                        );
+                        let msg = format!("failed to convert customer for id: {:?}", p.customer_id);
+                        logger::warn!(?err, msg);
                         None
                     }
                 }
