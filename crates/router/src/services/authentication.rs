@@ -1534,6 +1534,7 @@ pub struct ReconJWT;
 #[cfg(feature = "recon")]
 pub struct ReconUser {
     pub user_id: String,
+    pub profile_id: Option<String>,
 }
 #[cfg(feature = "recon")]
 impl AuthInfo for ReconUser {
@@ -1554,6 +1555,7 @@ impl AuthenticateAndFetch<ReconUser, SessionState> for ReconJWT {
         Ok((
             ReconUser {
                 user_id: payload.user_id,
+                profile_id: payload.profile_id,
             },
             AuthenticationType::NoAuth,
         ))

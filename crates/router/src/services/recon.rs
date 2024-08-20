@@ -12,15 +12,24 @@ use crate::{
 pub struct ReconToken {
     pub user_id: String,
     pub exp: u64,
+    pub profile_id: Option<String>,
 }
 
 impl ReconToken {
-    pub async fn new_token(user_id: String, settings: &Settings) -> RouterResult<Secret<String>> {
+    pub async fn new_token(
+        user_id: String,
+        settings: &Settings,
+        profile_id: Option<String>,
+    ) -> RouterResult<Secret<String>> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)
             .change_context(core::errors::ApiErrorResponse::InternalServerError)?
             .as_secs();
-        let token_payload = Self { user_id, exp };
+        let token_payload = Self {
+            user_id,
+            exp,
+            profile_id,
+        };
         let token = jwt::generate_jwt(&token_payload, settings)
             .await
             .change_context(core::errors::ApiErrorResponse::InternalServerError)?;
