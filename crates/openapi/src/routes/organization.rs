@@ -38,7 +38,7 @@ pub async fn organization_create() {}
         (status = 400, description = "Invalid data")
     ),
     tag = "Organization",
-    operation_id = "Retrive an Organization",
+    operation_id = "Retrieve an Organization",
     security(("admin_api_key" = []))
 )]
 pub async fn organization_retrieve() {}

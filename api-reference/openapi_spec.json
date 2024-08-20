@@ -1163,7 +1163,7 @@
         ],
         "summary": "Organization - Retrieve",
         "description": "Organization - Retrieve\n\nRetrieve an existing organization",
-        "operationId": "Retrive an Organization",
+        "operationId": "Retrieve an Organization",
         "parameters": [
           {
             "name": "organization_id",
