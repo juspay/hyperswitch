@@ -1933,10 +1933,8 @@ struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a String,
     store: &'a dyn StorageInterface,
-    merchant_id: &'a id_type::MerchantId,
     default_routing_config_for_profile: &'a Vec<api_models::routing::RoutableConnectorChoice>,
     business_profile: BusinessProfileWrapper,
-    transaction_type: &'a api_enums::TransactionType,
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
 }
@@ -2937,10 +2935,8 @@ pub async fn create_connector(
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
         store,
-        merchant_id,
         default_routing_config_for_profile,
         business_profile: profile_wrapper,
-        transaction_type: &transaction_type,
         key_store,
         key_manager_state,
     };
