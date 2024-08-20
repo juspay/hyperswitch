@@ -1163,7 +1163,7 @@
         ],
         "summary": "Organization - Retrieve",
         "description": "Organization - Retrieve\n\nRetrieve an existing organization",
-        "operationId": "Create an Organization",
+        "operationId": "Retrive an Organization",
         "parameters": [
           {
             "name": "organization_id",
@@ -1196,13 +1196,13 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Organization"
         ],
         "summary": "Organization - Update",
         "description": "Organization - Update\n\nCreate a new organization for .",
-        "operationId": "Create an Organization",
+        "operationId": "Update an Organization",
         "parameters": [
           {
             "name": "organization_id",
