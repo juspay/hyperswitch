@@ -10,9 +10,10 @@ pub use api_models::payments::{
     PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
     PaymentsManualUpdateRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
     PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionRequestV2,
+    PaymentsSessionResponse, PaymentsSessionResponseV2, PaymentsStartRequest, PgRedirectResponse,
+    PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{

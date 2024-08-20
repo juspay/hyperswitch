@@ -149,6 +149,50 @@ pub async fn payments_create(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken, payment_id))]
+pub async fn payments_connector_session_v2(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsSessionRequestV2>,
+) -> impl Responder {
+    let flow = Flow::PaymentsSessionToken;
+    let mut payload = json_payload.into_inner();
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(error) => {
+            logger::error!(
+                ?error,
+                "Failed to get headers in payments_connector_session"
+            );
+            HeaderPayload::default()
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, payload, req_state| {
+            payments::payments_core_v2::<api_types::Session, _>(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                payload,
+                api::AuthFlow::Client,
+                payments::CallConnectorAction::Trigger,
+                None,
+                header_payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 // /// Payments - Redirect
 // ///
 // /// For a payment which involves the redirection flow. This redirects the user to the authentication page
@@ -167,6 +211,7 @@ pub async fn payments_create(
 //     tag = "Payments",
 //     operation_id = "Start a Redirection Payment"
 // )]
+
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart, payment_id))]
 pub async fn payments_start(
     state: web::Data<app::AppState>,
