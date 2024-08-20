@@ -2772,14 +2772,14 @@
           },
           "collect_shipping_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
@@ -2953,14 +2953,14 @@
           },
           "collect_shipping_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
