@@ -919,7 +919,6 @@ mod storage {
             })
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         #[cfg(all(feature = "v2", feature = "customer_v2"))]
         async fn find_optional_by_merchant_id_merchant_reference_id(

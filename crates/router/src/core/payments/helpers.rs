@@ -1434,6 +1434,19 @@ pub(crate) async fn get_payment_method_create_request(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn get_customer_from_details<F: Clone>(
+    _state: &SessionState,
+    _customer_id: Option<id_type::CustomerId>,
+    _merchant_id: &id_type::MerchantId,
+    _payment_data: &mut PaymentData<F>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_customer_from_details<F: Clone>(
     state: &SessionState,
     customer_id: Option<id_type::CustomerId>,
@@ -1446,20 +1459,8 @@ pub async fn get_customer_from_details<F: Clone>(
         None => Ok(None),
         Some(customer_id) => {
             let db = &*state.store;
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
-                    &customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-
-            #[cfg(all(feature = "v2", feature = "customer_v2"))]
-            let customer = db
-                .find_optional_by_merchant_id_merchant_reference_id(
                     &state.into(),
                     &customer_id,
                     merchant_id,
