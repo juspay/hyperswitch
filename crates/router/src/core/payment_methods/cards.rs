@@ -4299,7 +4299,7 @@ pub async fn list_customer_payment_method(
 
         let intent_fulfillment_time = business_profile
             .as_ref()
-            .and_then(|b_profile| b_profile.intent_fulfillment_time)
+            .and_then(|b_profile| b_profile.get_order_fulfillment_time())
             .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         let hyperswitch_token_data = pm_list_context
@@ -4572,7 +4572,7 @@ impl SavedPMLPaymentsInfo {
         let intent_fulfillment_time = self
             .business_profile
             .as_ref()
-            .and_then(|b_profile| b_profile.intent_fulfillment_time)
+            .and_then(|b_profile| b_profile.get_order_fulfillment_time())
             .unwrap_or(consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
@@ -4778,7 +4778,9 @@ async fn generate_saved_pm_response(
                     pi.is_connector_agnostic_mit_enabled,
                     pi.requires_cvv,
                     pi.off_session_payment_flag,
-                    pi.business_profile.map(|profile| profile.profile_id),
+                    pi.business_profile
+                        .as_ref()
+                        .map(|profile| profile.profile_id.clone()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));
@@ -4871,7 +4873,9 @@ pub async fn get_mca_status(
         let mut mca_ids = HashSet::new();
         let mcas = mcas
             .into_iter()
-            .filter(|mca| mca.disabled == Some(false) && profile_id.clone() == mca.profile_id)
+            .filter(|mca| {
+                mca.disabled == Some(false) && profile_id.clone() == Some(mca.profile_id.clone())
+            })
             .collect::<Vec<_>>();
 
         for mca in mcas {

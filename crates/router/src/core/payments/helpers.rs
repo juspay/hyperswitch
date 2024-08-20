@@ -130,7 +130,7 @@ pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts
         .into_iter()
         .filter(|mca| {
-            profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
+            profile_id.map_or(true, |id| &mca.profile_id == id)
                 && mca.connector_type == connector_type
         })
         .collect()
@@ -2227,7 +2227,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     });
 
     let intent_fulfillment_time = business_profile
-        .and_then(|b_profile| b_profile.intent_fulfillment_time)
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
         .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
 
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {

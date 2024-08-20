@@ -1975,6 +1975,39 @@ impl PayoutsInterface for KafkaStore {
             .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        active_payout_ids: &[String],
+        connector: Option<Vec<api_models::enums::PayoutConnectors>>,
+        currency: Option<Vec<enums::Currency>>,
+        status: Option<Vec<enums::PayoutStatus>>,
+        payout_method: Option<Vec<enums::PayoutType>>,
+    ) -> CustomResult<i64, errors::DataStorageError> {
+        self.diesel_store
+            .get_total_count_of_filtered_payouts(
+                merchant_id,
+                active_payout_ids,
+                connector,
+                currency,
+                status,
+                payout_method,
+            )
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
+    ) -> CustomResult<Vec<String>, errors::DataStorageError> {
+        self.diesel_store
+            .filter_active_payout_ids_by_constraints(merchant_id, constraints)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -2728,17 +2761,6 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn delete_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .delete_user_role_by_user_id_merchant_id(user_id, merchant_id, version)
-            .await
-    }
-
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -2746,6 +2768,44 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store
             .list_user_roles_by_user_id(user_id, version)
+            .await
+    }
+
+    async fn find_user_role_by_user_id_and_lineage(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .find_user_role_by_user_id_and_lineage(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                version,
+            )
+            .await
+    }
+
+    async fn delete_user_role_by_user_id_and_lineage(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .delete_user_role_by_user_id_and_lineage(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                version,
+            )
             .await
     }
 
