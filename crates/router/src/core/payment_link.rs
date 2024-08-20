@@ -772,8 +772,7 @@ pub async fn get_payment_link_status(
         .zip(locale.as_ref())
         .map(|((code, message), locale)| (code, message, locale))
     {
-        helpers::get_unified_translation(&state, code.clone(), message.clone(), locale_str.clone())
-            .await
+        helpers::get_unified_translation(&state, code.to_owned(), message.to_owned(), locale_str.to_owned()).await
     } else {
         None
     };

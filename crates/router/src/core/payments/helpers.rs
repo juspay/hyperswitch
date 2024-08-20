@@ -4707,7 +4707,6 @@ pub async fn get_unified_translation(
     unified_message: String,
     locale: String,
 ) -> Option<String> {
-    router_env::logger::debug!("calling get_unified_translation");
     let get_unified_translation = || async {
         state.store.find_translation(
                 unified_code.clone(),
@@ -4725,14 +4724,14 @@ pub async fn get_unified_translation(
                     );
                 }
                 err.change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to fetch decision from gsm")
+                    .attach_printable("failed to fetch translation from unified_translations")
             })
     };
     get_unified_translation()
         .await
         .inspect_err(|err| {
             // warn log should suffice here because we are not propagating this error
-            logger::warn!(get_translation_error=?err, "error fetching unified translation");
+            logger::warn!(get_translation_error=?err, "error fetching unified translations");
         })
         .ok()
 }
