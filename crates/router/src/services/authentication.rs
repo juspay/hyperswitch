@@ -77,6 +77,9 @@ pub enum AuthenticationType {
         key_id: String,
     },
     AdminApiKey,
+    AdminApiAuthWithMerchantId {
+        merchant_id: id_type::MerchantId,
+    },
     MerchantJwt {
         merchant_id: id_type::MerchantId,
         user_id: Option<String>,
@@ -123,6 +126,7 @@ impl AuthenticationType {
                 merchant_id,
                 key_id: _,
             }
+            | Self::AdminApiAuthWithMerchantId { merchant_id }
             | Self::MerchantId { merchant_id }
             | Self::PublishableKey { merchant_id }
             | Self::MerchantJwt {
@@ -697,8 +701,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let (_, authentication_type) = self
-            .0
+        self.0
             .authenticate_and_fetch(request_headers, state)
             .await?;
         let merchant_id =
@@ -752,7 +755,10 @@ where
             key_store,
             profile_id: None,
         };
-        Ok((auth, authentication_type))
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
     }
 }
 
