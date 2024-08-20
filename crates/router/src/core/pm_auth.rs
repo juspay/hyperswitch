@@ -346,7 +346,9 @@ async fn store_bank_details_in_payment_methods(
     > = HashMap::new();
 
     for pm in payment_methods {
-        if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
+        if pm.payment_method == Some(enums::PaymentMethod::BankDebit)
+            && pm.payment_method_data.is_some()
+        {
             let bank_details_pm_data = crypto_operation::<serde_json::Value, masking::WithType>(
                 &(&state).into(),
                 type_name!(storage::PaymentMethod),

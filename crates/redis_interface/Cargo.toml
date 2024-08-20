@@ -22,3 +22,6 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = ["async
 
 [dev-dependencies]
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

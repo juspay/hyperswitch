@@ -173,7 +173,6 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2"))]
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
 pub async fn update_merchant_active_algorithm_ref(
     _state: &SessionState,
@@ -181,9 +180,14 @@ pub async fn update_merchant_active_algorithm_ref(
     _config_key: cache::CacheKind<'_>,
     _algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
+    // TODO: handle updating the active routing algorithm for v2 in merchant account
     todo!()
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
@@ -246,7 +250,7 @@ pub struct RoutingAlgorithmHelpers<'h> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, &'a String)>);
+pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, String)>);
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
@@ -314,7 +318,7 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id)),
+                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
                             "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
@@ -409,13 +413,13 @@ pub async fn validate_connectors_in_routing_config(
         })?;
     let name_mca_id_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == profile_id)
         .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == profile_id)
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
