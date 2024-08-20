@@ -5,11 +5,7 @@ use api_models::{
     enums as api_enums, routing as routing_types,
 };
 use base64::Engine;
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+
 use common_utils::ext_traits::OptionExt;
 use common_utils::{
     date_time,
@@ -1873,7 +1869,12 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
 }
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+    not(any(
+        feature = "routing_v2",
+        feature = "business_profile_v2",
+        feature = "merchant_account_v2",
+        feature = "merchant_connector_account_v2"
+    ))
 ))]
 struct MerchantDefaultConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
@@ -1887,7 +1888,7 @@ struct MerchantDefaultConfigUpdate<'a> {
 }
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+    not(any(feature = "routing_v2", feature = "business_profile_v2",))
 ))]
 impl<'a> MerchantDefaultConfigUpdate<'a> {
     async fn update_merchant_default_config(&self) -> RouterResult<()> {
@@ -1927,7 +1928,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
 #[cfg(all(
     feature = "v2",
     feature = "routing_v2",
-    feature = "business_profile_v2"
+    feature = "business_profile_v2",
 ))]
 struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
@@ -2269,14 +2270,13 @@ trait MerchantConnectorAccountCreateBridge {
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount>;
 
-    async fn validate_and_get_profile_id(
+    async fn validate_and_get_business_profile(
         self,
         merchant_account: &domain::MerchantAccount,
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        should_validate: bool,
-    ) -> RouterResult<String>;
+    ) -> RouterResult<hyperswitch_domain_models::business_profile::BusinessProfile>;
 }
 
 #[cfg(all(
@@ -2410,27 +2410,28 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         })
     }
 
-    async fn validate_and_get_profile_id(
+    async fn validate_and_get_business_profile(
         self,
         merchant_account: &domain::MerchantAccount,
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        should_validate: bool,
-    ) -> RouterResult<String> {
+    ) -> RouterResult<hyperswitch_domain_models::business_profile::BusinessProfile> {
         let profile_id = self.profile_id;
         // Check whether this business profile belongs to the merchant
-        if should_validate {
-            let _ = core_utils::validate_and_get_business_profile(
-                db,
-                key_manager_state,
-                key_store,
-                Some(&profile_id),
-                merchant_account.get_id(),
-            )
-            .await?;
-        }
-        Ok(profile_id.clone())
+
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            key_manager_state,
+            key_store,
+            Some(&profile_id),
+            merchant_account.get_id(),
+        )
+        .await?
+        .get_required_value("BusinessProfile")
+        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?;
+
+        Ok(business_profile)
     }
 }
 
@@ -2583,28 +2584,31 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     /// If profile_id is not passed, use default profile if available, or
     /// If business_details (business_country and business_label) are passed, get the business_profile
     /// or return a `MissingRequiredField` error
-    async fn validate_and_get_profile_id(
+    async fn validate_and_get_business_profile(
         self,
         merchant_account: &domain::MerchantAccount,
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
-        should_validate: bool,
-    ) -> RouterResult<String> {
+    ) -> RouterResult<hyperswitch_domain_models::business_profile::BusinessProfile> {
         match self.profile_id.or(merchant_account.default_profile.clone()) {
             Some(profile_id) => {
                 // Check whether this business profile belongs to the merchant
-                if should_validate {
-                    let _ = core_utils::validate_and_get_business_profile(
-                        db,
-                        key_manager_state,
-                        key_store,
-                        Some(&profile_id),
-                        merchant_account.get_id(),
-                    )
-                    .await?;
-                }
-                Ok(profile_id.clone())
+
+                let business_profile = core_utils::validate_and_get_business_profile(
+                    db,
+                    key_manager_state,
+                    key_store,
+                    Some(&profile_id),
+                    merchant_account.get_id(),
+                )
+                .await?
+                .get_required_value("BusinessProfile")
+                .change_context(
+                    errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id },
+                )?;
+
+                Ok(business_profile)
             }
             None => match self.business_country.zip(self.business_label) {
                 Some((business_country, business_label)) => {
@@ -2621,7 +2625,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                             errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_name },
                         )?;
 
-                    Ok(business_profile.profile_id)
+                    Ok(business_profile)
                 }
                 _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "profile_id or business_country, business_label"
@@ -2631,11 +2635,12 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     }
 }
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
+    any(feature = "v1", feature = "v2", feature = "olap"),
     not(any(
         feature = "routing_v2",
         feature = "business_profile_v2",
-        feature = "merchant_account_v2"
+        feature = "merchant_account_v2",
+        feature = "merchant_connector_account_v2"
     ))
 ))]
 pub async fn create_connector(
@@ -2680,15 +2685,9 @@ pub async fn create_connector(
         &merchant_account,
     )?;
 
-    let profile_id = req
+    let business_profile = req
         .clone()
-        .validate_and_get_profile_id(
-            &merchant_account,
-            store,
-            key_manager_state,
-            &key_store,
-            true,
-        )
+        .validate_and_get_business_profile(&merchant_account, store, key_manager_state, &key_store)
         .await?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
@@ -2696,19 +2695,11 @@ pub async fn create_connector(
         pm_auth_config: &req.pm_auth_config,
         db: store,
         merchant_id,
-        profile_id: &profile_id.clone(),
+        profile_id: &business_profile.profile_id,
         key_store: &key_store,
         key_manager_state,
     };
     pm_auth_config_validation.validate_pm_auth_config().await?;
-
-    let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_owned(),
-        })?;
 
     let connector_type_and_connector_enum = ConnectorTypeAndConnectorName {
         connector_type: &req.connector_type,
@@ -2752,7 +2743,7 @@ pub async fn create_connector(
 
     let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
         &*state.clone().store,
-        &profile_id,
+        &business_profile.profile_id,
         &transaction_type,
     )
     .await?;
@@ -2767,7 +2758,7 @@ pub async fn create_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id: profile_id.clone(),
+                profile_id: business_profile.profile_id.clone(),
                 connector_label: merchant_connector_account
                     .connector_label
                     .unwrap_or_default(),
@@ -2782,7 +2773,7 @@ pub async fn create_connector(
         merchant_id,
         default_routing_config: &mut default_routing_config,
         default_routing_config_for_profile: &mut default_routing_config_for_profile,
-        profile_id: &profile_id,
+        profile_id: &business_profile.profile_id,
         transaction_type: &transaction_type,
     };
 
@@ -2804,8 +2795,11 @@ pub async fn create_connector(
 }
 #[cfg(all(
     feature = "v2",
+    feature = "olap",
     feature = "routing_v2",
-    feature = "business_profile_v2"
+    feature = "business_profile_v2",
+    feature = "merchant_account_v2",
+    feature = "merchant_connector_account_v2"
 ))]
 pub async fn create_connector(
     state: SessionState,
@@ -2843,18 +2837,10 @@ pub async fn create_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let business_profile = core_utils::validate_and_get_business_profile(
-        store,
-        key_manager_state,
-        &key_store,
-        Some(&req.profile_id),
-        merchant_account.get_id(),
-    )
-    .await?
-    .get_required_value("BusinessProfile")
-    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
-        id: req.profile_id.clone(),
-    })?;
+    let business_profile = req
+        .clone()
+        .validate_and_get_business_profile(&merchant_account, store, key_manager_state, &key_store)
+        .await?;
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
         pm_auth_config: &req.pm_auth_config,
@@ -2896,7 +2882,6 @@ pub async fn create_connector(
         )
         .await?;
 
-    let transaction_type = req.get_transaction_type();
     let profile_wrapper = BusinessProfileWrapper::new(business_profile);
     // For a single profile
     let default_routing_config_for_profile =
