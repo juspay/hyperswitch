@@ -5,11 +5,9 @@ use api_models::{
     enums as api_enums, routing as routing_types,
 };
 use base64::Engine;
-
-use common_utils::ext_traits::OptionExt;
 use common_utils::{
     date_time,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
     id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState},
 };
