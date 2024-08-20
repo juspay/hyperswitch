@@ -1946,7 +1946,9 @@ struct DefaultFallbackRoutingConfigUpdate<'a> {
     feature = "business_profile_v2"
 ))]
 impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
-    async fn retrieve_and_update_default_fallback_routing_algorithm(&self) -> RouterResult<()> {
+    async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
+        &self,
+    ) -> RouterResult<()> {
         let profile_wrapper = BusinessProfileWrapper::new(self.business_profile.clone());
         let default_routing_config_for_profile =
             &mut profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
@@ -2776,7 +2778,7 @@ pub async fn create_connector(
     };
 
     merchant_default_config_update
-        .retrieve_and_update_default_fallback_routing_algorithm()
+        .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
     metrics::MCA_CREATE.add(
