@@ -1955,7 +1955,7 @@ pub struct OrderFulfillmentTime(i64);
 pub struct BusinessProfileCreate {
     /// The name of business profile
     #[schema(max_length = 64)]
-    pub profile_name: Option<String>,
+    pub profile_name: String,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]

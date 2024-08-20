@@ -3468,7 +3468,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
         // Generate a unique profile id
         // TODO: the profile_id should be generated from the profile_name
         let profile_id = common_utils::generate_id_with_default_len("pro");
-        let profile_name = self.profile_name.unwrap_or("default".to_string());
+        let profile_name = self.profile_name;
 
         let current_time = date_time::now();
 
