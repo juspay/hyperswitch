@@ -3527,8 +3527,6 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            // let profile_id = payment_data.payment_intent.profile_id.clone();
-
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
                 key_store,
@@ -3576,8 +3574,6 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            // let profile_id = payment_data.payment_intent.profile_id.clone();
-
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
                 key_store,

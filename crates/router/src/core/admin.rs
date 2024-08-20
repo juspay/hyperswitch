@@ -2866,17 +2866,6 @@ pub async fn create_connector(
     };
     pm_auth_config_validation.validate_pm_auth_config().await?;
 
-    let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            &key_store,
-            &business_profile.profile_id,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: req.profile_id.clone(),
-        })?;
     let connector_type_and_connector_enum = ConnectorTypeAndConnectorName {
         connector_type: &req.connector_type,
         connector_name: &req.connector_name,
