@@ -424,6 +424,10 @@ impl super::behaviour::Conversion for BusinessProfile {
             outgoing_webhook_custom_http_headers: self
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
         })
     }
 }
@@ -455,6 +459,8 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub routing_algorithm_id: Option<String>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
@@ -486,6 +492,8 @@ pub struct BusinessProfileGeneralUpdate {
     pub is_connector_agnostic_mit_enabled: Option<bool>,
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub routing_algorithm_id: Option<String>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
@@ -536,6 +544,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     collect_billing_details_from_wallet_connector,
                     is_connector_agnostic_mit_enabled,
                     outgoing_webhook_custom_http_headers,
+                    always_collect_billing_details_from_wallet_connector,
+                    always_collect_shipping_details_from_wallet_connector,
                     routing_algorithm_id,
                     order_fulfillment_time,
                     order_fulfillment_time_origin,
@@ -567,6 +577,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                         .map(Encryption::from),
                     routing_algorithm_id,
+                    always_collect_billing_details_from_wallet_connector,
+                    always_collect_shipping_details_from_wallet_connector,
                     order_fulfillment_time,
                     order_fulfillment_time_origin,
                     frm_routing_algorithm_id,
@@ -600,6 +612,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
                 routing_algorithm_id,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
                 order_fulfillment_time: None,
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
@@ -630,6 +644,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
                 routing_algorithm_id: None,
                 order_fulfillment_time: None,
                 order_fulfillment_time_origin: None,
@@ -661,6 +677,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 collect_shipping_details_from_wallet_connector: None,
                 collect_billing_details_from_wallet_connector: None,
                 outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
                 routing_algorithm_id: None,
                 order_fulfillment_time: None,
                 order_fulfillment_time_origin: None,
@@ -709,6 +727,10 @@ impl super::behaviour::Conversion for BusinessProfile {
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
             routing_algorithm_id: self.routing_algorithm_id,
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
             order_fulfillment_time: self.order_fulfillment_time,
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             frm_routing_algorithm_id: self.frm_routing_algorithm_id,
@@ -768,6 +790,10 @@ impl super::behaviour::Conversion for BusinessProfile {
                     })
                     .await?,
                 routing_algorithm_id: item.routing_algorithm_id,
+                always_collect_billing_details_from_wallet_connector: item
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: item
+                    .always_collect_shipping_details_from_wallet_connector,
                 order_fulfillment_time: item.order_fulfillment_time,
                 order_fulfillment_time_origin: item.order_fulfillment_time_origin,
                 frm_routing_algorithm_id: item.frm_routing_algorithm_id,
@@ -812,6 +838,10 @@ impl super::behaviour::Conversion for BusinessProfile {
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
             routing_algorithm_id: self.routing_algorithm_id,
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
             order_fulfillment_time: self.order_fulfillment_time,
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             frm_routing_algorithm_id: self.frm_routing_algorithm_id,
