@@ -451,6 +451,7 @@ dependencies = [
  "indexmap 2.3.0",
  "masking",
  "mime",
+ "nutype",
  "reqwest",
  "router_derive",
  "serde",

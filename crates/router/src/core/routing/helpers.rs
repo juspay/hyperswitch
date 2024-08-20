@@ -306,7 +306,7 @@ impl MerchantConnectorAccounts {
     where
         T: std::hash::Hash + Eq,
     {
-        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
+        self.filter_and_map(|mca| mca.profile_id == profile_id, func)
     }
 }
 
@@ -413,13 +413,13 @@ pub async fn validate_connectors_in_routing_config(
         })?;
     let name_mca_id_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == profile_id)
         .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == profile_id)
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 

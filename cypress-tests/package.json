@@ -9,6 +9,7 @@
     "cypress:ci": "npx cypress run --headless",
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/PaymentTest/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/PayoutTest/**/*'",
+    "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/PaymentMethodListTest/**/*'",
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'"
   },
   "author": "",

@@ -92,6 +92,7 @@ default_imp_for_authorize_session_token!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -117,6 +118,7 @@ default_imp_for_complete_authorize!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -142,6 +144,7 @@ default_imp_for_incremental_authorization!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -166,6 +169,7 @@ default_imp_for_create_customer!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -192,6 +196,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -217,6 +222,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -242,6 +248,7 @@ default_imp_for_post_processing_steps!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -267,6 +274,7 @@ default_imp_for_approve!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -292,6 +300,7 @@ default_imp_for_reject!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -317,6 +326,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -343,6 +353,7 @@ default_imp_for_accept_dispute!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -368,6 +379,7 @@ default_imp_for_submit_evidence!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -393,6 +405,7 @@ default_imp_for_defend_dispute!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -427,6 +440,7 @@ default_imp_for_file_upload!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -454,6 +468,7 @@ default_imp_for_payouts_create!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -481,6 +496,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -508,6 +524,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -535,6 +552,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -562,6 +580,7 @@ default_imp_for_payouts_cancel!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -589,6 +608,7 @@ default_imp_for_payouts_quote!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -616,6 +636,7 @@ default_imp_for_payouts_recipient!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -643,6 +664,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -670,6 +692,7 @@ default_imp_for_frm_sale!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -697,6 +720,7 @@ default_imp_for_frm_checkout!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -724,6 +748,7 @@ default_imp_for_frm_transaction!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -751,6 +776,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -778,6 +804,7 @@ default_imp_for_frm_record_return!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );
 
@@ -802,5 +829,6 @@ default_imp_for_revoking_mandates!(
     connectors::Fiservemea,
     connectors::Helcim,
     connectors::Stax,
+    connectors::Taxjar,
     connectors::Volt
 );

@@ -867,7 +867,6 @@ pub struct Customers;
 #[cfg(all(
     feature = "v2",
     feature = "customer_v2",
-    feature = "payment_methods_v2",
     any(feature = "olap", feature = "oltp")
 ))]
 impl Customers {
@@ -875,7 +874,9 @@ impl Customers {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
-            route = route.service(web::resource("").route(web::post().to(customers_create)))
+            route = route
+                .service(web::resource("").route(web::post().to(customers_create)))
+                .service(web::resource("/{id}").route(web::put().to(customers_update)))
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
@@ -1174,7 +1175,7 @@ pub struct MerchantConnectorAccount;
 ))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/connector_accounts").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/connector_accounts").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1465,25 +1466,14 @@ impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(business_profile_create)))
             .service(
                 web::scope("/{profile_id}")
+                    .service(web::resource("").route(web::get().to(business_profile_retrieve)))
                     .service(
                         web::resource("/fallback_routing")
-                            .route(web::get().to(|state, req| {
-                                routing::routing_retrieve_default_config(
-                                    state,
-                                    req,
-                                    &TransactionType::Payment,
-                                )
-                            }))
-                            .route(web::post().to(|state, req, payload| {
-                                routing::routing_update_default_config(
-                                    state,
-                                    req,
-                                    payload,
-                                    &TransactionType::Payment,
-                                )
-                            })),
+                            .route(web::get().to(routing::routing_retrieve_default_config))
+                            .route(web::post().to(routing::routing_update_default_config)),
                     )
                     .service(
                         web::resource("/activate_routing_algorithm").route(web::patch().to(
@@ -1621,6 +1611,7 @@ impl User {
                     .route(web::get().to(list_merchants_for_user)),
             )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
+            .service(web::resource("/module/list").route(web::get().to(get_role_information)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
@@ -1775,7 +1766,7 @@ pub struct WebhookEvents;
 #[cfg(feature = "olap")]
 impl WebhookEvents {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/events/{merchant_id_or_profile_id}")
+        web::scope("/events/{merchant_id}")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::get().to(list_initial_webhook_delivery_attempts)))
             .service(

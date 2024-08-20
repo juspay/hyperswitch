@@ -464,6 +464,10 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// Unique identifier of the merchant connector account
+    #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]
+    pub merchant_connector_id: Option<String>,
+
     /// Current status of the Payout
     #[schema(value_type = PayoutStatus, example = RequiresConfirmation)]
     pub status: api_enums::PayoutStatus,
@@ -715,8 +719,11 @@ pub struct PayoutListFilterConstraints {
 pub struct PayoutListResponse {
     /// The number of payouts included in the list
     pub size: usize,
-    // The list of payouts response objects
+    /// The list of payouts response objects
     pub data: Vec<PayoutCreateResponse>,
+    /// The total number of available payouts for given constraints
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_count: Option<i64>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
