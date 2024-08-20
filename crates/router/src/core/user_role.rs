@@ -221,7 +221,10 @@ pub async fn merchant_select(
             .change_context(UserErrors::InternalServerError)?
             .into();
 
-        let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+        let user_role = user_from_db
+            .get_preferred_or_active_user_role_from_db(&state)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
 
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
@@ -290,7 +293,10 @@ pub async fn merchant_select_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let user_role = user_from_db
+        .get_preferred_or_active_user_role_from_db(&state)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     let current_flow =
         domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;

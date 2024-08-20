@@ -1110,7 +1110,10 @@ pub async fn accept_invite_from_email(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let user_role = user_from_db
+        .get_preferred_or_active_user_role_from_db(&state)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     let token =
         utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
@@ -1224,7 +1227,10 @@ pub async fn accept_invite_from_email_token_only_flow(
     )?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
-    let user_role = user_from_db.get_role_from_db(state.clone()).await?;
+    let user_role = user_from_db
+        .get_preferred_or_active_user_role_from_db(&state)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     let token = next_flow
         .get_token_with_user_role(&state, &user_role)
