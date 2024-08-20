@@ -199,15 +199,10 @@ pub async fn mk_tokenization_req(
 
     let key_id = tokenization_service.key_id.clone();
 
-    let jwt = encryption::encrypt_jwe(
-        payload_bytes,
-        enc_key,
-        "A128GCM",
-        Some(key_id.as_str()),
-    )
-    .await
-    .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
-    .attach_printable("Error on jwe encrypt")?;
+    let jwt = encryption::encrypt_jwe(payload_bytes, enc_key, "A128GCM", Some(key_id.as_str()))
+        .await
+        .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
+        .attach_printable("Error on jwe encrypt")?;
 
     let order_data = OrderData {
         consent_id: "test12324".to_string(), // ??
