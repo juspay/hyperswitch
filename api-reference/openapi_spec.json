@@ -1157,6 +1157,45 @@
       }
     },
     "/organization/{organization_id}": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Retrieve",
+        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
+        "operationId": "Create an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "Organization"

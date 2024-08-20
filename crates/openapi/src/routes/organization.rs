@@ -28,7 +28,7 @@ pub async fn organization_create() {}
 ///
 /// Retrieve an existing organization
 #[utoipa::path(
-    post,
+    get,
     path = "/organization/{organization_id}",
     params (("organization_id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
