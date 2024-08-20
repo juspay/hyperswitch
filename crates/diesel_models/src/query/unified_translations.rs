@@ -16,7 +16,7 @@ impl UnifiedTranslationsNew {
 }
 
 impl UnifiedTranslations {
-    pub async fn find(
+    pub async fn find_by_unified_code_unified_message_locale(
         conn: &PgPooledConn,
         unified_code: String,
         unified_message: String,
@@ -31,23 +31,12 @@ impl UnifiedTranslations {
         )
         .await
     }
-    pub async fn retrieve_translation(
-        conn: &PgPooledConn,
-        unified_code: String,
-        unified_message: String,
-        locale: String,
-    ) -> StorageResult<String> {
-        Self::find(conn, unified_code, unified_message, locale)
-            .await
-            .map(|item| item.translation)
-    }
 
-    pub async fn update(
+    pub async fn update_by_unified_code_unified_message_locale(
         conn: &PgPooledConn,
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
         data: UnifiedTranslationsUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<
@@ -60,8 +49,7 @@ impl UnifiedTranslations {
             dsl::unified_code
                 .eq(unified_code)
                 .and(dsl::unified_message.eq(unified_message))
-                .and(dsl::locale.eq(locale))
-                .and(dsl::translation.eq(translation)),
+                .and(dsl::locale.eq(locale)),
             data.into(),
         )
         .await?
@@ -73,20 +61,18 @@ impl UnifiedTranslations {
         })
     }
 
-    pub async fn delete(
+    pub async fn delete_by_unified_code_unified_message_locale(
         conn: &PgPooledConn,
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
             dsl::unified_code
                 .eq(unified_code)
                 .and(dsl::unified_message.eq(unified_message))
-                .and(dsl::locale.eq(locale))
-                .and(dsl::translation.eq(translation)),
+                .and(dsl::locale.eq(locale)),
         )
         .await
     }

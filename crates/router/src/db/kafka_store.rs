@@ -2639,11 +2639,10 @@ impl UnifiedTranslationsInterface for KafkaStore {
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
         data: storage::UnifiedTranslationsUpdate,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
         self.diesel_store
-            .update_translation(unified_code, unified_message, locale, translation, data)
+            .update_translation(unified_code, unified_message, locale, data)
             .await
     }
 
@@ -2652,10 +2651,9 @@ impl UnifiedTranslationsInterface for KafkaStore {
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
-            .delete_translation(unified_code, unified_message, locale, translation)
+            .delete_translation(unified_code, unified_message, locale)
             .await
     }
 }

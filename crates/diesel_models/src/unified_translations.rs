@@ -61,6 +61,7 @@ pub struct UnifiedTranslationsUpdateInternal {
     pub unified_message: Option<String>,
     pub locale: Option<String>,
     pub translation: Option<String>,
+    pub last_modified: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug)]
@@ -73,6 +74,7 @@ pub struct UnifiedTranslationsUpdate {
 
 impl From<UnifiedTranslationsUpdate> for UnifiedTranslationsUpdateInternal {
     fn from(value: UnifiedTranslationsUpdate) -> Self {
+        let now = Some(common_utils::date_time::now());
         let UnifiedTranslationsUpdate {
             unified_code,
             unified_message,
@@ -84,6 +86,7 @@ impl From<UnifiedTranslationsUpdate> for UnifiedTranslationsUpdateInternal {
             unified_message,
             locale,
             translation,
+            last_modified: now,
         }
     }
 }

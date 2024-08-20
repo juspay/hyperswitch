@@ -20,7 +20,6 @@ pub trait UnifiedTranslationsInterface {
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
         data: storage::UnifiedTranslationsUpdate,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError>;
 
@@ -36,7 +35,6 @@ pub trait UnifiedTranslationsInterface {
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
@@ -58,16 +56,14 @@ impl UnifiedTranslationsInterface for Store {
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
         data: storage::UnifiedTranslationsUpdate,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UnifiedTranslations::update(
+        storage::UnifiedTranslations::update_by_unified_code_unified_message_locale(
             &conn,
             unified_code,
             unified_message,
             locale,
-            translation,
             data,
         )
         .await
@@ -81,14 +77,16 @@ impl UnifiedTranslationsInterface for Store {
         locale: String,
     ) -> CustomResult<String, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::UnifiedTranslations::retrieve_translation(
-            &conn,
-            unified_code,
-            unified_message,
-            locale,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        let translations =
+            storage::UnifiedTranslations::find_by_unified_code_unified_message_locale(
+                &conn,
+                unified_code,
+                unified_message,
+                locale,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
+        Ok(translations.translation)
     }
 
     async fn delete_translation(
@@ -96,15 +94,13 @@ impl UnifiedTranslationsInterface for Store {
         unified_code: String,
         unified_message: String,
         locale: String,
-        translation: String,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::UnifiedTranslations::delete(
+        storage::UnifiedTranslations::delete_by_unified_code_unified_message_locale(
             &conn,
             unified_code,
             unified_message,
             locale,
-            translation,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -134,7 +130,6 @@ impl UnifiedTranslationsInterface for MockDb {
         _unified_code: String,
         _unified_message: String,
         _locale: String,
-        _translation: String,
         _data: storage::UnifiedTranslationsUpdate,
     ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -145,7 +140,6 @@ impl UnifiedTranslationsInterface for MockDb {
         _unified_code: String,
         _unified_message: String,
         _locale: String,
-        _translation: String,
     ) -> CustomResult<bool, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
