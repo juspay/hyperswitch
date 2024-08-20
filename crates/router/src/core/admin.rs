@@ -21,12 +21,6 @@ use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
-use crate::core::routing;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -54,6 +48,12 @@ use crate::{
     },
     utils,
 };
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+use common_utils::ext_traits::OptionExt;
 
 const IBAN_MAX_LENGTH: usize = 34;
 const BACS_SORT_CODE_LENGTH: usize = 6;
@@ -1929,26 +1929,26 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
-struct MerchantDefaultConfigUpdate<'a> {
+struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a String,
-    state: &'a SessionState,
+    store: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
     default_routing_config_for_profile: &'a Vec<api_models::routing::RoutableConnectorChoice>,
     business_profile: BusinessProfileWrapper,
     transaction_type: &'a api_enums::TransactionType,
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    key_manager_state: &'a KeyManagerState,
 }
 #[cfg(all(
     feature = "v2",
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
-impl<'a> MerchantDefaultConfigUpdate<'a> {
-    async fn update_merchant_default_config(&self) -> RouterResult<()> {
-        let state = self.state;
-        let mut default_routing_config_for_profile =
-            self.default_routing_config_for_profile.clone();
+impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
+    async fn update_default_fallback_routing_for_profile(&self) -> RouterResult<()> {
+        let default_routing_config_for_profile =
+            &mut self.default_routing_config_for_profile.clone();
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
                 choice_kind: routing_types::RoutableChoiceKind::FullStruct,
@@ -1960,9 +1960,9 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
                 self.business_profile
                     .clone()
                     .update_default_fallback_routing_of_connectors_under_profile(
-                        state.store.as_ref(),
+                        self.store,
                         &default_routing_config_for_profile,
-                        &(state).into(),
+                        self.key_manager_state,
                         &self.key_store,
                     )
                     .await?
@@ -2845,23 +2845,24 @@ pub async fn create_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let profile_id = req
-        .clone()
-        .validate_and_get_profile_id(
-            &merchant_account,
-            store,
-            key_manager_state,
-            &key_store,
-            true,
-        )
-        .await?;
-
+    let business_profile = core_utils::validate_and_get_business_profile(
+        store,
+        key_manager_state,
+        &key_store,
+        Some(&req.profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")
+    .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+        id: req.profile_id.clone(),
+    })?;
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
         pm_auth_config: &req.pm_auth_config,
         db: store,
         merchant_id,
-        profile_id: &Some(profile_id.clone()),
+        profile_id: &business_profile.profile_id,
         key_store: &key_store,
         key_manager_state,
     };
@@ -2869,10 +2870,14 @@ pub async fn create_connector(
 
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+        .find_business_profile_by_profile_id(
+            key_manager_state,
+            &key_store,
+            &business_profile.profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.clone(),
+            id: req.profile_id.clone(),
         })?;
     let connector_type_and_connector_enum = ConnectorTypeAndConnectorName {
         connector_type: &req.connector_type,
@@ -2920,7 +2925,7 @@ pub async fn create_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id,
+                profile_id: req.profile_id.clone(),
                 connector_label: merchant_connector_account
                     .connector_label
                     .unwrap_or_default(),
@@ -2928,19 +2933,20 @@ pub async fn create_connector(
         )?;
 
     //update merchant default config
-    let merchant_default_config_update = MerchantDefaultConfigUpdate {
+    let merchant_default_config_update = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
-        state: &state,
+        store,
         merchant_id,
         default_routing_config_for_profile,
         business_profile: profile_wrapper,
         transaction_type: &transaction_type,
         key_store,
+        key_manager_state,
     };
 
     merchant_default_config_update
-        .update_merchant_default_config()
+        .update_default_fallback_routing_for_profile()
         .await?;
 
     metrics::MCA_CREATE.add(
@@ -3906,7 +3912,6 @@ impl BusinessProfileWrapper {
     where
         F: Send + Clone,
     {
-        use common_utils::ext_traits::OptionExt;
         let (profile_id, routing_algorithm_id) = match transaction_data {
             routing::TransactionData::Payment(payment_data) => (
                 payment_data
@@ -3930,9 +3935,7 @@ impl BusinessProfileWrapper {
     pub fn get_default_fallback_list_of_connector_under_profile(
         &self,
     ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
-        use common_utils::ext_traits::OptionExt;
         use masking::ExposeOptionInterface;
-
         self.profile
             .default_fallback_routing
             .clone()

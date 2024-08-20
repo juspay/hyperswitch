@@ -306,7 +306,7 @@ impl MerchantConnectorAccounts {
     where
         T: std::hash::Hash + Eq,
     {
-        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
+        self.filter_and_map(|mca| &mca.profile_id == profile_id, func)
     }
 }
 
