@@ -1888,7 +1888,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
         let mut default_routing_config = routing::helpers::get_merchant_default_config(
             self.store,
             self.merchant_id.get_string_repr(),
-            &self.transaction_type,
+            self.transaction_type,
         )
         .await?;
 
