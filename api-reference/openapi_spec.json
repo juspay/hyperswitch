@@ -1157,13 +1157,52 @@
       }
     },
     "/organization/{organization_id}": {
-      "post": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Retrieve",
+        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
+        "operationId": "Retrieve an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
         "tags": [
           "Organization"
         ],
         "summary": "Organization - Update",
         "description": "Organization - Update\n\nCreate a new organization for .",
-        "operationId": "Create an Organization",
+        "operationId": "Update an Organization",
         "parameters": [
           {
             "name": "organization_id",
