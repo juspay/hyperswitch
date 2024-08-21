@@ -18,12 +18,13 @@ use crate::{
     payments::{
         ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
         PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentListResponse, PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelRequest,
-        PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest,
-        PaymentsSessionResponse, PaymentsStartRequest, RedirectionResponse,
+        PaymentListResponse, PaymentListResponseV2, PaymentsAggregateResponse,
+        PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsExternalAuthenticationRequest,
+        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
+        PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        RedirectionResponse,
     },
 };
 impl ApiEventMetric for PaymentsRetrieveRequest {
@@ -221,6 +222,11 @@ impl ApiEventMetric for PaymentListResponse {
 }
 
 impl ApiEventMetric for PaymentListResponseV2 {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+impl ApiEventMetric for PaymentsAggregateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
     }

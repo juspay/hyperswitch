@@ -4,7 +4,7 @@
     "apikey": [
       {
         "key": "value",
-        "value": "{{api_key}}",
+        "value": "{{admin_api_key}}",
         "type": "string"
       },
       {
@@ -28,6 +28,10 @@
     {
       "key": "Accept",
       "value": "application/json"
+    },
+    {
+      "key": "x-merchant-id",
+      "value": "{{merchant_id}}"
     }
   ],
   "body": {
