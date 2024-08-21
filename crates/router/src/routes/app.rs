@@ -1466,8 +1466,10 @@ impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(business_profile_create)))
             .service(
                 web::scope("/{profile_id}")
+                    .service(web::resource("").route(web::get().to(business_profile_retrieve)))
                     .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
@@ -1609,6 +1611,7 @@ impl User {
                     .route(web::get().to(list_merchants_for_user)),
             )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
+            .service(web::resource("/module/list").route(web::get().to(get_role_information)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")

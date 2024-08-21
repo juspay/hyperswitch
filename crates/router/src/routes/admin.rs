@@ -254,7 +254,13 @@ struct HeaderMapStruct<'a> {
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 impl<'a> HeaderMapStruct<'a> {
-    pub fn get_mandatory_header_value_by_key(
+    pub fn from(request: &'a HttpRequest) -> Self {
+        HeaderMapStruct {
+            headers: request.headers(),
+        }
+    }
+
+    fn get_mandatory_header_value_by_key(
         &self,
         key: String,
     ) -> Result<&str, error_stack::Report<ApiErrorResponse>> {
@@ -270,6 +276,20 @@ impl<'a> HeaderMapStruct<'a> {
                 "Failed to convert header value to string for header key: {}",
                 key
             ))
+    }
+
+    pub fn get_merchant_id_from_header(
+        &self,
+    ) -> crate::errors::RouterResult<common_utils::id_type::MerchantId> {
+        self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
+            .map(|val| val.to_owned())
+            .and_then(|merchant_id| {
+                common_utils::id_type::MerchantId::wrap(merchant_id)
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Error while converting MerchantId from `x-merchant-id` string header",
+                    )
+            })
     }
 }
 
@@ -454,25 +474,13 @@ pub async fn connector_retrieve(
     let id = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId { id: id.clone() }).into_inner();
 
-    let header_map = HeaderMapStruct {
-        headers: req.headers(),
-    };
-
-    let merchant_id = match header_map
-        .get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
-        .map(|val| val.to_owned())
-        .and_then(|merchant_id| {
-            common_utils::id_type::MerchantId::wrap(merchant_id)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error while converting MerchantId from merchant_id string header",
-                )
-        }) {
+    let merchant_id = match HeaderMapStruct::from(&req).get_merchant_id_from_header() {
         Ok(val) => val,
         Err(err) => {
             return api::log_and_return_error_response(err);
         }
     };
+
     api::server_wrap(
         flow,
         state,
@@ -734,16 +742,7 @@ pub async fn connector_delete(
     let header_map = HeaderMapStruct {
         headers: req.headers(),
     };
-    let merchant_id = match header_map
-        .get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
-        .map(|val| val.to_owned())
-        .and_then(|merchant_id| {
-            common_utils::id_type::MerchantId::wrap(merchant_id)
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error while converting MerchantId from merchant_id string header",
-                )
-        }) {
+    let merchant_id = match header_map.get_merchant_id_from_header() {
         Ok(val) => val,
         Err(err) => {
             return api::log_and_return_error_response(err);
@@ -817,6 +816,11 @@ pub async fn merchant_account_toggle_all_kv(
     .await
 }
 
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -846,6 +850,47 @@ pub async fn business_profile_create(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v2", feature = "business_profile_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
+pub async fn business_profile_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::BusinessProfileCreate>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileCreate;
+    let payload = json_payload.into_inner();
+
+    let merchant_id = match HeaderMapStruct::from(&req).get_merchant_id_from_header() {
+        Ok(val) => val,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, req, _| create_business_profile(state, req, &merchant_id),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
@@ -873,6 +918,43 @@ pub async fn business_profile_retrieve(
     ))
     .await
 }
+
+#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
+pub async fn business_profile_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileRetrieve;
+    let profile_id = path.into_inner();
+
+    let merchant_id = match HeaderMapStruct::from(&req).get_merchant_id_from_header() {
+        Ok(val) => val,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        profile_id,
+        |state, _, profile_id, _| retrieve_business_profile(state, profile_id, merchant_id.clone()),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
