@@ -1183,9 +1183,12 @@ impl MerchantConnectorAccount {
 
             route = route
                 .service(web::resource("").route(web::post().to(connector_create)))
-                .service(web::resource("/{id}").route(web::post().to(connector_update)))
-                .service(web::resource("/{id}").route(web::get().to(connector_retrieve)))
-                .service(web::resource("/{id}").route(web::delete().to(connector_delete)));
+                .service(
+                    web::resource("/{id}")
+                        .route(web::post().to(connector_update))
+                        .route(web::get().to(connector_retrieve))
+                        .route(web::delete().to(connector_delete)),
+                );
         }
         route
     }
