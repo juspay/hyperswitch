@@ -545,7 +545,6 @@ pub async fn payouts_retrieve_core(
         complete_payout_retrieve(
             &state,
             &merchant_account,
-            &key_store,
             connector_call_type,
             &mut payout_data,
         )
@@ -637,15 +636,9 @@ pub async fn payouts_cancel_core(
             .attach_printable("Connector not found for payout cancellation")?,
         };
 
-        cancel_payout(
-            &state,
-            &merchant_account,
-            &key_store,
-            &connector_data,
-            &mut payout_data,
-        )
-        .await
-        .attach_printable("Payout cancellation failed for given Payout request")?;
+        cancel_payout(&state, &merchant_account, &connector_data, &mut payout_data)
+            .await
+            .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
     response_handler(&merchant_account, &payout_data).await
@@ -996,6 +989,28 @@ pub async fn call_connector_payout(
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
 
+    // fetch merchant connector account if not present
+    if payout_data.merchant_connector_account.is_none()
+        || payout_data.payout_attempt.merchant_connector_id.is_none()
+    {
+        let merchant_connector_account = construct_profile_id_and_get_mca(
+            state,
+            merchant_account,
+            payout_data,
+            &connector_data.connector_name.to_string(),
+            payout_attempt
+                .merchant_connector_id
+                .clone()
+                .or(connector_data.merchant_connector_id.clone())
+                .as_ref(),
+            key_store,
+            false,
+        )
+        .await?;
+        payout_data.payout_attempt.merchant_connector_id = merchant_connector_account.get_mca_id();
+        payout_data.merchant_connector_account = Some(merchant_connector_account);
+    }
+
     // update connector_name
     if payout_data.payout_attempt.connector.is_none()
         || payout_data.payout_attempt.connector != Some(connector_data.connector_name.to_string())
@@ -1004,6 +1019,7 @@ pub async fn call_connector_payout(
         let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
             connector: connector_data.connector_name.to_string(),
             routing_info: payout_data.payout_attempt.routing_info.clone(),
+            merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
         };
         let db = &*state.store;
         payout_data.payout_attempt = db
@@ -1041,14 +1057,7 @@ pub async fn call_connector_payout(
         );
     }
     // Eligibility flow
-    complete_payout_eligibility(
-        state,
-        merchant_account,
-        key_store,
-        connector_data,
-        payout_data,
-    )
-    .await?;
+    complete_payout_eligibility(state, merchant_account, connector_data, payout_data).await?;
     // Create customer flow
     complete_create_recipient(
         state,
@@ -1062,7 +1071,6 @@ pub async fn call_connector_payout(
     complete_create_recipient_disburse_account(
         state,
         merchant_account,
-        key_store,
         connector_data,
         payout_data,
     )
@@ -1071,7 +1079,6 @@ pub async fn call_connector_payout(
     Box::pin(complete_create_payout(
         state,
         merchant_account,
-        key_store,
         connector_data,
         payout_data,
     ))
@@ -1147,14 +1154,9 @@ pub async fn create_recipient(
         );
     if should_call_connector {
         // 1. Form router data
-        let router_data = core_utils::construct_payout_router_data(
-            state,
-            connector_data,
-            merchant_account,
-            key_store,
-            payout_data,
-        )
-        .await?;
+        let router_data =
+            core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
+                .await?;
 
         // 2. Fetch connector integration details
         let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -1216,7 +1218,7 @@ pub async fn create_recipient(
                                     &state.into(),
                                     global_id,
                                     customer,
-                                    &merchant_account.get_id(),
+                                    merchant_account.get_id(),
                                     updated_customer,
                                     key_store,
                                     merchant_account.storage_scheme,
@@ -1290,7 +1292,6 @@ pub async fn create_recipient(
 pub async fn complete_payout_eligibility(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1302,15 +1303,9 @@ pub async fn complete_payout_eligibility(
             .connector_name
             .supports_payout_eligibility(payout_data.payouts.payout_type)
     {
-        check_payout_eligibility(
-            state,
-            merchant_account,
-            key_store,
-            connector_data,
-            payout_data,
-        )
-        .await
-        .attach_printable("Eligibility failed for given Payout request")?;
+        check_payout_eligibility(state, merchant_account, connector_data, payout_data)
+            .await
+            .attach_printable("Eligibility failed for given Payout request")?;
     }
 
     utils::when(
@@ -1333,19 +1328,13 @@ pub async fn complete_payout_eligibility(
 pub async fn check_payout_eligibility(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let router_data = core_utils::construct_payout_router_data(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let router_data =
+        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
+            .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -1446,7 +1435,6 @@ pub async fn check_payout_eligibility(
 pub async fn complete_create_payout(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1499,7 +1487,6 @@ pub async fn complete_create_payout(
             Box::pin(create_payout(
                 state,
                 merchant_account,
-                key_store,
                 connector_data,
                 payout_data,
             ))
@@ -1513,19 +1500,13 @@ pub async fn complete_create_payout(
 pub async fn create_payout(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data = core_utils::construct_payout_router_data(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let mut router_data =
+        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
+            .await?;
 
     // 2. Get/Create access token
     access_token::create_access_token(
@@ -1677,21 +1658,14 @@ async fn complete_payout_quote_steps_if_required<F>(
 pub async fn complete_payout_retrieve(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(connector_data) => {
-            create_payout_retrieve(
-                state,
-                merchant_account,
-                key_store,
-                &connector_data,
-                payout_data,
-            )
-            .await
-            .attach_printable("Payout retrieval failed for given Payout request")?;
+            create_payout_retrieve(state, merchant_account, &connector_data, payout_data)
+                .await
+                .attach_printable("Payout retrieval failed for given Payout request")?;
         }
         api::ConnectorCallType::Retryable(_) | api::ConnectorCallType::SessionMultiple(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
@@ -1705,19 +1679,13 @@ pub async fn complete_payout_retrieve(
 pub async fn create_payout_retrieve(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data = core_utils::construct_payout_router_data(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let mut router_data =
+        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
+            .await?;
 
     // 2. Get/Create access token
     access_token::create_access_token(
@@ -1820,7 +1788,6 @@ pub async fn update_retrieve_payout_tracker<F, T>(
 pub async fn complete_create_recipient_disburse_account(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1831,15 +1798,9 @@ pub async fn complete_create_recipient_disburse_account(
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
     {
-        create_recipient_disburse_account(
-            state,
-            merchant_account,
-            key_store,
-            connector_data,
-            payout_data,
-        )
-        .await
-        .attach_printable("Creation of customer failed")?;
+        create_recipient_disburse_account(state, merchant_account, connector_data, payout_data)
+            .await
+            .attach_printable("Creation of customer failed")?;
     }
     Ok(())
 }
@@ -1847,19 +1808,13 @@ pub async fn complete_create_recipient_disburse_account(
 pub async fn create_recipient_disburse_account(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let router_data = core_utils::construct_payout_router_data(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let router_data =
+        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
+            .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -1932,19 +1887,13 @@ pub async fn create_recipient_disburse_account(
 pub async fn cancel_payout(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let router_data = core_utils::construct_payout_router_data(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let router_data =
+        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
+            .await?;
 
     // 2. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
@@ -2042,14 +1991,9 @@ pub async fn fulfill_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data = core_utils::construct_payout_router_data(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let mut router_data =
+        core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
+            .await?;
 
     // 2. Get/Create access token
     access_token::create_access_token(
@@ -2243,6 +2187,7 @@ pub async fn response_handler(
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata,
+        merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
@@ -2540,6 +2485,28 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
+    let merchant_connector_account =
+        if payout_attempt.connector.is_some() && payout_attempt.merchant_connector_id.is_some() {
+            let connector_name = payout_attempt
+                .connector
+                .clone()
+                .get_required_value("connector_name")?;
+            Some(
+                payment_helpers::get_merchant_connector_account(
+                    state,
+                    merchant_account.get_id(),
+                    None,
+                    key_store,
+                    &profile_id,
+                    connector_name.as_str(),
+                    payout_attempt.merchant_connector_id.as_ref(),
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+
     let payout_link = payouts
         .payout_link_id
         .clone()
@@ -2559,7 +2526,7 @@ pub async fn make_payout_data(
         payouts,
         payout_attempt,
         payout_method_data: payout_method_data.to_owned(),
-        merchant_connector_account: None,
+        merchant_connector_account,
         should_terminate: false,
         profile_id,
         payout_link,
@@ -2755,4 +2722,43 @@ pub async fn create_payout_link_db_entry(
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "payout link already exists".to_string(),
         })
+}
+
+#[instrument(skip_all)]
+pub async fn construct_profile_id_and_get_mca(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payout_data: &mut PayoutData,
+    connector_name: &str,
+    merchant_connector_id: Option<&String>,
+    key_store: &domain::MerchantKeyStore,
+    should_validate: bool,
+) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
+    let key_manager_state: &common_utils::types::keymanager::KeyManagerState = &state.into();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        key_manager_state,
+        key_store,
+        payout_data.payout_attempt.business_country,
+        payout_data.payout_attempt.business_label.as_ref(),
+        merchant_account,
+        Some(&payout_data.payout_attempt.profile_id),
+        &*state.store,
+        should_validate,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payout_attempt")?;
+
+    let merchant_connector_account = payment_helpers::get_merchant_connector_account(
+        state,
+        merchant_account.get_id(),
+        None,
+        key_store,
+        &profile_id,
+        connector_name,
+        merchant_connector_id,
+    )
+    .await?;
+
+    Ok(merchant_connector_account)
 }

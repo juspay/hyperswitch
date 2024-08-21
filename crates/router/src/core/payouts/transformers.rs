@@ -36,6 +36,7 @@ impl
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
+            merchant_connector_id: payout_attempt.merchant_connector_id,
             amount: payout.amount,
             currency: payout.destination_currency,
             connector: payout_attempt.connector,

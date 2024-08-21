@@ -63,6 +63,21 @@ check_v2 *FLAGS:
     cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
     set +x
 
+run_v2:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
+        jq -r '
+            [ .packages[] | select(.name == "router") | .features | keys[] # Obtain features of `router` package
+            | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo run --package router --features "${FEATURES}"
+    set +x
+
 check *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail

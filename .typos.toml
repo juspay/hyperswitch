@@ -2,7 +2,8 @@
 check-filename = true
 
 [default.extend-identifiers]
-"ABD" = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ABD = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ACTIVITE = "ACTIVITE" # French translation of activity
 AER = "AER" # An alias to Api Error Response
 ANG = "ANG" # Netherlands Antillean guilder currency code
 BA = "BA"  # Bosnia and Herzegovina country code
@@ -62,20 +63,6 @@ extend-exclude = [
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
-    "crates/router/locales/ar.yml", # locales
-    "crates/router/locales/ca.yml", # locales
-    "crates/router/locales/de.yml", # locales
-    "crates/router/locales/es.yml", # locales
-    "crates/router/locales/fr-BE.yml", # locales
-    "crates/router/locales/fr.yml", # locales
-    "crates/router/locales/he.yml", # locales
-    "crates/router/locales/it.yml", # locales
-    "crates/router/locales/ja.yml", # locales
-    "crates/router/locales/nl.yml", # locales
-    "crates/router/locales/pl.yml", # locales
-    "crates/router/locales/pt.yml", # locales
-    "crates/router/locales/ru.yml", # locales
-    "crates/router/locales/sv.yml", # locales
-    "crates/router/locales/zh.yml", # locales
-    "crates/router/src/core/payment_link/locale.js" # this file contains converision of static strings in various languages 
+    "crates/router/locales/*.yml", # locales
+    "crates/router/src/core/payment_link/locale.js", # this file contains conversion of static strings in various languages
 ]
