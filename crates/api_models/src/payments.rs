@@ -4099,6 +4099,12 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentsAggregateResponse {
+    /// The list of intent status with their count
+    pub status_with_count: HashMap<enums::IntentStatus, i64>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmountFilter {
     /// The start amount to filter list of transactions which are greater than or equal to the start amount
