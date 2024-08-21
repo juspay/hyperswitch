@@ -1609,7 +1609,7 @@
         },
         "security": [
           {
-            "api_key": []
+            "admin_api_key": []
           }
         ]
       }
@@ -1663,7 +1663,7 @@
         },
         "security": [
           {
-            "api_key": []
+            "admin_api_key": []
           }
         ]
       },
@@ -1744,7 +1744,7 @@
         },
         "security": [
           {
-            "api_key": []
+            "admin_api_key": []
           }
         ]
       },
