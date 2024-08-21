@@ -113,10 +113,14 @@ pub async fn update_user_role(
             .attach_printable("User Changing their own role");
     }
 
-    // let user_role_to_be_updated = user_to_be_updated
-    //     .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
-    //     .await
-    //     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+    let updator_role = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
 
     let mut is_updated = false;
 
@@ -155,6 +159,14 @@ pub async fn update_user_role(
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "User role cannot be updated from {}",
                 role_to_be_updated.get_role_id()
+            ));
+        }
+
+        if updator_role.get_entity_type() < role_to_be_updated.get_entity_type() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "Invalid operation, update requestor = {} cannot update target = {}",
+                updator_role.get_entity_type(),
+                role_to_be_updated.get_entity_type()
             ));
         }
 
@@ -212,6 +224,14 @@ pub async fn update_user_role(
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "User role cannot be updated from {}",
                 role_to_be_updated.get_role_id()
+            ));
+        }
+
+        if updator_role.get_entity_type() < role_to_be_updated.get_entity_type() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "Invalid operation, update requestor = {} cannot update target = {}",
+                updator_role.get_entity_type(),
+                role_to_be_updated.get_entity_type()
             ));
         }
 
