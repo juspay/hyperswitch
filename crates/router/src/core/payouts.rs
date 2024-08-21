@@ -1004,7 +1004,6 @@ pub async fn call_connector_payout(
                 .or(connector_data.merchant_connector_id.clone())
                 .as_ref(),
             key_store,
-            false,
         )
         .await?;
         payout_data.payout_attempt.merchant_connector_id = merchant_connector_account.get_mca_id();
@@ -2732,29 +2731,13 @@ pub async fn construct_profile_id_and_get_mca(
     connector_name: &str,
     merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,
-    should_validate: bool,
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
-    let key_manager_state: &common_utils::types::keymanager::KeyManagerState = &state.into();
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        key_manager_state,
-        key_store,
-        payout_data.payout_attempt.business_country,
-        payout_data.payout_attempt.business_label.as_ref(),
-        merchant_account,
-        Some(&payout_data.payout_attempt.profile_id),
-        &*state.store,
-        should_validate,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payout_attempt")?;
-
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(
         state,
         merchant_account.get_id(),
         None,
         key_store,
-        &profile_id,
+        &payout_data.profile_id,
         connector_name,
         merchant_connector_id,
     )
