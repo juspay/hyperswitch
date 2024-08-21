@@ -132,5 +132,5 @@ pub const CONNECTOR_CREDS_TOKEN_TTL: i64 = 900;
 pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
 
 //payment attempt default unified error code and unified error message
-pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "Something went wrong";
-pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "UE_000";
+pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_000";
+pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
