@@ -4,7 +4,10 @@ use std::{borrow::Cow, str::FromStr};
 use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
-    payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
+    payments::{
+        additional_info as payment_additional_types, AddressDetailsWithPhone,
+        RequestSurchargeDetails,
+    },
 };
 use base64::Engine;
 use common_enums::ConnectorType;
@@ -31,7 +34,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{
+    masked_string::{MaskedIban, MaskedSortCode},
+    ExposeInterface, PeekInterface,
+};
 use openssl::{
     derive::Deriver,
     pkey::PKey,
@@ -4011,16 +4017,65 @@ pub async fn get_additional_payment_data(
             domain::BankRedirectData::Eps { bank_name, .. } => {
                 Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    additional_details: None,
                 })
             }
             domain::BankRedirectData::Ideal { bank_name, .. } => {
                 Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    additional_details: None,
                 })
             }
-            _ => {
-                Some(api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None })
+            domain::BankRedirectData::BancontactCard {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                additional_details: Some(
+                    payment_additional_types::BankRedirectDetails::BancontactCard(
+                        payment_additional_types::BancontactBankRedirectAdditionalData {
+                            last4: card_number.as_ref().map(|c| c.get_last4()),
+                            card_exp_month: card_exp_month.clone(),
+                            card_exp_year: card_exp_year.clone(),
+                            card_holder_name: None,
+                        },
+                    ),
+                ),
+            }),
+            domain::BankRedirectData::Blik { blik_code } => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
+                    additional_details: blik_code.as_ref().map(|blik_code| {
+                        payment_additional_types::BankRedirectDetails::Blik(
+                            payment_additional_types::BlikBankRedirectAdditionalData {
+                                blik_code: Some(blik_code.to_owned()),
+                            },
+                        )
+                    }),
+                })
             }
+            domain::BankRedirectData::Giropay {
+                bank_account_bic,
+                bank_account_iban,
+            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                additional_details: Some(payment_additional_types::BankRedirectDetails::Giropay(
+                    payment_additional_types::GiropayBankRedirectAdditionalData {
+                        bic: bank_account_bic.as_ref().map(|bic| {
+                            masking::Secret::from(MaskedSortCode::from(bic.peek().to_owned()))
+                        }),
+                        iban: bank_account_iban.as_ref().map(|iban| {
+                            masking::Secret::from(MaskedIban::from(iban.peek().to_owned()))
+                        }),
+                        country: None,
+                    },
+                )),
+            }),
+            _ => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                additional_details: None,
+            }),
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {

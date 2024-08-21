@@ -4,7 +4,10 @@ use common_utils::{
     id_type,
     pii::{self, Email},
 };
-use masking::Secret;
+use masking::{
+    masked_string::{MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode},
+    PeekInterface, Secret,
+};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -888,7 +891,7 @@ impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherDat
 }
 
 impl From<Box<AlfamartVoucherData>> for Box<api_models::payments::AlfamartVoucherData> {
-    fn from(value: Box<AlfamartVoucherData>) -> Self {
+    fn from(_value: Box<AlfamartVoucherData>) -> Self {
         Box::new(api_models::payments::AlfamartVoucherData {
             first_name: None,
             last_name: None,
@@ -898,7 +901,7 @@ impl From<Box<AlfamartVoucherData>> for Box<api_models::payments::AlfamartVouche
 }
 
 impl From<Box<IndomaretVoucherData>> for Box<api_models::payments::IndomaretVoucherData> {
-    fn from(value: Box<IndomaretVoucherData>) -> Self {
+    fn from(_value: Box<IndomaretVoucherData>) -> Self {
         Box::new(api_models::payments::IndomaretVoucherData {
             first_name: None,
             last_name: None,
@@ -908,7 +911,7 @@ impl From<Box<IndomaretVoucherData>> for Box<api_models::payments::IndomaretVouc
 }
 
 impl From<Box<JCSVoucherData>> for Box<api_models::payments::JCSVoucherData> {
-    fn from(value: Box<JCSVoucherData>) -> Self {
+    fn from(_value: Box<JCSVoucherData>) -> Self {
         Box::new(api_models::payments::JCSVoucherData {
             first_name: None,
             last_name: None,
@@ -956,8 +959,17 @@ impl From<GiftCardData> for payment_additional_types::GiftCardAdditionalData {
         match value {
             GiftCardData::Givex(details) => {
                 Self::Givex(payment_additional_types::GivexGiftCardAdditionalData {
-                    number: details.number.clone(),
-                    last4: details.number,
+                    last4: details
+                        .number
+                        .peek()
+                        .chars()
+                        .rev()
+                        .take(4)
+                        .collect::<String>()
+                        .chars()
+                        .rev()
+                        .collect::<String>()
+                        .into(),
                 })
             }
             GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
@@ -1037,8 +1049,12 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_type,
                 bank_holder_type,
             } => Self::Ach(payment_additional_types::AchBankDebitAdditionalData {
-                account_number,
-                routing_number,
+                account_number: Secret::from(MaskedBankAccount::from(
+                    account_number.peek().to_owned(),
+                )),
+                routing_number: Secret::from(MaskedRoutingNumber::from(
+                    routing_number.peek().to_owned(),
+                )),
                 bank_name,
                 bank_type,
                 bank_holder_type,
@@ -1047,7 +1063,7 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
             }),
             BankDebitData::SepaBankDebit { iban, .. } => {
                 Self::Sepa(payment_additional_types::SepaBankDebitAdditionalData {
-                    iban,
+                    iban: Secret::from(MaskedIban::from(iban.peek().to_owned())),
                     bank_account_holder_name: None,
                 })
             }
@@ -1056,7 +1072,9 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bsb_number,
                 ..
             } => Self::Becs(payment_additional_types::BecsBankDebitAdditionalData {
-                account_number,
+                account_number: Secret::from(MaskedBankAccount::from(
+                    account_number.peek().to_owned(),
+                )),
                 bsb_number,
                 bank_account_holder_name: None,
             }),
@@ -1065,8 +1083,10 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 sort_code,
                 ..
             } => Self::Bacs(payment_additional_types::BacsBankDebitAdditionalData {
-                account_number,
-                sort_code,
+                account_number: Secret::from(MaskedBankAccount::from(
+                    account_number.peek().to_owned(),
+                )),
+                sort_code: Secret::from(MaskedSortCode::from(sort_code.peek().to_owned())),
                 bank_account_holder_name: None,
             }),
         }
@@ -1136,15 +1156,20 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
             BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
-                    pix_key,
-                    cpf,
-                    cnpj,
+                    pix_key: pix_key.map(|pix_key| {
+                        Secret::from(MaskedBankAccount::from(pix_key.peek().to_owned()))
+                    }),
+                    cpf: cpf
+                        .map(|cpf| Secret::from(MaskedBankAccount::from(cpf.peek().to_owned()))),
+                    cnpj: cnpj
+                        .map(|cnpj| Secret::from(MaskedBankAccount::from(cnpj.peek().to_owned()))),
                 },
             ),
             BankTransferData::Pse {} => Self::Pse {},
             BankTransferData::LocalBankTransfer { bank_code } => Self::LocalBankTransfer(
                 api_models::payments::additional_info::LocalBankTransferAdditionalData {
-                    bank_code,
+                    bank_code: bank_code
+                        .map(|bank_code| Secret::from(MaskedBankAccount::from(bank_code))),
                 },
             ),
         }

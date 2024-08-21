@@ -4286,18 +4286,20 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 bank_name,
                 additional_details,
             }),
-            AdditionalPaymentData::Crypto(crypto) => Self::Crypto {},
-            AdditionalPaymentData::BankDebit(bank_debit) => Self::BankDebit {},
+            AdditionalPaymentData::Crypto(crypto) => Self::Crypto(crypto),
+            AdditionalPaymentData::BankDebit(bank_debit) => Self::BankDebit(bank_debit),
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
             AdditionalPaymentData::Reward {} => Self::Reward {},
-            AdditionalPaymentData::RealTimePayment(realtime_payment) => Self::RealTimePayment {},
-            AdditionalPaymentData::Upi(upi) => Self::Upi {},
-            AdditionalPaymentData::BankTransfer(bank_transfer) => Self::BankTransfer {},
-            AdditionalPaymentData::Voucher(voucher) => Self::Voucher {},
-            AdditionalPaymentData::GiftCard(gift_card) => Self::GiftCard {},
-            AdditionalPaymentData::CardRedirect(card_redirect) => Self::CardRedirect {},
-            AdditionalPaymentData::CardToken(card_token) => Self::CardToken {},
-            AdditionalPaymentData::OpenBanking(open_banking) => Self::OpenBanking {},
+            AdditionalPaymentData::RealTimePayment(realtime_payment) => {
+                Self::RealTimePayment(realtime_payment)
+            }
+            AdditionalPaymentData::Upi(upi) => Self::Upi(upi),
+            AdditionalPaymentData::BankTransfer(bank_transfer) => Self::BankTransfer(bank_transfer),
+            AdditionalPaymentData::Voucher(voucher) => Self::Voucher(voucher),
+            AdditionalPaymentData::GiftCard(gift_card) => Self::GiftCard(gift_card),
+            AdditionalPaymentData::CardRedirect(card_redirect) => Self::CardRedirect(card_redirect),
+            AdditionalPaymentData::CardToken(card_token) => Self::CardToken(card_token),
+            AdditionalPaymentData::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
         }
     }
 }
