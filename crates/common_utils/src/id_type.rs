@@ -198,6 +198,12 @@ where
     }
 }
 
+/// An interface to generate object identifiers.
+pub trait GenerateId {
+    /// Generates a random object identifier.
+    fn generate() -> Self;
+}
+
 #[cfg(test)]
 mod alphanumeric_id_tests {
     #![allow(clippy::unwrap_used)]

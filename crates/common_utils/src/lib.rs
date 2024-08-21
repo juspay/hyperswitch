@@ -214,12 +214,16 @@ fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u
 
 /// Generate a customer id with default length, with prefix as `cus`
 pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
-    id_type::CustomerId::default()
+    use id_type::GenerateId;
+
+    id_type::CustomerId::generate()
 }
 
 /// Generate a organization id with default length, with prefix as `org`
 pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
-    id_type::OrganizationId::default()
+    use id_type::GenerateId;
+
+    id_type::OrganizationId::generate()
 }
 
 /// Generate a nanoid with the given prefix and a default length
