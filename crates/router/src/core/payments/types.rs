@@ -312,7 +312,7 @@ impl SurchargeMetadata {
                 ));
             }
             let intent_fulfillment_time = business_profile
-                .intent_fulfillment_time
+                .get_order_fulfillment_time()
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
             redis_conn
                 .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))

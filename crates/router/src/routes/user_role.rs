@@ -249,3 +249,23 @@ pub async fn delete_user_role(
     ))
     .await
 }
+
+pub async fn get_role_information(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetRolesInfo;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |_, _: (), _, _| async move {
+            user_role_core::get_authorization_info_with_group_tag().await
+        },
+        &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
