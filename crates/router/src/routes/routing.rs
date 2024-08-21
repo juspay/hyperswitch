@@ -280,7 +280,55 @@ pub async fn routing_unlink_config(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+#[instrument(skip_all)]
+pub async fn routing_update_default_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
+) -> impl Responder {
+    let wrapper = routing_types::ProfileDefaultRoutingConfig {
+        profile_id: path.into_inner(),
+        connectors: json_payload.into_inner(),
+    };
+    Box::pin(oss_api::server_wrap(
+        Flow::RoutingUpdateDefaultConfig,
+        state,
+        &req,
+        wrapper,
+        |state, auth: auth::AuthenticationData, wrapper, _| {
+            routing::update_default_fallback_routing(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                wrapper.profile_id,
+                wrapper.connectors,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 #[instrument(skip_all)]
 pub async fn routing_update_default_config(
     state: web::Data<AppState>,
@@ -314,7 +362,49 @@ pub async fn routing_update_default_config(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+#[instrument(skip_all)]
+pub async fn routing_retrieve_default_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    Box::pin(oss_api::server_wrap(
+        Flow::RoutingRetrieveDefaultConfig,
+        state,
+        &req,
+        path.into_inner(),
+        |state, auth: auth::AuthenticationData, profile_id, _| {
+            routing::retrieve_default_fallback_algorithm_for_profile(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                profile_id,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RoutingRead),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
