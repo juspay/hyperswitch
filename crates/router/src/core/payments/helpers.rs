@@ -1482,8 +1482,6 @@ pub(crate) async fn get_payment_method_create_request(
                         client_secret: None,
                         payment_method_data: Some(api::PaymentMethodCreateData::Card(card_detail)),
                         billing: None,
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
                     };
                     Ok(payment_method_request)
                 }
@@ -1496,8 +1494,6 @@ pub(crate) async fn get_payment_method_create_request(
                         client_secret: None,
                         payment_method_data: None,
                         billing: None,
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
                     };
 
                     Ok(payment_method_request)

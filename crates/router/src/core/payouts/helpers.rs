@@ -612,6 +612,7 @@ pub async fn save_payout_data_to_locker(
 pub async fn save_payout_data_to_locker(
     _state: &SessionState,
     _payout_data: &mut PayoutData,
+    customer_id: &id_type::CustomerId,
     _payout_method_data: &api::PayoutMethodData,
     _merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,

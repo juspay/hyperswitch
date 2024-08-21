@@ -4970,13 +4970,15 @@ pub async fn get_card_details_with_locker_fallback(
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let card_decrypted = decrypt_optional::<serde_json::Value, masking::WithType>(
+    let card_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
-        pm.payment_method_data.clone(),
+        type_name!(payment_method::PaymentMethod),
+        domain::types::CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
         identifier,
         key,
     )
     .await
+    .and_then(|val| val.try_into_optionaloperation())
     .change_context(errors::StorageError::DecryptionError)
     .attach_printable("unable to decrypt card details")
     .ok()
@@ -5048,13 +5050,15 @@ pub async fn get_card_details_without_locker_fallback(
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let card_decrypted = decrypt_optional::<serde_json::Value, masking::WithType>(
+    let card_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
-        pm.payment_method_data.clone(),
+        type_name!(payment_method::PaymentMethod),
+        domain::types::CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
         identifier,
         key,
     )
     .await
+    .and_then(|val| val.try_into_optionaloperation())
     .change_context(errors::StorageError::DecryptionError)
     .attach_printable("unable to decrypt card details")
     .ok()
@@ -5680,10 +5684,10 @@ pub async fn delete_payment_method(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[instrument(skip_all)]
 pub async fn delete_payment_method(
-    state: routes::SessionState,
-    merchant_account: domain::MerchantAccount,
-    pm_id: api::PaymentMethodId,
-    key_store: domain::MerchantKeyStore,
+    _state: routes::SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _pm_id: api::PaymentMethodId,
+    _key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
     todo!()
 }
