@@ -444,6 +444,7 @@ pub async fn link_routing_config(
 pub async fn retrieve_active_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    authentication_profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     algorithm_id: routing_types::RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
@@ -454,7 +455,7 @@ pub async fn retrieve_active_routing_config(
     let routing_algorithm =
         RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id.0, db)
             .await?;
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
@@ -464,6 +465,8 @@ pub async fn retrieve_active_routing_config(
     .await?
     .get_required_value("BusinessProfile")
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm.0)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -580,12 +583,10 @@ pub async fn unlink_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    authentication_profile_id: Option<String>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
-    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &request)?;
 
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -910,12 +911,10 @@ pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    authentication_profile_id: Option<String>,
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
-    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &query_params)?;
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
