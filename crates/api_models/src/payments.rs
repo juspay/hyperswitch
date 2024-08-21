@@ -2128,7 +2128,7 @@ pub enum BankRedirectData {
         bank_name: Option<common_enums::BankNames>,
 
         // The billing details for bank redirect
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
     },
     Sofort {
         /// The billing details for bank redirection
@@ -2263,7 +2263,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             }
             Self::Przelewy24 {
                 billing_details, ..
-            } => get_billing_address_inner(Some(billing_details), None, None),
+            } => get_billing_address_inner(billing_details.as_ref(), None, None),
             Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
             Self::OnlineBankingFpx { .. }
             | Self::LocalBankRedirect {}
