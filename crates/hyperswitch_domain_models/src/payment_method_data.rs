@@ -1,4 +1,4 @@
-use api_models::payments::ExtendedCardInfo;
+use api_models::payments::{additional_info as payment_additional_types, ExtendedCardInfo};
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
@@ -581,6 +581,17 @@ impl From<api_models::payments::CardRedirectData> for CardRedirectData {
     }
 }
 
+impl From<CardRedirectData> for api_models::payments::CardRedirectData {
+    fn from(value: CardRedirectData) -> Self {
+        match value {
+            CardRedirectData::Knet {} => Self::Knet {},
+            CardRedirectData::Benefit {} => Self::Benefit {},
+            CardRedirectData::MomoAtm {} => Self::MomoAtm {},
+            CardRedirectData::CardRedirect {} => Self::CardRedirect {},
+        }
+    }
+}
+
 impl From<api_models::payments::WalletData> for WalletData {
     fn from(value: api_models::payments::WalletData) -> Self {
         match value {
@@ -800,6 +811,19 @@ impl From<api_models::payments::CryptoData> for CryptoData {
     }
 }
 
+impl From<CryptoData> for api_models::payments::CryptoData {
+    fn from(value: CryptoData) -> Self {
+        let CryptoData {
+            pay_currency,
+            network,
+        } = value;
+        Self {
+            pay_currency,
+            network,
+        }
+    }
+}
+
 impl From<api_models::payments::UpiData> for UpiData {
     fn from(value: api_models::payments::UpiData) -> Self {
         match value {
@@ -807,6 +831,19 @@ impl From<api_models::payments::UpiData> for UpiData {
                 Self::UpiCollect(UpiCollectData { vpa_id: upi.vpa_id })
             }
             api_models::payments::UpiData::UpiIntent(_) => Self::UpiIntent(UpiIntentData {}),
+        }
+    }
+}
+
+impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData {
+    fn from(value: UpiData) -> Self {
+        match value {
+            UpiData::UpiCollect(upi) => {
+                Self::UpiCollect(payment_additional_types::UpiCollectAdditionalData {
+                    vpa_id: upi.vpa_id,
+                })
+            }
+            UpiData::UpiIntent(_) => Self::UpiIntent(api_models::payments::UpiIntentData {}),
         }
     }
 }
@@ -842,6 +879,66 @@ impl From<api_models::payments::VoucherData> for VoucherData {
     }
 }
 
+impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherData> {
+    fn from(value: Box<BoletoVoucherData>) -> Self {
+        Box::new(api_models::payments::BoletoVoucherData {
+            social_security_number: value.social_security_number,
+        })
+    }
+}
+
+impl From<Box<AlfamartVoucherData>> for Box<api_models::payments::AlfamartVoucherData> {
+    fn from(value: Box<AlfamartVoucherData>) -> Self {
+        Box::new(api_models::payments::AlfamartVoucherData {
+            first_name: None,
+            last_name: None,
+            email: None,
+        })
+    }
+}
+
+impl From<Box<IndomaretVoucherData>> for Box<api_models::payments::IndomaretVoucherData> {
+    fn from(value: Box<IndomaretVoucherData>) -> Self {
+        Box::new(api_models::payments::IndomaretVoucherData {
+            first_name: None,
+            last_name: None,
+            email: None,
+        })
+    }
+}
+
+impl From<Box<JCSVoucherData>> for Box<api_models::payments::JCSVoucherData> {
+    fn from(value: Box<JCSVoucherData>) -> Self {
+        Box::new(api_models::payments::JCSVoucherData {
+            first_name: None,
+            last_name: None,
+            email: None,
+            phone_number: None,
+        })
+    }
+}
+
+impl From<VoucherData> for api_models::payments::VoucherData {
+    fn from(value: VoucherData) -> Self {
+        match value {
+            VoucherData::Boleto(boleto_data) => Self::Boleto(boleto_data.into()),
+            VoucherData::Alfamart(alfa_mart) => Self::Alfamart(alfa_mart.into()),
+            VoucherData::Indomaret(info_maret) => Self::Indomaret(info_maret.into()),
+            VoucherData::SevenEleven(jcs_data)
+            | VoucherData::Lawson(jcs_data)
+            | VoucherData::MiniStop(jcs_data)
+            | VoucherData::FamilyMart(jcs_data)
+            | VoucherData::Seicomart(jcs_data)
+            | VoucherData::PayEasy(jcs_data) => Self::SevenEleven(jcs_data.into()),
+            VoucherData::Efecty => Self::Efecty,
+            VoucherData::PagoEfectivo => Self::PagoEfectivo,
+            VoucherData::RedCompra => Self::RedCompra,
+            VoucherData::RedPagos => Self::RedPagos,
+            VoucherData::Oxxo => Self::Oxxo,
+        }
+    }
+}
+
 impl From<api_models::payments::GiftCardData> for GiftCardData {
     fn from(value: api_models::payments::GiftCardData) -> Self {
         match value {
@@ -850,6 +947,20 @@ impl From<api_models::payments::GiftCardData> for GiftCardData {
                 cvc: details.cvc,
             }),
             api_models::payments::GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
+        }
+    }
+}
+
+impl From<GiftCardData> for payment_additional_types::GiftCardAdditionalData {
+    fn from(value: GiftCardData) -> Self {
+        match value {
+            GiftCardData::Givex(details) => {
+                Self::Givex(payment_additional_types::GivexGiftCardAdditionalData {
+                    number: details.number.clone(),
+                    last4: details.number,
+                })
+            }
+            GiftCardData::PaySafeCard {} => Self::PaySafeCard {},
         }
     }
 }
@@ -864,6 +975,15 @@ impl From<api_models::payments::CardToken> for CardToken {
             card_holder_name,
             card_cvc,
         }
+    }
+}
+
+impl From<CardToken> for payment_additional_types::CardTokenAdditionalData {
+    fn from(value: CardToken) -> Self {
+        let CardToken {
+            card_holder_name, ..
+        } = value;
+        Self { card_holder_name }
     }
 }
 
@@ -903,6 +1023,52 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
                 account_number,
                 sort_code,
             },
+        }
+    }
+}
+
+impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdditionalData {
+    fn from(value: BankDebitData) -> Self {
+        match value {
+            BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::Ach(payment_additional_types::AchBankDebitAdditionalData {
+                account_number,
+                routing_number,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+                card_holder_name: None,
+                bank_account_holder_name: None,
+            }),
+            BankDebitData::SepaBankDebit { iban, .. } => {
+                Self::Sepa(payment_additional_types::SepaBankDebitAdditionalData {
+                    iban,
+                    bank_account_holder_name: None,
+                })
+            }
+            BankDebitData::BecsBankDebit {
+                account_number,
+                bsb_number,
+                ..
+            } => Self::Becs(payment_additional_types::BecsBankDebitAdditionalData {
+                account_number,
+                bsb_number,
+                bank_account_holder_name: None,
+            }),
+            BankDebitData::BacsBankDebit {
+                account_number,
+                sort_code,
+                ..
+            } => Self::Bacs(payment_additional_types::BacsBankDebitAdditionalData {
+                account_number,
+                sort_code,
+                bank_account_holder_name: None,
+            }),
         }
     }
 }
@@ -954,6 +1120,37 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
     }
 }
 
+impl From<BankTransferData> for api_models::payments::additional_info::BankTransferAdditionalData {
+    fn from(value: BankTransferData) -> Self {
+        match value {
+            BankTransferData::AchBankTransfer {} => Self::Ach {},
+            BankTransferData::SepaBankTransfer {} => Self::Sepa {},
+            BankTransferData::BacsBankTransfer {} => Self::Bacs {},
+            BankTransferData::MultibancoBankTransfer {} => Self::Multibanco {},
+            BankTransferData::PermataBankTransfer {} => Self::Permata {},
+            BankTransferData::BcaBankTransfer {} => Self::Bca {},
+            BankTransferData::BniVaBankTransfer {} => Self::BniVa {},
+            BankTransferData::BriVaBankTransfer {} => Self::BriVa {},
+            BankTransferData::CimbVaBankTransfer {} => Self::CimbVa {},
+            BankTransferData::DanamonVaBankTransfer {} => Self::DanamonVa {},
+            BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
+            BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(
+                api_models::payments::additional_info::PixBankTransferAdditionalData {
+                    pix_key,
+                    cpf,
+                    cnpj,
+                },
+            ),
+            BankTransferData::Pse {} => Self::Pse {},
+            BankTransferData::LocalBankTransfer { bank_code } => Self::LocalBankTransfer(
+                api_models::payments::additional_info::LocalBankTransferAdditionalData {
+                    bank_code,
+                },
+            ),
+        }
+    }
+}
+
 impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
     fn from(value: api_models::payments::RealTimePaymentData) -> Self {
         match value {
@@ -965,10 +1162,29 @@ impl From<api_models::payments::RealTimePaymentData> for RealTimePaymentData {
     }
 }
 
+impl From<RealTimePaymentData> for api_models::payments::RealTimePaymentData {
+    fn from(value: RealTimePaymentData) -> Self {
+        match value {
+            RealTimePaymentData::Fps {} => Self::Fps {},
+            RealTimePaymentData::DuitNow {} => Self::DuitNow {},
+            RealTimePaymentData::PromptPay {} => Self::PromptPay {},
+            RealTimePaymentData::VietQr {} => Self::VietQr {},
+        }
+    }
+}
+
 impl From<api_models::payments::OpenBankingData> for OpenBankingData {
     fn from(value: api_models::payments::OpenBankingData) -> Self {
         match value {
             api_models::payments::OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
+        }
+    }
+}
+
+impl From<OpenBankingData> for api_models::payments::OpenBankingData {
+    fn from(value: OpenBankingData) -> Self {
+        match value {
+            OpenBankingData::OpenBankingPIS {} => Self::OpenBankingPIS {},
         }
     }
 }

@@ -3,7 +3,7 @@ use std::{
     fmt,
     num::NonZeroI64,
 };
-
+pub mod additional_info;
 use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
@@ -1991,6 +1991,8 @@ pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<common_enums::BankNames>,
+        #[serde(flatten)]
+        additional_details: Option<additional_info::BankRedirectDetails>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -1998,18 +2000,18 @@ pub enum AdditionalPaymentData {
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
     },
-    BankTransfer {},
-    Crypto {},
-    BankDebit {},
+    BankTransfer(additional_info::BankTransferAdditionalData),
+    Crypto(CryptoData),
+    BankDebit(additional_info::BankDebitAdditionalData),
     MandatePayment {},
     Reward {},
-    RealTimePayment {},
-    Upi {},
-    GiftCard {},
-    Voucher {},
-    CardRedirect {},
-    CardToken {},
-    OpenBanking {},
+    RealTimePayment(RealTimePaymentData),
+    Upi(additional_info::UpiAdditionalData),
+    GiftCard(additional_info::GiftCardAdditionalData),
+    Voucher(VoucherData),
+    CardRedirect(CardRedirectData),
+    CardToken(additional_info::CardTokenAdditionalData),
+    OpenBanking(OpenBankingData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2976,22 +2978,21 @@ where
         {
             match payment_method_data {
                 PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
-                PaymentMethodDataResponse::BankDebit {}
-                | PaymentMethodDataResponse::BankRedirect {}
+                PaymentMethodDataResponse::BankDebit(_)
+                | PaymentMethodDataResponse::BankRedirect(_)
                 | PaymentMethodDataResponse::Card(_)
-                | PaymentMethodDataResponse::CardRedirect {}
-                | PaymentMethodDataResponse::CardToken {}
-                | PaymentMethodDataResponse::Crypto {}
+                | PaymentMethodDataResponse::CardRedirect(_)
+                | PaymentMethodDataResponse::CardToken(_)
+                | PaymentMethodDataResponse::Crypto(_)
                 | PaymentMethodDataResponse::MandatePayment {}
-                | PaymentMethodDataResponse::GiftCard {}
+                | PaymentMethodDataResponse::GiftCard(_)
                 | PaymentMethodDataResponse::PayLater(_)
-                | PaymentMethodDataResponse::Paypal {}
-                | PaymentMethodDataResponse::RealTimePayment {}
-                | PaymentMethodDataResponse::Upi {}
+                | PaymentMethodDataResponse::RealTimePayment(_)
+                | PaymentMethodDataResponse::Upi(_)
                 | PaymentMethodDataResponse::Wallet {}
-                | PaymentMethodDataResponse::BankTransfer {}
-                | PaymentMethodDataResponse::OpenBanking {}
-                | PaymentMethodDataResponse::Voucher {} => {
+                | PaymentMethodDataResponse::BankTransfer(_)
+                | PaymentMethodDataResponse::OpenBanking(_)
+                | PaymentMethodDataResponse::Voucher(_) => {
                     payment_method_data_response.serialize(serializer)
                 }
             }
@@ -3009,22 +3010,21 @@ where
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(Box<CardResponse>),
-    BankTransfer {},
+    BankTransfer(additional_info::BankTransferAdditionalData),
     Wallet {},
     PayLater(Box<PaylaterResponse>),
-    Paypal {},
-    BankRedirect {},
-    Crypto {},
-    BankDebit {},
+    BankRedirect(additional_info::BankRedirectAdditionalData),
+    Crypto(CryptoData),
+    BankDebit(additional_info::BankDebitAdditionalData),
     MandatePayment {},
     Reward {},
-    RealTimePayment {},
-    Upi {},
-    Voucher {},
-    GiftCard {},
-    CardRedirect {},
-    CardToken {},
-    OpenBanking {},
+    RealTimePayment(RealTimePaymentData),
+    Upi(additional_info::UpiAdditionalData),
+    Voucher(VoucherData),
+    GiftCard(additional_info::GiftCardAdditionalData),
+    CardRedirect(CardRedirectData),
+    CardToken(additional_info::CardTokenAdditionalData),
+    OpenBanking(OpenBankingData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4279,19 +4279,25 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             },
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
-            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
-            AdditionalPaymentData::Crypto {} => Self::Crypto {},
-            AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
+            AdditionalPaymentData::BankRedirect {
+                bank_name,
+                additional_details,
+            } => Self::BankRedirect(additional_info::BankRedirectAdditionalData {
+                bank_name,
+                additional_details,
+            }),
+            AdditionalPaymentData::Crypto(crypto) => Self::Crypto {},
+            AdditionalPaymentData::BankDebit(bank_debit) => Self::BankDebit {},
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
             AdditionalPaymentData::Reward {} => Self::Reward {},
-            AdditionalPaymentData::RealTimePayment {} => Self::RealTimePayment {},
-            AdditionalPaymentData::Upi {} => Self::Upi {},
-            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
-            AdditionalPaymentData::Voucher {} => Self::Voucher {},
-            AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
-            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
-            AdditionalPaymentData::CardToken {} => Self::CardToken {},
-            AdditionalPaymentData::OpenBanking {} => Self::OpenBanking {},
+            AdditionalPaymentData::RealTimePayment(realtime_payment) => Self::RealTimePayment {},
+            AdditionalPaymentData::Upi(upi) => Self::Upi {},
+            AdditionalPaymentData::BankTransfer(bank_transfer) => Self::BankTransfer {},
+            AdditionalPaymentData::Voucher(voucher) => Self::Voucher {},
+            AdditionalPaymentData::GiftCard(gift_card) => Self::GiftCard {},
+            AdditionalPaymentData::CardRedirect(card_redirect) => Self::CardRedirect {},
+            AdditionalPaymentData::CardToken(card_token) => Self::CardToken {},
+            AdditionalPaymentData::OpenBanking(open_banking) => Self::OpenBanking {},
         }
     }
 }
