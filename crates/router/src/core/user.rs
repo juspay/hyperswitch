@@ -2482,7 +2482,8 @@ pub async fn list_orgs_for_user(
         .collect::<HashSet<_>>();
 
     let resp = futures::future::try_join_all(
-        orgs.iter().map(|org_id| state.store.find_organization_by_org_id(&org_id)),
+        orgs.iter()
+            .map(|org_id| state.store.find_organization_by_org_id(&org_id)),
     )
     .await
     .change_context(UserErrors::InternalServerError)?
