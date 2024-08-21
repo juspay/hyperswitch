@@ -1,0 +1,62 @@
+use crate::{
+    generate_id_with_default_len,
+    id_type::{AlphaNumericId, LengthId},
+};
+
+crate::id_type!(
+    PaymentId,
+    "A type for payment_id that can be used for payment ids"
+);
+crate::impl_id_type_methods!(PaymentId, "payment_id");
+
+// This is to display the `PaymentId` as PaymentId(abcd)
+crate::impl_debug_id_type!(PaymentId);
+crate::impl_default_id_type!(PaymentId, "pay");
+crate::impl_try_from_cow_str_id_type!(PaymentId, "payment_id");
+
+crate::impl_queryable_id_type!(PaymentId);
+crate::impl_to_sql_from_sql_id_type!(PaymentId);
+
+impl PaymentId {
+    /// Get the hash key to be stored in redis
+    pub fn get_hash_key_for_kv_store(&self) -> String {
+        format!("pi_{}", self.0 .0 .0)
+    }
+
+    // This function should be removed once we have a better way to handle mandatory payment id in other flows
+    /// Get payment id in the format of irrelevant_payment_id_in_{flow}
+    pub fn get_irrelevant_id(flow: &str) -> Self {
+        let alphanumeric_id =
+            AlphaNumericId::new_unchecked(format!("irrelevant_payment_id_in_{flow}"));
+        let id = LengthId::new_unchecked(alphanumeric_id);
+        Self(id)
+    }
+
+    /// Get the attempt id for the payment id based on the attempt count
+    pub fn get_attempt_id(&self, attempt_count: i16) -> String {
+        format!("{}_{attempt_count}", self.get_string_repr())
+    }
+
+    /// Generate a client id for the payment id
+    pub fn generate_client_secret(&self) -> String {
+        generate_id_with_default_len(&format!("{}_secret", self.get_string_repr()))
+    }
+}
+
+#[cfg(feature = "metrics")]
+/// This is implemented so that we can use payment id directly as attribute in metrics
+impl From<PaymentId> for router_env::opentelemetry::Value {
+    fn from(val: PaymentId) -> Self {
+        let string_value = val.0 .0 .0;
+        Self::String(router_env::opentelemetry::StringValue::from(string_value))
+    }
+}
+
+// #[cfg(feature = "metrics")]
+// /// This is implemented so that we can use payment id directly as attribute in metrics
+// impl router_env::tracing::Value for PaymentId {
+//     fn record(&self, key: &router_env::types::Field, visitor: &mut dyn router_env::types::Visit) {
+//         let string_value = self.get_string_repr();
+//         visitor.record_str(key, &string_value);
+//     }
+// }

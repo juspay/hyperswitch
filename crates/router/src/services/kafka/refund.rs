@@ -6,7 +6,7 @@ use time::OffsetDateTime;
 pub struct KafkaRefund<'a> {
     pub internal_reference_id: &'a String,
     pub refund_id: &'a String, //merchant_reference id
-    pub payment_id: &'a String,
+    pub payment_id: &'a common_utils::id_type::PaymentId,
     pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub connector_transaction_id: &'a String,
     pub connector: &'a String,
@@ -64,7 +64,7 @@ impl<'a> super::KafkaMessage for KafkaRefund<'a> {
         format!(
             "{}_{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id,
+            self.payment_id.get_string_repr(),
             self.attempt_id,
             self.refund_id
         )

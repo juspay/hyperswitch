@@ -145,7 +145,7 @@ pub async fn create_or_update_address_for_payment_by_request(
     merchant_id: &id_type::MerchantId,
     customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: &str,
+    payment_id: &common_utils::id_type::PaymentId,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
@@ -215,7 +215,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                         key_manager_state,
                         address,
                         address_update,
-                        payment_id.to_string(),
+                        payment_id.to_owned(),
                         merchant_key_store,
                         storage_scheme,
                     )
@@ -249,7 +249,7 @@ pub async fn create_or_update_address_for_payment_by_request(
 
                 let payment_address = domain::PaymentAddress {
                     address,
-                    payment_id: payment_id.to_string(),
+                    payment_id: payment_id,
                     customer_id: customer_id.cloned(),
                 };
 
@@ -282,7 +282,7 @@ pub async fn create_or_find_address_for_payment_by_request(
     merchant_id: &id_type::MerchantId,
     customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: &str,
+    payment_id: &common_utils::id_type::PaymentId,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
@@ -313,7 +313,7 @@ pub async fn create_or_find_address_for_payment_by_request(
 
                 let payment_address = domain::PaymentAddress {
                     address,
-                    payment_id: payment_id.to_string(),
+                    payment_id: payment_id,
                     customer_id: customer_id.cloned(),
                 };
 
@@ -392,7 +392,7 @@ pub async fn get_address_by_id(
     state: &SessionState,
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: &str,
+    payment_id: &common_utils::id_type::PaymentId,
     merchant_id: &id_type::MerchantId,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
@@ -1110,7 +1110,7 @@ pub fn create_startpay_url(
     format!(
         "{}/payments/redirect/{}/{}/{}",
         base_url,
-        payment_intent.payment_id,
+        payment_intent.payment_id.get_string_repr(),
         payment_intent.merchant_id.get_string_repr(),
         payment_attempt.attempt_id
     )
@@ -1126,7 +1126,7 @@ pub fn create_redirect_url(
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url,
-        payment_attempt.payment_id,
+        payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
         connector_name,
     ) + creds_identifier_path.as_ref()
@@ -1138,7 +1138,7 @@ pub fn create_authentication_url(
 ) -> String {
     format!(
         "{router_base_url}/payments/{}/3ds/authentication",
-        payment_attempt.payment_id
+        payment_attempt.payment_id.get_string_repr()
     )
 }
 
@@ -1150,7 +1150,7 @@ pub fn create_authorize_url(
     format!(
         "{}/payments/{}/{}/authorize/{}",
         router_base_url,
-        payment_attempt.payment_id,
+        payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
         connector_name
     )
@@ -1176,7 +1176,7 @@ pub fn create_complete_authorize_url(
     format!(
         "{}/payments/{}/{}/redirect/complete/{}",
         router_base_url,
-        payment_attempt.payment_id,
+        payment_attempt.payment_id.get_string_repr(),
         payment_attempt.merchant_id.get_string_repr(),
         connector_name
     )
@@ -2585,7 +2585,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 }
 
 pub fn get_handle_response_url(
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     business_profile: &domain::BusinessProfile,
     response: &api::PaymentsResponse,
     connector: String,
@@ -2701,7 +2701,7 @@ pub async fn delete_ephemeral_key(
 }
 
 pub fn make_pg_redirect_response(
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> api::PgRedirectResponse {
@@ -2792,7 +2792,7 @@ pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
 #[allow(clippy::too_many_arguments)]
 pub fn generate_mandate(
     merchant_id: id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     connector: String,
     setup_mandate_details: Option<MandateData>,
     customer_id: &Option<id_type::CustomerId>,
@@ -3035,7 +3035,10 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
-            payment_id: "23".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "23",
+            ))
+            .unwrap(),
             merchant_id: id_type::MerchantId::default(),
             status: storage_enums::IntentStatus::RequiresCapture,
             amount: MinorUnit::new(200),
@@ -3101,7 +3104,10 @@ mod tests {
         let created_at =
             common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
         let payment_intent = PaymentIntent {
-            payment_id: "23".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "23",
+            ))
+            .unwrap(),
             merchant_id: id_type::MerchantId::default(),
             status: storage_enums::IntentStatus::RequiresCapture,
             amount: MinorUnit::new(200),
@@ -3163,7 +3169,10 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
-            payment_id: "23".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "23",
+            ))
+            .unwrap(),
             merchant_id: id_type::MerchantId::default(),
             status: storage_enums::IntentStatus::RequiresCapture,
             amount: MinorUnit::new(200),
@@ -3677,10 +3686,9 @@ impl AttemptType {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
         storage::PaymentAttemptNew {
-            attempt_id: utils::get_payment_attempt_id(
-                &old_payment_attempt.payment_id,
-                new_attempt_count,
-            ),
+            attempt_id: old_payment_attempt
+                .payment_id
+                .get_attempt_id(new_attempt_count),
             payment_id: old_payment_attempt.payment_id,
             merchant_id: old_payment_attempt.merchant_id,
 
@@ -3813,7 +3821,7 @@ impl AttemptType {
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
                 logger::info!(
-                    "manual_retry payment for {} with attempt_id {}",
+                    "manual_retry payment for {:?} with attempt_id {}",
                     updated_payment_intent.payment_id,
                     new_payment_attempt.attempt_id
                 );
@@ -5093,11 +5101,12 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
 
 pub fn get_redis_key_for_extended_card_info(
     merchant_id: &id_type::MerchantId,
-    payment_id: &str,
+    payment_id: &common_utils::id_type::PaymentId,
 ) -> String {
     format!(
-        "{}_{payment_id}_extended_card_info",
-        merchant_id.get_string_repr()
+        "{}_{}_extended_card_info",
+        merchant_id.get_string_repr(),
+        payment_id.get_string_repr()
     )
 }
 

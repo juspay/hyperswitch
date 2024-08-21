@@ -386,7 +386,7 @@ pub struct PaymentElement {
     pub status: String,
     pub network: String,
     pub deposited: Deposited,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub detected_at: String,
     pub transaction_id: String,
     pub coinbase_processing_fee: CoinbaseProcessingFee,

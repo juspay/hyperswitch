@@ -783,7 +783,7 @@ pub async fn payouts_list_core(
         match db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
-                &utils::get_payment_attempt_id(payout.payout_id.clone(), payout.attempt_count),
+                &utils::get_payout_attempt_id(payout.payout_id.clone(), payout.attempt_count),
                 storage_enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
@@ -2379,7 +2379,7 @@ pub async fn payout_create_db_entries(
         })
         .attach_printable("Error inserting payouts in db")?;
     // Make payout_attempt entry
-    let payout_attempt_id = utils::get_payment_attempt_id(payout_id, 1);
+    let payout_attempt_id = utils::get_payout_attempt_id(payout_id, 1);
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
@@ -2460,7 +2460,7 @@ pub async fn make_payout_data(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
 
-    let payout_attempt_id = utils::get_payment_attempt_id(payout_id, payouts.attempt_count);
+    let payout_attempt_id = utils::get_payout_attempt_id(payout_id, payouts.attempt_count);
 
     let payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_attempt_id(

@@ -1213,7 +1213,7 @@ pub struct CheckoutWebhookEventTypeBody {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookData {
     pub id: String,
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub action_id: Option<String>,
     pub reference: Option<String>,
     pub amount: MinorUnit,
@@ -1237,7 +1237,7 @@ pub struct CheckoutWebhookBody {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckoutDisputeWebhookData {
     pub id: String,
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,

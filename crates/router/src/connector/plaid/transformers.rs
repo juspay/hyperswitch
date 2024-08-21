@@ -82,7 +82,7 @@ pub struct User {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PlaidPaymentInitiation {
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
 }
 
 impl TryFrom<&PlaidRouterData<&types::PaymentsAuthorizeRouterData>> for PlaidPaymentsRequest {
@@ -250,7 +250,7 @@ impl From<PlaidPaymentStatus> for enums::AttemptStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlaidPaymentsResponse {
     status: PlaidPaymentStatus,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
 }
 
 impl<F, T>
@@ -320,12 +320,12 @@ impl<F, T>
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PlaidSyncRequest {
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlaidSyncResponse {
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     amount: PlaidAmount,
     status: PlaidPaymentStatus,
     recipient_id: String,

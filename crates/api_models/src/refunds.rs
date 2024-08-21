@@ -21,7 +21,7 @@ pub struct RefundRequest {
         min_length = 30,
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refunds initiated against the same payment. If this is not passed by the merchant, this field shall be auto generated and provided in the API response. It is recommended to generate uuid(v4) as the refund_id.
     #[schema(
@@ -129,7 +129,7 @@ pub struct RefundResponse {
     /// Unique Identifier for the refund
     pub refund_id: String,
     /// The payment id against which refund is initiated
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
     #[schema(value_type = i64 , minimum = 100, example = 6540)]
     pub amount: MinorUnit,
@@ -167,7 +167,7 @@ pub struct RefundResponse {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListRequest {
     /// The identifier for the payment
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// The identifier for the refund
     pub refund_id: Option<String>,
     /// The identifier for business profile

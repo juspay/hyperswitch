@@ -1204,14 +1204,16 @@ pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: S
     merchant_id.get_poll_id(&unique_id)
 }
 
-pub fn get_external_authentication_request_poll_id(payment_id: &String) -> String {
+pub fn get_external_authentication_request_poll_id(
+    payment_id: &common_utils::id_type::PaymentIding,
+) -> String {
     format!("external_authentication_{}", payment_id)
 }
 
 pub fn get_html_redirect_response_for_external_authentication(
     return_url_with_query_params: String,
     payment_response: &api_models::payments::PaymentsResponse,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     poll_config: &PollConfig,
 ) -> RouterResult<String> {
     // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url

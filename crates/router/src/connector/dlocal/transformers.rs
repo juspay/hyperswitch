@@ -461,7 +461,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 pub struct DlocalRefundRequest {
     pub amount: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub currency: enums::Currency,
     pub id: String,
 }

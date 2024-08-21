@@ -99,17 +99,17 @@ impl ToEncryptable<EncryptableEvent, Secret<String>, Encryption> for EventWithEn
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub enum EventMetadata {
     Payment {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
     },
     Payout {
         payout_id: String,
     },
     Refund {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         refund_id: String,
     },
     Dispute {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
         dispute_id: String,
     },

@@ -31,7 +31,7 @@ where
         .switch()?;
 
     query_builder
-        .add_filter_clause("payment_id", query_param.payment_id)
+        .add_filter_clause("payment_id", &query_param.payment_id)
         .switch()?;
 
     if let Some(refund_id) = query_param.refund_id {
@@ -57,7 +57,7 @@ where
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorEventsResult {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub connector_name: Option<String>,
     pub request_id: Option<String>,
     pub flow: String,

@@ -298,7 +298,7 @@ impl FraudCheckInterface for KafkaStore {
     }
     async fn find_fraud_check_by_payment_id(
         &self,
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         merchant_id: id_type::MerchantId,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
@@ -316,7 +316,7 @@ impl FraudCheckInterface for KafkaStore {
     }
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         merchant_id: id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, StorageError> {
         let frm = self

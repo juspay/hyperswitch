@@ -201,7 +201,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     _ => {
                         logger::warn!(
                             %event.event_id,
-                            "The current status of the resource `{}` (event type: {:?}) and the status of \
+                            "The current status of the resource `{:?}` (event type: {:?}) and the status of \
                             the resource when the event was created (event type: {:?}) differ, finishing task",
                             tracking_data.primary_object_id,
                             event_type,

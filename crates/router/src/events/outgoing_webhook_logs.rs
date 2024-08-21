@@ -27,7 +27,7 @@ pub struct OutgoingWebhookEvent {
 #[serde(tag = "outgoing_webhook_event_type", rename_all = "snake_case")]
 pub enum OutgoingWebhookEventContent {
     Payment {
-        payment_id: Option<String>,
+        payment_id: Option<common_utils::id_type::PaymentId>,
         content: Value,
     },
     Payout {
@@ -35,12 +35,12 @@ pub enum OutgoingWebhookEventContent {
         content: Value,
     },
     Refund {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         refund_id: String,
         content: Value,
     },
     Dispute {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
         dispute_id: String,
         content: Value,

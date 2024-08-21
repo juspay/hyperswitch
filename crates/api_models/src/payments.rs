@@ -68,10 +68,20 @@ pub struct BankCodeResponse {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ClientSecret {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub secret: String,
+}
+
+impl ClientSecret {
+    pub fn get_client_secret(&self) -> String {
+        format!(
+            "{}_secret_{}",
+            self.payment_id.get_string_repr(),
+            self.secret
+        )
+    }
 }
 
 impl<'de> Deserialize<'de> for ClientSecret {
@@ -96,8 +106,12 @@ impl<'de> Deserialize<'de> for ClientSecret {
                     E::invalid_value(Unexpected::Str(value), &"a string with '_secret_'")
                 })?;
 
+                let payment_id =
+                    id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id.to_owned()))
+                        .map_err(serde::de::Error::custom)?;
+
                 Ok(ClientSecret {
-                    payment_id: payment_id.to_owned(),
+                    payment_id: payment_id,
                     secret: secret.to_owned(),
                 })
             }
@@ -112,7 +126,11 @@ impl Serialize for ClientSecret {
     where
         S: Serializer,
     {
-        let combined = format!("{}_secret_{}", self.payment_id, self.secret);
+        let combined = format!(
+            "{}_secret_{}",
+            self.payment_id.get_string_repr(),
+            self.secret
+        );
         serializer.serialize_str(&combined)
     }
 }
@@ -128,11 +146,17 @@ mod client_secret_tests {
     #[test]
     fn test_serialize_client_secret() {
         let client_secret1 = ClientSecret {
-            payment_id: "pay_3TgelAms4RQec8xSStjF".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "pay_3TgelAms4RQec8xSStjF",
+            ))
+            .unwrap(),
             secret: "fc34taHLw1ekPgNh92qr".to_string(),
         };
         let client_secret2 = ClientSecret {
-            payment_id: "pay_3Tgel__Ams4RQ_secret_ec8xSStjF".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
+            ))
+            .unwrap(),
             secret: "fc34taHLw1ekPgNh92qr".to_string(),
         };
 
@@ -157,15 +181,24 @@ mod client_secret_tests {
             r#""pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr""#;
 
         let expected1 = ClientSecret {
-            payment_id: "pay_3TgelAms4RQec8xSStjF".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "pay_3TgelAms4RQec8xSStjF",
+            ))
+            .unwrap(),
             secret: "fc34taHLw1ekPgNh92qr".to_string(),
         };
         let expected2 = ClientSecret {
-            payment_id: "pay_3Tgel__Ams4RQ_secret_ec8xSStjF".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
+            ))
+            .unwrap(),
             secret: "fc34taHLw1ekPgNh92qr".to_string(),
         };
         let expected3 = ClientSecret {
-            payment_id: "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_".to_string(),
+            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
+            ))
+            .unwrap(),
             secret: "fc34taHLw1ekPgNh92qr".to_string(),
         };
 
@@ -941,7 +974,7 @@ impl From<MinorUnit> for Amount {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRedirectRequest {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
     pub connector: String,
     pub param: String,
@@ -998,7 +1031,7 @@ pub struct ConnectorMandateReferenceId {
 pub struct UpdateHistory {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: String,
-    pub original_payment_id: Option<String>,
+    pub original_payment_id: Option<common_utils::id_type::PaymentId>,
 }
 
 impl MandateIds {
@@ -3049,7 +3082,7 @@ pub struct PaymentMethodDataResponseWithBilling {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub enum PaymentIdType {
     /// The identifier for payment intent
-    PaymentIntentId(String),
+    PaymentIntentId(id_type::PaymentId),
     /// The identifier for connector transaction
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
@@ -3062,7 +3095,11 @@ impl fmt::Display for PaymentIdType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::PaymentIntentId(payment_id) => {
-                write!(f, "payment_intent_id = \"{payment_id}\"")
+                write!(
+                    f,
+                    "payment_intent_id = \"{}\"",
+                    payment_id.get_string_repr()
+                )
             }
             Self::ConnectorTransactionId(connector_transaction_id) => write!(
                 f,
@@ -3074,20 +3111,6 @@ impl fmt::Display for PaymentIdType {
             Self::PreprocessingId(preprocessing_id) => {
                 write!(f, "preprocessing_id = \"{preprocessing_id}\"")
             }
-        }
-    }
-}
-
-impl PaymentIdType {
-    pub fn and_then<F, E>(self, f: F) -> Result<Self, E>
-    where
-        F: FnOnce(String) -> Result<String, E>,
-    {
-        match self {
-            Self::PaymentIntentId(s) => f(s).map(Self::PaymentIntentId),
-            Self::ConnectorTransactionId(s) => f(s).map(Self::ConnectorTransactionId),
-            Self::PaymentAttemptId(s) => f(s).map(Self::PaymentAttemptId),
-            Self::PreprocessingId(s) => f(s).map(Self::PreprocessingId),
         }
     }
 }
@@ -3289,7 +3312,7 @@ pub struct PhoneDetails {
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
     #[serde(skip_deserializing)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The unique identifier for the merchant
     #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
@@ -3576,7 +3599,7 @@ pub struct PaymentsResponse {
         max_length = 30,
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
@@ -3947,11 +3970,11 @@ pub struct PaymentListConstraints {
 
     /// A cursor for use in pagination, fetch the next list after some object
     #[schema(example = "pay_fafa124123")]
-    pub starting_after: Option<String>,
+    pub starting_after: Option<common_utils::id_type::PaymentId>,
 
     /// A cursor for use in pagination, fetch the previous list before some object
     #[schema(example = "pay_fafa124123")]
-    pub ending_before: Option<String>,
+    pub ending_before: Option<common_utils::id_type::PaymentId>,
 
     /// limit on the number of objects to return
     #[schema(default = 10, maximum = 100)]
@@ -4036,7 +4059,7 @@ pub struct PaymentListResponseV2 {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// The identifier for business profile
     pub profile_id: Option<String>,
     /// The identifier for customer
@@ -4298,7 +4321,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PgRedirectResponse {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub status: api_enums::IntentStatus,
     pub gateway_id: String,
     pub customer_id: Option<id_type::CustomerId>,
@@ -4419,7 +4442,7 @@ pub struct RedirectResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
     /// The identifier for the payment
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: String,
     /// The list of the supported wallets
@@ -4941,7 +4964,7 @@ pub struct ApplepayErrorResponse {
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
@@ -4967,7 +4990,7 @@ pub struct PaymentRetrieveBody {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentRetrieveBodyWithCredentials {
     /// The identifier for payment.
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The identifier for the Merchant Account.
     #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
@@ -4981,7 +5004,7 @@ pub struct PaymentRetrieveBodyWithCredentials {
 pub struct PaymentsCompleteAuthorizeRequest {
     /// The unique identifier for the payment
     #[serde(skip_deserializing)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The shipping address for the payment
     pub shipping: Option<Address>,
     /// Client Secret
@@ -4993,7 +5016,7 @@ pub struct PaymentsCompleteAuthorizeRequest {
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
     #[serde(skip)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
     /// Merchant connector details used to make payments.
@@ -5005,7 +5028,7 @@ pub struct PaymentsCancelRequest {
 pub struct PaymentsIncrementalAuthorizationRequest {
     /// The identifier for the payment
     #[serde(skip)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The total amount including previously authorized amount and additional amount
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
@@ -5017,7 +5040,7 @@ pub struct PaymentsIncrementalAuthorizationRequest {
 pub struct PaymentsExternalAuthenticationRequest {
     /// The identifier for the payment
     #[serde(skip)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: Secret<String>,
@@ -5034,7 +5057,7 @@ pub struct PaymentsExternalAuthenticationRequest {
 pub struct PaymentsManualUpdateRequest {
     /// The identifier for the payment
     #[serde(skip)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The identifier for the payment attempt
     pub attempt_id: String,
     /// Merchant ID
@@ -5115,21 +5138,21 @@ pub struct PaymentsExternalAuthenticationResponse {
 pub struct PaymentsApproveRequest {
     /// The identifier for the payment
     #[serde(skip)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsRejectRequest {
     /// The identifier for the payment
     #[serde(skip)]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentsStartRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The identifier for the Merchant Account.
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
@@ -5162,11 +5185,11 @@ pub struct FrmMessage {
 }
 
 mod payment_id_type {
-    use std::fmt;
+    use std::{borrow::Cow, fmt};
 
     use serde::{
         de::{self, Visitor},
-        Deserializer,
+        Deserialize, Deserializer,
     };
 
     use super::PaymentIdType;
@@ -5185,7 +5208,9 @@ mod payment_id_type {
         where
             E: de::Error,
         {
-            Ok(PaymentIdType::PaymentIntentId(value.to_string()))
+            common_utils::id_type::PaymentId::try_from(Cow::Owned(value.to_string()))
+                .map_err(de::Error::custom)
+                .map(PaymentIdType::PaymentIntentId)
         }
     }
 
@@ -5379,7 +5404,7 @@ pub struct RetrievePaymentLinkResponse {
 pub struct PaymentLinkInitiateRequest {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -5395,7 +5420,7 @@ pub struct PaymentLinkDetails {
     pub currency: api_enums::Currency,
     pub pub_key: String,
     pub client_secret: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub session_expiry: PrimitiveDateTime,
     pub merchant_logo: String,
@@ -5422,7 +5447,7 @@ pub struct SecurePaymentLinkDetails {
 pub struct PaymentLinkStatusDetails {
     pub amount: StringMajorUnit,
     pub currency: api_enums::Currency,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_logo: String,
     pub merchant_name: String,
     #[serde(with = "common_utils::custom_serde::iso8601")]

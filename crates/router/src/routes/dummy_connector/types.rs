@@ -70,7 +70,7 @@ pub enum DummyConnectorStatus {
 pub struct DummyConnectorPaymentAttempt {
     pub timestamp: PrimitiveDateTime,
     pub attempt_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub payment_request: DummyConnectorPaymentRequest,
 }
 
@@ -248,7 +248,7 @@ impl GetPaymentMethodDetails for DummyConnectorPayLater {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct DummyConnectorPaymentData {
     pub attempt_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub status: DummyConnectorStatus,
     pub amount: i64,
     pub eligible_amount: i64,
@@ -311,7 +311,7 @@ impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorPaymentRetrieveRequest {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -333,7 +333,7 @@ pub struct DummyConnectorPaymentCompleteBody {
 #[derive(Default, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct DummyConnectorRefundRequest {
     pub amount: i64,
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]

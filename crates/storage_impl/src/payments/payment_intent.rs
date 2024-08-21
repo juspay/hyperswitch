@@ -74,7 +74,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let merchant_id = payment_intent.merchant_id.clone();
         let payment_id = payment_intent.payment_id.clone();
-        let field = format!("pi_{}", payment_intent.payment_id);
+        let field = payment_intent.payment_id.get_hash_key_for_kv_store();
         let key = PartitionKey::MerchantIdPaymentId {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
@@ -153,7 +153,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
         };
-        let field = format!("pi_{}", this.payment_id);
+        let field = format!("pi_{}", this.payment_id.get_string_repr());
         let storage_scheme = decide_storage_scheme::<_, DieselPaymentIntent>(
             self,
             storage_scheme,
@@ -229,7 +229,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -253,7 +253,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     merchant_id,
                     payment_id,
                 };
-                let field = format!("pi_{payment_id}");
+                let field = payment_id.get_hash_key_for_kv_store();
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<DieselPaymentIntent, _, _>(
@@ -453,7 +453,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,

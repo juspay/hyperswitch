@@ -16,7 +16,7 @@ pub struct ConnectorEvent {
     error: Option<String>,
     url: String,
     method: String,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     merchant_id: common_utils::id_type::MerchantId,
     created_at: i128,
     /// Connector Event Request ID
@@ -36,7 +36,7 @@ impl ConnectorEvent {
         request: serde_json::Value,
         url: String,
         method: Method,
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         merchant_id: common_utils::id_type::MerchantId,
         request_id: Option<&RequestId>,
         latency: u128,

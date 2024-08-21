@@ -38,11 +38,15 @@ use crate::core::errors;
 impl super::Router for PaymentsRequest {}
 
 pub trait PaymentIdTypeExt {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError>;
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
             Self::ConnectorTransactionId(_)

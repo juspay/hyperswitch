@@ -89,7 +89,7 @@ impl<F: Send + Clone>
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,

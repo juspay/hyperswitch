@@ -93,7 +93,7 @@ pub enum PreferredCheckoutMethod {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: Secret<String>,
-    merchant_payment_id: Option<String>,
+    merchant_payment_id: Option<common_utils::id_type::PaymentId>,
     amount: FloatMajorUnit,
     currency: common_enums::Currency,
     country: common_enums::CountryAlpha2,
@@ -303,10 +303,10 @@ pub struct CheckoutMethod {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsResponse {
     pub status: IatapayPaymentStatus,
-    pub iata_payment_id: Option<String>,
+    pub iata_payment_id: Option<common_utils::id_type::PaymentId>,
     pub iata_refund_id: Option<String>,
     pub merchant_id: Option<Secret<String>>,
-    pub merchant_payment_id: Option<String>,
+    pub merchant_payment_id: Option<common_utils::id_type::PaymentId>,
     pub amount: FloatMajorUnit,
     pub currency: String,
     pub checkout_methods: Option<CheckoutMethod>,
@@ -498,8 +498,8 @@ pub struct RefundResponse {
     finish_date_time: Option<String>,
     update_date_time: Option<String>,
     clearance_date_time: Option<String>,
-    iata_payment_id: Option<String>,
-    merchant_payment_id: Option<String>,
+    iata_payment_id: Option<common_utils::id_type::PaymentId>,
+    merchant_payment_id: Option<common_utils::id_type::PaymentId>,
     payment_amount: Option<FloatMajorUnit>,
     merchant_id: Option<Secret<String>>,
     account_country: Option<String>,
@@ -598,8 +598,8 @@ pub struct IatapayAccessTokenErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentWebhookBody {
     pub status: IatapayWebhookStatus,
-    pub iata_payment_id: String,
-    pub merchant_payment_id: Option<String>,
+    pub iata_payment_id: common_utils::id_type::PaymentId,
+    pub merchant_payment_id: Option<common_utils::id_type::PaymentId>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
     pub amount: FloatMajorUnit,

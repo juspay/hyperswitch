@@ -79,7 +79,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
@@ -101,7 +101,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
@@ -122,7 +122,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
@@ -164,7 +164,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
         _storage_scheme: MerchantStorageScheme,
@@ -251,7 +251,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentAttempt>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -598,7 +598,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
@@ -652,7 +652,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
@@ -706,7 +706,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
@@ -827,7 +827,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
@@ -1002,7 +1002,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
         let storage_scheme =

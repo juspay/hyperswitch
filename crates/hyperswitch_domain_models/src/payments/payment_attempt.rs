@@ -40,21 +40,21 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
@@ -68,7 +68,7 @@ pub trait PaymentAttemptInterface {
 
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -91,7 +91,7 @@ pub trait PaymentAttemptInterface {
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
 
@@ -118,7 +118,7 @@ pub trait PaymentAttemptInterface {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
@@ -208,7 +208,7 @@ pub struct PaymentListFilters {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,

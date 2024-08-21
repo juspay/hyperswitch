@@ -208,7 +208,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
-            payment_id.as_ref(),
+            &payment_id,
             storage_scheme,
         )
         .await?;
@@ -531,7 +531,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAutho
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: merchant_account.get_id().to_owned(),
-                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
+                payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
                     request.retry_action,

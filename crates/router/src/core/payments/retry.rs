@@ -496,10 +496,9 @@ pub fn make_new_payment_attempt(
     let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
     storage::PaymentAttemptNew {
         connector: Some(connector),
-        attempt_id: utils::get_payment_attempt_id(
-            &old_payment_attempt.payment_id,
-            new_attempt_count,
-        ),
+        attempt_id: old_payment_attempt
+            .payment_id
+            .get_attempt_id(new_attempt_count),
         payment_id: old_payment_attempt.payment_id,
         merchant_id: old_payment_attempt.merchant_id,
         status: old_payment_attempt.status,
