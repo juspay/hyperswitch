@@ -262,6 +262,12 @@ pub async fn payments_retrieve(
         expand_captures: json_payload.expand_captures,
         ..Default::default()
     };
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
 
     tracing::Span::current().record("payment_id", path.to_string());
     tracing::Span::current().record("flow", flow.to_string());
@@ -291,7 +297,7 @@ pub async fn payments_retrieve(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                HeaderPayload::default(),
+                header_payload.clone(),
             )
         },
         auth::auth_type(

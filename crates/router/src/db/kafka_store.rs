@@ -68,6 +68,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        unified_translations::UnifiedTranslationsInterface,
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
     services::{authentication, kafka::KafkaProducer, Store},
@@ -2609,6 +2610,50 @@ impl GsmInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_gsm_rule(connector, flow, sub_flow, code, message)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl UnifiedTranslationsInterface for KafkaStore {
+    async fn add_unfied_translation(
+        &self,
+        translation: storage::UnifiedTranslationsNew,
+    ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
+        self.diesel_store.add_unfied_translation(translation).await
+    }
+
+    async fn find_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+    ) -> CustomResult<String, errors::StorageError> {
+        self.diesel_store
+            .find_translation(unified_code, unified_message, locale)
+            .await
+    }
+
+    async fn update_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+        data: storage::UnifiedTranslationsUpdate,
+    ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
+        self.diesel_store
+            .update_translation(unified_code, unified_message, locale, data)
+            .await
+    }
+
+    async fn delete_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_translation(unified_code, unified_message, locale)
             .await
     }
 }
