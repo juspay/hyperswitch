@@ -13,7 +13,7 @@ pub struct UnifiedTranslations {
     pub locale: String,
     pub translation: String,
     pub created_at: PrimitiveDateTime,
-    pub last_modified: PrimitiveDateTime,
+    pub last_modified_at: PrimitiveDateTime,
 }
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = unified_translations)]
@@ -23,42 +23,28 @@ pub struct UnifiedTranslationsNew {
     pub locale: String,
     pub translation: String,
     pub created_at: PrimitiveDateTime,
-    pub last_modified: PrimitiveDateTime,
+    pub last_modified_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = unified_translations)]
 pub struct UnifiedTranslationsUpdateInternal {
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
-    pub locale: Option<String>,
     pub translation: Option<String>,
-    pub last_modified: PrimitiveDateTime,
+    pub last_modified_at: PrimitiveDateTime,
 }
 
 #[derive(Debug)]
 pub struct UnifiedTranslationsUpdate {
-    pub unified_code: Option<String>,
-    pub unified_message: Option<String>,
-    pub locale: Option<String>,
     pub translation: Option<String>,
 }
 
 impl From<UnifiedTranslationsUpdate> for UnifiedTranslationsUpdateInternal {
     fn from(value: UnifiedTranslationsUpdate) -> Self {
         let now = common_utils::date_time::now();
-        let UnifiedTranslationsUpdate {
-            unified_code,
-            unified_message,
-            locale,
-            translation,
-        } = value;
+        let UnifiedTranslationsUpdate { translation } = value;
         Self {
-            unified_code,
-            unified_message,
-            locale,
             translation,
-            last_modified: now,
+            last_modified_at: now,
         }
     }
 }

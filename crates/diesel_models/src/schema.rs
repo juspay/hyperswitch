@@ -1229,7 +1229,7 @@ diesel::table! {
         #[max_length = 1024]
         translation -> Varchar,
         created_at -> Timestamp,
-        last_modified -> Timestamp,
+        last_modified_at -> Timestamp,
     }
 }
 
