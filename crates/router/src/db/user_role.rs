@@ -773,10 +773,28 @@ impl UserRoleInterface for MockDb {
             .filter_map(|role| {
                 let mut filter_condition = role.user_id == user_id;
 
-                role.org_id.as_ref().zip(org_id).inspect(|(role_org_id,org_id)| filter_condition = filter_condition && role_org_id == org_id);
-                role.merchant_id.as_ref().zip(merchant_id).inspect(|(role_merchant_id,merchant_id)| filter_condition = filter_condition && role_merchant_id == merchant_id);
-                role.profile_id.as_ref().zip(profile_id).inspect(|(role_profile_id,profile_id)| filter_condition = filter_condition && role_profile_id == profile_id);
-                role.entity_id.as_ref().zip(entity_id).inspect(|(role_entity_id,entity_id)| filter_condition = filter_condition && role_entity_id == entity_id);
+                role.org_id
+                    .as_ref()
+                    .zip(org_id)
+                    .inspect(|(role_org_id, org_id)| {
+                        filter_condition = filter_condition && role_org_id == org_id
+                    });
+                role.merchant_id.as_ref().zip(merchant_id).inspect(
+                    |(role_merchant_id, merchant_id)| {
+                        filter_condition = filter_condition && role_merchant_id == merchant_id
+                    },
+                );
+                role.profile_id.as_ref().zip(profile_id).inspect(
+                    |(role_profile_id, profile_id)| {
+                        filter_condition = filter_condition && role_profile_id == profile_id
+                    },
+                );
+                role.entity_id
+                    .as_ref()
+                    .zip(entity_id)
+                    .inspect(|(role_entity_id, entity_id)| {
+                        filter_condition = filter_condition && role_entity_id == entity_id
+                    });
                 version.inspect(|ver| filter_condition = filter_condition && ver == &role.version);
 
                 filter_condition.then(|| role.to_owned())

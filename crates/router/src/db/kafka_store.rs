@@ -2840,7 +2840,9 @@ impl UserRoleInterface for KafkaStore {
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
-        self.diesel_store.list_user_roles(user_id,org_id,merchant_id,profile_id,entity_id,version).await
+        self.diesel_store
+            .list_user_roles(user_id, org_id, merchant_id, profile_id, entity_id, version)
+            .await
     }
 }
 
