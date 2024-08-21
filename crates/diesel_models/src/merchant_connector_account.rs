@@ -203,6 +203,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: Option<storage_enums::ConnectorStatus>,
     pub connector_wallets_details: Option<Encryption>,
+    pub additional_merchant_data: Option<Encryption>,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -224,6 +225,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: Option<storage_enums::ConnectorStatus>,
     pub connector_wallets_details: Option<Encryption>,
+    pub additional_merchant_data: Option<Encryption>,
 }
 
 #[cfg(all(
