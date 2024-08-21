@@ -1882,7 +1882,9 @@ struct MerchantDefaultConfigUpdate<'a> {
     not(any(feature = "routing_v2", feature = "business_profile_v2",))
 ))]
 impl<'a> MerchantDefaultConfigUpdate<'a> {
-    async fn retrieve_and_update_default_fallback_routing_for_profile(&self) -> RouterResult<()> {
+    async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
+        &self,
+    ) -> RouterResult<()> {
         let mut default_routing_config = routing::helpers::get_merchant_default_config(
             self.store,
             self.merchant_id.get_string_repr(),
