@@ -60,7 +60,7 @@ pub struct RoutingRetrieveQuery {
     pub offset: Option<u8>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
 }

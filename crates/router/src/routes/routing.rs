@@ -24,11 +24,12 @@ pub async fn routing_create_config(
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
+    let json_payload = json_payload.into_inner();
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        json_payload.clone(),
         |state, auth: auth::AuthenticationData, payload, _| {
             routing::create_routing_algorithm_under_profile(
                 state,
@@ -41,11 +42,17 @@ pub async fn routing_create_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: json_payload.profile_id,
+                required_permission: Permission::RoutingWrite,
+            },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: json_payload.profile_id,
+            required_permission: Permission::RoutingWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -125,11 +132,17 @@ pub async fn routing_link_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: Some(routing_payload_wrapper.profile_id),
+                required_permission: Permission::RoutingWrite,
+            },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: Some(routing_payload_wrapper.profile_id),
+            required_permission: Permission::RoutingWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -216,11 +229,12 @@ pub async fn routing_unlink_config(
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingUnlinkConfig;
+    let path = path.into_inner();
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        path.into_inner(),
+        path.clone(),
         |state, auth: auth::AuthenticationData, path, _| {
             routing::unlink_routing_config_under_profile(
                 state,
@@ -233,11 +247,17 @@ pub async fn routing_unlink_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: Some(path),
+                required_permission: Permission::RoutingWrite,
+            },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: Some(path),
+            required_permission: Permission::RoutingWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -256,11 +276,12 @@ pub async fn routing_unlink_config(
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingUnlinkConfig;
+    let payload = payload.into_inner();
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        payload.into_inner(),
+        payload.clone(),
         |state, auth: auth::AuthenticationData, payload_req, _| {
             routing::unlink_routing_config(
                 state,
@@ -274,11 +295,17 @@ pub async fn routing_unlink_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: payload.profile_id,
+                required_permission: Permission::RoutingWrite,
+            },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: Some(payload.profile_id),
+            required_permission: Permission::RoutingWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -640,11 +667,12 @@ pub async fn routing_retrieve_linked_config(
 ) -> impl Responder {
     use crate::services::authentication::AuthenticationData;
     let flow = Flow::RoutingRetrieveActiveConfig;
+    let query = query.into_inner();
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        query.into_inner(),
+        query.clone(),
         |state, auth: AuthenticationData, query_params, _| {
             routing::retrieve_linked_routing_config(
                 state,
@@ -658,11 +686,17 @@ pub async fn routing_retrieve_linked_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: query.profile_id,
+                required_permission: Permission::RoutingRead,
+            },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: query.profile_id,
+            required_permission: Permission::RoutingRead,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -692,7 +726,7 @@ pub async fn routing_retrieve_linked_config(
         flow,
         state,
         &req,
-        wrapper,
+        wrapper.clone(),
         |state, auth: AuthenticationData, wrapper, _| {
             routing::retrieve_routing_config_under_profile(
                 state,
@@ -706,11 +740,17 @@ pub async fn routing_retrieve_linked_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: wrapper.profile_id,
+                required_permission: Permission::RoutingRead,
+            },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: wrapper.profile_id,
+            required_permission: Permission::RoutingRead,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -770,7 +810,7 @@ pub async fn routing_update_default_config_for_profile(
         Flow::RoutingUpdateDefaultConfig,
         state,
         &req,
-        routing_payload_wrapper,
+        routing_payload_wrapper.clone(),
         |state, auth: auth::AuthenticationData, wrapper, _| {
             routing::update_default_routing_config_for_profile(
                 state,
@@ -785,11 +825,17 @@ pub async fn routing_update_default_config_for_profile(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: Some(routing_payload_wrapper.profile_id),
+                required_permission: Permission::RoutingWrite,
+            },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: Some(routing_payload_wrapper.profile_id),
+            required_permission: Permission::RoutingWrite,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

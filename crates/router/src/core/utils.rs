@@ -1364,12 +1364,6 @@ impl GetProfileId for diesel_models::Refund {
     }
 }
 
-impl GetProfileId for api_models::routing::RoutingRetrieveQuery {
-    fn get_profile_id(&self) -> Option<&String> {
-        self.profile_id.as_ref()
-    }
-}
-
 impl GetProfileId for api_models::routing::RoutingConfigRequest {
     fn get_profile_id(&self) -> Option<&String> {
         self.profile_id.as_ref()

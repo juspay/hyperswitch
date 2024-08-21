@@ -94,8 +94,7 @@ pub async fn retrieve_merchant_routing_dictionary(
 ) -> RouterResponse<routing_types::RoutingKind> {
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
 
-    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &query_params)?;
-    let routing_metadata = state
+    let routing_metadata: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
         .store
         .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
             merchant_account.get_id(),
@@ -104,7 +103,20 @@ pub async fn retrieve_merchant_routing_dictionary(
             i64::from(query_params.offset.unwrap_or_default()),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
+        .into_iter()
+        .filter_map(|routing_metadata| {
+            if authentication_profile_id
+                .clone()
+                .is_some_and(|auth_profile| auth_profile == routing_metadata.profile_id)
+            {
+                Some(routing_metadata)
+            } else {
+                None
+            }
+        })
+        .collect();
+
     let result = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
@@ -898,12 +910,8 @@ pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-<<<<<<< HEAD
     authentication_profile_id: Option<String>,
-    query_params: RoutingRetrieveLinkQuery,
-=======
     query_params: routing_types::RoutingRetrieveLinkQuery,
->>>>>>> 72b61310523403113b469e6e6a9a89806849bb1e
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
