@@ -1617,6 +1617,7 @@ impl<'a> ConnectorAuthTypeValidation<'a> {
                 helpers::create_identity_from_certificate_and_key(
                     certificate.to_owned(),
                     private_key.to_owned(),
+                    false,
                 )
                 .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                     field_name:

@@ -204,7 +204,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .add_certificate(auth_details.certificate)
+                .add_certificate(auth_details.certificate, services::VerificationType::Mtls)
                 .add_certificate_key(auth_details.certificate_key)
                 .set_body(types::RefreshTokenType::get_request_body(
                     self, req, connectors,
@@ -340,7 +340,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .add_certificate(auth_details.certificate)
+                .add_certificate(auth_details.certificate, services::VerificationType::Mtls)
                 .add_certificate_key(auth_details.certificate_key)
                 .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
@@ -419,7 +419,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .add_certificate(auth_details.certificate)
+                .add_certificate(auth_details.certificate, services::VerificationType::Mtls)
                 .add_certificate_key(auth_details.certificate_key)
                 .build(),
         ))
@@ -498,7 +498,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
-                .add_certificate(auth_details.certificate)
+                .add_certificate(auth_details.certificate, services::VerificationType::Mtls)
                 .add_certificate_key(auth_details.certificate_key)
                 .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
@@ -617,7 +617,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
-            .add_certificate(auth_details.certificate)
+            .add_certificate(auth_details.certificate, services::VerificationType::Mtls)
             .add_certificate_key(auth_details.certificate_key)
             .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
@@ -701,7 +701,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .add_certificate(auth_details.certificate)
+                .add_certificate(auth_details.certificate, services::VerificationType::Mtls)
                 .add_certificate_key(auth_details.certificate_key)
                 .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,

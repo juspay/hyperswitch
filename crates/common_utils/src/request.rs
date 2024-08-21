@@ -24,6 +24,12 @@ pub enum ContentType {
     Xml,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub enum VerificationType {
+    Tls,
+    Mtls,
+}
+
 fn default_request_headers() -> [(String, Maskable<String>); 1] {
     use http::header;
 
@@ -38,6 +44,7 @@ pub struct Request {
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
+    pub verificaton_type: Option<VerificationType>,
 }
 
 impl std::fmt::Debug for RequestContent {
@@ -81,6 +88,7 @@ impl Request {
             certificate: None,
             certificate_key: None,
             body: None,
+            verificaton_type: None,
         }
     }
 
@@ -113,6 +121,7 @@ pub struct RequestBuilder {
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
+    pub verificaton_type: Option<VerificationType>,
 }
 
 impl RequestBuilder {
@@ -124,6 +133,7 @@ impl RequestBuilder {
             certificate: None,
             certificate_key: None,
             body: None,
+            verificaton_type: None,
         }
     }
 
@@ -157,8 +167,13 @@ impl RequestBuilder {
         self
     }
 
-    pub fn add_certificate(mut self, certificate: Option<Secret<String>>) -> Self {
+    pub fn add_certificate(
+        mut self,
+        certificate: Option<Secret<String>>,
+        verification_type: VerificationType,
+    ) -> Self {
         self.certificate = certificate;
+        self.verificaton_type = Some(verification_type);
         self
     }
 
@@ -175,6 +190,7 @@ impl RequestBuilder {
             certificate: self.certificate,
             certificate_key: self.certificate_key,
             body: self.body,
+            verificaton_type: self.verificaton_type,
         }
     }
 }

@@ -287,7 +287,10 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(gpayments_auth_type.certificate))
+                .add_certificate(
+                    Some(gpayments_auth_type.certificate),
+                    services::VerificationType::Tls,
+                )
                 .add_certificate_key(Some(gpayments_auth_type.private_key))
                 .build(),
         ))
@@ -374,7 +377,10 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(gpayments_auth_type.certificate))
+                .add_certificate(
+                    Some(gpayments_auth_type.certificate),
+                    services::VerificationType::Tls,
+                )
                 .add_certificate_key(Some(gpayments_auth_type.private_key))
                 .build(),
         ))
@@ -482,7 +488,10 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(gpayments_auth_type.certificate))
+                .add_certificate(
+                    Some(gpayments_auth_type.certificate),
+                    services::VerificationType::Tls,
+                )
                 .add_certificate_key(Some(gpayments_auth_type.private_key))
                 .build(),
         ))
@@ -579,7 +588,7 @@ impl
                         self, req, connectors,
                     )?,
                 )
-                .add_certificate(Some(gpayments_auth_type.certificate))
+                .add_certificate(Some(gpayments_auth_type.certificate), services::VerificationType::Tls)
                 .add_certificate_key(Some(gpayments_auth_type.private_key))
                 .build(),
         ))

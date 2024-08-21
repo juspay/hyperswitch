@@ -90,6 +90,7 @@ use crate::{
 pub fn create_identity_from_certificate_and_key(
     encoded_certificate: masking::Secret<String>,
     encoded_certificate_key: masking::Secret<String>,
+    should_concate_cert_and_key: bool,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
     let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate.expose())
@@ -105,8 +106,14 @@ pub fn create_identity_from_certificate_and_key(
     let certificate_key = String::from_utf8(decoded_certificate_key)
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
-    reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)
+    if should_concate_cert_and_key {
+        let client_cert = format!("{}{}", certificate_key, certificate);
+        reqwest::Identity::from_pem(client_cert.as_bytes())
+            .change_context(errors::ApiClientError::CertificateDecodeFailed)
+    } else {
+        reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
+            .change_context(errors::ApiClientError::CertificateDecodeFailed)
+    }
 }
 
 pub fn create_certificate(

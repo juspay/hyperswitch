@@ -159,7 +159,10 @@ fn build_apple_pay_session_request(
             "application/json".to_string().into(),
         )])
         .set_body(RequestContent::Json(Box::new(request)))
-        .add_certificate(Some(apple_pay_merchant_cert))
+        .add_certificate(
+            Some(apple_pay_merchant_cert),
+            services::VerificationType::Tls,
+        )
         .add_certificate_key(Some(apple_pay_merchant_cert_key))
         .build();
     Ok(session_request)
