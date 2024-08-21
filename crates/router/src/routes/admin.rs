@@ -515,7 +515,7 @@ pub async fn connector_retrieve(
     ),
     tag = "Merchant Connector Account",
     operation_id = "List all Merchant Connectors",
-    security(("api_key" = []))
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn payment_connector_list(
@@ -531,7 +531,13 @@ pub async fn payment_connector_list(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, _auth, merchant_id, _| list_payment_connectors(state, merchant_id, None),
+        |state, auth, merchant_id, _| {
+            list_payment_connectors(
+                state,
+                merchant_id,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantId::default(),
             &auth::JWTAuthMerchantFromRoute {
@@ -560,7 +566,7 @@ pub async fn payment_connector_list(
     ),
     tag = "Merchant Connector Account",
     operation_id = "List all Merchant Connectors for The given Profile",
-    security(("api_key" = []))
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn payment_connector_list_profile(
@@ -576,9 +582,15 @@ pub async fn payment_connector_list_profile(
         state,
         &req,
         merchant_id.to_owned(),
-        |state, _, merchant_id, _| list_payment_connectors(state, merchant_id, None),
+        |state, auth, merchant_id, _| {
+            list_payment_connectors(
+                state,
+                merchant_id,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::AdminApiAuthWithMerchantId::default(),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
