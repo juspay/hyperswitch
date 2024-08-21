@@ -996,7 +996,7 @@ pub async fn call_connector_payout(
         let merchant_connector_account = get_mca_from_profile_id(
             state,
             merchant_account,
-            payout_data.profile_id.clone(),
+            &payout_data.profile_id,
             &connector_data.connector_name.to_string(),
             payout_attempt
                 .merchant_connector_id
@@ -2727,7 +2727,7 @@ pub async fn create_payout_link_db_entry(
 pub async fn get_mca_from_profile_id(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    profile_id: String,
+    profile_id: &String,
     connector_name: &str,
     merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,
@@ -2737,7 +2737,7 @@ pub async fn get_mca_from_profile_id(
         merchant_account.get_id(),
         None,
         key_store,
-        &profile_id,
+        profile_id,
         connector_name,
         merchant_connector_id,
     )
