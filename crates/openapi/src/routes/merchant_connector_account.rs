@@ -231,7 +231,7 @@ pub async fn connector_update() {}
 
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    post,
+    put,
     path = "/v2/connector_accounts/{id}",
     request_body(
         content = MerchantConnectorUpdate,
