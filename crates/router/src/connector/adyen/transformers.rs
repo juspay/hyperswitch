@@ -1058,10 +1058,6 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::Yoursafe
             | common_enums::BankNames::N26
             | common_enums::BankNames::NationaleNederlanden
-            | common_enums::enums::BankNames::FioBanka
-            | common_enums::enums::BankNames::MonetaMoneyBank
-            | common_enums::enums::BankNames::MTransfer
-            | common_enums::enums::BankNames::RaiffeisenbankEPlatby
             | common_enums::BankNames::KasikornBank => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -1713,35 +1709,19 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
     }
 }
 
-pub fn get_address_info(address: Option<&payments::Address>) -> Option<Address> {
+pub fn get_address_info(address: Option<&payments::Address>) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>>  {
     address.and_then(|add| {
-        add.address.as_ref().and_then(|a| -> Option<Address> {
-            if let (
-                Ok(city),
-                Ok(country),
-                Ok(house_number_or_name),
-                Ok(postal_code),
-                state_or_province,
-                Ok(street),
-            ) = (
-                a.get_city(),
-                a.get_country(),
-                a.get_line1(),
-                a.get_zip(),
-                a.state.clone(),
-                a.get_line2(),
-            ) {
-                Some(Address {
-                    city: city.to_string(),
-                    country: *country,
-                    house_number_or_name: house_number_or_name.clone(),
-                    postal_code: postal_code.clone(),
-                    state_or_province,
-                    street: street.clone(),
-                })
-            } else {
-                None
-            }
+        add.address.as_ref().map(
+            |a| -> Result<Address, error_stack::Report<errors::ConnectorError>> {
+                Ok(Address {
+                    city: a.get_city()?.to_owned(),
+                    country: a.get_country()?.to_owned(),
+                    house_number_or_name: a.get_line1()?.to_owned(),
+                    postal_code: a.get_zip()?.to_owned(),
+                    state_or_province: a.state.clone(),
+                    street: a.get_line2()?.to_owned(),
+                },
+            )
         })
     })
 }
@@ -2637,7 +2617,7 @@ impl<'a>
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
-        let billing_address = get_address_info(item.router_data.get_optional_billing());
+        let billing_address = get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
@@ -2756,7 +2736,7 @@ impl<'a>
         let payment_method = AdyenPaymentMethod::try_from((voucher_data, item.router_data))?;
         let return_url = item.router_data.request.get_return_url()?;
         let social_security_number = get_social_security_number(voucher_data);
-        let billing_address = get_address_info(item.router_data.get_optional_billing());
+        let billing_address = get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
 
         let request = AdyenPaymentRequest {
@@ -2921,7 +2901,7 @@ impl<'a>
         ))?;
         let (shopper_locale, country) = get_redirect_extra_details(item.router_data)?;
         let line_items = Some(get_line_items(item));
-        let billing_address = get_address_info(item.router_data.get_optional_billing());
+        let billing_address = get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -2967,8 +2947,8 @@ fn get_redirect_extra_details(
             }
             domain::BankRedirectData::Trustly {}
             | domain::BankRedirectData::OpenBankingUk { .. } => {
-                let country = item.get_optional_billing_country()?;
-                Ok((None, Some(country)))
+                let country = item.get_optional_billing_country();
+                Ok((None, country))
             }
             _ => Ok((None, None)),
         },
@@ -3020,7 +3000,7 @@ impl<'a>
         let return_url = item.router_data.request.get_router_return_url()?;
         let shopper_email =
             get_shopper_email(&item.router_data.request, store_payment_method.is_some())?;
-        let billing_address = get_address_info(item.router_data.get_optional_billing());
+        let billing_address = get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3080,8 +3060,8 @@ impl<'a>
         let return_url = item.router_data.request.get_return_url()?;
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
         let shopper_email = item.router_data.get_optional_billing_email();
-        let billing_address = get_address_info(item.router_data.get_optional_billing());
-        let delivery_address = get_address_info(item.router_data.get_optional_shipping());
+        let billing_address = get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
+        let delivery_address = get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let line_items = Some(get_line_items(item));
         let telephone_number = get_telephone_number(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((
@@ -4713,7 +4693,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
                     nationality: get_country_code(item.router_data.get_optional_billing()),
-                    billing_address: get_address_info(item.router_data.get_optional_billing()),
+                    billing_address: get_address_info(item.router_data.get_optional_billing())
+                    .transpose()?,
                 })
             }
             PayoutMethodData::Wallet(wallet_data) => {
@@ -4758,7 +4739,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     date_of_birth: None,
                     entity_type: Some(item.router_data.request.entity_type),
                     nationality: get_country_code(item.router_data.get_optional_billing()),
-                    billing_address: get_address_info(item.router_data.get_optional_billing()),
+                    billing_address: get_address_info(item.router_data.get_optional_billing())
+                    .transpose()?,
                 })
             }
         }
@@ -4795,7 +4777,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutF
                         currency: item.router_data.request.destination_currency,
                     },
                     card: PayoutCardDetails::try_from(&item.router_data.get_payout_method_data()?)?,
-                    billing_address: get_address_info(item.router_data.get_billing().ok()),
+                    billing_address: get_address_info(item.router_data.get_billing().ok())
+                    .transpose()?,
                     merchant_account,
                     reference: item.router_data.connector_request_reference_id.clone(),
                     shopper_name: ShopperName {

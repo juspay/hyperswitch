@@ -10595,7 +10595,7 @@ impl Default for super::settings::RequiredFields {
                         },
                     ),
                     (
-                        enums::PaymentMethodType::FamilyStop,
+                        enums::PaymentMethodType::FamilyMart,
                         ConnectorFields {
                             fields: HashMap::from([
                                 (
