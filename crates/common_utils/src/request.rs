@@ -104,8 +104,13 @@ impl Request {
         self.headers.insert((String::from(header), value));
     }
 
-    pub fn add_certificate(&mut self, certificate: Option<Secret<String>>) {
+    pub fn add_certificate(
+        &mut self,
+        certificate: Option<Secret<String>>,
+        verification_type: VerificationType,
+    ) {
         self.certificate = certificate;
+        self.verificaton_type = Some(verification_type);
     }
 
     pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
