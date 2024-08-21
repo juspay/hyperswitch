@@ -20,11 +20,157 @@
     }
   ],
   "paths": {
+    "/organization": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Create",
+        "description": "Organization - Create\n\nCreate a new organization",
+        "operationId": "Create an Organization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Create an organization with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/organization/{organization_id}": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Retrieve",
+        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
+        "operationId": "Retrieve an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Update",
+        "description": "Organization - Update\n\nCreate a new organization for .",
+        "operationId": "Update an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Update organization_name of the organization": {
+                  "value": {
+                    "organization_name": "organization_abcd"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/connector_accounts": {
       "post": {
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Create",
+        "description": "Merchant Connector - Create\n\nCreates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -100,6 +246,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Retrieve",
+        "description": "Merchant Connector - Retrieve\n\nRetrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -141,6 +289,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Update",
+        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -211,6 +361,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Delete",
+        "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
