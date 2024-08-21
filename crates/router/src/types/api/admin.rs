@@ -189,7 +189,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 
         let order_fulfillment_time = item
             .order_fulfillment_time
-            .map(|time| api_models::admin::OrderFulfillmentTime::new(time))
+            .map(api_models::admin::OrderFulfillmentTime::new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
 
@@ -215,9 +215,9 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .extended_card_info_config
                 .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
                 .transpose()?,
-            collect_shipping_details_from_wallet_connector: item
+            collect_shipping_details_from_wallet_connector_if_required: item
                 .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector: item
+            collect_billing_details_from_wallet_connector_if_required: item
                 .collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector: item
                 .always_collect_shipping_details_from_wallet_connector,

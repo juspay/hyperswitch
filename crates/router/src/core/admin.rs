@@ -3344,8 +3344,8 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
-        if let Some(intent_fulfillment_expiry) = &self.intent_fulfillment_time {
-            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
+        if let Some(intent_fulfillment_expiry) = self.intent_fulfillment_time {
+            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
         }
 
         if let Some(ref routing_algorithm) = self.routing_algorithm {
@@ -3535,10 +3535,10 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector
+                .collect_shipping_details_from_wallet_connector_if_required
                 .or(Some(false)),
             collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector
+                .collect_billing_details_from_wallet_connector_if_required
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
@@ -3551,7 +3551,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             payout_routing_algorithm_id: None,
             order_fulfillment_time: self
                 .order_fulfillment_time
-                .map(|order_fulfillment_time| i64::from(order_fulfillment_time.into_inner()))
+                .map(|order_fulfillment_time| order_fulfillment_time.into_inner())
                 .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             default_fallback_routing: None,
@@ -3703,10 +3703,222 @@ pub async fn delete_business_profile(
     Ok(service_api::ApplicationResponse::Json(delete_result))
 }
 
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+trait BusinessProfileUpdateBridge {
+    async fn get_update_business_profile_object(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfileUpdate>;
+}
+
 #[cfg(all(
+    feature = "olap",
     any(feature = "v1", feature = "v2"),
     not(feature = "business_profile_v2")
 ))]
+#[async_trait::async_trait]
+impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
+    async fn get_update_business_profile_object(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfileUpdate> {
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        if let Some(intent_fulfillment_expiry) = self.intent_fulfillment_time {
+            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
+        }
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        if let Some(ref routing_algorithm) = self.routing_algorithm {
+            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+                .clone()
+                .parse_value("RoutingAlgorithm")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "routing_algorithm",
+                })
+                .attach_printable("Invalid routing algorithm given")?;
+        }
+
+        let payment_link_config = self
+            .payment_link_config
+            .map(|payment_link_conf| match payment_link_conf.validate() {
+                Ok(_) => Ok(payment_link_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        let extended_card_info_config = self
+            .extended_card_info_config
+            .as_ref()
+            .map(|config| {
+                config.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "extended_card_info_config",
+                    },
+                )
+            })
+            .transpose()?
+            .map(Secret::new);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        Ok(domain::BusinessProfileUpdate::Update(Box::new(
+            domain::BusinessProfileGeneralUpdate {
+                profile_name: self.profile_name,
+                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                enable_payment_response_hash: self.enable_payment_response_hash,
+                payment_response_hash_key: self.payment_response_hash_key,
+                redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
+                webhook_details,
+                metadata: self.metadata,
+                routing_algorithm: self.routing_algorithm,
+                intent_fulfillment_time: self.intent_fulfillment_time.map(i64::from),
+                frm_routing_algorithm: self.frm_routing_algorithm,
+                #[cfg(feature = "payouts")]
+                payout_routing_algorithm: self.payout_routing_algorithm,
+                #[cfg(not(feature = "payouts"))]
+                payout_routing_algorithm: None,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self.session_expiry.map(i64::from),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                extended_card_info_config,
+                use_billing_as_payment_method_billing: self.use_billing_as_payment_method_billing,
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector_if_required,
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector_if_required,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+            },
+        )))
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v2", feature = "business_profile_v2"))]
+#[async_trait::async_trait]
+impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
+    async fn get_update_business_profile_object(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfileUpdate> {
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        let payment_link_config = self
+            .payment_link_config
+            .map(|payment_link_conf| match payment_link_conf.validate() {
+                Ok(_) => Ok(payment_link_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        let extended_card_info_config = self
+            .extended_card_info_config
+            .as_ref()
+            .map(|config| {
+                config.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "extended_card_info_config",
+                    },
+                )
+            })
+            .transpose()?
+            .map(Secret::new);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        Ok(domain::BusinessProfileUpdate::Update(Box::new(
+            domain::BusinessProfileGeneralUpdate {
+                profile_name: self.profile_name,
+                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                enable_payment_response_hash: self.enable_payment_response_hash,
+                payment_response_hash_key: self.payment_response_hash_key,
+                redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
+                webhook_details,
+                metadata: self.metadata,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self.session_expiry.map(i64::from),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                extended_card_info_config,
+                use_billing_as_payment_method_billing: self.use_billing_as_payment_method_billing,
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector_if_required,
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector_if_required,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                order_fulfillment_time: self
+                    .order_fulfillment_time
+                    .map(|order_fulfillment_time| order_fulfillment_time.into_inner()),
+                order_fulfillment_time_origin: self.order_fulfillment_time_origin,
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+            },
+        )))
+    }
+}
+
+#[cfg(feature = "olap")]
 pub async fn update_business_profile(
     state: SessionState,
     profile_id: &str,
@@ -3738,104 +3950,9 @@ pub async fn update_business_profile(
         })?
     }
 
-    if let Some(session_expiry) = &request.session_expiry {
-        helpers::validate_session_expiry(session_expiry.to_owned())?;
-    }
-
-    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
-    }
-
-    let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
-
-    if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
-    let payment_link_config = request
-        .payment_link_config
-        .map(|payment_link_conf| match payment_link_conf.validate() {
-            Ok(_) => Ok(payment_link_conf.foreign_into()),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
-        })
-        .transpose()?;
-
-    let extended_card_info_config = request
-        .extended_card_info_config
-        .as_ref()
-        .map(|config| {
-            config
-                .encode_to_value()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "extended_card_info_config",
-                })
-        })
-        .transpose()?
-        .map(Secret::new);
-    let outgoing_webhook_custom_http_headers = request
-        .outgoing_webhook_custom_http_headers
-        .async_map(|headers| cards::create_encrypted_data(&state, &key_store, headers))
-        .await
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
-
-    let payout_link_config = request
-        .payout_link_config
-        .map(|payout_conf| match payout_conf.config.validate() {
-            Ok(_) => Ok(payout_conf.foreign_into()),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
-        })
-        .transpose()?;
-
-    let business_profile_update =
-        domain::BusinessProfileUpdate::Update(Box::new(domain::BusinessProfileGeneralUpdate {
-            profile_name: request.profile_name,
-            return_url: request.return_url.map(|return_url| return_url.to_string()),
-            enable_payment_response_hash: request.enable_payment_response_hash,
-            payment_response_hash_key: request.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
-            webhook_details,
-            metadata: request.metadata,
-            routing_algorithm: request.routing_algorithm,
-            intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
-            frm_routing_algorithm: request.frm_routing_algorithm,
-            #[cfg(feature = "payouts")]
-            payout_routing_algorithm: request.payout_routing_algorithm,
-            #[cfg(not(feature = "payouts"))]
-            payout_routing_algorithm: None,
-            is_recon_enabled: None,
-            applepay_verified_domains: request.applepay_verified_domains,
-            payment_link_config,
-            session_expiry: request.session_expiry.map(i64::from),
-            authentication_connector_details: request
-                .authentication_connector_details
-                .map(ForeignInto::foreign_into),
-            payout_link_config,
-            extended_card_info_config,
-            use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector: request
-                .collect_shipping_details_from_wallet_connector_if_required,
-            collect_billing_details_from_wallet_connector: request
-                .collect_billing_details_from_wallet_connector_if_required,
-            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
-            always_collect_billing_details_from_wallet_connector: request
-                .always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector: request
-                .always_collect_shipping_details_from_wallet_connector,
-        }));
+    let business_profile_update = request
+        .get_update_business_profile_object(&state, &key_store)
+        .await?;
 
     let updated_business_profile = db
         .update_business_profile_by_profile_id(
@@ -3855,15 +3972,7 @@ pub async fn update_business_profile(
             .attach_printable("Failed to parse business profile details")?,
     ))
 }
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-pub async fn update_business_profile(
-    _state: SessionState,
-    _profile_id: &str,
-    _merchant_id: &id_type::MerchantId,
-    _request: api::BusinessProfileUpdate,
-) -> RouterResponse<api::BusinessProfileResponse> {
-    todo!()
-}
+
 #[cfg(all(
     feature = "v2",
     feature = "routing_v2",

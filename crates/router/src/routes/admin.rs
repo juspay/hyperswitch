@@ -955,6 +955,11 @@ pub async fn business_profile_retrieve(
     .await
 }
 
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
@@ -983,6 +988,44 @@ pub async fn business_profile_update(
     ))
     .await
 }
+
+#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
+pub async fn business_profile_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileUpdate;
+    let profile_id = path.into_inner();
+
+    let merchant_id = match HeaderMapStruct::from(&req).get_merchant_id_from_header() {
+        Ok(val) => val,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _, req, _| update_business_profile(state, &profile_id, &merchant_id, req),
+        auth::auth_type(
+            &auth::AdminApiAuth,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: Permission::MerchantAccountWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
 pub async fn business_profile_delete(
     state: web::Data<AppState>,
