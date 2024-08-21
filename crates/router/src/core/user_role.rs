@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
+use once_cell::sync::Lazy;
 use router_env::logger;
 
 use crate::{
@@ -18,8 +21,9 @@ use crate::{
     types::domain,
     utils,
 };
-
 pub mod role;
+use common_enums::PermissionGroup;
+use strum::IntoEnumIterator;
 
 // TODO: To be deprecated once groups are stable
 pub async fn get_authorization_info_with_modules(
@@ -43,6 +47,38 @@ pub async fn get_authorization_info_with_groups(
             info::get_group_authorization_info()
                 .into_iter()
                 .map(user_role_api::AuthorizationInfo::Group)
+                .collect(),
+        ),
+    ))
+}
+pub async fn get_authorization_info_with_group_tag(
+) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
+    static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
+        PermissionGroup::iter()
+            .map(|value| (info::get_parent_name(value), value))
+            .fold(
+                HashMap::new(),
+                |mut acc: HashMap<user_role_api::ParentGroup, Vec<PermissionGroup>>,
+                 (key, value)| {
+                    acc.entry(key).or_default().push(value);
+                    acc
+                },
+            )
+            .into_iter()
+            .map(|(name, value)| user_role_api::ParentInfo {
+                name: name.clone(),
+                description: info::get_parent_group_description(name),
+                groups: value,
+            })
+            .collect()
+    });
+
+    Ok(ApplicationResponse::Json(
+        user_role_api::AuthorizationInfoResponse(
+            GROUPS_WITH_PARENT_TAGS
+                .iter()
+                .cloned()
+                .map(user_role_api::AuthorizationInfo::GroupWithTag)
                 .collect(),
         ),
     ))

@@ -167,6 +167,8 @@ pub enum Flow {
     PaymentsList,
     /// Payments filters flow
     PaymentsFilters,
+    /// Payments aggregates flow
+    PaymentsAggregate,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -354,6 +356,8 @@ pub enum Flow {
     SwitchMerchant,
     /// Get permission info
     GetAuthorizationInfo,
+    /// Get Roles info
+    GetRolesInfo,
     /// List roles
     ListRoles,
     /// Get role

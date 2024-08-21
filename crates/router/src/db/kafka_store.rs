@@ -68,6 +68,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        unified_translations::UnifiedTranslationsInterface,
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
     services::{authentication, kafka::KafkaProducer, Store},
@@ -498,7 +499,7 @@ impl CustomerInterface for KafkaStore {
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: &String,
+        id: &str,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -1617,6 +1618,17 @@ impl PaymentIntentInterface for KafkaStore {
     }
 
     #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
+        self.diesel_store
+            .get_intent_status_with_count(merchant_id, time_range)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -2609,6 +2621,50 @@ impl GsmInterface for KafkaStore {
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_gsm_rule(connector, flow, sub_flow, code, message)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl UnifiedTranslationsInterface for KafkaStore {
+    async fn add_unfied_translation(
+        &self,
+        translation: storage::UnifiedTranslationsNew,
+    ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
+        self.diesel_store.add_unfied_translation(translation).await
+    }
+
+    async fn find_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+    ) -> CustomResult<String, errors::StorageError> {
+        self.diesel_store
+            .find_translation(unified_code, unified_message, locale)
+            .await
+    }
+
+    async fn update_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+        data: storage::UnifiedTranslationsUpdate,
+    ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
+        self.diesel_store
+            .update_translation(unified_code, unified_message, locale, data)
+            .await
+    }
+
+    async fn delete_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_translation(unified_code, unified_message, locale)
             .await
     }
 }

@@ -117,7 +117,7 @@ where
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: &String,
+        id: &str,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -719,7 +719,7 @@ mod storage {
         async fn find_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: &String,
+            id: &str,
             _merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -1154,7 +1154,7 @@ mod storage {
         async fn find_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: &String,
+            id: &str,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -1372,7 +1372,7 @@ impl CustomerInterface for MockDb {
     async fn find_customer_by_global_id(
         &self,
         _state: &KeyManagerState,
-        _id: &String,
+        _id: &str,
         _merchant_id: &id_type::MerchantId,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,

@@ -37,6 +37,7 @@ use crate::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
     },
+    headers,
     routes::app::SessionStateInfo,
     services::api,
     types::domain,
@@ -125,14 +126,14 @@ impl AuthenticationType {
                 merchant_id,
                 key_id: _,
             }
+            | Self::AdminApiAuthWithMerchantId { merchant_id }
             | Self::MerchantId { merchant_id }
             | Self::PublishableKey { merchant_id }
             | Self::MerchantJwt {
                 merchant_id,
                 user_id: _,
             }
-            | Self::WebhookAuth { merchant_id }
-            | Self::AdminApiAuthWithMerchantId { merchant_id } => Some(merchant_id),
+            | Self::WebhookAuth { merchant_id } => Some(merchant_id),
             Self::AdminApiKey
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
@@ -659,40 +660,7 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct AdminApiAuthWithMerchantId(pub id_type::MerchantId);
-
-#[async_trait]
-impl<A> AuthenticateAndFetch<(), A> for AdminApiAuthWithMerchantId
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<((), AuthenticationType)> {
-        let request_admin_api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let conf = state.conf();
-
-        let admin_api_key = &conf.secrets.get_inner().admin_api_key;
-
-        if request_admin_api_key != admin_api_key.peek() {
-            Err(report!(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Admin Authentication Failure"))?;
-        }
-
-        Ok((
-            (),
-            AuthenticationType::MerchantId {
-                merchant_id: self.0.clone(),
-            },
-        ))
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AdminApiAuth;
 
 #[async_trait]
@@ -717,6 +685,81 @@ where
         }
 
         Ok(((), AuthenticationType::AdminApiKey))
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct AdminApiAuthWithMerchantId(AdminApiAuth);
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for AdminApiAuthWithMerchantId
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        self.0
+            .authenticate_and_fetch(request_headers, state)
+            .await?;
+        let merchant_id =
+            get_header_value_by_key(headers::X_MERCHANT_ID.to_string(), request_headers)?
+                .get_required_value(headers::X_MERCHANT_ID)
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("`{}` header is missing", headers::X_MERCHANT_ID),
+                })
+                .and_then(|merchant_id_str| {
+                    id_type::MerchantId::try_from(std::borrow::Cow::from(
+                        merchant_id_str.to_string(),
+                    ))
+                    .change_context(
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
+                        },
+                    )
+                })?;
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch merchant key store for the merchant id")
+                }
+            })?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch merchant account for the merchant id")
+                }
+            })?;
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+            profile_id: None,
+        };
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
     }
 }
 
@@ -1462,7 +1505,7 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
 }
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
-    headers.get(crate::headers::AUTHORIZATION).is_some()
+    headers.get(headers::AUTHORIZATION).is_some()
         || get_cookie_from_header(headers)
             .and_then(cookies::parse_cookie)
             .is_ok()
@@ -1502,8 +1545,8 @@ pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult
 
 pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&str> {
     headers
-        .get(crate::headers::AUTHORIZATION)
-        .get_required_value(crate::headers::AUTHORIZATION)?
+        .get(headers::AUTHORIZATION)
+        .get_required_value(headers::AUTHORIZATION)?
         .to_str()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to convert JWT token to string")?
