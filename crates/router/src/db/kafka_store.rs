@@ -2774,7 +2774,7 @@ impl UserRoleInterface for KafkaStore {
         profile_id: Option<&String>,
         update: user_storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
             .update_user_role_by_user_id_and_lineage(
                 user_id,
