@@ -45,7 +45,6 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _time_range: &api_models::payments::TimeRange,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?

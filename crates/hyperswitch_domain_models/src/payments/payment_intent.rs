@@ -72,7 +72,6 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &id_type::MerchantId,
         constraints: &api_models::payments::TimeRange,
-        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
 
     #[cfg(feature = "olap")]

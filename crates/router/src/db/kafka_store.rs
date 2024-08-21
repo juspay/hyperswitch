@@ -1621,10 +1621,9 @@ impl PaymentIntentInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
-        storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
         self.diesel_store
-            .get_intent_status_with_count(merchant_id, time_range, storage_scheme)
+            .get_intent_status_with_count(merchant_id, time_range)
             .await
     }
 

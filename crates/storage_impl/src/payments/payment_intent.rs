@@ -351,10 +351,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
-        storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         self.router_store
-            .get_intent_status_with_count(merchant_id, time_range, storage_scheme)
+            .get_intent_status_with_count(merchant_id, time_range)
             .await
     }
 
@@ -672,7 +671,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
-        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
