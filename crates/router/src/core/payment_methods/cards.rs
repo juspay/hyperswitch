@@ -274,6 +274,11 @@ pub fn store_default_payment_method(
 
     (payment_method_response, None)
 }
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all)]
 pub async fn get_or_insert_payment_method(
     state: &routes::SessionState,
@@ -342,6 +347,19 @@ pub async fn get_or_insert_payment_method(
             }
         }
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn get_or_insert_payment_method(
+    _state: &routes::SessionState,
+    _req: api::PaymentMethodCreate,
+    _resp: &mut api::PaymentMethodResponse,
+    _merchant_account: &domain::MerchantAccount,
+    _customer_id: &id_type::CustomerId,
+    _key_store: &domain::MerchantKeyStore,
+) -> errors::RouterResult<diesel_models::PaymentMethod> {
+    todo!()
 }
 
 #[cfg(all(
@@ -1699,6 +1717,10 @@ pub async fn update_customer_payment_method(
     todo!()
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub fn validate_payment_method_update(
     card_updation_obj: CardDetailUpdate,
     existing_card_data: api::CardDetailFromLocker,
@@ -1747,6 +1769,14 @@ pub fn validate_payment_method_update(
                     .map(|nick_name| nick_name.expose())
                     .map_or(true, |old_nick_name| new_nick_name != old_nick_name)
             })
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn validate_payment_method_update(
+    _card_updation_obj: CardDetailUpdate,
+    _existing_card_data: api::CardDetailFromLocker,
+) -> bool {
+    todo!()
 }
 
 // Wrapper function to switch lockers

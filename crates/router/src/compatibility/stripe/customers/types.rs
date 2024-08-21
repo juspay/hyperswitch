@@ -209,6 +209,10 @@ pub struct CardDetails {
     pub fingerprint: Option<masking::Secret<String>>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {
     fn from(item: api::CustomerPaymentMethodsListResponse) -> Self {
         let customer_payment_methods = item.customer_payment_methods;

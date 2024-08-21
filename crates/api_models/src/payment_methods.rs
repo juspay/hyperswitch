@@ -490,6 +490,10 @@ pub struct MigrateCardDetail {
     pub card_type: Option<String>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
@@ -510,6 +514,10 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<masking::Secret<String>>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl CardDetailUpdate {
     pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
         CardDetail {
@@ -522,6 +530,42 @@ impl CardDetailUpdate {
                 .card_exp_year
                 .clone()
                 .unwrap_or(card_data_from_locker.card_exp_year),
+            card_holder_name: self
+                .card_holder_name
+                .clone()
+                .or(card_data_from_locker.name_on_card),
+            nick_name: self
+                .nick_name
+                .clone()
+                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+            card_issuing_country: None,
+            card_network: None,
+            card_issuer: None,
+            card_type: None,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CardDetailUpdate {
+    /// Card Holder Name
+    #[schema(value_type = String,example = "John Doe")]
+    pub card_holder_name: Option<masking::Secret<String>>,
+
+    /// Card Holder's Nick Name
+    #[schema(value_type = Option<String>,example = "John Doe")]
+    pub nick_name: Option<masking::Secret<String>>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl CardDetailUpdate {
+    pub fn apply(&self, card_data_from_locker: Card) -> CardDetail {
+        CardDetail {
+            card_number: card_data_from_locker.card_number,
+            card_exp_month: card_data_from_locker.card_exp_month,
+            card_exp_year: card_data_from_locker.card_exp_year,
             card_holder_name: self
                 .card_holder_name
                 .clone()

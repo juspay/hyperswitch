@@ -1,6 +1,3 @@
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
-
 use api_models::mandates;
 pub use api_models::mandates::{MandateId, MandateResponse, MandateRevokedResponse};
 use common_utils::ext_traits::OptionExt;
