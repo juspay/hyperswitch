@@ -434,7 +434,7 @@ pub async fn connector_retrieve(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::AdminApiAuthWithMerchantId::default(),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
@@ -533,7 +533,7 @@ pub async fn payment_connector_list(
         merchant_id.to_owned(),
         |state, _auth, merchant_id, _| list_payment_connectors(state, merchant_id, None),
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::AdminApiAuthWithMerchantId::default(),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
@@ -593,7 +593,7 @@ pub async fn connector_update(
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::AdminApiAuthWithMerchantId::default(),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
