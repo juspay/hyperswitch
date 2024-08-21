@@ -113,50 +113,128 @@ pub async fn update_user_role(
             .attach_printable("User Changing their own role");
     }
 
-    let user_role_to_be_updated = user_to_be_updated
-        .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
+    // let user_role_to_be_updated = user_to_be_updated
+    //     .get_role_from_db_by_merchant_id(&state, &user_from_token.merchant_id)
+    //     .await
+    //     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    let mut is_updated = false;
+
+    let v2_user_role_to_be_updated = match state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            user_to_be_updated.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            None,
+            UserRoleVersion::V2,
+        )
         .await
-        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
-
-    let role_to_be_updated = roles::RoleInfo::from_role_id(
-        &state,
-        &user_role_to_be_updated.role_id,
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)?;
-
-    if !role_to_be_updated.is_updatable() {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "User role cannot be updated from {}",
-            role_to_be_updated.get_role_id()
-        ));
-    }
-
-    let (updated_v1_role, updated_v2_role) = utils::user_role::update_v1_and_v2_user_roles_in_db(
-        &state,
-        user_to_be_updated.get_user_id(),
-        &user_from_token.org_id,
-        &user_from_token.merchant_id,
-        UserRoleUpdate::UpdateRole {
-            role_id: req.role_id.clone(),
-            modified_by: user_from_token.user_id,
-        },
-    )
-    .await;
-
-    if updated_v1_role
-        .as_ref()
-        .is_err_and(|err| !err.current_context().is_db_not_found())
-        || updated_v2_role
-            .as_ref()
-            .is_err_and(|err| !err.current_context().is_db_not_found())
     {
-        return Err(report!(UserErrors::InternalServerError));
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if let Some(user_role) = v2_user_role_to_be_updated {
+        let role_to_be_updated = roles::RoleInfo::from_role_id(
+            &state,
+            &user_role.role_id,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+        if !role_to_be_updated.is_updatable() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "User role cannot be updated from {}",
+                role_to_be_updated.get_role_id()
+            ));
+        }
+
+        state
+            .store
+            .update_user_role_by_user_id_and_lineage(
+                user_to_be_updated.get_user_id(),
+                &user_from_token.org_id,
+                &user_from_token.merchant_id,
+                None,
+                UserRoleUpdate::UpdateRole {
+                    role_id: req.role_id.clone(),
+                    modified_by: user_from_token.user_id.clone(),
+                },
+                UserRoleVersion::V2,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        is_updated = true;
     }
 
-    if updated_v1_role.is_err() && updated_v2_role.is_err() {
+    let v1_user_role_to_be_updated = match state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            user_to_be_updated.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            None,
+            UserRoleVersion::V1,
+        )
+        .await
+    {
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if let Some(user_role) = v1_user_role_to_be_updated {
+        let role_to_be_updated = roles::RoleInfo::from_role_id(
+            &state,
+            &user_role.role_id,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+        if !role_to_be_updated.is_updatable() {
+            return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+                "User role cannot be updated from {}",
+                role_to_be_updated.get_role_id()
+            ));
+        }
+
+        state
+            .store
+            .update_user_role_by_user_id_and_lineage(
+                user_to_be_updated.get_user_id(),
+                &user_from_token.org_id,
+                &user_from_token.merchant_id,
+                None,
+                UserRoleUpdate::UpdateRole {
+                    role_id: req.role_id.clone(),
+                    modified_by: user_from_token.user_id,
+                },
+                UserRoleVersion::V1,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        is_updated = true;
+    }
+
+    if !is_updated {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User with given email is not found in the organization")?;
     }
@@ -179,12 +257,13 @@ pub async fn accept_invitation(
 
     let update_result =
         futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
-            let (updated_v1_role, updated_v2_role) =
+            let (update_v1_result, update_v2_result) =
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_token.user_id.as_str(),
                     &merchant_account.organization_id,
                     merchant_account.get_id(),
+                    None,
                     UserRoleUpdate::UpdateStatus {
                         status: UserStatus::Active,
                         modified_by: user_token.user_id.clone(),
@@ -192,8 +271,8 @@ pub async fn accept_invitation(
                 )
                 .await;
 
-            if updated_v1_role.is_err_and(|err| !err.current_context().is_db_not_found())
-                || updated_v2_role.is_err_and(|err| !err.current_context().is_db_not_found())
+            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
+                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
             {
                 Err(report!(UserErrors::InternalServerError))
             } else {
@@ -222,12 +301,13 @@ pub async fn merchant_select(
 
     let update_result =
         futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
-            let (updated_v1_role, updated_v2_role) =
+            let (update_v1_result, update_v2_result) =
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_token.user_id.as_str(),
                     &merchant_account.organization_id,
                     merchant_account.get_id(),
+                    None,
                     UserRoleUpdate::UpdateStatus {
                         status: UserStatus::Active,
                         modified_by: user_token.user_id.clone(),
@@ -235,8 +315,8 @@ pub async fn merchant_select(
                 )
                 .await;
 
-            if updated_v1_role.is_err_and(|err| !err.current_context().is_db_not_found())
-                || updated_v2_role.is_err_and(|err| !err.current_context().is_db_not_found())
+            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
+                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
             {
                 Err(report!(UserErrors::InternalServerError))
             } else {
@@ -295,12 +375,13 @@ pub async fn merchant_select_token_only_flow(
 
     let update_result =
         futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
-            let (updated_v1_role, updated_v2_role) =
+            let (update_v1_result, update_v2_result) =
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_token.user_id.as_str(),
                     &merchant_account.organization_id,
                     merchant_account.get_id(),
+                    None,
                     UserRoleUpdate::UpdateStatus {
                         status: UserStatus::Active,
                         modified_by: user_token.user_id.clone(),
@@ -308,8 +389,8 @@ pub async fn merchant_select_token_only_flow(
                 )
                 .await;
 
-            if updated_v1_role.is_err_and(|err| !err.current_context().is_db_not_found())
-                || updated_v2_role.is_err_and(|err| !err.current_context().is_db_not_found())
+            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
+                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
             {
                 Err(report!(UserErrors::InternalServerError))
             } else {

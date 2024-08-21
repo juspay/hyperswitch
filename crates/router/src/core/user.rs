@@ -618,12 +618,13 @@ pub async fn reset_password(
             .change_context(UserErrors::InternalServerError)
             .attach_printable("merchant_account not found")?;
 
-        let (updated_v1_role, updated_v2_role) =
+        let (update_v1_result, update_v2_result) =
             utils::user_role::update_v1_and_v2_user_roles_in_db(
                 &state,
                 user.user_id.clone().as_str(),
                 &merchant_account.organization_id,
                 inviter_merchant_id,
+                None,
                 UserRoleUpdate::UpdateStatus {
                     status: UserStatus::Active,
                     modified_by: user.user_id.clone(),
@@ -631,17 +632,17 @@ pub async fn reset_password(
             )
             .await;
 
-        if updated_v1_role
+        if update_v1_result
             .as_ref()
             .is_err_and(|err| !err.current_context().is_db_not_found())
-            || updated_v2_role
+            || update_v2_result
                 .as_ref()
                 .is_err_and(|err| !err.current_context().is_db_not_found())
         {
             return Err(report!(UserErrors::InternalServerError));
         }
 
-        if updated_v1_role.is_err() && updated_v2_role.is_err() {
+        if update_v1_result.is_err() && update_v2_result.is_err() {
             return Err(report!(UserErrors::InvalidRoleOperation))
                 .attach_printable("User not found in the organization")?;
         }
@@ -1072,11 +1073,12 @@ pub async fn accept_invite_from_email(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("merchant_account not found")?;
 
-    let (updated_v1_role, updated_v2_role) = utils::user_role::update_v1_and_v2_user_roles_in_db(
+    let (update_v1_result, update_v2_result) = utils::user_role::update_v1_and_v2_user_roles_in_db(
         &state,
         user.get_user_id(),
         &merchant_account.organization_id,
         merchant_id,
+        None,
         UserRoleUpdate::UpdateStatus {
             status: UserStatus::Active,
             modified_by: user.get_user_id().to_string(),
@@ -1084,17 +1086,17 @@ pub async fn accept_invite_from_email(
     )
     .await;
 
-    if updated_v1_role
+    if update_v1_result
         .as_ref()
         .is_err_and(|err| !err.current_context().is_db_not_found())
-        || updated_v2_role
+        || update_v2_result
             .as_ref()
             .is_err_and(|err| !err.current_context().is_db_not_found())
     {
         return Err(report!(UserErrors::InternalServerError));
     }
 
-    if updated_v1_role.is_err() && updated_v2_role.is_err() {
+    if update_v1_result.is_err() && update_v2_result.is_err() {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User not found in the organization")?;
     }
@@ -1179,11 +1181,12 @@ pub async fn accept_invite_from_email_token_only_flow(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("merchant_account not found")?;
 
-    let (updated_v1_role, updated_v2_role) = utils::user_role::update_v1_and_v2_user_roles_in_db(
+    let (update_v1_result, update_v2_result) = utils::user_role::update_v1_and_v2_user_roles_in_db(
         &state,
         user_from_db.get_user_id(),
         &merchant_account.organization_id,
         merchant_id,
+        None,
         UserRoleUpdate::UpdateStatus {
             status: UserStatus::Active,
             modified_by: user_from_db.get_user_id().to_owned(),
@@ -1191,17 +1194,17 @@ pub async fn accept_invite_from_email_token_only_flow(
     )
     .await;
 
-    if updated_v1_role
+    if update_v1_result
         .as_ref()
         .is_err_and(|err| !err.current_context().is_db_not_found())
-        || updated_v2_role
+        || update_v2_result
             .as_ref()
             .is_err_and(|err| !err.current_context().is_db_not_found())
     {
         return Err(report!(UserErrors::InternalServerError));
     }
 
-    if updated_v1_role.is_err() && updated_v2_role.is_err() {
+    if update_v1_result.is_err() && update_v2_result.is_err() {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("User not found in the organization")?;
     }

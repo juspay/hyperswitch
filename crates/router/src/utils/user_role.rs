@@ -182,6 +182,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
     user_id: &str,
     org_id: &id_type::OrganizationId,
     merchant_id: &id_type::MerchantId,
+    profile_id: Option<&String>,
     update: UserRoleUpdate,
 ) -> (
     Result<UserRole, Report<StorageError>>,
@@ -193,13 +194,13 @@ pub async fn update_v1_and_v2_user_roles_in_db(
             user_id,
             org_id,
             merchant_id,
-            None,
+            profile_id,
             update.clone(),
             UserRoleVersion::V1,
         )
         .await
         .map_err(|e| {
-            logger::error!("Error while accepting invitation {e:?}");
+            logger::error!("Error updating user_role {e:?}");
             e
         });
 
@@ -209,13 +210,13 @@ pub async fn update_v1_and_v2_user_roles_in_db(
             user_id,
             org_id,
             merchant_id,
-            None,
+            profile_id,
             update,
             UserRoleVersion::V2,
         )
         .await
         .map_err(|e| {
-            logger::error!("Error while accepting invitation {e:?}");
+            logger::error!("Error updating user_role {e:?}");
             e
         });
 

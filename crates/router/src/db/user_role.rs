@@ -380,14 +380,56 @@ impl UserRoleInterface for MockDb {
 
     async fn update_user_role_by_user_id_and_lineage(
         &self,
-        _user_id: &str,
-        _org_id: &id_type::OrganizationId,
-        _merchant_id: &id_type::MerchantId,
-        _profile_id: Option<&String>,
-        _update: storage::UserRoleUpdate,
-        _version: enums::UserRoleVersion,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        update: storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        Err(errors::StorageError::MockDbError.into())
+        let mut user_roles = self.user_roles.lock().await;
+
+        for user_role in user_roles.iter_mut() {
+            let org_level_check = user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.is_none()
+                && user_role.profile_id.is_none();
+
+            let merchant_level_check = user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.profile_id.is_none();
+
+            let profile_level_check = user_role.org_id.as_ref() == Some(org_id)
+                && user_role.merchant_id.as_ref() == Some(merchant_id)
+                && user_role.profile_id.as_ref() == profile_id;
+
+            // Check if the user role matches the conditions and the version matches
+            if user_role.user_id == user_id
+                && (org_level_check || merchant_level_check || profile_level_check)
+                && user_role.version == version
+            {
+                match &update {
+                    storage::UserRoleUpdate::UpdateRole {
+                        role_id,
+                        modified_by,
+                    } => {
+                        user_role.role_id = role_id.to_string();
+                        user_role.last_modified_by = modified_by.to_string();
+                    }
+                    storage::UserRoleUpdate::UpdateStatus {
+                        status,
+                        modified_by,
+                    } => {
+                        user_role.status = *status;
+                        user_role.last_modified_by = modified_by.to_string();
+                    }
+                }
+                return Ok(user_role.clone());
+            }
+        }
+        Err(
+            errors::StorageError::ValueNotFound("Cannot find user role to update".to_string())
+                .into(),
+        )
     }
 
     async fn delete_user_role_by_user_id_and_lineage(
