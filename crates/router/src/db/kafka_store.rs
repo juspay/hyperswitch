@@ -1618,6 +1618,17 @@ impl PaymentIntentInterface for KafkaStore {
     }
 
     #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
+        self.diesel_store
+            .get_intent_status_with_count(merchant_id, time_range)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,

@@ -3161,6 +3161,31 @@ pub async fn get_payment_filters(
     ))
 }
 
+#[cfg(feature = "olap")]
+pub async fn get_aggregates_for_payments(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PaymentsAggregateResponse> {
+    let db = state.store.as_ref();
+    let intent_status_with_count = db
+        .get_intent_status_with_count(merchant.get_id(), &time_range)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let mut status_map: HashMap<enums::IntentStatus, i64> =
+        intent_status_with_count.into_iter().collect();
+    for status in enums::IntentStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentsAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
+}
+
 pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
