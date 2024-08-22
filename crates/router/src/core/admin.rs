@@ -3498,6 +3498,10 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
         })
     }
 
@@ -3578,13 +3582,17 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector
+                .collect_shipping_details_from_wallet_connector_if_required
                 .or(Some(false)),
             collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector
+                .collect_billing_details_from_wallet_connector_if_required
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
             routing_algorithm_id: None,
             frm_routing_algorithm_id: None,
             payout_routing_algorithm_id: None,
@@ -3856,6 +3864,10 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                     .map(Into::into),
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
             },
         )))
     }
@@ -3934,9 +3946,9 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                 extended_card_info_config,
                 use_billing_as_payment_method_billing: self.use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector: self
-                    .collect_shipping_details_from_wallet_connector,
+                    .collect_shipping_details_from_wallet_connector_if_required,
                 collect_billing_details_from_wallet_connector: self
-                    .collect_billing_details_from_wallet_connector,
+                    .collect_billing_details_from_wallet_connector_if_required,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                     .map(Into::into),
@@ -3944,6 +3956,10 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .order_fulfillment_time
                     .map(|order_fulfillment_time| order_fulfillment_time.into_inner()),
                 order_fulfillment_time_origin: self.order_fulfillment_time_origin,
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
             },
         )))
     }
