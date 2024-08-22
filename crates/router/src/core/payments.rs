@@ -3523,6 +3523,7 @@ where
                         .merchant_connector_id
                         .clone()
                         .as_ref(),
+                    business_profile.clone(),
                 )
                 .await?;
 
@@ -3555,15 +3556,13 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let profile_id = payment_data.payment_intent.profile_id.clone();
-
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
                 key_store,
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                profile_id,
+                business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3604,15 +3603,13 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let profile_id = payment_data.payment_intent.profile_id.clone();
-
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
                 key_store,
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                profile_id,
+                business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3978,6 +3975,7 @@ where
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
+#[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -3991,14 +3989,14 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let (profile_id, routing_algorithm_id) =
-        super::admin::BusinessProfileWrapper::new(business_profile.clone())
-            .get_profile_id_and_routing_algorithm_id(&transaction_data);
+    let profile_wrapper = super::admin::BusinessProfileWrapper::new(business_profile.clone());
+    let routing_algorithm_id = profile_wrapper.get_routing_algorithm_id(&transaction_data);
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
         routing_algorithm_id,
+        business_profile,
         &transaction_data,
     )
     .await
@@ -4010,7 +4008,7 @@ where
         connectors,
         &transaction_data,
         eligible_connectors,
-        profile_id,
+        business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4079,17 +4077,12 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let (profile_id, routing_algorithm_id) = {
-        let (profile_id, routing_algorithm) = match &transaction_data {
-            TransactionData::Payment(payment_data) => (
-                payment_data.payment_intent.profile_id.clone(),
-                business_profile.routing_algorithm.clone(),
-            ),
+    let routing_algorithm_id = {
+        let routing_algorithm = match &transaction_data {
+            TransactionData::Payment(_) => business_profile.routing_algorithm.clone(),
+
             #[cfg(feature = "payouts")]
-            TransactionData::Payout(payout_data) => (
-                Some(payout_data.payout_attempt.profile_id.clone()),
-                business_profile.payout_routing_algorithm.clone(),
-            ),
+            TransactionData::Payout(_) => business_profile.payout_routing_algorithm.clone(),
         };
 
         let algorithm_ref = routing_algorithm
@@ -4098,13 +4091,14 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not decode merchant routing algorithm ref")?
             .unwrap_or_default();
-        (profile_id, algorithm_ref.algorithm_id)
+        algorithm_ref.algorithm_id
     };
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
         routing_algorithm_id,
+        business_profile,
         &transaction_data,
     )
     .await
@@ -4115,7 +4109,7 @@ where
         connectors,
         &transaction_data,
         eligible_connectors,
-        profile_id,
+        business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

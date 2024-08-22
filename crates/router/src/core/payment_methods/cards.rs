@@ -2435,10 +2435,17 @@ pub async fn list_payment_methods(
     )
     .await?;
 
+    let profile_id = profile_id
+        .clone()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Profile id not found".to_string(),
+        })?;
+
     // filter out payment connectors based on profile_id
     let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
         all_mcas.clone(),
-        profile_id.as_ref(),
+        &profile_id,
         ConnectorType::PaymentProcessor,
     );
 
@@ -2447,12 +2454,6 @@ pub async fn list_payment_methods(
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     // Key creation for storing PM_FILTER_CGRAPH
     let key = {
-        let profile_id = profile_id
-            .clone()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Profile id not found".to_string(),
-            })?;
         format!(
             "pm_filters_cgraph_{}_{}",
             merchant_account.get_id().get_string_repr(),
