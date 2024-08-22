@@ -64,15 +64,6 @@ use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_saved_cards,
 };
 #[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "payment_methods_v2")
-))]
-use crate::payment_methods::{
-    add_payment_method_status_update_task,
-    types::transformers::ForeignFrom,
-    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
-};
-#[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2"),
     not(feature = "customer_v2")
@@ -104,6 +95,17 @@ use crate::{
         transformers::ForeignTryFrom,
     },
     utils::{ConnectorResponseExt, OptionExt},
+};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::{
+    core::payment_methods::{
+        add_payment_method_status_update_task,
+        utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
+    },
+    types::transformers::ForeignFrom,
 };
 
 #[cfg(all(
