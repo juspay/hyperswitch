@@ -1162,7 +1162,6 @@ pub async fn get_payment_filters(
     .await
 }
 
-<<<<<<< HEAD
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
 #[cfg(feature = "olap")]
 pub async fn get_payment_filters_profile(
@@ -1170,7 +1169,24 @@ pub async fn get_payment_filters_profile(
     req: actix_web::HttpRequest,
 ) -> impl Responder {
     let flow = Flow::PaymentsFilters;
-=======
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payments::get_payment_filters(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
 #[cfg(feature = "olap")]
 pub async fn get_payments_aggregates(
@@ -1180,24 +1196,13 @@ pub async fn get_payments_aggregates(
 ) -> impl Responder {
     let flow = Flow::PaymentsAggregate;
     let payload = payload.into_inner();
->>>>>>> origin/main
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-<<<<<<< HEAD
-        (),
-        |state, auth: auth::AuthenticationData, _, _| {
-            payments::get_payment_filters(
-                state,
-                auth.merchant_account,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
-            )
-=======
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
             payments::get_aggregates_for_payments(state, auth.merchant_account, req)
->>>>>>> origin/main
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
