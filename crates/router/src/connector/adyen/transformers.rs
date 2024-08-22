@@ -2966,7 +2966,8 @@ fn get_shopper_email(
     is_mandate_payment: bool,
 ) -> errors::CustomResult<Option<Email>, errors::ConnectorError> {
     if is_mandate_payment {
-        let payment_method_type = item.request
+        let payment_method_type = item
+            .request
             .payment_method_type
             .as_ref()
             .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
@@ -3003,8 +3004,7 @@ impl<'a>
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
-        let shopper_email =
-            get_shopper_email(&item.router_data, store_payment_method.is_some())?;
+        let shopper_email = get_shopper_email(&item.router_data, store_payment_method.is_some())?;
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         Ok(AdyenPaymentRequest {
