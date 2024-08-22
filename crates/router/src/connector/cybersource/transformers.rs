@@ -772,7 +772,9 @@ impl
                             merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
-                                previous_transaction_id: Some(Secret::new(mandate_data.network_transaction_id)),
+                                previous_transaction_id: Some(Secret::new(
+                                    mandate_data.network_transaction_id,
+                                )),
                             }),
                         }),
                     )

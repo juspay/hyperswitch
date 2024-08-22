@@ -2606,8 +2606,10 @@ impl<'a>
                             expiry_month: token_data.token_exp_month.clone(),
                             expiry_year: token_data.get_expiry_year_4_digit(),
                             holder_name: card_holder_name,
-                            brand: Some(brand), 
-                            network_payment_reference: Some(Secret::new(mandate_data.network_transaction_id)),
+                            brand: Some(brand),
+                            network_payment_reference: Some(Secret::new(
+                                mandate_data.network_transaction_id,
+                            )),
                         };
                         Ok(AdyenPaymentMethod::NetworkToken(Box::new(
                             adyen_network_token,
@@ -4991,7 +4993,10 @@ impl<'a>
         let mpi_data = MpiData {
             directory_response: "Y".to_string(),
             authentication_response: "Y".to_string(),
-            token_authentication_verification_value: token_data.token_cryptogram.clone().unwrap_or_default(),
+            token_authentication_verification_value: token_data
+                .token_cryptogram
+                .clone()
+                .unwrap_or_default(),
             eci: "07".to_string(),
         };
 
