@@ -44,6 +44,8 @@ mod dummy_connector_default_impl {
 
     impl<const T: u8> api::PaymentTaxCalculationV2 for connector::DummyConnector<T> {}
 
+    impl<const T: u8> api::PaymentSessionUpdateV2 for connector::DummyConnector<T> {}
+
     impl<const T: u8>
         services::ConnectorIntegrationV2<
             api::Authorize,
@@ -188,6 +190,15 @@ mod dummy_connector_default_impl {
             api::CalculateTax,
             types::PaymentFlowData,
             types::PaymentsTaxCalculationData,
+            types::TaxCalculationResponseData,
+        > for connector::DummyConnector<T>
+    {
+    }
+    impl<const T: u8>
+        services::ConnectorIntegrationV2<
+            api::SessionUpdate,
+            types::PaymentFlowData,
+            types::SessionUpdateData,
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
@@ -569,6 +580,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl api::PaymentsPreProcessingV2 for $path::$connector{}
             impl api::PaymentsPostProcessingV2 for $path::$connector{}
             impl api::PaymentTaxCalculationV2 for $path::$connector{}
+            impl api::PaymentSessionUpdateV2 for $path::$connector{}
             impl
             services::ConnectorIntegrationV2<api::Authorize,types::PaymentFlowData, types::PaymentsAuthorizeData, types::PaymentsResponseData>
             for $path::$connector{}
@@ -645,6 +657,13 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             api::CalculateTax,
             types::PaymentFlowData,
                 types::PaymentsTaxCalculationData,
+                types::TaxCalculationResponseData,
+            > for $path::$connector{}
+
+            impl services::ConnectorIntegrationV2<
+            api::SessionUpdate,
+            types::PaymentFlowData,
+                types::SessionUpdateData,
                 types::PaymentsResponseData,
             > for $path::$connector{}
     )*

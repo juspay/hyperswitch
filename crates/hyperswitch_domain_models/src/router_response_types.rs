@@ -73,6 +73,16 @@ pub enum PaymentsResponseData {
         net_amount: i64,
         shipping_address: Option<String>,
     },
+    SessionUpdateResponse {
+        status: common_enums::AuthorizationStatus,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct TaxCalculationResponseData {
+    pub order_tax_amount: i64,
+    pub net_amount: i64,
+    pub shipping_address: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

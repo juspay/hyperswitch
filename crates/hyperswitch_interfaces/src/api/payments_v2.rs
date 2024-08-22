@@ -5,16 +5,17 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+        PostProcessing, PreProcessing, Reject, Session, SessionUpdate, SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, SetupMandateRequestData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, SessionUpdateData,
+        SetupMandateRequestData,
     },
-    router_response_types::PaymentsResponseData,
+    router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
 
 use crate::api::{ConnectorCommon, ConnectorIntegrationV2, ConnectorValidation};
@@ -95,8 +96,14 @@ pub trait PaymentTaxCalculationV2:
     CalculateTax,
     PaymentFlowData,
     PaymentsTaxCalculationData,
-    PaymentsResponseData,
+    TaxCalculationResponseData,
 >
+{
+}
+
+///trait PaymentSessionUpdateV2
+pub trait PaymentSessionUpdateV2:
+    ConnectorIntegrationV2<SessionUpdate, PaymentFlowData, SessionUpdateData, PaymentsResponseData>
 {
 }
 
@@ -175,5 +182,6 @@ pub trait PaymentV2:
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
     + PaymentTaxCalculationV2
+    + PaymentSessionUpdateV2
 {
 }

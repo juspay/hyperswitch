@@ -786,6 +786,12 @@ pub struct PaymentsTaxCalculationData {
     pub order_details: Option<Vec<Secret<serde_json::Value>>>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct SessionUpdateData {
+    pub order_tax_amount: i64,
+    pub net_amount: i64,
+}
+
 #[derive(Debug, Clone)]
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,

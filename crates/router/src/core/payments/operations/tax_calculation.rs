@@ -30,11 +30,11 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "tax_calculation")]
-pub struct PaymentTaxCalculation;
+pub struct PaymentSessionUpdate;
 
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
-    for PaymentTaxCalculation
+    for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -176,7 +176,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 
 #[async_trait]
 impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
-    for PaymentTaxCalculation
+    for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -232,7 +232,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CalculateTax,
             types::PaymentsTaxCalculationData,
-            types::PaymentsResponseData,
+            types::TaxCalculationResponseData,
         > = connector_data.connector.get_connector_integration();
 
         let response = services::execute_connector_processing_step(
@@ -260,20 +260,24 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         // When constructing the router data, add this to the net amount
         //payment_data
 
-        match tax_response {
-        hyperswitch_domain_models::router_response_types::PaymentsResponseData::TaxCalculationResponse { order_tax_amount, .. } => {
-            // Update payment_data.payment_intent.tax_details.order_tax_amount with the order_tax_amount from the TaxCalculationResponse
+        // match tax_response {
+        // hyperswitch_domain_models::router_response_types::PaymentsResponseData::TaxCalculationResponse { order_tax_amount, .. } => {
+        //     // Update payment_data.payment_intent.tax_details.order_tax_amount with the order_tax_amount from the TaxCalculationResponse
 
-            payment_data.payment_intent.tax_details.clone().map(| tax_details| {
-                tax_details.pmt.map(| mut pmt| {
-                    pmt.order_tax_amount = order_tax_amount;
+        payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .map(|tax_details| {
+                tax_details.pmt.map(|mut pmt| {
+                    pmt.order_tax_amount = tax_response.order_tax_amount;
                 });
             });
-        }
-        _ => {
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+        // }
+        // _ => {
+        //     Err(errors::ApiErrorResponse::InternalServerError)?
+        // }
+        // }
 
         Ok(())
     }
@@ -320,7 +324,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
 
 #[async_trait]
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculationRequest>
-    for PaymentTaxCalculation
+    for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -341,6 +345,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
+        //update shipping and tax_details
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::CompleteAuthorizeUpdate {
             shipping_address_id: payment_data.payment_intent.shipping_address_id.clone()
         };
@@ -365,7 +370,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
 }
 
 impl<F: Send + Clone> ValidateRequest<F, api::PaymentsDynamicTaxCalculationRequest>
-    for PaymentTaxCalculation
+    for PaymentSessionUpdate
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(

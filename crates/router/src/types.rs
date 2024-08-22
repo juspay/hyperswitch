@@ -32,7 +32,7 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
-        PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+        PostProcessing, PreProcessing, Reject, Session, SessionUpdate, SetupMandate, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -59,14 +59,15 @@ pub use hyperswitch_domain_models::{
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        SessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
-        VerifyWebhookSourceResponseData, VerifyWebhookStatus,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        VerifyWebhookStatus,
     },
 };
 #[cfg(feature = "payouts")]
@@ -127,7 +128,11 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsResponseData,
 >;
 pub type PaymentsTaxCalculationRouterData =
-    RouterData<CalculateTax, PaymentsTaxCalculationData, PaymentsResponseData>;
+    RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+
+pub type SessionUpdateRouterData =
+    RouterData<SessionUpdate, SessionUpdateData, PaymentsResponseData>;
+
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
 pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
@@ -365,6 +370,7 @@ impl Capturable for CompleteAuthorizeData {
 }
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsTaxCalculationData {}
+impl Capturable for SessionUpdateData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where

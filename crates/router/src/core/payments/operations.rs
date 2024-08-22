@@ -25,7 +25,7 @@ pub use self::{
     payment_response::PaymentResponse, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
-    tax_calculation::PaymentTaxCalculation,
+    tax_calculation::PaymentSessionUpdate,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{

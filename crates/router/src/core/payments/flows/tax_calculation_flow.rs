@@ -14,10 +14,10 @@ use crate::{
 #[async_trait]
 impl
     ConstructFlowSpecificData<
-        api::CalculateTax,
-        types::PaymentsTaxCalculationData,
+        api::SessionUpdate,
+        types::SessionUpdateData,
         types::PaymentsResponseData,
-    > for PaymentData<api::CalculateTax>
+    > for PaymentData<api::SessionUpdate>
 {
     async fn construct_router_data<'a>(
         &self,
@@ -28,12 +28,12 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
-    ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
+    ) -> RouterResult<types::SessionUpdateRouterData> {
         // create a new function to construct router data to send the updated amount
         Box::pin(
             transformers::construct_router_date_to_update_calculated_tax::<
-                api::CalculateTax,
-                types::PaymentsTaxCalculationData,
+                api::SessionUpdate,
+                types::SessionUpdateData,
             >(
                 state,
                 self.clone(),
@@ -61,12 +61,8 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::CalculateTax, types::PaymentsTaxCalculationData>
-    for types::RouterData<
-        api::CalculateTax,
-        types::PaymentsTaxCalculationData,
-        types::PaymentsResponseData,
-    >
+impl Feature<api::SessionUpdate, types::SessionUpdateData>
+    for types::RouterData<api::SessionUpdate, types::SessionUpdateData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,
@@ -87,8 +83,8 @@ impl Feature<api::CalculateTax, types::PaymentsTaxCalculationData>
 
         if connector.connector_name == types::Connector::Klarna {
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                api::CalculateTax,
-                types::PaymentsTaxCalculationData,
+                api::SessionUpdate,
+                types::SessionUpdateData,
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
 
@@ -128,8 +124,8 @@ impl Feature<api::CalculateTax, types::PaymentsTaxCalculationData>
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::CalculateTax,
-                    types::PaymentsTaxCalculationData,
+                    api::SessionUpdate,
+                    types::SessionUpdateData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 

@@ -631,7 +631,7 @@ pub async fn payments_dynamic_tax_calculation(
         payload,
         |state, auth, payload, req_state| {
             payments::payments_core::<
-                api_types::CalculateTax,
+                api_types::SessionUpdate,
                 payment_types::PaymentsDynamicTaxCalculationResponse,
                 _,
                 _,
@@ -642,7 +642,7 @@ pub async fn payments_dynamic_tax_calculation(
                 auth.merchant_account,
                 auth.profile_id,
                 auth.key_store,
-                payments::PaymentTaxCalculation,
+                payments::PaymentSessionUpdate,
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,

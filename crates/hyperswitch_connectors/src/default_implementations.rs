@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PreProcessing,
-            Reject,
+            Reject, SessionUpdate,
         },
         webhooks::VerifyWebhookSource,
     },
@@ -39,13 +39,13 @@ use hyperswitch_domain_models::{
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        RetrieveFileRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        RetrieveFileRequestData, SessionUpdateData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
-        VerifyWebhookSourceResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -65,8 +65,9 @@ use hyperswitch_interfaces::{
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
-            PaymentIncrementalAuthorization, PaymentReject, PaymentTaxCalculation,
-            PaymentsCompleteAuthorize, PaymentsPostProcessing, PaymentsPreProcessing,
+            PaymentIncrementalAuthorization, PaymentReject, PaymentSessionUpdate,
+            PaymentTaxCalculation, PaymentsCompleteAuthorize, PaymentsPostProcessing,
+            PaymentsPreProcessing,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
@@ -104,7 +105,7 @@ macro_rules! default_imp_for_calculate_tax {
             ConnectorIntegration<
                 CalculateTax,
                 PaymentsTaxCalculationData,
-                PaymentsResponseData
+                TaxCalculationResponseData,
         > for $path::$connector
         {}
     )*
@@ -112,6 +113,30 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Helcim,
+    connectors::Stax,
+    connectors::Taxjar
+);
+
+macro_rules! default_imp_for_session_update {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentSessionUpdate for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                SessionUpdate,
+                SessionUpdateData,
+                PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_session_update!(
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Fiserv,

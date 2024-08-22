@@ -31,6 +31,8 @@ pub enum Derives {
     IncrementalAuthorizationData,
     TaxCalculation,
     TaxCalculationData,
+    SessionUpdate,
+    SessionUpdateData,
 }
 
 impl Derives {
@@ -111,6 +113,10 @@ impl Conversion {
             Derives::TaxCalculationData => {
                 syn::Ident::new("PaymentsTaxCalculationData", Span::call_site())
             }
+            Derives::SessionUpdate => {
+                syn::Ident::new("PaymentsDynamicTaxCalculationRequest", Span::call_site())
+            }
+            Derives::SessionUpdateData => syn::Ident::new("SessionUpdateData", Span::call_site()),
         }
     }
 
@@ -432,6 +438,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     CompleteAuthorizeData,
                     PaymentsIncrementalAuthorizationData,
                     PaymentsTaxCalculationData,
+                    SessionUpdateData,
 
                     api::{
                         PaymentsCaptureRequest,
