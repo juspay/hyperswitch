@@ -104,6 +104,12 @@ pub const TENANT_HEADER: &str = "x-tenant-id";
 /// Max Length for MerchantReferenceId
 pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
 
+/// Maximum length allowed for a global id
+pub const MIN_GLOBAL_ID_LENGTH: u8 = 32;
+
+/// Minimum length required for a global id
+pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
+
 /// Minimum allowed length for MerchantReferenceId
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
 
