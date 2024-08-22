@@ -3975,32 +3975,18 @@ impl BusinessProfileWrapper {
         Ok(())
     }
 
-    pub fn get_profile_id_and_routing_algorithm_id<'a, F>(
+    pub fn get_routing_algorithm_id<'a, F>(
         &'a self,
         transaction_data: &'a routing::TransactionData<'_, F>,
-    ) -> RouterResult<(&String, Option<String>)>
+    ) -> Option<String>
     where
         F: Send + Clone,
     {
-        let (profile_id, routing_algorithm_id) = match transaction_data {
-            routing::TransactionData::Payment(payment_data) => (
-                payment_data
-                    .payment_intent
-                    .profile_id
-                    .as_ref()
-                    .get_required_value("profile_id")
-                    .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "profile_id",
-                    })?,
-                self.profile.routing_algorithm_id.clone(),
-            ),
+        match transaction_data {
+            routing::TransactionData::Payment(_) => self.profile.routing_algorithm_id.clone(),
             #[cfg(feature = "payouts")]
-            routing::TransactionData::Payout(payout_data) => (
-                &payout_data.payout_attempt.profile_id,
-                self.profile.payout_routing_algorithm_id.clone(),
-            ),
-        };
-        Ok((profile_id, routing_algorithm_id))
+            routing::TransactionData::Payout(_) => self.profile.payout_routing_algorithm_id.clone(),
+        }
     }
     pub fn get_default_fallback_list_of_connector_under_profile(
         &self,

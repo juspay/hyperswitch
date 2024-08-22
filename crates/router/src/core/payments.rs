@@ -89,8 +89,8 @@ use crate::{
         transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{
-        self as r_utils, add_apple_pay_flow_metrics, add_connector_http_status_code_metrics,
-        Encode, OptionExt, ValueExt,
+        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
+        ValueExt,
     },
     workflows::payment_sync,
 };
@@ -3961,15 +3961,7 @@ where
     F: Send + Clone,
 {
     let profile_wrapper = super::admin::BusinessProfileWrapper::new(business_profile.clone());
-    let (profile_id, routing_algorithm_id) =
-        profile_wrapper.get_profile_id_and_routing_algorithm_id(&transaction_data)?;
-
-    // Validate that the profile_id being passed in intent should be same as the profile_id passed from the business profile parameter
-    r_utils::when(&business_profile.profile_id != profile_id, || {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Business Profile mismatch".to_string(),
-        })
-    })?;
+    let routing_algorithm_id = profile_wrapper.get_routing_algorithm_id(&transaction_data);
 
     let connectors = routing::perform_static_routing_v1(
         state,
@@ -4056,21 +4048,12 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let (profile_id, routing_algorithm_id) = {
-        let (profile_id, routing_algorithm) = match &transaction_data {
-            TransactionData::Payment(payment_data) => (
-                payment_data
-                    .payment_intent
-                    .profile_id
-                    .as_ref()
-                    .get_required_value("profile_id")?,
-                business_profile.routing_algorithm.clone(),
-            ),
+    let routing_algorithm_id = {
+        let routing_algorithm = match &transaction_data {
+            TransactionData::Payment(_) => business_profile.routing_algorithm.clone(),
+
             #[cfg(feature = "payouts")]
-            TransactionData::Payout(payout_data) => (
-                &payout_data.payout_attempt.profile_id,
-                business_profile.payout_routing_algorithm.clone(),
-            ),
+            TransactionData::Payout(_) => business_profile.payout_routing_algorithm.clone(),
         };
 
         let algorithm_ref = routing_algorithm
@@ -4079,14 +4062,8 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not decode merchant routing algorithm ref")?
             .unwrap_or_default();
-        (profile_id, algorithm_ref.algorithm_id)
+        algorithm_ref.algorithm_id
     };
-    // Validate that the profile_id being passed in intent should be same as the profile_id passed from the business profile parameter
-    r_utils::when(&business_profile.profile_id != profile_id, || {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Business Profile mismatch".to_string(),
-        })
-    })?;
 
     let connectors = routing::perform_static_routing_v1(
         state,
