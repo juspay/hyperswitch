@@ -1113,6 +1113,91 @@ where
     }
 }
 
+pub struct JWTAuthMerchantAndProfileFromRoute {
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: String,
+    pub required_permission: Permission,
+}
+
+impl JWTAuthMerchantAndProfileFromRoute {
+    pub fn new(
+        merchant_id_from_route: id_type::MerchantId,
+        permission: Permission,
+        profile_id_from_route: String,
+    ) -> Self {
+        Self {
+            merchant_id: merchant_id_from_route,
+            required_permission: permission,
+            profile_id: profile_id_from_route,
+        }
+    }
+}
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAuthMerchantAndProfileFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        if payload.merchant_id != self.merchant_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+
+        crate::core::utils::validate_profile_id_from_auth_layer(
+            payload.profile_id.clone(),
+            &crate::core::utils::ProfileIdWrapper(self.profile_id.clone()),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+
+        let permissions = authorization::get_permissions(state, &payload).await?;
+        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+            profile_id: payload.profile_id,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: auth.merchant_account.get_id().clone(),
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
 pub async fn parse_jwt_payload<A, T>(headers: &HeaderMap, state: &A) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,

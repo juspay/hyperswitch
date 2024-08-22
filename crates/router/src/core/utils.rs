@@ -1296,7 +1296,7 @@ pub fn get_incremental_authorization_allowed_value(
     }
 }
 
-pub(super) trait GetProfileId {
+pub(crate) trait GetProfileId {
     fn get_profile_id(&self) -> Option<&String>;
 }
 
@@ -1343,6 +1343,20 @@ impl<T, F> GetProfileId for (storage::Payouts, T, F) {
     }
 }
 
+impl GetProfileId for domain::BusinessProfile {
+    fn get_profile_id(&self) -> Option<&String> {
+        Some(&self.profile_id)
+    }
+}
+
+#[derive(Debug)]
+pub struct ProfileIdWrapper(pub String);
+impl GetProfileId for ProfileIdWrapper {
+    fn get_profile_id(&self) -> Option<&String> {
+        Some(&self.0)
+    }
+}
+
 /// Filter Objects based on profile ids
 pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     profile_id_list_auth_layer: Option<Vec<String>>,
@@ -1368,7 +1382,7 @@ pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     }
 }
 
-pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
+pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
     profile_id_auth_layer: Option<String>,
     object: &T,
 ) -> RouterResult<()> {

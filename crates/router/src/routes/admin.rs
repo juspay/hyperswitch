@@ -975,13 +975,14 @@ pub async fn business_profile_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| update_business_profile(state, &profile_id, &merchant_id, req),
+        |state, _auth, req, _| update_business_profile(state, &profile_id, &merchant_id, req),
         auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::MerchantAccountWrite,
-            },
+            &auth::AdminApiAuthWithMerchantId::default(),
+            &auth::JWTAuthMerchantAndProfileFromRoute::new(
+                merchant_id.clone(),
+                Permission::MerchantAccountWrite,
+                profile_id.clone(),
+            ),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -1060,9 +1061,15 @@ pub async fn business_profiles_list(
         state,
         &req,
         merchant_id.clone(),
-        |state, _, merchant_id, _| list_business_profile(state, merchant_id),
+        |state, auth, merchant_id, _| {
+            list_business_profile(
+                state,
+                merchant_id,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::AdminApiAuthWithMerchantId::default(),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
