@@ -285,7 +285,7 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Merchant Connector Account"
         ],
@@ -509,7 +509,7 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Merchant Account"
         ],
@@ -662,7 +662,7 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Business Profile"
         ],

@@ -1133,7 +1133,7 @@ impl MerchantAccount {
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
-                    .route(web::post().to(update_merchant_account)),
+                    .route(web::put().to(update_merchant_account)),
             )
     }
 }
@@ -1186,7 +1186,7 @@ impl MerchantConnectorAccount {
                 .service(web::resource("").route(web::post().to(connector_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::post().to(connector_update))
+                        .route(web::put().to(connector_update))
                         .route(web::get().to(connector_retrieve))
                         .route(web::delete().to(connector_delete)),
                 );
@@ -1476,7 +1476,7 @@ impl BusinessProfile {
                     .service(
                         web::resource("")
                             .route(web::get().to(business_profile_retrieve))
-                            .route(web::post().to(business_profile_update)),
+                            .route(web::put().to(business_profile_update)),
                     )
                     .service(
                         web::resource("/fallback_routing")
