@@ -132,7 +132,7 @@ impl
     ) -> Self {
         Self {
             merchant_id: item.merchant_id,
-            customer_id: Some(item.customer_id),
+            customer_id: item.customer_id,
             payment_method_id: item.payment_method_id,
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,

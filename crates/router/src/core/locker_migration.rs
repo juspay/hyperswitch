@@ -1,6 +1,16 @@
-use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use api_models::enums as api_enums;
+use api_models::locker_migration::MigrateCardResponse;
 use common_utils::{errors::CustomResult, id_type};
-use diesel_models::{enums as storage_enums, PaymentMethod};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use diesel_models::enums as storage_enums;
+use diesel_models::PaymentMethod;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::FutureExt;
 use error_stack::ResultExt;
@@ -9,13 +19,22 @@ use futures::TryFutureExt;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use super::errors::StorageErrorExt;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use super::payment_methods::cards;
-use crate::{
-    errors,
-    routes::SessionState,
-    services::{self, logger},
-    types::{api, domain},
-};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::services::logger;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::types::api;
+use crate::{errors, routes::SessionState, services, types::domain};
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn rust_locker_migration(

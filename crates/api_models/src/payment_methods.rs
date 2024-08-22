@@ -668,7 +668,7 @@ pub struct PaymentMethodResponse {
 
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: id_type::CustomerId,
 
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
@@ -2028,6 +2028,10 @@ pub enum MigrationStatus {
 
 type PaymentMethodMigrationResponseType =
     (Result<PaymentMethodResponse, String>, PaymentMethodRecord);
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
@@ -2036,6 +2040,32 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 payment_method: res.payment_method,
                 payment_method_type: res.payment_method_type,
                 customer_id: res.customer_id,
+                migration_status: MigrationStatus::Success,
+                migration_error: None,
+                card_number_masked: Some(record.card_number_masked),
+                line_number: record.line_number,
+            },
+            Err(e) => Self {
+                customer_id: Some(record.customer_id),
+                migration_status: MigrationStatus::Failed,
+                migration_error: Some(e),
+                card_number_masked: Some(record.card_number_masked),
+                line_number: record.line_number,
+                ..Self::default()
+            },
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse {
+    fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
+        match response {
+            Ok(res) => Self {
+                payment_method_id: Some(res.payment_method_id),
+                payment_method: res.payment_method,
+                payment_method_type: res.payment_method_type,
+                customer_id: Some(res.customer_id),
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
                 card_number_masked: Some(record.card_number_masked),

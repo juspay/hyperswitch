@@ -4,19 +4,27 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use api_models::{
     admin::PaymentMethodsEnabled,
+    payment_methods::{
+        CardNetworkTypes, PaymentExperienceTypes, RequiredFieldInfo, ResponsePaymentMethodTypes,
+    },
+    pm_auth::PaymentMethodAuthConfig,
+};
+use api_models::{
     enums as api_enums,
     payment_methods::{
-        BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
+        BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod,
         CountryCodeWithName, CustomerDefaultPaymentMethodResponse, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentExperienceTypes,
-        PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
-        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentMethodsData,
+        RequestPaymentMethodTypes, ResponsePaymentMethodIntermediate,
         ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
-    pm_auth::PaymentMethodAuthConfig,
     surcharge_decision_configs as api_surcharge_decision_configs,
 };
 use common_enums::{enums::MerchantStorageScheme, ConnectorType};
@@ -33,13 +41,19 @@ use common_utils::{
 };
 use diesel_models::payment_method;
 use error_stack::{report, ResultExt};
-use euclid::{
-    dssa::graph::{AnalysisContext, CgraphExt},
-    frontend::dir,
-};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use euclid::dssa::graph::{AnalysisContext, CgraphExt};
+use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::customer::CustomerUpdate;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
 use router_env::{instrument, metrics::add_attributes, tracing};
@@ -48,6 +62,15 @@ use strum::IntoEnumIterator;
 use super::surcharge_decision_configs::{
     perform_surcharge_decision_management_for_payment_method_list,
     perform_surcharge_decision_management_for_saved_cards,
+};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::payment_methods::{
+    add_payment_method_status_update_task,
+    types::transformers::ForeignFrom,
+    utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -63,11 +86,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{
-            add_payment_method_status_update_task, transformers as payment_methods,
-            utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
-            vault,
-        },
+        payment_methods::{transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -82,7 +101,7 @@ use crate::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
         domain::{self, BusinessProfile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignTryFrom,
     },
     utils::{ConnectorResponseExt, OptionExt},
 };
@@ -250,29 +269,14 @@ pub fn store_default_payment_method(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn store_default_payment_method(
-    req: &api::PaymentMethodCreate,
-    customer_id: &id_type::CustomerId,
-    merchant_id: &id_type::MerchantId,
+    _req: &api::PaymentMethodCreate,
+    _customer_id: &id_type::CustomerId,
+    _merchant_id: &id_type::MerchantId,
 ) -> (
     api::PaymentMethodResponse,
     Option<payment_methods::DataDuplicationCheck>,
 ) {
-    let pm_id = generate_id(consts::ID_LENGTH, "pm");
-    let payment_method_response = api::PaymentMethodResponse {
-        merchant_id: merchant_id.to_owned(),
-        customer_id: Some(customer_id.to_owned()),
-        payment_method_id: pm_id,
-        payment_method: req.payment_method,
-        payment_method_type: req.payment_method_type,
-        payment_method_data: None,
-        metadata: req.metadata.clone(),
-        created: Some(common_utils::date_time::now()),
-        recurring_enabled: false, //[#219]
-        last_used_at: Some(common_utils::date_time::now()),
-        client_secret: None,
-    };
-
-    (payment_method_response, None)
+    todo!()
 }
 
 #[cfg(all(
@@ -5602,7 +5606,7 @@ pub async fn retrieve_payment_method(
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodResponse {
             merchant_id: pm.merchant_id,
-            customer_id: Some(pm.customer_id),
+            customer_id: pm.customer_id,
             payment_method_id: pm.payment_method_id,
             payment_method: pm.payment_method,
             payment_method_type: pm.payment_method_type,
