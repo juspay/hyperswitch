@@ -2585,7 +2585,7 @@ pub async fn list_orgs_for_user(
         .into_iter()
         .filter_map(|user_role| {
             (user_role.status == UserStatus::Active)
-                .then_some( user_role.org_id)
+                .then_some(user_role.org_id)
                 .flatten()
         })
         .collect::<HashSet<_>>();
@@ -2651,7 +2651,7 @@ pub async fn list_merchants_for_user_in_org(
             .into_iter()
             .filter_map(|user_role| {
                 (user_role.status == UserStatus::Active)
-                    .then_some( user_role.merchant_id)
+                    .then_some(user_role.merchant_id)
                     .flatten()
             })
             .collect::<HashSet<_>>()
@@ -2734,7 +2734,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                 .into_iter()
                 .filter_map(|user_role| {
                     (user_role.status == UserStatus::Active)
-                        .then_some( user_role.profile_id)
+                        .then_some(user_role.profile_id)
                         .flatten()
                 })
                 .collect::<HashSet<_>>();
