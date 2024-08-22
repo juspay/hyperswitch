@@ -268,7 +268,14 @@ pub async fn refunds_list_profile(
         state,
         &req,
         payload.into_inner(),
-        |state, auth, req, _| refund_list(state, auth.merchant_account, None, req),
+        |state, auth, req, _| {
+            refund_list(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RefundRead),
@@ -375,7 +382,13 @@ pub async fn get_refunds_filters_profile(
         state,
         &req,
         (),
-        |state, auth, _, _| get_filters_for_refunds(state, auth.merchant_account, None),
+        |state, auth, _, _| {
+            get_filters_for_refunds(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RefundRead),

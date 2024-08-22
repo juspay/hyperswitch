@@ -1037,7 +1037,13 @@ pub async fn profile_payments_list(
         &req,
         payload,
         |state, auth, req, _| {
-            payments::list_payments(state, auth.merchant_account, None, auth.key_store, req)
+            payments::list_payments(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.key_store,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -1095,7 +1101,7 @@ pub async fn profile_payments_list_by_filter(
             payments::apply_filters_on_payments(
                 state,
                 auth.merchant_account,
-                None,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
                 auth.key_store,
                 req,
             )
