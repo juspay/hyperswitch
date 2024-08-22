@@ -3571,7 +3571,7 @@ pub struct PaymentsResponse {
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(max_length = 255, example = "merchant_1668273825", value_type = Option<String>)]
+    #[schema(max_length = 255, example = "merchant_1668273825", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
@@ -3591,7 +3591,7 @@ pub struct PaymentsResponse {
     pub amount_capturable: MinorUnit,
 
     /// The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.
-    #[schema(value_type = i64, example = 6540)]
+    #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_received: Option<MinorUnit>,
 
     /// The connector used for the payment
