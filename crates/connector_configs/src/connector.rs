@@ -347,7 +347,7 @@ impl ConnectorConfig {
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),
-            Connector::Wellsfargopayout => Ok(connector_data.wellsfargopayout),
+            Connector::Wellsfargopayout => Err("Use get_payout_connector_config".to_string()),
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
