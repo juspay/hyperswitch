@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.22.0
+
+### Features
+
+- **business_profile:** Introduce business profile v2 update endpoint ([#5641](https://github.com/juspay/hyperswitch/pull/5641)) ([`beb4fb0`](https://github.com/juspay/hyperswitch/commit/beb4fb050fb70e948d03f6c51e40bb906ae155ef))
+- **core:** Add localization support for unified error messages ([#5624](https://github.com/juspay/hyperswitch/pull/5624)) ([`1f0ee3c`](https://github.com/juspay/hyperswitch/commit/1f0ee3cae0764367d59ca36e3f379e244e613813))
+- **payments:** Add support for aggregates in payments ([#5654](https://github.com/juspay/hyperswitch/pull/5654)) ([`9f3b2fb`](https://github.com/juspay/hyperswitch/commit/9f3b2fba3eee4dc4d0f029afbca6d8fa3859c0e0))
+- Use admin_api_key auth along with merchant_id for connector list, retrieve and update apis ([#5613](https://github.com/juspay/hyperswitch/pull/5613)) ([`b60ced0`](https://github.com/juspay/hyperswitch/commit/b60ced02ffba21624a9491a63fcde1c04cfa0b06))
+
+### Bug Fixes
+
+- **core:** [Payouts] remove fetching profile_id for mca creation ([#5656](https://github.com/juspay/hyperswitch/pull/5656)) ([`1e64ed7`](https://github.com/juspay/hyperswitch/commit/1e64ed79bc656df684ee0ed8d0c4a0ecd219eb75))
+- **router:** Fix merchant_connector_account retrieve and delete v2 routes ([#5653](https://github.com/juspay/hyperswitch/pull/5653)) ([`7234119`](https://github.com/juspay/hyperswitch/commit/723411905a81c44302cb9bf5ec58d3495ecc2864))
+
+### Miscellaneous Tasks
+
+- Generate openapi specs for organization endpoint for v1 and v2 ([#5648](https://github.com/juspay/hyperswitch/pull/5648)) ([`1d08c7b`](https://github.com/juspay/hyperswitch/commit/1d08c7b932f2c039db71d8492b0be966df9702d9))
+
+**Full Changelog:** [`2024.08.21.0...2024.08.22.0`](https://github.com/juspay/hyperswitch/compare/2024.08.21.0...2024.08.22.0)
+
+- - -
+
 ## 2024.08.21.0
 
 ### Features
