@@ -250,7 +250,6 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
             mandate_reference: value.buyer_key.clone().map(|buyer_key| MandateReference {
                 connector_mandate_id: Some(buyer_key.expose()),
                 payment_method_id: None,
-                connector_customer_id: None,
             }),
             connector_metadata: None,
             network_txn_id: None,

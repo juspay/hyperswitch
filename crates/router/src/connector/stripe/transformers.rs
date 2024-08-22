@@ -2388,7 +2388,6 @@ impl<F, T>
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
-                connector_customer_id: None,
             }
         });
 
@@ -2583,7 +2582,6 @@ impl<F, T>
                 types::MandateReference {
                     connector_mandate_id,
                     payment_method_id: Some(payment_method_id),
-                    connector_customer_id: None,
                 }
             });
 
@@ -2674,7 +2672,6 @@ impl<F, T>
             types::MandateReference {
                 connector_mandate_id,
                 payment_method_id,
-                connector_customer_id: None,
             }
         });
         let status = enums::AttemptStatus::from(item.response.status);

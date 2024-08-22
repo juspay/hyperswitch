@@ -672,7 +672,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     .router_data
                     .get_recurring_mandate_payment_data()?
                     .payment_method_type
-                    .clone()
                     .ok_or_else(missing_field_err("mandate_id"))?;
 
                 let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
@@ -1402,15 +1401,6 @@ impl<F, T>
                         None => None,
                     },
                     payment_method_id: None,
-                    connector_customer_id: match item.response.payment_source {
-                        Some(paypal_source) => match paypal_source {
-                            PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                Some(paypal_source.email)
-                            }
-                            PaymentSourceItemResponse::Card(card) => Some(card.attributes.vault.id),
-                        },
-                        None => None,
-                    },
                 }),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,

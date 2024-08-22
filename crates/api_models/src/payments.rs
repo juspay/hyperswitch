@@ -4542,7 +4542,6 @@ pub struct GpaySessionTokenData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaypalSdkMetaData {
     pub client_id: String,
-    pub email_or_card_of_vault: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -4787,8 +4786,6 @@ pub struct PaypalSessionTokenResponse {
     pub session_token: String,
     /// The next action for the sdk (ex: calling confirm or sync call)
     pub sdk_next_action: SdkNextAction,
-    /// Vault Account reference
-    pub vault_account_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]

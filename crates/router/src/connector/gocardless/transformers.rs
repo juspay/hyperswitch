@@ -511,7 +511,6 @@ impl<F>
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.mandates.id.clone().expose()),
             payment_method_id: None,
-            connector_customer_id: None,
         });
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -664,7 +663,6 @@ impl<F>
         let mandate_reference = MandateReference {
             connector_mandate_id: Some(item.data.request.get_connector_mandate_id()?),
             payment_method_id: None,
-            connector_customer_id: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.payments.status),

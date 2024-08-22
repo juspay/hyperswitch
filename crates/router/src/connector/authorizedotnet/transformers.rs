@@ -398,7 +398,6 @@ impl<F, T>
                                     format!("{customer_profile_id}-{payment_profile_id}")
                                 }),
                             payment_method_id: None,
-                            connector_customer_id: None,
                         },
                     ),
                     connector_metadata: None,
@@ -1105,7 +1104,6 @@ impl<F, T>
                             },
                         ),
                         payment_method_id: None,
-                        connector_customer_id: None,
                     }
                 });
 
