@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.15.0-hotfix1
+
+### Features
+
+- **router:** [cybersource] add disable_avs and disable_cvn flag in connector metadata ([#5677](https://github.com/juspay/hyperswitch/pull/5677)) ([`5acbbea`](https://github.com/juspay/hyperswitch/commit/5acbbeaee3adb245a1cc7d31ff7a3a4f4be20af6))
+
+- - -
+
 ## 2024.08.15.0
 
 ### Features
