@@ -545,6 +545,10 @@ impl Payments {
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
                 .service(
+                    web::resource("/v2/profile/filter")
+                        .route(web::get().to(get_payment_filters_profile)),
+                )
+                .service(
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments_manual_update)),
                 )
