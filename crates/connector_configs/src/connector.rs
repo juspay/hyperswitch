@@ -82,6 +82,17 @@ pub enum KlarnaEndpoint {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
+pub struct ConfigMerchantAdditionalDetails {
+    pub open_banking_recipient_data: Option<MetaDataInupt>,
+    pub account_data: Option<MetaDataInupt>,
+    pub iban: Option<Vec<MetaDataInupt>>,
+    pub bacs: Option<Vec<MetaDataInupt>>,
+    pub connector_recipient_id: Option<MetaDataInupt>,
+    pub wallet_id: Option<MetaDataInupt>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<MetaDataInupt>,
     pub merchant_account_id: Option<MetaDataInupt>,
@@ -112,6 +123,7 @@ pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
     pub metadata: Option<Box<ConfigMetadata>>,
+    pub additional_merchant_data: Option<Box<ConfigMerchantAdditionalDetails>>,
     pub credit: Option<Vec<CardProvider>>,
     pub debit: Option<Vec<CardProvider>>,
     pub bank_transfer: Option<Vec<Provider>>,
