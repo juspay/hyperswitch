@@ -20,6 +20,8 @@ use api_models::payment_methods;
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::ext_traits::Encode;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::ext_traits::OptionExt;
 use common_utils::{consts::DEFAULT_LOCALE, id_type::CustomerId};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
@@ -624,31 +626,30 @@ pub(crate) async fn get_payment_method_create_request(
                             .flatten(),
                     };
                     let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
+                        payment_method: payment_method,
+                        payment_method_type: payment_method_type
+                            .get_required_value("Payment_method_type")
+                            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "payment_method_data",
+                            })?,
                         metadata: None,
-                        customer_id: customer_id.clone(),
-                        client_secret: None,
-                        payment_method_data: Some(payment_methods::PaymentMethodCreateData::Card(
+                        customer_id: customer_id
+                            .clone()
+                            .get_required_value("customer_id")
+                            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "customer_id",
+                            })?,
+                        payment_method_data: payment_methods::PaymentMethodCreateData::Card(
                             card_detail,
-                        )),
+                        ),
                         billing: None,
                     };
                     Ok(payment_method_request)
                 }
-                _ => {
-                    let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        client_secret: None,
-                        payment_method_data: None,
-                        billing: None,
-                    };
-
-                    Ok(payment_method_request)
-                }
+                _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_data"
+                })
+                .attach_printable("Payment method data is incorrect")),
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_type"

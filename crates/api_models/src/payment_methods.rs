@@ -108,28 +108,22 @@ pub struct PaymentMethodCreate {
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: Option<api_enums::PaymentMethod>,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
-    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_type: api_enums::PaymentMethodType,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The unique identifier of the customer.
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
-
-    /// For Client based calls, SDK will use the client_secret
-    /// in order to call /payment_methods
-    /// Client secret will be generated whenever a new
-    /// payment method is created
-    pub client_secret: Option<String>,
+    #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: id_type::CustomerId,
 
     /// Payment method data to be passed
-    pub payment_method_data: Option<PaymentMethodCreateData>,
+    pub payment_method_data: PaymentMethodCreateData,
 
     /// The billing details of the payment method
     #[schema(value_type = Option<Address>)]
@@ -158,14 +152,14 @@ pub struct PaymentMethodIntentCreate {
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodIntentConfirm {
     /// For SDK based calls, client_secret would be required
-    pub client_secret: Option<String>,
+    pub client_secret: String,
 
     /// The unique identifier of the customer.
     #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
     /// Payment method data to be passed
-    pub payment_method_data: Option<PaymentMethodCreateData>,
+    pub payment_method_data: PaymentMethodCreateData,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -282,17 +276,9 @@ impl PaymentMethodCreate {
 impl PaymentMethodCreate {
     pub fn get_payment_method_create_from_payment_method_migrate(
         _card_number: CardNumber,
-        payment_method_migrate: &PaymentMethodMigrate,
+        _payment_method_migrate: &PaymentMethodMigrate,
     ) -> Self {
-        Self {
-            customer_id: payment_method_migrate.customer_id.clone(),
-            payment_method: payment_method_migrate.payment_method,
-            payment_method_type: payment_method_migrate.payment_method_type,
-            metadata: payment_method_migrate.metadata.clone(),
-            payment_method_data: payment_method_migrate.payment_method_data.clone(),
-            client_secret: None,
-            billing: payment_method_migrate.billing.clone(),
-        }
+        todo!()
     }
 }
 
