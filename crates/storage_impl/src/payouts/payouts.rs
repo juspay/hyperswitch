@@ -13,13 +13,16 @@ use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
     not(feature = "customer_v2")
 ))]
 use diesel::{JoinOnDsl, NullableExpressionMethods};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel_models::schema::address::dsl as add_dsl;
 #[cfg(feature = "olap")]
 use diesel_models::{
-    address::Address as DieselAddress,
-    customers::Customer as DieselCustomer,
-    enums as storage_enums,
-    query::generics::db_metrics,
-    schema::{address::dsl as add_dsl, payouts::dsl as po_dsl},
+    address::Address as DieselAddress, customers::Customer as DieselCustomer,
+    enums as storage_enums, query::generics::db_metrics, schema::payouts::dsl as po_dsl,
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
