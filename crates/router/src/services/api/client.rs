@@ -16,7 +16,6 @@ use crate::{
         payments,
     },
     routes::{app::settings::KeyManagerConfig, SessionState},
-    services::VerificationType,
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -86,44 +85,14 @@ pub fn create_client(
     should_bypass_proxy: bool,
     client_certificate: Option<masking::Secret<String>>,
     client_certificate_key: Option<masking::Secret<String>>,
-    verification_type: Option<VerificationType>,
 ) -> CustomResult<reqwest::Client, ApiClientError> {
-    match (
-        verification_type,
-        client_certificate,
-        client_certificate_key,
-    ) {
-        (Some(VerificationType::Tls), Some(encoded_certificate), Some(encoded_certificate_key)) => {
+    match (client_certificate, client_certificate_key) {
+        (Some(encoded_certificate), Some(encoded_certificate_key)) => {
             let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
 
             let identity = payments::helpers::create_identity_from_certificate_and_key(
                 encoded_certificate.clone(),
                 encoded_certificate_key,
-                false,
-            )?;
-            let certificate_list = payments::helpers::create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
-                .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
-            client_builder
-                .identity(identity)
-                .build()
-                .change_context(ApiClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct client with certificate and certificate key")
-        }
-        (
-            Some(VerificationType::Mtls),
-            Some(encoded_certificate),
-            Some(encoded_certificate_key),
-        ) => {
-            let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
-
-            let identity = payments::helpers::create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
-                encoded_certificate_key,
-                true,
             )?;
             let certificate_list = payments::helpers::create_certificate(encoded_certificate)?;
             let client_builder = certificate_list
@@ -280,7 +249,6 @@ impl ProxyClient {
                 let identity = payments::helpers::create_identity_from_certificate_and_key(
                     certificate,
                     certificate_key,
-                    false,
                 )?;
                 Ok(client_builder
                     .identity(identity)

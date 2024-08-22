@@ -19,7 +19,7 @@ use actix_web::{
 };
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
-pub use common_utils::request::{ContentType, Method, Request, RequestBuilder, VerificationType};
+pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
     errors::{ErrorSwitch, ReportSwitchExt},
@@ -433,7 +433,6 @@ pub async fn send_request(
         should_bypass_proxy,
         request.certificate,
         request.certificate_key,
-        request.verificaton_type,
     )?;
 
     let headers = request.headers.construct_header_map()?;

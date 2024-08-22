@@ -1,9 +1,6 @@
 pub mod utils;
 use api_models::verifications::{self, ApplepayMerchantResponse};
-use common_utils::{
-    errors::CustomResult,
-    request::{RequestContent, VerificationType},
-};
+use common_utils::{errors::CustomResult, request::RequestContent};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
@@ -44,7 +41,7 @@ pub async fn verify_merchant_creds_for_applepay(
             "application/json".to_string().into(),
         )])
         .set_body(RequestContent::Json(Box::new(request_body)))
-        .add_certificate(Some(cert_data), VerificationType::Tls)
+        .add_certificate(Some(cert_data))
         .add_certificate_key(Some(key_data))
         .build();
 
