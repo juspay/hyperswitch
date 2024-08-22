@@ -1732,10 +1732,6 @@ impl User {
                         .route(web::put().to(accept_invitation)),
                 )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
-                .service(
-                    web::resource("/transfer_ownership")
-                        .route(web::post().to(transfer_org_ownership)),
-                )
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
         );
 
