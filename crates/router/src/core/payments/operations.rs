@@ -237,6 +237,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
 }
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
@@ -246,6 +247,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         response: types::RouterData<F, R, PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;

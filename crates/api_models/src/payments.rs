@@ -2131,7 +2131,7 @@ pub enum BankRedirectData {
         bank_name: Option<common_enums::BankNames>,
 
         // The billing details for bank redirect
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
     },
     Sofort {
         /// The billing details for bank redirection
@@ -2266,7 +2266,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             }
             Self::Przelewy24 {
                 billing_details, ..
-            } => get_billing_address_inner(Some(billing_details), None, None),
+            } => get_billing_address_inner(billing_details.as_ref(), None, None),
             Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
             Self::OnlineBankingFpx { .. }
             | Self::LocalBankRedirect {}
@@ -4102,6 +4102,12 @@ pub struct PaymentListFiltersV2 {
     pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentsAggregateResponse {
+    /// The list of intent status with their count
+    pub status_with_count: HashMap<enums::IntentStatus, i64>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmountFilter {
     /// The start amount to filter list of transactions which are greater than or equal to the start amount
@@ -5459,6 +5465,8 @@ pub struct PaymentLinkStatusDetails {
     pub return_url: String,
     pub locale: Option<String>,
     pub transaction_details: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
