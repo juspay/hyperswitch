@@ -2049,7 +2049,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get MerchantRecipientData")?;
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
 
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
@@ -2226,7 +2226,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get MerchantRecipientData")?;
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
 
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
@@ -2379,7 +2379,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get MerchantRecipientData")?;
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
@@ -2545,7 +2545,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get MerchantRecipientData")?;
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
