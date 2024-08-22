@@ -2626,7 +2626,7 @@ impl<'a>
         let return_url = item.router_data.request.get_return_url()?;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
         let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
-        let shopper_email = item.router_data.request.email.clone();
+        let shopper_email = item.router_data.get_optional_billing_email();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
 
         Ok(AdyenPaymentRequest {
@@ -2806,7 +2806,7 @@ impl<'a>
             additional_data: None,
             shopper_name: None,
             shopper_locale: None,
-            shopper_email: item.router_data.request.email.clone(),
+            shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number: None,
             billing_address: None,
@@ -2857,7 +2857,7 @@ impl<'a>
             additional_data: None,
             shopper_name: None,
             shopper_locale: None,
-            shopper_email: item.router_data.request.email.clone(),
+            shopper_email: item.router_data.get_optional_billing_email(),
             telephone_number: None,
             billing_address: None,
             delivery_address: None,
@@ -2962,20 +2962,20 @@ fn get_redirect_extra_details(
 }
 
 fn get_shopper_email(
-    item: &PaymentsAuthorizeData,
+    item: &types::PaymentsAuthorizeRouterData,
     is_mandate_payment: bool,
 ) -> errors::CustomResult<Option<Email>, errors::ConnectorError> {
     if is_mandate_payment {
-        let payment_method_type = item
+        let payment_method_type = item.request
             .payment_method_type
             .as_ref()
             .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
         match payment_method_type {
-            storage_enums::PaymentMethodType::Paypal => Ok(Some(item.get_email()?)),
-            _ => Ok(item.email.clone()),
+            storage_enums::PaymentMethodType::Paypal => Ok(Some(item.get_billing_email()?)),
+            _ => Ok(item.get_optional_billing_email()),
         }
     } else {
-        Ok(item.email.clone())
+        Ok(item.get_optional_billing_email())
     }
 }
 
@@ -3004,7 +3004,7 @@ impl<'a>
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let shopper_email =
-            get_shopper_email(&item.router_data.request, store_payment_method.is_some())?;
+            get_shopper_email(&item.router_data, store_payment_method.is_some())?;
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         Ok(AdyenPaymentRequest {
