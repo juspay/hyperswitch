@@ -9446,7 +9446,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "shipping.address.line2".to_string(),
                                                     display_name: "line2".to_string(),
-                                                    field_type: enums::FieldType::UserShippingAddressLine1,
+                                                    field_type: enums::FieldType::UserShippingAddressLine2,
                                                     value: None,
                                                 }
                                             ),
@@ -9793,7 +9793,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line2".to_string(),
                                                         display_name: "line2".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserAddressLine2,
                                                         value: None,
                                                     }
                                                 )
@@ -9905,7 +9905,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line2".to_string(),
                                                         display_name: "line2".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserAddressLine2,
                                                         value: None,
                                                     }
                                                 ),
@@ -10102,7 +10102,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line2".to_string(),
                                                         display_name: "line2".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserAddressLine2,
                                                         value: None,
                                                     }
                                                 )
@@ -10214,7 +10214,7 @@ impl Default for super::settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.address.line2".to_string(),
                                                         display_name: "line2".to_string(),
-                                                        field_type: enums::FieldType::UserAddressLine1,
+                                                        field_type: enums::FieldType::UserAddressLine2,
                                                         value: None,
                                                     }
                                                 )
