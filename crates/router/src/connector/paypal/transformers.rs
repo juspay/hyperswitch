@@ -266,7 +266,6 @@ pub struct Attributes {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalRedirectionResponse {
     attributes: AttributeResponse,
-    email: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
