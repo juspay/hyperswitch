@@ -338,7 +338,7 @@ pub async fn routing_update_default_config(
                 auth.merchant_account,
                 auth.key_store,
                 wrapper.profile_id,
-                wrapper.updated_config,
+                wrapper.connectors,
             )
         },
         #[cfg(not(feature = "release"))]
