@@ -33,6 +33,7 @@ use crate::{
             route_connector_v1, routing, CustomerDetails,
         },
         routing::TransactionData,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
@@ -761,6 +762,17 @@ pub async fn decide_payout_connector(
         return Ok(api::ConnectorCallType::PreDetermined(connector_data));
     }
 
+    // Validate and get the business_profile from payout_attempt
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.store.as_ref(),
+        &(state).into(),
+        key_store,
+        Some(&payout_attempt.profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")?;
+
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
         let (mut connectors, check_eligibility) =
@@ -775,7 +787,7 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                Some(payout_attempt.profile_id.clone()),
+                &business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -823,7 +835,7 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                Some(payout_attempt.profile_id.clone()),
+                &business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
