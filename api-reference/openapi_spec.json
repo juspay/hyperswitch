@@ -7129,6 +7129,12 @@
                 },
                 "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
                 "uniqueItems": true
+              },
+              "test_mode": {
+                "type": "boolean",
+                "description": "`test_mode` allows for removing any validations which are necessary in a production environment",
+                "default": false,
+                "nullable": true
               }
             }
           }
@@ -18697,6 +18703,12 @@
                 },
                 "description": "List of payout methods shown on collect UI",
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              },
+              "test_mode": {
+                "type": "boolean",
+                "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
+                "example": false,
                 "nullable": true
               }
             }
