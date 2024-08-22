@@ -2178,6 +2178,7 @@ impl<'a>
             domain::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
+                check_required_field(delivery_address, "shipping")?;
                 check_required_field(billing_address, "billing")?;
 
                 if let Some(country) = country_code {

@@ -9397,6 +9397,59 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "shipping.address.city".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "shipping.address.city".to_string(),
+                                                    display_name: "city".to_string(),
+                                                    field_type: enums::FieldType::UserShippingAddressCity,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "shipping.address.zip".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "shipping.address.zip".to_string(),
+                                                    display_name: "zip".to_string(),
+                                                    field_type: enums::FieldType::UserShippingAddressPincode,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "shipping.address.country".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "shipping.address.country".to_string(),
+                                                    display_name: "country".to_string(),
+                                                    field_type: enums::FieldType::UserShippingAddressCountry{
+                                                        options: vec![
+                                                        "GB".to_string(),
+                                                        "AU".to_string(),
+                                                        "CA".to_string(),
+                                                        "US".to_string(),
+                                                        "NZ".to_string(),
+                                                        ]
+                                                    },
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "shipping.address.line1".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "shipping.address.line1".to_string(),
+                                                    display_name: "line1".to_string(),
+                                                    field_type: enums::FieldType::UserShippingAddressLine1,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "shipping.address.line2".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "shipping.address.line2".to_string(),
+                                                    display_name: "line2".to_string(),
+                                                    field_type: enums::FieldType::UserShippingAddressLine1,
+                                                    value: None,
+                                                }
+                                            ),
                                     ]),
                                     common : HashMap::new(),
                                     }
