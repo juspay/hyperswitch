@@ -1,3 +1,5 @@
+use std::{convert::From, default::Default};
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -12,7 +14,6 @@ use common_utils::{
     types::Description,
 };
 use serde::{Deserialize, Serialize};
-use std::{convert::From, default::Default};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::logger;
