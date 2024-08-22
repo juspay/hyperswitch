@@ -889,7 +889,7 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
             .find_customer_by_global_id(
                 self.key_manager_state,
                 &id,
-                &self.merchant_account.get_id(),
+                self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )
@@ -1055,7 +1055,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                 },
-                &key_store,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await

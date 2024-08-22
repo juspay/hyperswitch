@@ -241,6 +241,51 @@ pub async fn refunds_list(
     .await
 }
 
+/// Refunds - List at profile level
+///
+/// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
+#[utoipa::path(
+    post,
+    path = "/refunds/profile/list",
+    request_body=RefundListRequest,
+    responses(
+        (status = 200, description = "List of refunds", body = RefundListResponse),
+    ),
+    tag = "Refunds",
+    operation_id = "List all Refunds",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
+#[cfg(feature = "olap")]
+pub async fn refunds_list_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Json<api_models::refunds::RefundListRequest>,
+) -> HttpResponse {
+    let flow = Flow::RefundsList;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.into_inner(),
+        |state, auth, req, _| {
+            refund_list(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RefundRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Refunds - Filter
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
@@ -302,6 +347,48 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         &req,
         (),
         |state, auth, _, _| get_filters_for_refunds(state, auth.merchant_account, None),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RefundRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Refunds - Filter V2 at profile level
+///
+/// To list the refunds filters associated with list of connectors, currencies and payment statuses
+#[utoipa::path(
+    get,
+    path = "/refunds/v2/filter/profile",
+    responses(
+        (status = 200, description = "List of static filters", body = RefundListFilters),
+    ),
+    tag = "Refunds",
+    operation_id = "List all filters for Refunds",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsFilters))]
+#[cfg(feature = "olap")]
+pub async fn get_refunds_filters_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::RefundsFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _, _| {
+            get_filters_for_refunds(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth(Permission::RefundRead),

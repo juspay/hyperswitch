@@ -346,6 +346,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             )
             .await
     }
+    #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
+        self.router_store
+            .get_intent_status_with_count(merchant_id, time_range)
+            .await
+    }
 
     #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
@@ -653,6 +663,45 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             storage_scheme,
         )
         .await
+    }
+
+    #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+
+        let mut query = <DieselPaymentIntent as HasTable>::table()
+            .group_by(pi_dsl::status)
+            .select((pi_dsl::status, diesel::dsl::count_star()))
+            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        query = query.filter(pi_dsl::created_at.ge(time_range.start_time));
+
+        query = match time_range.end_time {
+            Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
+            None => query,
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
+            query.get_results_async::<(common_enums::IntentStatus, i64)>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .map_err(|er| {
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payment records"),
+            )
+            .into()
+        })
     }
 
     #[cfg(feature = "olap")]

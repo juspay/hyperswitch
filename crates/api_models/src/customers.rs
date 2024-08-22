@@ -5,8 +5,8 @@ use common_utils::{
     pii::{self, EmailStrategy},
     types::{keymanager::ToEncryptable, Description},
 };
-use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

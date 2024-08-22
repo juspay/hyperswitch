@@ -49,7 +49,7 @@ impl Customer {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_global_id(conn: &PgPooledConn, id: &String) -> StorageResult<Self> {
+    pub async fn find_by_global_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
