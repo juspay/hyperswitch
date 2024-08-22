@@ -967,7 +967,7 @@ impl api::IncomingWebhook for Globalpay {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let payload: Value = request.body.parse_struct("GlobalpayWebhookBody").switch()?;

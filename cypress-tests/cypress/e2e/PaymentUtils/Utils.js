@@ -6,12 +6,15 @@ import {
   updateDefaultStatusCode,
 } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
+import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
+import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
+import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
-import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
+import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -20,11 +23,14 @@ const connectorDetails = {
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   iatapay: iatapayConnectorDetails,
+  itaubank: itaubankConnectorDetails,
   nmi: nmiConnectorDetails,
+  paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
-  datatrans:datatransConnectorDetails
+  datatrans: datatransConnectorDetails,
+  wellsfargo: wellsfargoConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -108,7 +114,12 @@ export function defaultErrorHandler(response, response_data) {
   }
 
   expect(response.body).to.have.property("error");
-  for (const key in response_data.body.error) {
-    expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+
+  if (typeof response.body.error === "object") {
+    for (const key in response_data.body.error) {
+      expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+    }
+  } else if (typeof response.body.error === "string") {
+    expect(response.body.error).to.include(response_data.body.error);
   }
 }

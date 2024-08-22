@@ -2,6 +2,8 @@ use common_utils::hashing::HashedString;
 use masking::WithType;
 use serde_json::Value;
 
+use crate::payments::TimeRange;
+
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
     pub payment_method: Option<Vec<String>>,
@@ -10,6 +12,15 @@ pub struct SearchFilters {
     pub customer_email: Option<Vec<HashedString<common_utils::pii::EmailStrategy>>>,
     pub search_tags: Option<Vec<HashedString<WithType>>>,
 }
+impl SearchFilters {
+    pub fn is_all_none(&self) -> bool {
+        self.payment_method.is_none()
+            && self.currency.is_none()
+            && self.status.is_none()
+            && self.customer_email.is_none()
+            && self.search_tags.is_none()
+    }
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +28,8 @@ pub struct GetGlobalSearchRequest {
     pub query: String,
     #[serde(default)]
     pub filters: Option<SearchFilters>,
+    #[serde(default)]
+    pub time_range: Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -27,6 +40,8 @@ pub struct GetSearchRequest {
     pub query: String,
     #[serde(default)]
     pub filters: Option<SearchFilters>,
+    #[serde(default)]
+    pub time_range: Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

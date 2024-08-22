@@ -1,13 +1,11 @@
 //! Common ID types
 //! The id type can be used to create specific id types with custom behaviour
 
-use std::{
-    borrow::Cow,
-    fmt::{Debug, Display},
-};
+use std::{borrow::Cow, fmt::Debug};
 
 mod customer;
 mod merchant;
+mod organization;
 
 pub use customer::CustomerId;
 use diesel::{
@@ -18,6 +16,7 @@ use diesel::{
     sql_types,
 };
 pub use merchant::MerchantId;
+pub use organization::OrganizationId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -37,11 +36,11 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
         .find(|char| !is_valid_id_character(char))
 }
 
-#[derive(Debug, PartialEq, Serialize, Clone, Eq)]
+#[derive(Debug, PartialEq, Hash, Serialize, Clone, Eq)]
 /// A type for alphanumeric ids
 pub(crate) struct AlphaNumericId(String);
 
-#[derive(Debug, Deserialize, Serialize, Error, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Hash, Serialize, Error, Eq, PartialEq)]
 #[error("value `{0}` contains invalid character `{1}`")]
 /// The error type for alphanumeric id
 pub(crate) struct AlphaNumericIdError(String, char);
@@ -83,7 +82,7 @@ impl AlphaNumericId {
 }
 
 /// A common type of id that can be used for reference ids with length constraint
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, AsExpression)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub(crate) struct LengthId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
 
@@ -165,12 +164,6 @@ where
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0 .0.to_sql(out)
-    }
-}
-
-impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> Display for LengthId<MAX_LENGTH, MIN_LENGTH> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0 .0)
     }
 }
 

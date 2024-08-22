@@ -1,5 +1,5 @@
 use common_enums::RequestIncrementalAuthorization;
-use common_utils::{encryption::Encryption, id_type, pii, types::MinorUnit};
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -15,12 +15,12 @@ use crate::schema_v2::payment_intent;
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -68,20 +68,20 @@ pub struct PaymentIntent {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
-    pub id: Option<i32>,
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -129,6 +129,7 @@ pub struct PaymentIntent {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(
@@ -137,12 +138,12 @@ pub struct PaymentIntent {
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -188,6 +189,7 @@ pub struct PaymentIntentNew {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -208,7 +210,7 @@ pub enum PaymentIntentUpdate {
     PaymentCreateUpdate {
         return_url: Option<String>,
         status: Option<storage_enums::IntentStatus>,
-        customer_id: Option<id_type::CustomerId>,
+        customer_id: Option<common_utils::id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         customer_details: Option<Encryption>,
@@ -271,7 +273,7 @@ pub struct PaymentIntentUpdateFields {
     pub currency: storage_enums::Currency,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub status: storage_enums::IntentStatus,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
     pub return_url: Option<String>,
@@ -292,6 +294,7 @@ pub struct PaymentIntentUpdateFields {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -301,7 +304,7 @@ pub struct PaymentIntentUpdateInternal {
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
     pub amount_captured: Option<MinorUnit>,
-    pub customer_id: Option<id_type::CustomerId>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -332,6 +335,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 impl PaymentIntentUpdate {
@@ -371,6 +375,7 @@ impl PaymentIntentUpdate {
             billing_details,
             merchant_order_reference_id,
             shipping_details,
+            is_payment_processor_token_flow,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -413,6 +418,8 @@ impl PaymentIntentUpdate {
             merchant_order_reference_id: merchant_order_reference_id
                 .or(source.merchant_order_reference_id),
             shipping_details: shipping_details.or(source.shipping_details),
+            is_payment_processor_token_flow: is_payment_processor_token_flow
+                .or(source.is_payment_processor_token_flow),
             ..source
         }
     }
@@ -459,6 +466,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -496,6 +504,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 surcharge_applicable: None,
                 incremental_authorization_allowed: None,
                 authorization_count: None,
+                is_payment_processor_token_flow: value.is_payment_processor_token_flow,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -540,6 +549,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -580,6 +590,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -621,6 +632,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -670,6 +682,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -710,6 +723,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -751,6 +765,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -791,6 +806,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -831,6 +847,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -870,6 +887,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -906,6 +924,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -944,6 +963,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -982,6 +1002,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1018,6 +1039,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: None,
                 merchant_order_reference_id: None,
                 shipping_details: None,
+                is_payment_processor_token_flow: None,
             },
         }
     }
@@ -1027,7 +1049,6 @@ mod tests {
     #[test]
     fn test_backwards_compatibility() {
         let serialized_payment_intent = r#"{
-    "id": 123,
     "payment_id": "payment_12345",
     "merchant_id": "merchant_67890",
     "status": "succeeded",

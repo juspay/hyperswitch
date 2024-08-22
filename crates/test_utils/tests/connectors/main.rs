@@ -2,7 +2,8 @@
     clippy::expect_used,
     clippy::panic,
     clippy::unwrap_in_result,
-    clippy::unwrap_used
+    clippy::unwrap_used,
+    clippy::print_stderr
 )]
 mod aci_ui;
 mod adyen_uk_ui;

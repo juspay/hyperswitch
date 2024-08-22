@@ -4,6 +4,7 @@ use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
     GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent, SetMetaDataRequest,
 };
+use common_utils::id_type;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
@@ -19,8 +20,8 @@ use crate::{
 pub async fn insert_merchant_scoped_metadata_to_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
@@ -52,8 +53,8 @@ pub async fn insert_merchant_scoped_metadata_to_db(
 pub async fn insert_user_scoped_metadata_to_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
@@ -85,8 +86,8 @@ pub async fn insert_user_scoped_metadata_to_db(
 
 pub async fn get_merchant_scoped_metadata_from_db(
     state: &SessionState,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     state
@@ -99,8 +100,8 @@ pub async fn get_merchant_scoped_metadata_from_db(
 pub async fn get_user_scoped_metadata_from_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     match state
@@ -123,8 +124,8 @@ pub async fn get_user_scoped_metadata_from_db(
 pub async fn update_merchant_scoped_metadata(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
@@ -151,8 +152,8 @@ pub async fn update_merchant_scoped_metadata(
 pub async fn update_user_scoped_metadata(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {

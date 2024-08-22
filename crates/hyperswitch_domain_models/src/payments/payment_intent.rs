@@ -36,7 +36,7 @@ pub trait PaymentIntentInterface {
         &self,
         state: &KeyManagerState,
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
@@ -51,7 +51,7 @@ pub trait PaymentIntentInterface {
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -61,17 +61,24 @@ pub trait PaymentIntentInterface {
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -80,7 +87,7 @@ pub trait PaymentIntentInterface {
     #[cfg(feature = "olap")]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
-        merchant_id: &str,
+        merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
@@ -97,7 +104,7 @@ pub struct CustomerData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
-    pub merchant_id: String,
+    pub merchant_id: id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
     pub currency: Option<storage_enums::Currency>,
@@ -143,6 +150,7 @@ pub struct PaymentIntentNew {
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -172,6 +180,7 @@ pub struct PaymentIntentUpdateFields {
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -288,6 +297,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -329,6 +339,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: value.billing_details,
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details,
+                is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -531,6 +542,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     billing_details: value.billing_details.map(Encryption::from),
                     merchant_order_reference_id: value.merchant_order_reference_id,
                     shipping_details: value.shipping_details.map(Encryption::from),
+                    is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -674,6 +686,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             billing_details,
             merchant_order_reference_id,
             shipping_details,
+            is_payment_processor_token_flow,
         } = value;
 
         Self {
@@ -711,6 +724,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             billing_details: billing_details.map(Encryption::from),
             merchant_order_reference_id,
             shipping_details: shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow,
         }
     }
 }
@@ -737,6 +751,7 @@ pub struct PaymentIntentListParams {
     pub starting_after_id: Option<String>,
     pub ending_before_id: Option<String>,
     pub limit: Option<u32>,
+    pub order: api_models::payments::Order,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
@@ -758,6 +773,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
             limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            order: Default::default(),
         }))
     }
 }
@@ -781,6 +797,7 @@ impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
             starting_after_id: None,
             ending_before_id: None,
             limit: None,
+            order: Default::default(),
         }))
     }
 }
@@ -807,6 +824,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 starting_after_id: None,
                 ending_before_id: None,
                 limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+                order: value.order,
             }))
         }
     }

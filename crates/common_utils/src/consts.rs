@@ -1,5 +1,7 @@
 //! Commonly used constants
 
+use std::collections::HashSet;
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -75,11 +77,20 @@ pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 /// Payment intent fulfillment time (in seconds)
 pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
 
+/// Payment order fulfillment time (in seconds)
+pub const DEFAULT_ORDER_FULFILLMENT_TIME: i64 = 15 * 60;
+
 /// Default bool for Display sdk only
 pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
+
+/// Default allowed domains for payment links
+pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
+
+/// Default merchant details for payment links
+pub const DEFAULT_TRANSACTION_DETAILS: Option<String> = None;
 
 /// Default ttl for Extended card info  in redis (in seconds)
 pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
@@ -119,3 +130,6 @@ pub const WILDCARD_DOMAIN_REGEX: &str = r"^((\*|https?)?://)?((\*\.|[A-Za-z0-9][
 
 /// Maximum allowed length for MerchantName
 pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
+
+/// Default locale
+pub const DEFAULT_LOCALE: &str = "en";

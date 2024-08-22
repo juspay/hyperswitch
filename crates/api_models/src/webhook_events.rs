@@ -24,6 +24,9 @@ pub struct EventListConstraints {
     /// Filter all events associated with the specified object identifier (Payment Intent ID,
     /// Refund ID, etc.)
     pub object_id: Option<String>,
+
+    /// Filter all events associated with the specified business profile ID.
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -47,8 +50,8 @@ pub struct EventListItemResponse {
     pub event_id: String,
 
     /// The identifier for the Merchant Account.
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
+    pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The identifier for the Business Profile.
     #[schema(max_length = 64, example = "SqB0zwDGR5wHppWf0bx7GKr1f2")]
@@ -97,7 +100,7 @@ pub struct EventRetrieveResponse {
 impl common_utils::events::ApiEventMetric for EventRetrieveResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
-            merchant_id_or_profile_id: self.event_information.merchant_id.clone(),
+            merchant_id: self.event_information.merchant_id.clone(),
         })
     }
 }
@@ -144,42 +147,42 @@ pub struct OutgoingWebhookResponseContent {
 
 #[derive(Debug, serde::Serialize)]
 pub struct EventListRequestInternal {
-    pub merchant_id_or_profile_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub constraints: EventListConstraints,
 }
 
 impl common_utils::events::ApiEventMetric for EventListRequestInternal {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
-            merchant_id_or_profile_id: self.merchant_id_or_profile_id.clone(),
+            merchant_id: self.merchant_id.clone(),
         })
     }
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct WebhookDeliveryAttemptListRequestInternal {
-    pub merchant_id_or_profile_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub initial_attempt_id: String,
 }
 
 impl common_utils::events::ApiEventMetric for WebhookDeliveryAttemptListRequestInternal {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
-            merchant_id_or_profile_id: self.merchant_id_or_profile_id.clone(),
+            merchant_id: self.merchant_id.clone(),
         })
     }
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct WebhookDeliveryRetryRequestInternal {
-    pub merchant_id_or_profile_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub event_id: String,
 }
 
 impl common_utils::events::ApiEventMetric for WebhookDeliveryRetryRequestInternal {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Events {
-            merchant_id_or_profile_id: self.merchant_id_or_profile_id.clone(),
+            merchant_id: self.merchant_id.clone(),
         })
     }
 }

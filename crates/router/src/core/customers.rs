@@ -1,29 +1,35 @@
 use api_models::customers::CustomerRequestWithEmail;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{crypto::Encryptable, types::Description};
 use common_utils::{
-    crypto::Encryptable,
     errors::ReportSwitchExt,
-    ext_traits::OptionExt,
-    types::keymanager::{Identifier, ToEncryptable},
+    ext_traits::{AsyncExt, OptionExt},
+    id_type, type_name,
+    types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::type_encryption::encrypt;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use masking::{Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+use crate::core::payment_methods::cards::create_encrypted_data;
 use crate::{
-    core::{
-        errors::{self, StorageErrorExt},
-        payment_methods::cards,
-    },
+    core::errors::{self, StorageErrorExt},
+    db::StorageInterface,
     pii::PeekInterface,
-    routes::{metrics, SessionState},
+    routes::SessionState,
     services,
     types::{
         api::customers,
         domain::{self, types},
-        storage::{self, enums},
+        storage::{self},
+        transformers::ForeignFrom,
     },
-    utils::CustomerAddress,
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::payment_methods::cards, routes::metrics, types::storage::enums, utils::CustomerAddress,
 };
 
 pub const REDACTED: &str = "Redacted";
@@ -33,126 +39,401 @@ pub async fn create_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    mut customer_data: customers::CustomerRequest,
+    customer_data: customers::CustomerRequest,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
-    let db = state.store.as_ref();
-    let customer_id = customer_data
-        .customer_id
-        .clone()
-        .unwrap_or_else(common_utils::generate_customer_id_of_default_length);
-
-    let merchant_id = &merchant_account.merchant_id;
-    merchant_id.clone_into(&mut customer_data.merchant_id);
+    let db: &dyn StorageInterface = state.store.as_ref();
     let key_manager_state = &(&state).into();
+
+    let merchant_reference_id = customer_data.get_merchant_reference_id();
+
+    let merchant_id = merchant_account.get_id();
+
+    let merchant_reference_id_customer = MerchantReferenceIdForCustomer {
+        merchant_reference_id: merchant_reference_id.as_ref(),
+        merchant_id,
+        merchant_account: &merchant_account,
+        key_store: &key_store,
+        key_manager_state,
+    };
 
     // We first need to validate whether the customer with the given customer id already exists
     // this may seem like a redundant db call, as the insert_customer will anyway return this error
     //
     // Consider a scenario where the address is inserted and then when inserting the customer,
     // it errors out, now the address that was inserted is not deleted
-    match db
-        .find_customer_by_customer_id_merchant_id(
-            key_manager_state,
-            &customer_id,
-            merchant_id,
+
+    merchant_reference_id_customer
+        .verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(db)
+        .await?;
+
+    let domain_customer = customer_data
+        .create_domain_model_from_request(
+            db,
             &key_store,
-            merchant_account.storage_scheme,
+            &merchant_reference_id,
+            &merchant_account,
+            key_manager_state,
+            &state,
         )
-        .await
-    {
-        Err(err) => {
-            if !err.current_context().is_db_not_found() {
-                Err(err).switch()
-            } else {
-                Ok(())
-            }
-        }
-        Ok(_) => Err(report!(
-            errors::CustomersErrorResponse::CustomerAlreadyExists
-        )),
-    }?;
-
-    let key = key_store.key.get_inner().peek();
-    let address = if let Some(addr) = &customer_data.address {
-        let customer_address: api_models::payments::AddressDetails = addr.clone();
-
-        let address = customer_data
-            .get_domain_address(
-                &state,
-                customer_address,
-                merchant_id,
-                &customer_id,
-                key,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .switch()
-            .attach_printable("Failed while encrypting address")?;
-
-        Some(
-            db.insert_address_for_customers(key_manager_state, address, &key_store)
-                .await
-                .switch()
-                .attach_printable("Failed while inserting new address")?,
-        )
-    } else {
-        None
-    };
-
-    let encrypted_data = types::batch_encrypt(
-        &(&state).into(),
-        CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-            name: customer_data.name.clone(),
-            email: customer_data.email.clone(),
-            phone: customer_data.phone.clone(),
-        }),
-        Identifier::Merchant(key_store.merchant_id.clone()),
-        key,
-    )
-    .await
-    .switch()
-    .attach_printable("Failed while encrypting Customer")?;
-    let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
-        .change_context(errors::CustomersErrorResponse::InternalServerError)?;
-    let new_customer = domain::Customer {
-        customer_id: customer_id.to_owned(),
-        merchant_id: merchant_id.to_string(),
-        name: encryptable_customer.name,
-        email: encryptable_customer.email,
-        phone: encryptable_customer.phone,
-        description: customer_data.description,
-        phone_country_code: customer_data.phone_country_code,
-        metadata: customer_data.metadata,
-        id: None,
-        connector_customer: None,
-        address_id: address.clone().map(|addr| addr.address_id),
-        created_at: common_utils::date_time::now(),
-        modified_at: common_utils::date_time::now(),
-        default_payment_method_id: None,
-        updated_by: None,
-    };
+        .await?;
 
     let customer = db
         .insert_customer(
+            domain_customer,
             key_manager_state,
-            new_customer,
             &key_store,
             merchant_account.storage_scheme,
         )
         .await
         .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
 
-    let address_details = address.map(api_models::payments::AddressDetails::from);
-
-    Ok(services::ApplicationResponse::Json(
-        customers::CustomerResponse::from((customer, address_details)),
-    ))
+    customer_data.generate_response(&customer)
 }
 
+#[async_trait::async_trait]
+trait CustomerCreateBridge {
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_reference_id: &'a Option<id_type::CustomerId>,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse>;
+
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse>;
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[async_trait::async_trait]
+impl CustomerCreateBridge for customers::CustomerRequest {
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_reference_id: &'a Option<id_type::CustomerId>,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
+        // Setting default billing address to Db
+        let address = self.get_address();
+        let merchant_id = merchant_account.get_id();
+        let key = key_store.key.get_inner().peek();
+
+        let customer_billing_address_struct = AddressStructForDbEntry {
+            address: address.as_ref(),
+            customer_data: self,
+            merchant_id,
+            customer_id: merchant_reference_id.as_ref(),
+            storage_scheme: merchant_account.storage_scheme,
+            key_store,
+            key_manager_state,
+            state,
+        };
+
+        let address_from_db = customer_billing_address_struct
+            .encrypt_customer_address_and_set_to_db(db)
+            .await?;
+
+        let encrypted_data = types::crypto_operation(
+            key_manager_state,
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: self.name.clone(),
+                    email: self.email.clone(),
+                    phone: self.phone.clone(),
+                },
+            )),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .switch()
+        .attach_printable("Failed while encrypting Customer")?;
+
+        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+
+        Ok(domain::Customer {
+            customer_id: merchant_reference_id
+                .to_owned()
+                .ok_or(errors::CustomersErrorResponse::InternalServerError)?,
+            merchant_id: merchant_id.to_owned(),
+            name: encryptable_customer.name,
+            email: encryptable_customer.email,
+            phone: encryptable_customer.phone,
+            description: self.description.clone(),
+            phone_country_code: self.phone_country_code.clone(),
+            metadata: self.metadata.clone(),
+            connector_customer: None,
+            address_id: address_from_db.clone().map(|addr| addr.address_id),
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+            default_payment_method_id: None,
+            updated_by: None,
+            version: hyperswitch_domain_models::consts::API_VERSION,
+        })
+    }
+
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse> {
+        let address = self.get_address();
+        let address_details = address.map(api_models::payments::AddressDetails::from);
+
+        Ok(services::ApplicationResponse::Json(
+            customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
+        ))
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[async_trait::async_trait]
+impl CustomerCreateBridge for customers::CustomerRequest {
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        _db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_reference_id: &'a Option<id_type::CustomerId>,
+        merchant_account: &'a domain::MerchantAccount,
+        key_state: &'a KeyManagerState,
+        state: &'a SessionState,
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
+        let default_customer_billing_address = self.get_default_customer_billing_address();
+        let encrypted_customer_billing_address = default_customer_billing_address
+            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer billing address")?;
+        let default_customer_shipping_address = self.get_default_customer_shipping_address();
+
+        let encrypted_customer_shipping_address = default_customer_shipping_address
+            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer shipping address")?;
+
+        let merchant_id = merchant_account.get_id().clone();
+        let key = key_store.key.get_inner().peek();
+
+        let encrypted_data = types::crypto_operation(
+            key_state,
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: Some(self.name.clone()),
+                    email: Some(self.email.clone()),
+                    phone: self.phone.clone(),
+                },
+            )),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .switch()
+        .attach_printable("Failed while encrypting Customer")?;
+
+        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+
+        Ok(domain::Customer {
+            id: common_utils::generate_time_ordered_id("cus"),
+            merchant_reference_id: merchant_reference_id.to_owned(),
+            merchant_id,
+            name: encryptable_customer.name,
+            email: encryptable_customer.email,
+            phone: encryptable_customer.phone,
+            description: self.description.clone(),
+            phone_country_code: self.phone_country_code.clone(),
+            metadata: self.metadata.clone(),
+            connector_customer: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+            default_payment_method_id: None,
+            updated_by: None,
+            default_billing_address: encrypted_customer_billing_address.map(Into::into),
+            default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
+            // status: Some(customer_domain::SoftDeleteStatus::Active)
+            version: hyperswitch_domain_models::consts::API_VERSION,
+        })
+    }
+
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse> {
+        Ok(services::ApplicationResponse::Json(
+            customers::CustomerResponse::foreign_from(customer.clone()),
+        ))
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+struct AddressStructForDbEntry<'a> {
+    address: Option<&'a api_models::payments::AddressDetails>,
+    customer_data: &'a customers::CustomerRequest,
+    merchant_id: &'a id_type::MerchantId,
+    customer_id: Option<&'a id_type::CustomerId>,
+    storage_scheme: common_enums::MerchantStorageScheme,
+    key_store: &'a domain::MerchantKeyStore,
+    key_manager_state: &'a KeyManagerState,
+    state: &'a SessionState,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+impl<'a> AddressStructForDbEntry<'a> {
+    async fn encrypt_customer_address_and_set_to_db(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> errors::CustomResult<Option<domain::Address>, errors::CustomersErrorResponse> {
+        let encrypted_customer_address = self
+            .address
+            .async_map(|addr| async {
+                self.customer_data
+                    .get_domain_address(
+                        self.state,
+                        addr.clone(),
+                        self.merchant_id,
+                        self.customer_id
+                            .ok_or(errors::CustomersErrorResponse::InternalServerError)?, // should we raise error since in v1 appilcation is supposed to have this id or generate it at this point.
+                        self.key_store.key.get_inner().peek(),
+                        self.storage_scheme,
+                    )
+                    .await
+                    .switch()
+                    .attach_printable("Failed while encrypting address")
+            })
+            .await
+            .transpose()?;
+
+        encrypted_customer_address
+            .async_map(|encrypt_add| async {
+                db.insert_address_for_customers(self.key_manager_state, encrypt_add, self.key_store)
+                    .await
+                    .switch()
+                    .attach_printable("Failed while inserting new address")
+            })
+            .await
+            .transpose()
+    }
+}
+
+struct MerchantReferenceIdForCustomer<'a> {
+    merchant_reference_id: Option<&'a id_type::CustomerId>,
+    merchant_id: &'a id_type::MerchantId,
+    merchant_account: &'a domain::MerchantAccount,
+    key_store: &'a domain::MerchantKeyStore,
+    key_manager_state: &'a KeyManagerState,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+impl<'a> MerchantReferenceIdForCustomer<'a> {
+    async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> Result<Option<()>, error_stack::Report<errors::CustomersErrorResponse>> {
+        self.merchant_reference_id
+            .async_map(|cust| async {
+                self.verify_if_merchant_reference_not_present_by_merchant_reference_id(cust, db)
+                    .await
+            })
+            .await
+            .transpose()
+    }
+
+    async fn verify_if_merchant_reference_not_present_by_merchant_reference_id(
+        &self,
+        cus: &'a id_type::CustomerId,
+        db: &dyn StorageInterface,
+    ) -> Result<(), error_stack::Report<errors::CustomersErrorResponse>> {
+        match db
+            .find_customer_by_customer_id_merchant_id(
+                self.key_manager_state,
+                cus,
+                self.merchant_id,
+                self.key_store,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+        {
+            Err(err) => {
+                if !err.current_context().is_db_not_found() {
+                    Err(err).switch()
+                } else {
+                    Ok(())
+                }
+            }
+            Ok(_) => Err(report!(
+                errors::CustomersErrorResponse::CustomerAlreadyExists
+            )),
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl<'a> MerchantReferenceIdForCustomer<'a> {
+    async fn verify_if_merchant_reference_not_present_by_optional_merchant_reference_id(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> Result<Option<()>, error_stack::Report<errors::CustomersErrorResponse>> {
+        self.merchant_reference_id
+            .async_map(|merchant_ref| async {
+                self.verify_if_merchant_reference_not_present_by_merchant_reference(
+                    merchant_ref,
+                    db,
+                )
+                .await
+            })
+            .await
+            .transpose()
+    }
+
+    async fn verify_if_merchant_reference_not_present_by_merchant_reference(
+        &self,
+        merchant_ref: &'a id_type::CustomerId,
+        db: &dyn StorageInterface,
+    ) -> Result<(), error_stack::Report<errors::CustomersErrorResponse>> {
+        match db
+            .find_customer_by_merchant_reference_id_merchant_id(
+                self.key_manager_state,
+                merchant_ref,
+                self.merchant_id,
+                self.key_store,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+        {
+            Err(err) => {
+                if !err.current_context().is_db_not_found() {
+                    Err(err).switch()
+                } else {
+                    Ok(())
+                }
+            }
+            Ok(_) => Err(report!(
+                errors::CustomersErrorResponse::CustomerAlreadyExists
+            )),
+        }
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2",), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn retrieve_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    _profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
@@ -162,7 +443,7 @@ pub async fn retrieve_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -177,14 +458,16 @@ pub async fn retrieve_customer(
         None => None,
     };
     Ok(services::ApplicationResponse::Json(
-        customers::CustomerResponse::from((response, address)),
+        customers::CustomerResponse::foreign_from((response, address)),
     ))
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
-    merchant_id: String,
+    merchant_id: id_type::MerchantId,
+    _profile_id_list: Option<Vec<String>>,
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
@@ -196,12 +479,13 @@ pub async fn list_customers(
 
     let customers = domain_customers
         .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::from((domain_customer, None)))
+        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -215,7 +499,7 @@ pub async fn delete_customer(
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
@@ -223,7 +507,7 @@ pub async fn delete_customer(
         .switch()?;
 
     let customer_mandates = db
-        .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
+        .find_mandate_by_merchant_id_customer_id(merchant_account.get_id(), &req.customer_id)
         .await
         .switch()?;
 
@@ -236,7 +520,7 @@ pub async fn delete_customer(
     match db
         .find_payment_method_by_customer_id_merchant_id_list(
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             None,
         )
         .await
@@ -248,14 +532,14 @@ pub async fn delete_customer(
                     cards::delete_card_from_locker(
                         &state,
                         &req.customer_id,
-                        &merchant_account.merchant_id,
+                        merchant_account.get_id(),
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
                     .await
                     .switch()?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
-                    &merchant_account.merchant_id,
+                    merchant_account.get_id(),
                     &pm.payment_method_id,
                 )
                 .await
@@ -275,13 +559,15 @@ pub async fn delete_customer(
 
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let redacted_encrypted_value: Encryptable<Secret<_>> = encrypt(
+    let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
         key_manager_state,
-        REDACTED.to_string().into(),
+        type_name!(storage::Address),
+        types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
         identifier.clone(),
         key,
     )
     .await
+    .and_then(|val| val.try_into_operation())
     .switch()?;
 
     let redacted_encrypted_email = Encryptable::new(
@@ -312,7 +598,7 @@ pub async fn delete_customer(
         .update_address_by_merchant_id_customer_id(
             key_manager_state,
             &req.customer_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             update_address,
             &key_store,
         )
@@ -333,17 +619,19 @@ pub async fn delete_customer(
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(redacted_encrypted_value.clone()),
         email: Some(
-            encrypt(
+            types::crypto_operation(
                 key_manager_state,
-                REDACTED.to_string().into(),
+                type_name!(storage::Customer),
+                types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
                 identifier,
                 key,
             )
             .await
+            .and_then(|val| val.try_into_operation())
             .switch()?,
         ),
         phone: Box::new(Some(redacted_encrypted_value.clone())),
-        description: Some(REDACTED.to_string()),
+        description: Some(Description::new(REDACTED.to_string())),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
         connector_customer: None,
@@ -352,7 +640,7 @@ pub async fn delete_customer(
     db.update_customer_by_customer_id_merchant_id(
         key_manager_state,
         req.customer_id.clone(),
-        merchant_account.merchant_id,
+        merchant_account.get_id().to_owned(),
         customer_orig,
         updated_customer,
         &key_store,
@@ -375,130 +663,386 @@ pub async fn delete_customer(
 pub async fn update_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    update_customer: customers::CustomerRequest,
+    update_customer: customers::CustomerUpdateRequest,
     key_store: domain::MerchantKeyStore,
+    id: customers::UpdateCustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
     //Add this in update call if customer can be updated anywhere else
 
-    let customer_id = update_customer
-        .customer_id
-        .as_ref()
-        .get_required_value("customer_id")
-        .change_context(errors::CustomersErrorResponse::InternalServerError)
-        .attach("Missing required field `customer_id`")?;
-    let key_manager_state = &(&state).into();
-    let customer = db
-        .find_customer_by_customer_id_merchant_id(
-            key_manager_state,
-            customer_id,
-            &merchant_account.merchant_id,
+    let merchant_reference_id = update_customer.get_merchant_reference_id();
+
+    let verify_id_for_update_customer = VerifyIdForUpdateCustomer {
+        merchant_reference_id: merchant_reference_id.as_ref(),
+        id: &id,
+        merchant_account: &merchant_account,
+        key_store: &key_store,
+        key_manager_state,
+    };
+
+    let customer = verify_id_for_update_customer
+        .verify_id_and_get_customer_object(db)
+        .await?;
+
+    let updated_customer = update_customer
+        .create_domain_model_from_request(
+            db,
             &key_store,
-            merchant_account.storage_scheme,
+            &merchant_account,
+            key_manager_state,
+            &state,
+            &customer,
         )
-        .await
-        .switch()?;
+        .await?;
 
-    let key = key_store.key.get_inner().peek();
+    update_customer.generate_response(&updated_customer)
+}
 
-    let address = if let Some(addr) = &update_customer.address {
-        match customer.address_id.clone() {
-            Some(address_id) => {
-                let customer_address: api_models::payments::AddressDetails = addr.clone();
-                let update_address = update_customer
-                    .get_address_update(
-                        &state,
-                        customer_address,
-                        key,
-                        merchant_account.storage_scheme,
-                        merchant_account.merchant_id.clone(),
-                    )
-                    .await
-                    .switch()
-                    .attach_printable("Failed while encrypting Address while Update")?;
-                Some(
-                    db.update_address(key_manager_state, address_id, update_address, &key_store)
+#[async_trait::async_trait]
+trait CustomerUpdateBridge {
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+        domain_customer: &'a domain::Customer,
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse>;
+
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse>;
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+struct AddressStructForDbUpdate<'a> {
+    update_customer: &'a customers::CustomerUpdateRequest,
+    merchant_account: &'a domain::MerchantAccount,
+    key_store: &'a domain::MerchantKeyStore,
+    key_manager_state: &'a KeyManagerState,
+    state: &'a SessionState,
+    domain_customer: &'a domain::Customer,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+impl<'a> AddressStructForDbUpdate<'a> {
+    async fn update_address_if_sent(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> errors::CustomResult<Option<domain::Address>, errors::CustomersErrorResponse> {
+        let address = if let Some(addr) = &self.update_customer.address {
+            match self.domain_customer.address_id.clone() {
+                Some(address_id) => {
+                    let customer_address: api_models::payments::AddressDetails = addr.clone();
+                    let update_address = self
+                        .update_customer
+                        .get_address_update(
+                            self.state,
+                            customer_address,
+                            self.key_store.key.get_inner().peek(),
+                            self.merchant_account.storage_scheme,
+                            self.merchant_account.get_id().clone(),
+                        )
+                        .await
+                        .switch()
+                        .attach_printable("Failed while encrypting Address while Update")?;
+                    Some(
+                        db.update_address(
+                            self.key_manager_state,
+                            address_id,
+                            update_address,
+                            self.key_store,
+                        )
                         .await
                         .switch()
                         .attach_printable(format!(
-                            "Failed while updating address: merchant_id: {}, customer_id: {:?}",
-                            merchant_account.merchant_id, customer_id
+                            "Failed while updating address: merchant_id: {:?}, customer_id: {:?}",
+                            self.merchant_account.get_id(),
+                            self.domain_customer.customer_id
                         ))?,
-                )
-            }
-            None => {
-                let customer_address: api_models::payments::AddressDetails = addr.clone();
-
-                let address = update_customer
-                    .get_domain_address(
-                        &state,
-                        customer_address,
-                        &merchant_account.merchant_id,
-                        &customer.customer_id,
-                        key,
-                        merchant_account.storage_scheme,
                     )
-                    .await
-                    .switch()
-                    .attach_printable("Failed while encrypting address")?;
-                Some(
-                    db.insert_address_for_customers(key_manager_state, address, &key_store)
+                }
+                None => {
+                    let customer_address: api_models::payments::AddressDetails = addr.clone();
+
+                    let address = self
+                        .update_customer
+                        .get_domain_address(
+                            self.state,
+                            customer_address,
+                            self.merchant_account.get_id(),
+                            &self.domain_customer.customer_id,
+                            self.key_store.key.get_inner().peek(),
+                            self.merchant_account.storage_scheme,
+                        )
+                        .await
+                        .switch()
+                        .attach_printable("Failed while encrypting address")?;
+                    Some(
+                        db.insert_address_for_customers(
+                            self.key_manager_state,
+                            address,
+                            self.key_store,
+                        )
                         .await
                         .switch()
                         .attach_printable("Failed while inserting new address")?,
-                )
+                    )
+                }
             }
-        }
-    } else {
-        match &customer.address_id {
-            Some(address_id) => Some(
-                db.find_address_by_address_id(key_manager_state, address_id, &key_store)
+        } else {
+            match &self.domain_customer.address_id {
+                Some(address_id) => Some(
+                    db.find_address_by_address_id(
+                        self.key_manager_state,
+                        address_id,
+                        self.key_store,
+                    )
                     .await
                     .switch()?,
-            ),
-            None => None,
-        }
-    };
-    let encrypted_data = types::batch_encrypt(
-        &(&state).into(),
-        CustomerRequestWithEmail::to_encryptable(CustomerRequestWithEmail {
-            name: update_customer.name.clone(),
-            email: update_customer.email.clone(),
-            phone: update_customer.phone.clone(),
-        }),
-        Identifier::Merchant(key_store.merchant_id.clone()),
-        key,
-    )
-    .await
-    .switch()?;
-    let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
-        .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+                ),
+                None => None,
+            }
+        };
+        Ok(address)
+    }
+}
 
-    let response = db
-        .update_customer_by_customer_id_merchant_id(
+struct VerifyIdForUpdateCustomer<'a> {
+    merchant_reference_id: Option<&'a id_type::CustomerId>,
+    id: &'a customers::UpdateCustomerId,
+    merchant_account: &'a domain::MerchantAccount,
+    key_store: &'a domain::MerchantKeyStore,
+    key_manager_state: &'a KeyManagerState,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+impl<'a> VerifyIdForUpdateCustomer<'a> {
+    async fn verify_id_and_get_customer_object(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
+        let customer_id = self
+            .merchant_reference_id
+            .get_required_value("customer_id")
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach("Missing required field `customer_id`")?;
+
+        let _id = self.id;
+
+        let customer = db
+            .find_customer_by_customer_id_merchant_id(
+                self.key_manager_state,
+                customer_id,
+                self.merchant_account.get_id(),
+                self.key_store,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+            .switch()?;
+
+        Ok(customer)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl<'a> VerifyIdForUpdateCustomer<'a> {
+    async fn verify_id_and_get_customer_object(
+        &self,
+        db: &dyn StorageInterface,
+    ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
+        let id = self.id.get_global_id();
+
+        let _merchant_reference_id = self.merchant_reference_id;
+        let customer = db
+            .find_customer_by_global_id(
+                self.key_manager_state,
+                &id,
+                self.merchant_account.get_id(),
+                self.key_store,
+                self.merchant_account.storage_scheme,
+            )
+            .await
+            .switch()?;
+
+        Ok(customer)
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[async_trait::async_trait]
+impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+        domain_customer: &'a domain::Customer,
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
+        let update_address_for_update_customer = AddressStructForDbUpdate {
+            update_customer: self,
+            merchant_account,
+            key_store,
             key_manager_state,
-            customer_id.to_owned(),
-            merchant_account.merchant_id.to_owned(),
-            customer,
-            storage::CustomerUpdate::Update {
-                name: encryptable_customer.name,
-                email: encryptable_customer.email,
-                phone: Box::new(encryptable_customer.phone),
-                phone_country_code: update_customer.phone_country_code,
-                metadata: update_customer.metadata,
-                description: update_customer.description,
-                connector_customer: None,
-                address_id: address.clone().map(|addr| addr.address_id),
-            },
-            &key_store,
-            merchant_account.storage_scheme,
+            state,
+            domain_customer,
+        };
+
+        let address = update_address_for_update_customer
+            .update_address_if_sent(db)
+            .await?;
+
+        let key = key_store.key.get_inner().peek();
+
+        let encrypted_data = types::crypto_operation(
+            key_manager_state,
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: self.name.clone(),
+                    email: self.email.clone(),
+                    phone: self.phone.clone(),
+                },
+            )),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key,
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .switch()?;
 
-    Ok(services::ApplicationResponse::Json(
-        customers::CustomerResponse::from((response, update_customer.address)),
-    ))
+        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+
+        let response = db
+            .update_customer_by_customer_id_merchant_id(
+                key_manager_state,
+                domain_customer.customer_id.to_owned(),
+                merchant_account.get_id().to_owned(),
+                domain_customer.to_owned(),
+                storage::CustomerUpdate::Update {
+                    name: encryptable_customer.name,
+                    email: encryptable_customer.email,
+                    phone: Box::new(encryptable_customer.phone),
+                    phone_country_code: self.phone_country_code.clone(),
+                    metadata: self.metadata.clone(),
+                    description: self.description.clone(),
+                    connector_customer: None,
+                    address_id: address.clone().map(|addr| addr.address_id),
+                },
+                key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .switch()?;
+
+        Ok(response)
+    }
+
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse> {
+        let address = self.get_address();
+        let address_details = address.map(api_models::payments::AddressDetails::from);
+
+        Ok(services::ApplicationResponse::Json(
+            customers::CustomerResponse::foreign_from((customer.clone(), address_details)),
+        ))
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[async_trait::async_trait]
+impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
+    async fn create_domain_model_from_request<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        key_store: &'a domain::MerchantKeyStore,
+        merchant_account: &'a domain::MerchantAccount,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+        domain_customer: &'a domain::Customer,
+    ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
+        let default_billing_address = self.get_default_customer_billing_address();
+
+        let encrypted_customer_billing_address = default_billing_address
+            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer billing address")?;
+
+        let default_shipping_address = self.get_default_customer_shipping_address();
+
+        let encrypted_customer_shipping_address = default_shipping_address
+            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .await
+            .transpose()
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt default customer shipping address")?;
+
+        let key = key_store.key.get_inner().peek();
+
+        let encrypted_data = types::crypto_operation(
+            key_manager_state,
+            type_name!(domain::Customer),
+            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
+                CustomerRequestWithEmail {
+                    name: self.name.clone(),
+                    email: self.email.clone(),
+                    phone: self.phone.clone(),
+                },
+            )),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .switch()?;
+
+        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+
+        let response = db
+            .update_customer_by_global_id(
+                key_manager_state,
+                domain_customer.id.to_owned(),
+                domain_customer.to_owned(),
+                merchant_account.get_id(),
+                storage::CustomerUpdate::Update {
+                    name: encryptable_customer.name,
+                    email: encryptable_customer.email,
+                    phone: Box::new(encryptable_customer.phone),
+                    phone_country_code: self.phone_country_code.clone(),
+                    metadata: self.metadata.clone(),
+                    description: self.description.clone(),
+                    connector_customer: None,
+                    default_billing_address: encrypted_customer_billing_address.map(Into::into),
+                    default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
+                    default_payment_method_id: Some(self.default_payment_method_id.clone()),
+                },
+                key_store,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .switch()?;
+        Ok(response)
+    }
+
+    fn generate_response<'a>(
+        &'a self,
+        customer: &'a domain::Customer,
+    ) -> errors::CustomerResponse<customers::CustomerResponse> {
+        Ok(services::ApplicationResponse::Json(
+            customers::CustomerResponse::foreign_from(customer.clone()),
+        ))
+    }
 }
 
 pub async fn migrate_customers(

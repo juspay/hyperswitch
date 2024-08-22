@@ -799,7 +799,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 )
@@ -879,7 +880,7 @@ impl TryFrom<&domain::BankTransferData> for PaypalPaymentsRequest {
             | domain::BankTransferData::CimbVaBankTransfer { .. }
             | domain::BankTransferData::DanamonVaBankTransfer { .. }
             | domain::BankTransferData::MandiriVaBankTransfer { .. }
-            | domain::BankTransferData::Pix {}
+            | domain::BankTransferData::Pix { .. }
             | domain::BankTransferData::Pse {}
             | domain::BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(

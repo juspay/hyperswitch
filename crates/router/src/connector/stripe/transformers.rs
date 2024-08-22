@@ -1255,10 +1255,12 @@ fn create_stripe_payment_method(
                     Some(StripePaymentMethodType::CustomerBalance),
                     billing_address,
                 )),
-                domain::BankTransferData::Pix {} => Err(errors::ConnectorError::NotImplemented(
-                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
-                )
-                .into()),
+                domain::BankTransferData::Pix { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
+                    .into())
+                }
                 domain::BankTransferData::Pse {}
                 | domain::BankTransferData::LocalBankTransfer { .. }
                 | domain::BankTransferData::PermataBankTransfer { .. }
@@ -1332,10 +1334,13 @@ fn create_stripe_payment_method(
         | domain::PaymentMethodData::RealTimePayment(_)
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::OpenBanking(_)
-        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-            connector_util::get_unimplemented_payment_method_error_message("stripe"),
-        )
-        .into()),
+        | domain::PaymentMethodData::CardToken(_)
+        | domain::PaymentMethodData::NetworkToken(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
+            .into())
+        }
     }
 }
 
@@ -1709,7 +1714,8 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         | domain::payments::PaymentMethodData::Voucher(_)
                         | domain::payments::PaymentMethodData::GiftCard(_)
                         | domain::payments::PaymentMethodData::OpenBanking(_)
-                        | domain::payments::PaymentMethodData::CardToken(_) => {
+                        | domain::payments::PaymentMethodData::CardToken(_)
+                        | domain::PaymentMethodData::NetworkToken(_) => {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
                                 connector: "Stripe",
@@ -2388,7 +2394,18 @@ impl<F, T>
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_txn_id = Option::foreign_from(item.response.latest_attempt);
+        let network_txn_id = match item.response.latest_charge.as_ref() {
+            Some(StripeChargeEnum::ChargeObject(charge_object)) => charge_object
+                .payment_method_details
+                .as_ref()
+                .and_then(|payment_method_details| match payment_method_details {
+                    StripePaymentMethodDetailsResponse::Card { card } => {
+                        card.network_transaction_id.clone()
+                    }
+                    _ => None,
+                }),
+            _ => None,
+        };
 
         let connector_metadata =
             get_connector_metadata(item.response.next_action.as_ref(), item.response.amount)?;
@@ -3289,6 +3306,7 @@ impl
             | Some(domain::PaymentMethodData::Voucher(..))
             | Some(domain::PaymentMethodData::OpenBanking(..))
             | Some(domain::PaymentMethodData::CardToken(..))
+            | Some(domain::PaymentMethodData::NetworkToken(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -3717,7 +3735,7 @@ impl
                         payment_method_type: StripePaymentMethodType::CustomerBalance,
                     })),
                 )),
-                domain::BankTransferData::Pix {}
+                domain::BankTransferData::Pix { .. }
                 | domain::BankTransferData::Pse {}
                 | domain::BankTransferData::PermataBankTransfer { .. }
                 | domain::BankTransferData::BcaBankTransfer { .. }
@@ -3742,7 +3760,8 @@ impl
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_util::get_unimplemented_payment_method_error_message("stripe"),
                 ))?

@@ -1,24 +1,30 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
-    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
-    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+    CryptoData, CustomerAcceptance, CustomerDetailsResponse, HeaderPayload, MandateAmountData,
+    MandateData, MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
+    OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
     PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
-    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
-    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-    PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-    PaymentsManualUpdateRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,
+    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+    PaymentsCompleteAuthorizeRequest, PaymentsExternalAuthenticationRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
+    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
     CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
     PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+};
+pub use hyperswitch_interfaces::api::payments::{
+    ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
+    PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization, PaymentReject,
+    PaymentSession, PaymentSync, PaymentToken, PaymentVoid, PaymentsCompleteAuthorize,
+    PaymentsPostProcessing, PaymentsPreProcessing,
 };
 
 pub use super::payments_v2::{
@@ -27,11 +33,7 @@ pub use super::payments_v2::{
     PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2,
     PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
 };
-use crate::{
-    core::errors,
-    services::api,
-    types::{self, api as api_types},
-};
+use crate::core::errors;
 
 impl super::Router for PaymentsRequest {}
 
@@ -74,132 +76,6 @@ impl MandateValidationFieldsExt for MandateValidationFields {
             (Some(_), _) => Ok(Some(MandateTransactionType::NewMandateTransaction)),
         }
     }
-}
-
-// Extract only the last 4 digits of card
-
-pub trait PaymentAuthorize:
-    api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-{
-}
-
-pub trait PaymentAuthorizeSessionToken:
-    api::ConnectorIntegration<
-    AuthorizeSessionToken,
-    types::AuthorizeSessionTokenData,
-    types::PaymentsResponseData,
->
-{
-}
-
-pub trait PaymentSync:
-    api::ConnectorIntegration<PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-{
-}
-
-pub trait PaymentVoid:
-    api::ConnectorIntegration<Void, types::PaymentsCancelData, types::PaymentsResponseData>
-{
-}
-
-pub trait PaymentApprove:
-    api::ConnectorIntegration<Approve, types::PaymentsApproveData, types::PaymentsResponseData>
-{
-}
-
-pub trait PaymentReject:
-    api::ConnectorIntegration<Reject, types::PaymentsRejectData, types::PaymentsResponseData>
-{
-}
-
-pub trait PaymentCapture:
-    api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-{
-}
-
-pub trait PaymentSession:
-    api::ConnectorIntegration<Session, types::PaymentsSessionData, types::PaymentsResponseData>
-{
-}
-
-pub trait MandateSetup:
-    api::ConnectorIntegration<SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>
-{
-}
-
-pub trait PaymentIncrementalAuthorization:
-    api::ConnectorIntegration<
-    IncrementalAuthorization,
-    types::PaymentsIncrementalAuthorizationData,
-    types::PaymentsResponseData,
->
-{
-}
-
-pub trait PaymentsCompleteAuthorize:
-    api::ConnectorIntegration<
-    CompleteAuthorize,
-    types::CompleteAuthorizeData,
-    types::PaymentsResponseData,
->
-{
-}
-
-pub trait PaymentToken:
-    api::ConnectorIntegration<
-    PaymentMethodToken,
-    types::PaymentMethodTokenizationData,
-    types::PaymentsResponseData,
->
-{
-}
-
-pub trait ConnectorCustomer:
-    api::ConnectorIntegration<
-    CreateConnectorCustomer,
-    types::ConnectorCustomerData,
-    types::PaymentsResponseData,
->
-{
-}
-
-pub trait PaymentsPreProcessing:
-    api::ConnectorIntegration<
-    PreProcessing,
-    types::PaymentsPreProcessingData,
-    types::PaymentsResponseData,
->
-{
-}
-
-pub trait PaymentsPostProcessing:
-    api::ConnectorIntegration<
-    PostProcessing,
-    types::PaymentsPostProcessingData,
-    types::PaymentsResponseData,
->
-{
-}
-
-pub trait Payment:
-    api_types::ConnectorCommon
-    + api_types::ConnectorValidation
-    + PaymentAuthorize
-    + PaymentAuthorizeSessionToken
-    + PaymentsCompleteAuthorize
-    + PaymentSync
-    + PaymentCapture
-    + PaymentVoid
-    + PaymentApprove
-    + PaymentReject
-    + MandateSetup
-    + PaymentSession
-    + PaymentToken
-    + PaymentsPreProcessing
-    + PaymentsPostProcessing
-    + ConnectorCustomer
-    + PaymentIncrementalAuthorization
-{
 }
 
 #[cfg(test)]

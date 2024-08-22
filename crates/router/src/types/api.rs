@@ -39,11 +39,15 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::router_data_v2::AccessTokenFlowData;
 pub use hyperswitch_domain_models::router_flow_types::{
-    access_token_auth::AccessTokenAuth, webhooks::VerifyWebhookSource,
+    access_token_auth::AccessTokenAuth, mandate_revoke::MandateRevoke,
+    webhooks::VerifyWebhookSource,
 };
-pub use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorCommonExt, CurrencyUnit};
+pub use hyperswitch_interfaces::api::{
+    ConnectorAccessToken, ConnectorAccessTokenV2, ConnectorCommon, ConnectorCommonExt,
+    ConnectorMandateRevoke, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSource,
+    ConnectorVerifyWebhookSourceV2, CurrencyUnit,
+};
 
 #[cfg(feature = "frm")]
 pub use self::fraud_check::*;
@@ -51,7 +55,8 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
-    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, webhooks::*,
+    payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
+    webhooks::*,
 };
 use crate::{
     configs::settings::Connectors,
@@ -60,72 +65,15 @@ use crate::{
         errors::{self, CustomResult},
         payments::types as payments_types,
     },
-    services::{
-        connector_integration_interface::ConnectorEnum, ConnectorIntegration,
-        ConnectorIntegrationV2, ConnectorRedirectResponse, ConnectorValidation,
-    },
+    services::{connector_integration_interface::ConnectorEnum, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
-pub trait ConnectorAccessToken:
-    ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-{
-}
-
-pub trait ConnectorAccessTokenV2:
-    ConnectorIntegrationV2<
-    AccessTokenAuth,
-    AccessTokenFlowData,
-    types::AccessTokenRequestData,
-    types::AccessToken,
->
-{
-}
 
 #[derive(Clone)]
 pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
-}
-
-pub trait ConnectorVerifyWebhookSource:
-    ConnectorIntegration<
-    VerifyWebhookSource,
-    types::VerifyWebhookSourceRequestData,
-    types::VerifyWebhookSourceResponseData,
->
-{
-}
-pub trait ConnectorVerifyWebhookSourceV2:
-    ConnectorIntegrationV2<
-    VerifyWebhookSource,
-    types::WebhookSourceVerifyData,
-    types::VerifyWebhookSourceRequestData,
-    types::VerifyWebhookSourceResponseData,
->
-{
-}
-
-#[derive(Clone, Debug)]
-pub struct MandateRevoke;
-
-pub trait ConnectorMandateRevoke:
-    ConnectorIntegration<
-    MandateRevoke,
-    types::MandateRevokeRequestData,
-    types::MandateRevokeResponseData,
->
-{
-}
-
-pub trait ConnectorMandateRevokeV2:
-    ConnectorIntegrationV2<
-    MandateRevoke,
-    types::MandateRevokeFlowData,
-    types::MandateRevokeRequestData,
-    types::MandateRevokeResponseData,
->
-{
 }
 
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
@@ -263,6 +211,20 @@ pub struct SessionConnectorData {
     pub business_sub_label: Option<String>,
 }
 
+impl SessionConnectorData {
+    pub fn new(
+        payment_method_type: api_enums::PaymentMethodType,
+        connector: ConnectorData,
+        business_sub_label: Option<String>,
+    ) -> Self {
+        Self {
+            payment_method_type,
+            connector,
+            business_sub_label,
+        }
+    }
+}
+
 /// Session Surcharge type
 pub enum SessionSurchargeDetails {
     /// Surcharge is calculated by hyperswitch
@@ -344,7 +306,7 @@ impl ConnectorData {
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
-                enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(&connector::Aci))),
+                enums::Connector::Aci => Ok(ConnectorEnum::Old(Box::new(connector::Aci::new()))),
                 enums::Connector::Adyen => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Adyen::new())))
                 }
@@ -365,15 +327,17 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Bankofamerica)))
                 }
                 enums::Connector::Billwerk => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Billwerk)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Billwerk::new())))
                 }
-                enums::Connector::Bitpay => Ok(ConnectorEnum::Old(Box::new(&connector::Bitpay))),
+                enums::Connector::Bitpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Bitpay::new())))
+                }
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
-                enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(&connector::Boku))),
+                enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Braintree)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Braintree::new())))
                 }
                 enums::Connector::Cashtocode => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cashtocode::new())))
@@ -422,14 +386,21 @@ impl ConnectorData {
                 enums::Connector::DummyConnector7 => Ok(ConnectorEnum::Old(Box::new(
                     &connector::DummyConnector::<7>,
                 ))),
-                enums::Connector::Ebanx => Ok(ConnectorEnum::Old(Box::new(&connector::Ebanx))),
+                enums::Connector::Ebanx => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
+                }
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
-                enums::Connector::Forte => Ok(ConnectorEnum::Old(Box::new(&connector::Forte))),
+                // enums::Connector::Fiservemea => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea)))
+                // }
+                enums::Connector::Forte => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
                 enums::Connector::Globepay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Globepay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Globepay::new())))
                 }
                 enums::Connector::Gocardless => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Gocardless)))
@@ -437,6 +408,9 @@ impl ConnectorData {
                 enums::Connector::Helcim => Ok(ConnectorEnum::Old(Box::new(&connector::Helcim))),
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
+                }
+                enums::Connector::Itaubank => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
                 enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
                 enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
@@ -446,14 +420,19 @@ impl ConnectorData {
                 enums::Connector::Opennode => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Opennode)))
                 }
+                enums::Connector::Paybox => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
+                }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
                 }
-                enums::Connector::Payone => Ok(ConnectorEnum::Old(Box::new(&connector::Payone))),
+                enums::Connector::Payone => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payone::new())))
+                }
                 enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(&connector::Payu))),
                 enums::Connector::Placetopay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Placetopay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
                 enums::Connector::Powertranz => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Powertranz)))
@@ -471,6 +450,7 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
+                // enums::Connector::Taxjar => Ok(ConnectorEnum::Old(Box::new(connector::Taxjar))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
@@ -479,10 +459,10 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldpay)))
                 }
                 enums::Connector::Mifinity => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Mifinity)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Mifinity::new())))
                 }
                 enums::Connector::Multisafepay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Multisafepay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Multisafepay::new())))
                 }
                 enums::Connector::Netcetera => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Netcetera)))
@@ -497,7 +477,13 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
                 enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(&connector::Tsys))),
-                enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(&connector::Volt))),
+                enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
+                enums::Connector::Wellsfargo => {
+                    Ok(ConnectorEnum::Old(Box::new(&connector::Wellsfargo)))
+                }
+                // enums::Connector::Wellsfargopayout => {
+                //     Ok(Box::new(connector::Wellsfargopayout::new()))
+                // }
                 enums::Connector::Zen => Ok(ConnectorEnum::Old(Box::new(&connector::Zen))),
                 enums::Connector::Zsl => Ok(ConnectorEnum::Old(Box::new(&connector::Zsl))),
                 enums::Connector::Plaid => {

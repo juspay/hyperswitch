@@ -2,10 +2,12 @@ use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
+    payments::GetAddressFromPaymentMethodData,
 };
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
+    type_name,
     types::{keymanager::Identifier, MinorUnit},
 };
 use diesel_models::{ephemeral_key, PaymentMethod};
@@ -13,7 +15,7 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
-    type_encryption::decrypt_optional,
+    type_encryption::{crypto_operation, CryptoOperation},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -44,6 +46,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
+        transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},
 };
@@ -65,11 +68,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest>> {
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
-        let merchant_id = &merchant_account.merchant_id;
+        let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let (payment_intent, payment_attempt);
 
@@ -79,6 +83,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_account_v2")
+        ))]
         helpers::validate_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -86,7 +94,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )?;
 
         // If profile id is not passed, get it from the business_country and business_label
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_account_v2")
+        ))]
         let profile_id = core_utils::get_profile_id_from_business_details(
+            key_manager_state,
+            merchant_key_store,
             request.business_country,
             request.business_label.as_ref(),
             merchant_account,
@@ -96,18 +110,39 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
+        // Profile id will be mandatory in v2 in the request / headers
+        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        let profile_id = request
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .attach_printable("Profile id is a mandatory parameter")?;
+
+        // TODO: eliminate a redundant db call to fetch the business profile
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         let business_profile = if let Some(business_profile) =
-            core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)
-                .await?
+            core_utils::validate_and_get_business_profile(
+                db,
+                key_manager_state,
+                merchant_key_store,
+                Some(&profile_id),
+                merchant_id,
+            )
+            .await?
         {
             business_profile
         } else {
-            db.find_business_profile_by_profile_id(&profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            db.find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(
+                errors::ApiErrorResponse::BusinessProfileNotFound {
                     id: profile_id.to_string(),
-                })?
+                },
+            )?
         };
         let customer_acceptance = request.customer_acceptance.clone().map(From::from);
 
@@ -235,7 +270,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 create_payment_link(
                     request,
                     payment_link_config,
-                    merchant_id.clone(),
+                    merchant_id,
                     payment_id.clone(),
                     db,
                     amount,
@@ -243,6 +278,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     profile_id.clone(),
                     domain_name,
                     session_expiry,
+                    header_payload.locale.clone(),
                 )
                 .await?
             }
@@ -375,6 +411,32 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
+        let mandate_id = if mandate_id.is_none() {
+            request
+                .recurring_details
+                .as_ref()
+                .and_then(|recurring_details| match recurring_details {
+                    RecurringDetails::ProcessorPaymentToken(token) => {
+                        Some(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    api_models::payments::ConnectorMandateReferenceId {
+                                        connector_mandate_id: Some(
+                                            token.processor_payment_token.clone(),
+                                        ),
+                                        payment_method_id: None,
+                                        update_history: None,
+                                    },
+                                ),
+                            ),
+                        })
+                    }
+                    _ => None,
+                })
+        } else {
+            mandate_id
+        };
         let operation = payments::if_not_create_change_operation::<_, F>(
             payment_intent.status,
             request.confirm,
@@ -391,7 +453,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    merchant_account.merchant_id.as_str(),
+                    merchant_account.get_id(),
                     mcd,
                 )
                 .await
@@ -421,6 +483,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let amount = payment_attempt.get_total_amount().into();
 
+        let address = PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing_address.as_ref().map(From::from),
+            business_profile.use_billing_as_payment_method_billing,
+        );
+
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .and_then(|payment_method_data_billing| {
+                payment_method_data_billing.get_billing_address()
+            });
+
+        let unified_address =
+            address.unify_with_payment_method_data_billing(payment_method_data_billing);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -428,20 +508,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             currency,
             amount,
             email: request.email.clone(),
-            mandate_id,
+            mandate_id: mandate_id.clone(),
             mandate_connector,
             setup_mandate,
             customer_acceptance,
             token,
-            address: PaymentAddress::new(
-                shipping_address.as_ref().map(From::from),
-                billing_address.as_ref().map(From::from),
-                payment_method_billing_address.as_ref().map(From::from),
-                business_profile.use_billing_as_payment_method_billing,
-            ),
+            address: unified_address,
             token_data: None,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call,
+            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
             payment_method_info,
             refunds: vec![],
             disputes: vec![],
@@ -515,10 +590,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         helpers::make_pm_data(
@@ -644,7 +719,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
         let raw_customer_details = customer
-            .map(|customer| CustomerData::try_from(customer.clone()))
+            .map(|customer| CustomerData::foreign_try_from(customer.clone()))
             .transpose()?;
         let session_state = state.session_state();
 
@@ -696,7 +771,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
-        operations::ValidateResult<'a>,
+        operations::ValidateResult,
     )> {
         helpers::validate_customer_information(request)?;
 
@@ -717,8 +792,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             errors::ApiErrorResponse::PaymentNotFound
         ))?;
 
-        let request_merchant_id = request.merchant_id.as_deref();
-        helpers::validate_merchant_id(&merchant_account.merchant_id, request_merchant_id)
+        let request_merchant_id = request.merchant_id.as_ref();
+        helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
         helpers::validate_request_amount_and_amount_to_capture(
@@ -781,7 +856,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: &merchant_account.merchant_id,
+                merchant_id: merchant_account.get_id().to_owned(),
                 payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
@@ -798,7 +873,7 @@ impl PaymentCreate {
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
         payment_id: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
         payment_method_type: Option<enums::PaymentMethodType>,
@@ -830,11 +905,11 @@ impl PaymentCreate {
             .payment_method_data
             .as_ref()
             .and_then(|payment_method_data_request| {
-                payment_method_data_request.payment_method_data.as_ref()
+                payment_method_data_request.payment_method_data.clone()
             })
-            .async_map(|payment_method_data| async {
+            .async_and_then(|payment_method_data| async {
                 helpers::get_additional_payment_data(
-                    payment_method_data,
+                    &payment_method_data.into(),
                     &*state.store,
                     &profile_id,
                 )
@@ -846,14 +921,16 @@ impl PaymentCreate {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
             additional_pm_data = payment_method_info
                 .as_ref()
-                .async_map(|pm_info| async {
-                    decrypt_optional::<serde_json::Value, masking::WithType>(
+                .async_and_then(|pm_info| async {
+                    crypto_operation::<serde_json::Value, masking::WithType>(
                         &state.into(),
-                        pm_info.payment_method_data.clone(),
+                        type_name!(PaymentMethod),
+                        CryptoOperation::DecryptOptional(pm_info.payment_method_data.clone()),
                         Identifier::Merchant(key_store.merchant_id.clone()),
                         key_store.key.get_inner().peek(),
                     )
                     .await
+                    .and_then(|val| val.try_into_optionaloperation())
                     .map_err(|err| logger::error!("Failed to decrypt card details: {:?}", err))
                     .ok()
                     .flatten()
@@ -874,10 +951,9 @@ impl PaymentCreate {
                     })
                 })
                 .await
-                .flatten()
                 .map(|card| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(card.into()))
-                })
+                });
         };
 
         let additional_pm_data_value = additional_pm_data
@@ -923,7 +999,7 @@ impl PaymentCreate {
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_string(),
-                merchant_id: merchant_id.to_string(),
+                merchant_id: merchant_id.to_owned(),
                 attempt_id,
                 status,
                 currency,
@@ -1057,9 +1133,8 @@ impl PaymentCreate {
             .charges
             .as_ref()
             .map(|charges| {
-                charges.encode_to_value().map_err(|err| {
+                charges.encode_to_value().inspect_err(|err| {
                     logger::warn!("Failed to serialize PaymentCharges - {}", err);
-                    err
                 })
             })
             .transpose()
@@ -1104,6 +1179,12 @@ impl PaymentCreate {
         } else {
             None
         };
+        let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
+            |recurring_details| match recurring_details {
+                RecurringDetails::ProcessorPaymentToken(_) => Some(true),
+                _ => None,
+            },
+        );
 
         // Encrypting our Customer Details to be stored in Payment Intent
         let customer_details = raw_customer_details
@@ -1115,7 +1196,7 @@ impl PaymentCreate {
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_string(),
-            merchant_id: merchant_account.merchant_id.to_string(),
+            merchant_id: merchant_account.get_id().to_owned(),
             status,
             amount: MinorUnit::from(amount),
             currency,
@@ -1164,6 +1245,7 @@ impl PaymentCreate {
             customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
             shipping_details,
+            is_payment_processor_token_flow,
         })
     }
 
@@ -1177,7 +1259,7 @@ impl PaymentCreate {
             Some(customer_id) => helpers::make_ephemeral_key(
                 state.clone(),
                 customer_id.clone(),
-                merchant_account.merchant_id.clone(),
+                merchant_account.get_id().to_owned().clone(),
             )
             .await
             .ok()
@@ -1206,7 +1288,7 @@ pub fn payments_create_request_validation(
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,
-    merchant_id: String,
+    merchant_id: &common_utils::id_type::MerchantId,
     payment_id: String,
     db: &dyn StorageInterface,
     amount: api::Amount,
@@ -1214,15 +1296,28 @@ async fn create_payment_link(
     profile_id: String,
     domain_name: String,
     session_expiry: PrimitiveDateTime,
+    locale: Option<String>,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
-    let payment_link = format!(
-        "{}/payment_link/{}/{}",
+    let locale_str = locale.unwrap_or("en".to_owned());
+    let open_payment_link = format!(
+        "{}/payment_link/{}/{}?locale={}",
         domain_name,
-        merchant_id.clone(),
-        payment_id.clone()
+        merchant_id.get_string_repr(),
+        payment_id.clone(),
+        locale_str.clone(),
     );
+
+    let secure_link = payment_link_config.allowed_domains.as_ref().map(|_| {
+        format!(
+            "{}/payment_link/s/{}/{}?locale={}",
+            domain_name,
+            merchant_id.get_string_repr(),
+            payment_id.clone(),
+            locale_str,
+        )
+    });
 
     let payment_link_config_encoded_value = payment_link_config.encode_to_value().change_context(
         errors::ApiErrorResponse::InvalidDataValue {
@@ -1234,7 +1329,7 @@ async fn create_payment_link(
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
         merchant_id: merchant_id.clone(),
-        link_to_pay: payment_link.clone(),
+        link_to_pay: open_payment_link.clone(),
         amount: MinorUnit::from(amount),
         currency: request.currency,
         created_at,
@@ -1244,6 +1339,7 @@ async fn create_payment_link(
         description,
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
+        secure_link,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)
@@ -1253,7 +1349,8 @@ async fn create_payment_link(
         })?;
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
-        link: payment_link_db.link_to_pay,
+        link: payment_link_db.link_to_pay.clone(),
+        secure_link: payment_link_db.secure_link,
         payment_link_id: payment_link_db.payment_link_id,
     }))
 }

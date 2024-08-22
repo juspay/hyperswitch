@@ -215,7 +215,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?
@@ -1400,7 +1401,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
+                    | domain::PaymentMethodData::CardToken(_)
+                    | domain::PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
                         )
@@ -1507,7 +1509,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )
@@ -1730,20 +1733,12 @@ pub enum CybersourceIncrementalAuthorizationStatus {
 impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
     fn foreign_from((status, capture): (CybersourcePaymentStatus, bool)) -> Self {
         match status {
-            CybersourcePaymentStatus::Authorized
-            | CybersourcePaymentStatus::AuthorizedPendingReview => {
+            CybersourcePaymentStatus::Authorized => {
                 if capture {
                     // Because Cybersource will return Payment Status as Authorized even in AutoCapture Payment
                     Self::Charged
                 } else {
                     Self::Authorized
-                }
-            }
-            CybersourcePaymentStatus::Pending => {
-                if capture {
-                    Self::Charged
-                } else {
-                    Self::Pending
                 }
             }
             CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
@@ -1762,7 +1757,9 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
             CybersourcePaymentStatus::PendingReview
             | CybersourcePaymentStatus::StatusNotReceived
             | CybersourcePaymentStatus::Challenge
-            | CybersourcePaymentStatus::Accepted => Self::Pending,
+            | CybersourcePaymentStatus::Accepted
+            | CybersourcePaymentStatus::Pending
+            | CybersourcePaymentStatus::AuthorizedPendingReview => Self::Pending,
         }
     }
 }
@@ -1770,8 +1767,8 @@ impl ForeignFrom<(CybersourcePaymentStatus, bool)> for enums::AttemptStatus {
 impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
     fn from(item: CybersourceIncrementalAuthorizationStatus) -> Self {
         match item {
-            CybersourceIncrementalAuthorizationStatus::Authorized
-            | CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Success,
+            CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
+            CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Processing,
             CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
         }
     }
@@ -2227,7 +2224,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))
@@ -2337,7 +2335,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 )

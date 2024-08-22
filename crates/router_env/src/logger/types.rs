@@ -61,6 +61,12 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// Organization create flow
+    OrganizationCreate,
+    /// Organization retrieve flow
+    OrganizationRetrieve,
+    /// Organization update flow
+    OrganizationUpdate,
     /// Merchants account create flow.
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
@@ -161,6 +167,8 @@ pub enum Flow {
     PaymentsList,
     /// Payments filters flow
     PaymentsFilters,
+    /// Payments aggregates flow
+    PaymentsAggregate,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -284,6 +292,8 @@ pub enum Flow {
     PaymentLinkRetrieve,
     /// payment Link Initiate flow
     PaymentLinkInitiate,
+    /// payment Link Initiate flow
+    PaymentSecureLinkInitiate,
     /// Payment Link List flow
     PaymentLinkList,
     /// Payment Link Status
@@ -346,6 +356,8 @@ pub enum Flow {
     SwitchMerchant,
     /// Get permission info
     GetAuthorizationInfo,
+    /// Get Roles info
+    GetRolesInfo,
     /// List roles
     ListRoles,
     /// Get role

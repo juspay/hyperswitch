@@ -49,6 +49,7 @@ pub enum ApiEventsType {
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
+    Keymanager,
     RustLocker,
     ApplePayCertificatesMigration,
     FraudCheck,
@@ -57,7 +58,7 @@ pub enum ApiEventsType {
         dispute_id: String,
     },
     Events {
-        merchant_id_or_profile_id: String,
+        merchant_id: id_type::MerchantId,
     },
     PaymentMethodCollectLink {
         link_id: String,
@@ -88,23 +89,31 @@ impl<T> ApiEventMetric for Vec<T> {
 }
 
 #[macro_export]
-macro_rules! impl_misc_api_event_type {
-    ($($type:ty),+) => {
+macro_rules! impl_api_event_type {
+    ($event: ident, ($($type:ty),+))=> {
         $(
             impl ApiEventMetric for $type {
                 fn get_api_event_type(&self) -> Option<ApiEventsType> {
-                    Some(ApiEventsType::Miscellaneous)
+                    Some(ApiEventsType::$event)
                 }
             }
         )+
      };
 }
 
-impl_misc_api_event_type!(
-    String,
-    (&String, &String),
-    (Option<i64>, Option<i64>, String),
-    bool
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        String,
+        id_type::MerchantId,
+        (id_type::MerchantId, String),
+        (&id_type::MerchantId, String),
+        (&id_type::MerchantId, &String),
+        (&String, &String),
+        (Option<i64>, Option<i64>, String),
+        (Option<i64>, Option<i64>, id_type::MerchantId),
+        bool
+    )
 );
 
 impl<T: ApiEventMetric> ApiEventMetric for &T {

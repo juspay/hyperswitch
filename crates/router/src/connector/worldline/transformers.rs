@@ -250,7 +250,8 @@ impl
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::NetworkToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("worldline"),
                     ))?
@@ -757,7 +758,7 @@ pub struct WebhookBody {
     pub api_version: Option<String>,
     pub id: String,
     pub created: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     #[serde(rename = "type")]
     pub event_type: WebhookEvent,
     pub payment: Option<serde_json::Value>,

@@ -38,6 +38,19 @@ pub enum Permission {
     GenerateReport,
 }
 
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
+pub enum ParentGroup {
+    Operations,
+    Connectors,
+    Workflows,
+    Analytics,
+    Users,
+    #[serde(rename = "MerchantAccess")]
+    Merchant,
+    #[serde(rename = "OrganizationAccess")]
+    Organization,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub enum PermissionModule {
     Payments,
@@ -63,6 +76,7 @@ pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
 pub enum AuthorizationInfo {
     Module(ModuleInfo),
     Group(GroupInfo),
+    GroupWithTag(ParentInfo),
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -77,6 +91,13 @@ pub struct GroupInfo {
     pub group: PermissionGroup,
     pub description: &'static str,
     pub permissions: Vec<PermissionInfo>,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct ParentInfo {
+    pub name: ParentGroup,
+    pub description: &'static str,
+    pub groups: Vec<PermissionGroup>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -99,13 +120,13 @@ pub enum UserStatus {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct MerchantSelectRequest {
-    pub merchant_ids: Vec<String>,
+    pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
     // TODO: Remove this once the token only api is being used
     pub need_dashboard_entry_response: Option<bool>,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AcceptInvitationRequest {
-    pub merchant_ids: Vec<String>,
+    pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

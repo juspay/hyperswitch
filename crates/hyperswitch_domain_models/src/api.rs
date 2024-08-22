@@ -2,8 +2,10 @@ use std::{collections::HashSet, fmt::Display};
 
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    impl_misc_api_event_type,
+    impl_api_event_type,
 };
+
+use super::payment_method_data::PaymentMethodData;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
@@ -28,12 +30,12 @@ impl<T: ApiEventMetric> ApiEventMetric for ApplicationResponse<T> {
     }
 }
 
-impl_misc_api_event_type!(PaymentLinkFormData, GenericLinkFormData);
+impl_api_event_type!(Miscellaneous, (PaymentLinkFormData, GenericLinkFormData));
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RedirectionFormData {
     pub redirect_form: crate::router_response_types::RedirectForm,
-    pub payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    pub payment_method_data: Option<PaymentMethodData>,
     pub amount: String,
     pub currency: String,
 }
@@ -62,6 +64,7 @@ pub struct PaymentLinkStatusData {
 pub struct GenericLinks {
     pub allowed_domains: HashSet<String>,
     pub data: GenericLinksData,
+    pub locale: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -71,6 +74,7 @@ pub enum GenericLinksData {
     PayoutLink(GenericLinkFormData),
     PayoutLinkStatus(GenericLinkStatusData),
     PaymentMethodCollectStatus(GenericLinkStatusData),
+    SecurePaymentLink(PaymentLinkFormData),
 }
 
 impl Display for GenericLinksData {
@@ -84,6 +88,7 @@ impl Display for GenericLinksData {
                 Self::PayoutLink(_) => "PayoutLink",
                 Self::PayoutLinkStatus(_) => "PayoutLinkStatus",
                 Self::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
+                Self::SecurePaymentLink(_) => "SecurePaymentLink",
             }
         )
     }

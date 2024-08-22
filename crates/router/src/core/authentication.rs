@@ -20,9 +20,9 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
-    payment_method_data: payments::PaymentMethodData,
+    payment_method_data: domain::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
     billing_address: payments::Address,
     shipping_address: Option<payments::Address>,
@@ -80,7 +80,7 @@ pub async fn perform_authentication(
 pub async fn perform_post_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: storage::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     authentication_id: String,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
@@ -94,7 +94,7 @@ pub async fn perform_post_authentication(
     let authentication = state
         .store
         .find_authentication_by_merchant_id_authentication_id(
-            business_profile.merchant_id.clone(),
+            &business_profile.merchant_id,
             authentication_id.clone(),
         )
         .await
@@ -121,7 +121,7 @@ pub async fn perform_pre_authentication(
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     acquirer_details: Option<types::AcquirerDetails>,
     payment_id: Option<String>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {

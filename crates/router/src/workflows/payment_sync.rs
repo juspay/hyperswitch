@@ -67,6 +67,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 state,
                 state.get_req_state(),
                 merchant_account.clone(),
+                None,
                 key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
@@ -168,7 +169,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .attach_printable("Could not find profile_id in payment intent")?;
 
                     let business_profile = db
-                        .find_business_profile_by_profile_id(profile_id)
+                        .find_business_profile_by_profile_id(
+                            key_manager_state,
+                            &key_store,
+                            profile_id,
+                        )
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::BusinessProfileNotFound {
@@ -229,7 +234,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: common_utils::errors::CustomResult<
@@ -262,7 +267,7 @@ pub async fn get_sync_process_schedule_time(
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
     connector: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
@@ -289,12 +294,20 @@ mod tests {
 
     #[test]
     fn test_get_default_schedule_time() {
-        let schedule_time_delta =
-            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0)
-                .unwrap();
-        let first_retry_time_delta =
-            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1)
-                .unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("-")).unwrap();
+        let schedule_time_delta = scheduler_utils::get_schedule_time(
+            process_data::ConnectorPTMapping::default(),
+            &merchant_id,
+            0,
+        )
+        .unwrap();
+        let first_retry_time_delta = scheduler_utils::get_schedule_time(
+            process_data::ConnectorPTMapping::default(),
+            &merchant_id,
+            1,
+        )
+        .unwrap();
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],

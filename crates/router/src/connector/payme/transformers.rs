@@ -431,7 +431,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_) => {
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -676,7 +677,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("payme"),
             ))?,
         }
@@ -737,6 +739,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::GiftCard(_))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(_))
+            | Some(PaymentMethodData::NetworkToken(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -776,7 +779,8 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_) => {
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
         }

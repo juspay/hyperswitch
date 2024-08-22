@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+#[cfg(feature = "dummy_connector")]
+use common_utils::errors;
 use utoipa::ToSchema;
 
 #[derive(
@@ -44,6 +46,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    // Fiservemea,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -101,7 +104,7 @@ pub enum Connector {
     Gpayments,
     Helcim,
     Iatapay,
-    // Itaubank, template code for future usage
+    Itaubank,
     Klarna,
     Mifinity,
     Mollie,
@@ -113,6 +116,7 @@ pub enum Connector {
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
+    Paybox,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payme,
     Payone,
@@ -127,11 +131,13 @@ pub enum Connector {
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Threedsecureio,
     Trustpay,
-    // Tsys,
     Tsys,
     Volt,
+    Wellsfargo,
+    // Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
@@ -182,6 +188,7 @@ impl Connector {
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
+                | (Self::Itaubank, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -202,6 +209,8 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Taxjar
+			// | Self::Fiservemea
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -227,6 +236,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+            | Self::Itaubank
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
@@ -234,7 +244,8 @@ impl Connector {
             | Self::Nexinets
             | Self::Nuvei
             | Self::Opennode
-            | Self::Payme
+			| Self::Paybox
+			| Self::Payme
             | Self::Payone
             | Self::Paypal
             | Self::Payu
@@ -248,6 +259,8 @@ impl Connector {
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
+            | Self::Wellsfargo
+			// | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
@@ -268,34 +281,29 @@ impl Connector {
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {
         matches!(self, Self::Airwallex)
     }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthenticationConnectors {
-    Threedsecureio,
-    Netcetera,
-    Gpayments,
-}
-
-impl AuthenticationConnectors {
-    pub fn is_separate_version_call_required(&self) -> bool {
-        match self {
-            Self::Threedsecureio | Self::Netcetera => false,
-            Self::Gpayments => true,
+    #[cfg(feature = "dummy_connector")]
+    pub fn validate_dummy_connector_enabled(
+        &self,
+        is_dummy_connector_enabled: bool,
+    ) -> errors::CustomResult<(), errors::ValidationError> {
+        if !is_dummy_connector_enabled
+            && matches!(
+                self,
+                Self::DummyConnector1
+                    | Self::DummyConnector2
+                    | Self::DummyConnector3
+                    | Self::DummyConnector4
+                    | Self::DummyConnector5
+                    | Self::DummyConnector6
+                    | Self::DummyConnector7
+            )
+        {
+            Err(errors::ValidationError::InvalidValue {
+                message: "Invalid connector name".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
         }
     }
 }
@@ -472,6 +480,9 @@ pub enum FieldType {
     UserDateOfBirth,
     UserVpaId,
     LanguagePreference { options: Vec<String> },
+    UserPixKey,
+    UserCpf,
+    UserCnpj,
 }
 
 impl FieldType {
@@ -558,6 +569,9 @@ impl PartialEq for FieldType {
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
             (Self::UserVpaId, Self::UserVpaId) => true,
+            (Self::UserPixKey, Self::UserPixKey) => true,
+            (Self::UserCpf, Self::UserCpf) => true,
+            (Self::UserCnpj, Self::UserCnpj) => true,
             (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
             _unused => false,
         }

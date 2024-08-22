@@ -45,7 +45,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     async fn decode_webhook_body(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         connector_name: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
@@ -79,12 +79,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     /// fn get_webhook_source_verification_merchant_secret
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_name: &str,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let debug_suffix = format!(
-            "For merchant_id: {}, and connector_name: {}",
+            "For merchant_id: {:?}, and connector_name: {}",
             merchant_id, connector_name
         );
         let default_secret = "default_secret".to_string();
@@ -136,7 +136,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_source_verification_message(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
@@ -146,7 +146,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_name: &str,

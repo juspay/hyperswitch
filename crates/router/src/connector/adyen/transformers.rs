@@ -689,23 +689,11 @@ pub struct MbwayData {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct WalleyData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct SamsungPayPmData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     #[serde(rename = "samsungPayToken")]
     samsung_pay_token: Secret<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PayBrightData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1568,7 +1556,8 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::PaymentMethodData::RealTimePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::NetworkToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -1631,8 +1620,11 @@ fn get_recurring_processing_model(
     match (item.request.setup_future_usage, item.request.off_session) {
         (Some(storage_enums::FutureUsage::OffSession), _) => {
             let customer_id = item.get_customer_id()?;
-            let shopper_reference =
-                format!("{}_{}", item.merchant_id, customer_id.get_string_repr());
+            let shopper_reference = format!(
+                "{}_{}",
+                item.merchant_id.get_string_repr(),
+                customer_id.get_string_repr()
+            );
             let store_payment_method = item.request.is_mandate_payment();
             Ok((
                 Some(AdyenRecurringModel::UnscheduledCardOnFile),
@@ -1645,7 +1637,7 @@ fn get_recurring_processing_model(
             None,
             Some(format!(
                 "{}_{}",
-                item.merchant_id,
+                item.merchant_id.get_string_repr(),
                 item.get_customer_id()?.get_string_repr()
             )),
         )),
@@ -1814,11 +1806,15 @@ fn get_social_security_number(voucher_data: &domain::VoucherData) -> Option<Secr
 
 fn build_shopper_reference(
     customer_id: &Option<id_type::CustomerId>,
-    merchant_id: String,
+    merchant_id: id_type::MerchantId,
 ) -> Option<String> {
-    customer_id
-        .clone()
-        .map(|c_id| format!("{}_{}", merchant_id, c_id.get_string_repr()))
+    customer_id.clone().map(|c_id| {
+        format!(
+            "{}_{}",
+            merchant_id.get_string_repr(),
+            c_id.get_string_repr()
+        )
+    })
 }
 
 impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
@@ -2445,7 +2441,7 @@ impl<'a>
             domain::BankTransferData::MandiriVaBankTransfer {} => Ok(
                 AdyenPaymentMethod::MandiriVa(Box::new(DokuBankData::try_from(item)?)),
             ),
-            domain::BankTransferData::Pix {} => {
+            domain::BankTransferData::Pix { .. } => {
                 Ok(AdyenPaymentMethod::Pix(Box::new(PmdForPaymentType {
                     payment_type: PaymentType::Pix,
                 })))
@@ -2563,7 +2559,8 @@ impl<'a>
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
+                    | domain::PaymentMethodData::CardToken(_)
+                    | domain::PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -4604,7 +4601,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutE
             merchant_account: auth_type.merchant_account,
             payment_method: payout_method_data,
             reference: item.router_data.connector_request_reference_id.clone(),
-            shopper_reference: item.router_data.merchant_id.clone(),
+            shopper_reference: item.router_data.merchant_id.get_string_repr().to_owned(),
         })
     }
 }
@@ -4691,7 +4688,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     merchant_account,
                     payment_data: PayoutPaymentMethodData::PayoutBankData(bank_data),
                     reference: item.router_data.connector_request_reference_id.to_owned(),
-                    shopper_reference: item.router_data.merchant_id.to_owned(),
+                    shopper_reference: item.router_data.merchant_id.get_string_repr().to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
                         first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts
@@ -4737,7 +4734,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     merchant_account,
                     payment_data: PayoutPaymentMethodData::PayoutWalletData(payout_wallet),
                     reference: item.router_data.request.payout_id.to_owned(),
-                    shopper_reference: item.router_data.merchant_id.to_owned(),
+                    shopper_reference: item.router_data.merchant_id.get_string_repr().to_owned(),
                     shopper_email: customer_email,
                     shopper_name: ShopperName {
                         first_name: Some(address.get_first_name()?.to_owned()), // it is a required field for payouts

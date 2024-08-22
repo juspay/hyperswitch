@@ -1,0 +1,70 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Hyperswitch",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#006DF9",
+    "light": "#006DF9",
+    "dark": "#006DF9",
+    "background": {
+      "dark": "#242F48"
+    }
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": ["introduction"]
+    },
+    {
+      "group": "Essentials",
+      "pages": [
+        "essentials/webhooks",
+        "essentials/error_codes",
+        "essentials/rate_limit",
+        "essentials/go-live"
+      ]
+    },
+    {
+      "group": "Merchant Account",
+      "pages": [
+        "api-reference/merchant-account/merchant-account--create",
+        "api-reference/merchant-account/merchant-account--retrieve",
+        "api-reference/merchant-account/merchant-account--update"
+      ]
+    },
+    {
+      "group": "Merchant Connector Account",
+      "pages": [
+        "api-reference/merchant-connector-account/merchant-connector--create",
+        "api-reference/merchant-connector-account/merchant-connector--retrieve",
+        "api-reference/merchant-connector-account/merchant-connector--update"
+      ]
+    },
+    {
+      "group": "Business Profile",
+      "pages": [
+        "api-reference/business-profile/business-profile--create",
+        "api-reference/business-profile/business-profile--update",
+        "api-reference/business-profile/business-profile--retrieve"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/juspay/hyperswitch",
+    "linkedin": "https://www.linkedin.com/company/hyperswitch"
+  },
+  "openapi": ["openapi_spec.json"],
+  "api": {
+    "maintainOrder": true
+  }
+}

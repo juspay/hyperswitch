@@ -1,6 +1,12 @@
+use std::collections::HashMap;
+
 use api_models::{user as user_api, user_role as user_role_api};
-use diesel_models::{enums::UserStatus, user_role::UserRoleUpdate};
+use diesel_models::{
+    enums::{UserRoleVersion, UserStatus},
+    user_role::UserRoleUpdate,
+};
 use error_stack::{report, ResultExt};
+use once_cell::sync::Lazy;
 use router_env::logger;
 
 use crate::{
@@ -15,8 +21,9 @@ use crate::{
     types::domain,
     utils,
 };
-
 pub mod role;
+use common_enums::PermissionGroup;
+use strum::IntoEnumIterator;
 
 // TODO: To be deprecated once groups are stable
 pub async fn get_authorization_info_with_modules(
@@ -40,6 +47,38 @@ pub async fn get_authorization_info_with_groups(
             info::get_group_authorization_info()
                 .into_iter()
                 .map(user_role_api::AuthorizationInfo::Group)
+                .collect(),
+        ),
+    ))
+}
+pub async fn get_authorization_info_with_group_tag(
+) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
+    static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
+        PermissionGroup::iter()
+            .map(|value| (info::get_parent_name(value), value))
+            .fold(
+                HashMap::new(),
+                |mut acc: HashMap<user_role_api::ParentGroup, Vec<PermissionGroup>>,
+                 (key, value)| {
+                    acc.entry(key).or_default().push(value);
+                    acc
+                },
+            )
+            .into_iter()
+            .map(|(name, value)| user_role_api::ParentInfo {
+                name: name.clone(),
+                description: info::get_parent_group_description(name),
+                groups: value,
+            })
+            .collect()
+    });
+
+    Ok(ApplicationResponse::Json(
+        user_role_api::AuthorizationInfoResponse(
+            GROUPS_WITH_PARENT_TAGS
+                .iter()
+                .cloned()
+                .map(user_role_api::AuthorizationInfo::GroupWithTag)
                 .collect(),
         ),
     ))
@@ -101,11 +140,15 @@ pub async fn update_user_role(
         .store
         .update_user_role_by_user_id_merchant_id(
             user_to_be_updated.get_user_id(),
-            user_role_to_be_updated.merchant_id.as_str(),
+            &user_role_to_be_updated
+                .merchant_id
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("merchant_id not found in user_role")?,
             UserRoleUpdate::UpdateRole {
                 role_id: req.role_id.clone(),
                 modified_by: user_from_token.user_id,
             },
+            UserRoleVersion::V1,
         )
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)
@@ -146,6 +189,7 @@ pub async fn transfer_org_ownership(
             &user_from_token.user_id,
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
+            UserRoleVersion::V1,
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -161,7 +205,9 @@ pub async fn transfer_org_ownership(
 
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-    let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+    let token =
+        utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
+            .await?;
     let response =
         utils::user::get_dashboard_entry_response(&state, user_from_db, user_role, token.clone())?;
 
@@ -183,6 +229,7 @@ pub async fn accept_invitation(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -213,6 +260,7 @@ pub async fn merchant_select(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -236,7 +284,9 @@ pub async fn merchant_select(
 
         utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
 
-        let token = utils::user::generate_jwt_auth_token(&state, &user_from_db, &user_role).await?;
+        let token =
+            utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
+                .await?;
         let response = utils::user::get_dashboard_entry_response(
             &state,
             user_from_db,
@@ -267,6 +317,7 @@ pub async fn merchant_select_token_only_flow(
                     status: UserStatus::Active,
                     modified_by: user_token.user_id.clone(),
                 },
+                UserRoleVersion::V1,
             )
             .await
             .map_err(|e| {
@@ -327,65 +378,169 @@ pub async fn delete_user_role(
             .attach_printable("User deleting himself");
     }
 
-    let user_roles = state
-        .store
-        .list_user_roles_by_user_id(user_from_db.get_user_id())
-        .await
-        .change_context(UserErrors::InternalServerError)?;
+    let deletion_requestor_role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
 
-    match user_roles
-        .iter()
-        .find(|&role| role.merchant_id == user_from_token.merchant_id.as_str())
+    let mut user_role_deleted_flag = false;
+
+    // Find in V2
+    let user_role_v2 = match state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V2,
+        )
+        .await
     {
-        Some(user_role) => {
-            let role_info = roles::RoleInfo::from_role_id(
-                &state,
-                &user_role.role_id,
-                &user_from_token.merchant_id,
-                &user_from_token.org_id,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-            if !role_info.is_deletable() {
-                return Err(report!(UserErrors::InvalidDeleteOperation))
-                    .attach_printable(format!("role_id = {} is not deletable", user_role.role_id));
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
             }
-        }
-        None => {
-            return Err(report!(UserErrors::InvalidDeleteOperation))
-                .attach_printable("User is not associated with the merchant");
         }
     };
 
-    let deleted_user_role = if user_roles.len() > 1 {
+    if let Some(role_to_be_deleted) = user_role_v2 {
+        let target_role_info = roles::RoleInfo::from_role_id(
+            &state,
+            &role_to_be_deleted.role_id,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+        if !target_role_info.is_deletable() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, role_id = {} is not deletable",
+                role_to_be_deleted.role_id
+            ));
+        }
+
+        if deletion_requestor_role_info.get_entity_type() < target_role_info.get_entity_type() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, deletion requestor = {} cannot delete target = {}",
+                deletion_requestor_role_info.get_entity_type(),
+                target_role_info.get_entity_type()
+            ));
+        }
+
+        user_role_deleted_flag = true;
         state
             .store
-            .delete_user_role_by_user_id_merchant_id(
+            .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
-                user_from_token.merchant_id.as_str(),
+                &user_from_token.org_id,
+                &user_from_token.merchant_id,
+                user_from_token.profile_id.as_ref(),
+                UserRoleVersion::V2,
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?
-    } else {
+            .attach_printable("Error while deleting user role")?;
+    }
+
+    // Find in V1
+    let user_role_v1 = match state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V1,
+        )
+        .await
+    {
+        Ok(user_role) => Some(user_role),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                None
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if let Some(role_to_be_deleted) = user_role_v1 {
+        let target_role_info = roles::RoleInfo::from_role_id(
+            &state,
+            &role_to_be_deleted.role_id,
+            &user_from_token.merchant_id,
+            &user_from_token.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+        if !target_role_info.is_deletable() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, role_id = {} is not deletable",
+                role_to_be_deleted.role_id
+            ));
+        }
+
+        if deletion_requestor_role_info.get_entity_type() < target_role_info.get_entity_type() {
+            return Err(report!(UserErrors::InvalidDeleteOperation)).attach_printable(format!(
+                "Invalid operation, deletion requestor = {} cannot delete target = {}",
+                deletion_requestor_role_info.get_entity_type(),
+                target_role_info.get_entity_type()
+            ));
+        }
+
+        user_role_deleted_flag = true;
+        state
+            .store
+            .delete_user_role_by_user_id_and_lineage(
+                user_from_db.get_user_id(),
+                &user_from_token.org_id,
+                &user_from_token.merchant_id,
+                user_from_token.profile_id.as_ref(),
+                UserRoleVersion::V1,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error while deleting user role")?;
+    }
+
+    if !user_role_deleted_flag {
+        return Err(report!(UserErrors::InvalidDeleteOperation))
+            .attach_printable("User is not associated with the merchant");
+    }
+
+    // Check if user has any more role associations
+    let user_roles_v2 = state
+        .store
+        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V2)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_roles_v1 = state
+        .store
+        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V1)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    // If user has no more role associated with him then deleting user
+    if user_roles_v2.is_empty() && user_roles_v1.is_empty() {
         state
             .global_store
             .delete_user_by_user_id(user_from_db.get_user_id())
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error while deleting user entry")?;
+    }
 
-        state
-            .store
-            .delete_user_role_by_user_id_merchant_id(
-                user_from_db.get_user_id(),
-                user_from_token.merchant_id.as_str(),
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error while deleting user role")?
-    };
-
-    auth::blacklist::insert_user_in_blacklist(&state, &deleted_user_role.user_id).await?;
+    auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
     Ok(ApplicationResponse::StatusOk)
 }

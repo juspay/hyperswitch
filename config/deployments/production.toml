@@ -38,8 +38,7 @@ bitpay.base_url = "https://bitpay.com"
 bluesnap.base_url = "https://ws.bluesnap.com/"
 bluesnap.secondary_base_url = "https://pay.bluesnap.com/"
 boku.base_url = "https://country-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.braintree-api.com/graphql"
+braintree.base_url = "https://payments.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster14.api.cashtocode.com"
 checkout.base_url = "https://api.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -50,6 +49,7 @@ dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+fiservemea.base_url = "https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -57,7 +57,7 @@ gocardless.base_url = "https://api.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
-itaubank.base_url = "https://sandbox.devportal.itau.com.br/itau-ep9-gtw-pix-recebimentos-ext-v2/v2"
+itaubank.base_url = "https://secure.api.itau/"
 klarna.base_url = "https://api{{klarna_region}}.klarna.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -70,6 +70,7 @@ noon.key_mode = "Live"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-live.sagepay.com/"
 opennode.base_url = "https://api.opennode.com"
+paybox.base_url = "https://ppps.paybox.com/PPPS.php"
 payeezy.base_url = "https://api.payeezy.com/"
 payme.base_url = "https://live.payme.io/"
 payone.base_url = "https://payment.payone.com/"
@@ -89,10 +90,13 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+taxjar.base_url = "https://api.taxjar.com/v2/"
 trustpay.base_url = "https://tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://gateway.transit-pass.com/"
 volt.base_url = "https://api.volt.io/"
+wellsfargo.base_url = "https://api.cybersource.com/"
+wellsfargopayout.base_url = "https://api.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
@@ -153,8 +157,6 @@ bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"        # M
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
-[multiple_api_version_supported_connectors]
-supported_connectors = "braintree"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
@@ -368,7 +370,7 @@ outgoing_enabled = true
 connectors_with_webhook_source_verification_call = "paypal"     # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"

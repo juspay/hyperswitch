@@ -6,20 +6,20 @@ use common_utils::{
     ext_traits::{Encode, OptionExt},
     types as common_types,
 };
-use diesel_models::business_profile::BusinessProfile;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 pub use hyperswitch_domain_models::router_request_types::{
     AuthenticationData, PaymentCharges, SurchargeDetails,
 };
 use redis_interface::errors::RedisError;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use crate::{
     consts as router_consts,
     core::errors::{self, RouterResult},
     routes::SessionState,
     types::{
+        domain::BusinessProfile,
         storage::{self, enums as storage_enums},
         transformers::ForeignTryFrom,
     },
@@ -312,13 +312,14 @@ impl SurchargeMetadata {
                 ));
             }
             let intent_fulfillment_time = business_profile
-                .intent_fulfillment_time
+                .get_order_fulfillment_time()
                 .unwrap_or(router_consts::DEFAULT_FULFILLMENT_TIME);
             redis_conn
                 .set_hash_fields(&redis_key, value_list, Some(intent_fulfillment_time))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to write to redis")?;
+            logger::debug!("Surcharge results stored in redis with key = {}", redis_key);
         }
         Ok(())
     }
@@ -335,9 +336,15 @@ impl SurchargeMetadata {
             .attach_printable("Failed to get redis connection")?;
         let redis_key = Self::get_surcharge_metadata_redis_key(payment_attempt_id);
         let value_key = Self::get_surcharge_details_redis_hashset_key(&surcharge_key);
-        redis_conn
+        let result = redis_conn
             .get_hash_field_and_deserialize(&redis_key, &value_key, "SurchargeDetails")
-            .await
+            .await;
+        logger::debug!(
+            "Surcharge result fetched from redis with key = {} and {}",
+            redis_key,
+            value_key
+        );
+        result
     }
 }
 

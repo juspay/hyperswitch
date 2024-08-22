@@ -59,12 +59,11 @@ impl AwsKmsClient {
             .ciphertext_blob(ciphertext_blob)
             .send()
             .await
-            .map_err(|error| {
+            .inspect_err(|error| {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS decrypt data");
                 metrics::AWS_KMS_DECRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                error
             })
             .change_context(AwsKmsError::DecryptionFailed)?;
 
@@ -96,12 +95,11 @@ impl AwsKmsClient {
             .plaintext(plaintext_blob)
             .send()
             .await
-            .map_err(|error| {
+            .inspect_err(|error| {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
                 logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS encrypt data");
                 metrics::AWS_KMS_ENCRYPTION_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                error
             })
             .change_context(AwsKmsError::EncryptionFailed)?;
 
@@ -169,7 +167,7 @@ impl AwsKmsConfig {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::expect_used)]
+    #![allow(clippy::expect_used, clippy::print_stdout)]
     #[tokio::test]
     async fn check_aws_kms_encryption() {
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "YOUR SECRET ACCESS KEY");
