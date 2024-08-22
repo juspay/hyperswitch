@@ -537,9 +537,18 @@ impl Payments {
                         .route(web::get().to(payments_list))
                         .route(web::post().to(payments_list_by_filter)),
                 )
+                .service(
+                    web::resource("/profile/list")
+                        .route(web::get().to(profile_payments_list))
+                        .route(web::post().to(profile_payments_list_by_filter)),
+                )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
                 .service(web::resource("/aggregate").route(web::get().to(get_payments_aggregates)))
+                .service(
+                    web::resource("/v2/profile/filter")
+                        .route(web::get().to(get_payment_filters_profile)),
+                )
                 .service(
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments_manual_update)),
@@ -948,8 +957,13 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
+                .service(
+                    web::resource("/v2/profile/filter")
+                        .route(web::get().to(get_refunds_filters_profile)),
+                )
                 .service(
                     web::resource("/{id}/manual-update")
                         .route(web::put().to(refunds_manual_update)),
@@ -986,6 +1000,11 @@ impl Payouts {
                     web::resource("/list")
                         .route(web::get().to(payouts_list))
                         .route(web::post().to(payouts_list_by_filter)),
+                )
+                .service(
+                    web::resource("/profile/list")
+                        .route(web::get().to(payouts_list_profile))
+                        .route(web::post().to(payouts_list_by_filter_profile)),
                 )
                 .service(
                     web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
@@ -1219,6 +1238,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(payment_connector_list)),
                 )
                 .service(
+                    web::resource("/{merchant_id}/profile/connectors")
+                        .route(web::get().to(payment_connector_list_profile)),
+                )
+                .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
@@ -1369,6 +1392,9 @@ impl Disputes {
         web::scope("/disputes")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(
+                web::resource("/profile/list").route(web::get().to(retrieve_disputes_list_profile)),
+            )
             .service(web::resource("/accept/{dispute_id}").route(web::post().to(accept_dispute)))
             .service(
                 web::resource("/evidence")
