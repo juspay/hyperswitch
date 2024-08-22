@@ -262,6 +262,12 @@ pub async fn payments_retrieve(
         expand_captures: json_payload.expand_captures,
         ..Default::default()
     };
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
 
     tracing::Span::current().record("payment_id", path.to_string());
     tracing::Span::current().record("flow", flow.to_string());
@@ -291,7 +297,7 @@ pub async fn payments_retrieve(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                HeaderPayload::default(),
+                header_payload.clone(),
             )
         },
         auth::auth_type(
@@ -1156,6 +1162,7 @@ pub async fn get_payment_filters(
     .await
 }
 
+<<<<<<< HEAD
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
 #[cfg(feature = "olap")]
 pub async fn get_payment_filters_profile(
@@ -1163,10 +1170,22 @@ pub async fn get_payment_filters_profile(
     req: actix_web::HttpRequest,
 ) -> impl Responder {
     let flow = Flow::PaymentsFilters;
+=======
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payments_aggregates(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PaymentsAggregate;
+    let payload = payload.into_inner();
+>>>>>>> origin/main
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
+<<<<<<< HEAD
         (),
         |state, auth: auth::AuthenticationData, _, _| {
             payments::get_payment_filters(
@@ -1174,6 +1193,11 @@ pub async fn get_payment_filters_profile(
                 auth.merchant_account,
                 auth.profile_id.map(|profile_id| vec![profile_id]),
             )
+=======
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::get_aggregates_for_payments(state, auth.merchant_account, req)
+>>>>>>> origin/main
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,

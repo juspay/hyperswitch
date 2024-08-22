@@ -993,10 +993,10 @@ pub async fn call_connector_payout(
     if payout_data.merchant_connector_account.is_none()
         || payout_data.payout_attempt.merchant_connector_id.is_none()
     {
-        let merchant_connector_account = construct_profile_id_and_get_mca(
+        let merchant_connector_account = get_mca_from_profile_id(
             state,
             merchant_account,
-            payout_data,
+            &payout_data.profile_id,
             &connector_data.connector_name.to_string(),
             payout_attempt
                 .merchant_connector_id
@@ -1004,7 +1004,6 @@ pub async fn call_connector_payout(
                 .or(connector_data.merchant_connector_id.clone())
                 .as_ref(),
             key_store,
-            false,
         )
         .await?;
         payout_data.payout_attempt.merchant_connector_id = merchant_connector_account.get_mca_id();
@@ -2725,36 +2724,20 @@ pub async fn create_payout_link_db_entry(
 }
 
 #[instrument(skip_all)]
-pub async fn construct_profile_id_and_get_mca(
+pub async fn get_mca_from_profile_id(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    payout_data: &mut PayoutData,
+    profile_id: &String,
     connector_name: &str,
     merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,
-    should_validate: bool,
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
-    let key_manager_state: &common_utils::types::keymanager::KeyManagerState = &state.into();
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        key_manager_state,
-        key_store,
-        payout_data.payout_attempt.business_country,
-        payout_data.payout_attempt.business_label.as_ref(),
-        merchant_account,
-        Some(&payout_data.payout_attempt.profile_id),
-        &*state.store,
-        should_validate,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payout_attempt")?;
-
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(
         state,
         merchant_account.get_id(),
         None,
         key_store,
-        &profile_id,
+        profile_id,
         connector_name,
         merchant_connector_id,
     )
