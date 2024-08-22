@@ -1032,6 +1032,8 @@ key1="Merchant ID"
 api_secret="Shared Secret"
 [cybersource.connector_webhook_details]
 merchant_secret="Source verification key"
+[cybersource.metadata]
+disable_avs = "Disable AVS check"
 
 [[cybersource.metadata.apple_pay]]
 name="certificate"
