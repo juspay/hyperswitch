@@ -403,6 +403,7 @@ pub(crate) async fn fetch_raw_secrets(
     .await
     .expect("Failed to decrypt user_auth_methods configs");
 
+    #[allow(clippy::expect_used)]
     let network_tokenization_service = settings::NetworkTokenizationService::convert_to_raw_secret(
         conf.network_tokenization_service,
         secret_management_client,

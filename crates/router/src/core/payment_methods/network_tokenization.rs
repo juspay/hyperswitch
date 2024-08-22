@@ -175,6 +175,7 @@ pub enum TokenStatus {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckTokenStatusResponsePayload {
     token_expiry_month: Secret<String>,
     token_expiry_year: Secret<String>,
@@ -199,10 +200,15 @@ pub async fn mk_tokenization_req(
 
     let key_id = tokenization_service.key_id.clone();
 
-    let jwt = encryption::encrypt_jwe(payload_bytes, enc_key, "A128GCM", Some(key_id.as_str()))
-        .await
-        .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
-        .attach_printable("Error on jwe encrypt")?;
+    let jwt = encryption::encrypt_jwe(
+        payload_bytes,
+        enc_key,
+        "A128GCM",
+        Some(key_id.as_str()),
+    )
+    .await
+    .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
+    .attach_printable("Error on jwe encrypt")?;
 
     let order_data = OrderData {
         consent_id: "test12324".to_string(), // ??
@@ -333,27 +339,18 @@ pub async fn make_card_network_tokenization_request(
 
 pub async fn get_token_from_tokenization_service(
     state: &routes::SessionState,
-    merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    pm_id: String, //to fetch from pm table
+    network_token_requestor_ref_id: String, 
+    pm_data: &storage::PaymentMethod,
 ) -> errors::RouterResult<NetworkTokenData> {
-    let db = state.store.as_ref();
-    let key = key_store.key.get_inner().peek();
-    let pm_data = db
-        .find_payment_method(&pm_id, merchant_account.storage_scheme)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    let token_ref = pm_data.clone().network_token_requestor_reference_id;
-
     let tokenization_service = &state.conf.network_tokenization_service.get_inner();
     let mut request = services::Request::new(
         services::Method::Post,
         tokenization_service.fetch_token_url.as_str(),
     );
     let payload = GetCardToken {
-        card_reference: token_ref.unwrap(),
-        customer_id: pm_data.clone().customer_id,
+        card_reference: network_token_requestor_ref_id,
+        customer_id: pm_data.customer_id.clone(),
     };
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
@@ -380,11 +377,12 @@ pub async fn get_token_from_tokenization_service(
             logger::error!(fetch_err=?e);
             errors::ApiErrorResponse::InternalServerError
         })?;
+    let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let card_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+    let token_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
         type_name!(payment_method::PaymentMethod),
-        domain::types::CryptoOperation::DecryptOptional(pm_data.payment_method_data.clone()),
+        domain::types::CryptoOperation::DecryptOptional(pm_data.network_token_payment_method_data.clone()),
         identifier,
         key,
     )
@@ -400,42 +398,44 @@ pub async fn get_token_from_tokenization_service(
         PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
         _ => None,
     });
-    let card_data = NetworkTokenData {
+    let network_token_data = NetworkTokenData {
         token_number: res.authentication_details.token,
-        token_cryptogram: res.authentication_details.cryptogram,
-        token_exp_month: card_decrypted
+        token_cryptogram: Some(res.authentication_details.cryptogram),
+        token_exp_month: token_decrypted
             .clone()
             .unwrap()
             .expiry_month
             .unwrap_or_default(),
-        token_exp_year: card_decrypted
+        token_exp_year: token_decrypted
             .clone()
             .unwrap()
             .expiry_year
             .unwrap_or_default(),
-        nick_name: card_decrypted.clone().unwrap().card_holder_name,
+        nick_name: token_decrypted.clone().unwrap().card_holder_name,
         card_issuer: None,
         card_network: Some(res.network),
         card_type: None,
         card_issuing_country: None,
         bank_code: None,
     };
-    Ok(card_data)
+    Ok(network_token_data)
 }
 
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     payment_method_info: &storage::PaymentMethod,
-) -> CustomResult<bool, errors::ApiErrorResponse> {
+) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), errors::ApiErrorResponse> {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let token_data_decrypted =
+    let network_token_data_decrypted =
         domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
             &state.into(),
             type_name!(payment_method::PaymentMethod),
             domain::types::CryptoOperation::DecryptOptional(
-                payment_method_info.network_token_payment_method_data.clone(),
+                payment_method_info
+                    .network_token_payment_method_data
+                    .clone(),
             ),
             identifier,
             key,
@@ -452,39 +452,25 @@ pub async fn do_status_check_for_network_token(
             PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
             _ => None,
         });
-    let network_token_requestor_reference_id =
-        payment_method_info.network_token_requestor_reference_id.clone();
-
-    is_token_active(
-        state,
-        token_data_decrypted,
-        payment_method_info.customer_id.clone(),
-        network_token_requestor_reference_id,
-    )
-    .await
-}
-
-pub async fn is_token_active(
-    //should be re-reviewed once more
-    state: &routes::SessionState,
-    token_data_decrypted: Option<api::CardDetailFromLocker>,
-    customer_id: id_type::CustomerId,
-    network_token_requestor_reference_id: Option<String>,
-) -> CustomResult<bool, errors::ApiErrorResponse> {
-    if let Some(token_data) = token_data_decrypted {
-        if let (Some(exp_month), Some(exp_year)) = (token_data.expiry_month, token_data.expiry_year)
-        {
-            helpers::validate_card_expiry(&exp_month, &exp_year)?;
-        }
-        Ok(true)
-    } else {
+    let network_token_requestor_reference_id = payment_method_info
+        .network_token_requestor_reference_id
+        .clone();
+    if network_token_data_decrypted.and_then(|token_data|{
+        token_data.expiry_month.zip(token_data.expiry_year)
+    }).and_then(|(exp_month, exp_year)|{
+        helpers::validate_card_expiry(&exp_month, &exp_year).ok()
+    }).is_none(){
         if let Some(ref_id) = network_token_requestor_reference_id {
-            let status = check_token_status_with_tokenization_service(state, &customer_id, ref_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            return Ok(status);
+            let (token_exp_month, token_exp_year) =
+                check_token_status_with_tokenization_service(state, &payment_method_info.customer_id.clone(), ref_id)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            Ok((token_exp_month,token_exp_year))
+        }else{
+            Err(errors::NetworkTokenizationError::FetchNetworkTokenFailed).change_context(errors::ApiErrorResponse::InternalServerError)?
         }
-        Ok(false)
+    }else{
+        Ok((None, None))
     }
 }
 
@@ -492,7 +478,7 @@ pub async fn check_token_status_with_tokenization_service(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
     network_token_requestor_reference_id: String,
-) -> CustomResult<bool, errors::NetworkTokenizationError> {
+) -> CustomResult<( Option<Secret<String>>, Option<Secret<String>>), errors::NetworkTokenizationError> {
     let tokenization_service = &state.conf.network_tokenization_service.get_inner();
 
     let mut request = services::Request::new(
@@ -551,8 +537,8 @@ pub async fn check_token_status_with_tokenization_service(
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
     match check_token_status_response.payload.token_status {
-        TokenStatus::Active => Ok(true),
-        TokenStatus::Inactive => Ok(false),
+        TokenStatus::Active => Ok((Some(check_token_status_response.payload.token_expiry_month), Some(check_token_status_response.payload.token_expiry_year))),
+        TokenStatus::Inactive => Ok(( None, None)),
     }
 }
 
@@ -565,10 +551,12 @@ pub async fn delete_network_token_from_locker_and_token_service(
     network_token_requestor_reference_id: String,
 ) -> errors::RouterResult<DeleteCardResp> {
     let resp = payment_methods::cards::delete_card_from_locker(
-        &state,
+        state,
         customer_id,
         merchant_id,
-        network_token_locker_id.as_ref().unwrap_or(&payment_method_id),
+        network_token_locker_id
+            .as_ref()
+            .unwrap_or(&payment_method_id),
     )
     .await?;
     if delete_network_token_from_tokenization_service(

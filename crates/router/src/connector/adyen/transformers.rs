@@ -2594,7 +2594,7 @@ impl<'a>
                     }
                 }
             }
-            payments::MandateReferenceId::NetworkTokenWithNTI(network_mandate_id) => {
+            payments::MandateReferenceId::NetworkTokenWithNTI(mandate_data) => {
                 match item.router_data.request.payment_method_data {
                     domain::PaymentMethodData::NetworkToken(ref token_data) => {
                         let card_issuer = token_data.get_card_issuer()?;
@@ -2606,8 +2606,8 @@ impl<'a>
                             expiry_month: token_data.token_exp_month.clone(),
                             expiry_year: token_data.get_expiry_year_4_digit(),
                             holder_name: card_holder_name,
-                            brand: Some(brand), // FIXME: Remove hardcoding
-                            network_payment_reference: Some(Secret::new(network_mandate_id)),
+                            brand: Some(brand), 
+                            network_payment_reference: Some(Secret::new(mandate_data.network_transaction_id)),
                         };
                         Ok(AdyenPaymentMethod::NetworkToken(Box::new(
                             adyen_network_token,
@@ -4991,7 +4991,7 @@ impl<'a>
         let mpi_data = MpiData {
             directory_response: "Y".to_string(),
             authentication_response: "Y".to_string(),
-            token_authentication_verification_value: token_data.token_cryptogram.clone(),
+            token_authentication_verification_value: token_data.token_cryptogram.clone().unwrap_or_default(),
             eci: "07".to_string(),
         };
 
