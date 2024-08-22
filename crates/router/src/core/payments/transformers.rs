@@ -35,6 +35,152 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
+pub async fn construct_router_date_to_update_calculated_tax<'a, F, T>(
+    state: &'a SessionState,
+    payment_data: PaymentData<F>,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
+where
+    T: TryFrom<PaymentAdditionalData<'a, F>>,
+    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
+    F: Clone,
+    error_stack::Report<errors::ApiErrorResponse>:
+        From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
+{
+    let (payment_method, router_data);
+
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
+
+    let test_mode = merchant_connector_account.is_test_mode_on();
+
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    payment_method = payment_data
+        .payment_attempt
+        .payment_method
+        .or(payment_data.payment_attempt.payment_method)
+        .get_required_value("payment_method_type")?;
+
+    let resource_id = match payment_data
+        .payment_attempt
+        .connector_transaction_id
+        .clone()
+    {
+        Some(id) => types::ResponseId::ConnectorTransactionId(id),
+        None => types::ResponseId::NoResponseId,
+    };
+
+    // [#44]: why should response be filled during request
+    let response = Ok(types::PaymentsResponseData::TransactionResponse {
+        resource_id,
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
+        charge_id: None,
+    });
+    let additional_data = PaymentAdditionalData {
+        router_base_url: state.base_url.clone(),
+        connector_name: connector_id.to_string(),
+        payment_data: payment_data.clone(),
+        state,
+        customer_data: customer,
+    };
+    let customer_id = customer
+        .to_owned()
+        .map(|customer| customer.get_customer_id());
+
+    let unified_address =
+        if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
+            let payment_method_billing =
+                crate::core::payment_methods::cards::decrypt_generic_data::<Address>(
+                    state,
+                    payment_method_info.payment_method_billing_address,
+                    key_store,
+                )
+                .await
+                .attach_printable("unable to decrypt payment method billing address details")?;
+            payment_data
+                .address
+                .clone()
+                .unify_with_payment_data_billing(payment_method_billing)
+        } else {
+            payment_data.address
+        };
+
+    router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().clone(),
+        customer_id,
+        connector: connector_id.to_owned(),
+        payment_id: payment_data.payment_attempt.payment_id.clone(),
+        attempt_id: payment_data.payment_attempt.attempt_id.clone(),
+        status: payment_data.payment_attempt.status,
+        payment_method,
+        connector_auth_type: auth_type,
+        description: payment_data.payment_intent.description.clone(),
+        return_url: payment_data.payment_intent.return_url.clone(),
+        address: unified_address,
+        auth_type: payment_data
+            .payment_attempt
+            .authentication_type
+            .unwrap_or_default(),
+        connector_meta_data: None,
+        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        request: T::try_from(additional_data)?,
+        response,
+        amount_captured: payment_data
+        .payment_intent
+        .amount_captured
+        .map(|amt| amt.get_amount_as_i64()),
+        minor_amount_captured: payment_data.payment_intent.amount_captured,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
+        payment_method_token: payment_data
+            .pm_token
+            .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
+        connector_customer: payment_data.connector_customer_id,
+        recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
+        connector_request_reference_id: core_utils::get_connector_request_reference_id(
+            &state.conf,
+            merchant_account.get_id(),
+            &payment_data.payment_attempt,
+        ),
+        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode,
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+    };
+
+    Ok(router_data)
+}
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data<'a, F, T>(
@@ -1635,9 +1781,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsTaxCalcu
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let order_tax_amount = payment_data.payment_intent.tax_details.clone().and_then(| tax_details| 
+                tax_details.pmt.map(| pmt| 
+                    pmt.order_tax_amount 
+                )
+            ).unwrap_or(0);
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
-            amount: amount.get_amount_as_i64(), //need to change after we move to connector module
+            amount: (amount.get_amount_as_i64()) + order_tax_amount, //need to change after we move to connector module
             shipping_cost: payment_data
                 .payment_intent
                 .shipping_cost

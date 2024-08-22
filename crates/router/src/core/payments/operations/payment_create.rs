@@ -1247,6 +1247,7 @@ impl PaymentCreate {
             shipping_details,
             is_payment_processor_token_flow,
             shipping_cost: request.shipping_cost,
+            tax_details: None,
         })
     }
 

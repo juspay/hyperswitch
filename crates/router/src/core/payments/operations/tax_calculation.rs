@@ -245,7 +245,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let _tax_response =
+        let tax_response =
             response
                 .response
                 .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
@@ -259,6 +259,22 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         // Update payment_data.tax_details with new amount which was returned by the connector
         // When constructing the router data, add this to the net amount
         //payment_data
+
+
+        match tax_response {
+        hyperswitch_domain_models::router_response_types::PaymentsResponseData::TaxCalculationResponse { order_tax_amount, .. } => {
+            // Update payment_data.payment_intent.tax_details.order_tax_amount with the order_tax_amount from the TaxCalculationResponse
+
+            payment_data.payment_intent.tax_details.clone().map(| tax_details| {
+                tax_details.pmt.map(| mut pmt| {
+                    pmt.order_tax_amount = order_tax_amount;
+                });
+            });
+        }
+        _ => {
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
 
         Ok(())
     }

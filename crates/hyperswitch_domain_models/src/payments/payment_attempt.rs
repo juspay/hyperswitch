@@ -7,7 +7,7 @@ use common_utils::{
     types::{
         keymanager::{self, KeyManagerState},
         MinorUnit,
-    },
+    }
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -748,6 +748,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
             shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
 
@@ -772,6 +773,7 @@ impl behaviour::Conversion for PaymentIntent {
                 .await
                 .and_then(|val| val.try_into_optionaloperation())
             };
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -818,6 +820,7 @@ impl behaviour::Conversion for PaymentIntent {
                 charges: storage_model.charges,
                 frm_metadata: storage_model.frm_metadata,
                 shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
                 customer_details: storage_model
                     .customer_details
                     .async_lift(inner_decrypt)
@@ -891,6 +894,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
             shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
 }

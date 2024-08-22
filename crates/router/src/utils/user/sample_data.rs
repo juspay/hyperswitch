@@ -253,6 +253,7 @@ pub async fn generate_sample_data(
             shipping_details: None,
             is_payment_processor_token_flow: None,
             shipping_cost: None,
+            tax_details: None,
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),

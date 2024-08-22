@@ -30,19 +30,21 @@ impl
         merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
         // create a new function to construct router data to send the updated amount
-        Box::pin(transformers::construct_payment_router_data::<
-            api::CalculateTax,
-            types::PaymentsTaxCalculationData,
-        >(
-            state,
-            self.clone(),
-            connector_id,
-            merchant_account,
-            key_store,
-            customer,
-            merchant_connector_account,
-            merchant_recipient_data,
-        ))
+        Box::pin(
+            transformers::construct_router_date_to_update_calculated_tax::<
+                api::CalculateTax,
+                types::PaymentsTaxCalculationData,
+            >(
+                state,
+                self.clone(),
+                connector_id,
+                merchant_account,
+                key_store,
+                customer,
+                merchant_connector_account,
+                // merchant_recipient_data,
+            ),
+        )
         .await
     }
 

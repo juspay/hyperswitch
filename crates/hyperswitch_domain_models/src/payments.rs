@@ -2,6 +2,8 @@ use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
 use masking::Secret;
 use time::PrimitiveDateTime;
 
+use diesel_models::payment_intent::TaxDetails;
+
 pub mod payment_attempt;
 pub mod payment_intent;
 
@@ -68,4 +70,5 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub tax_details: Option<TaxDetails>,
 }
