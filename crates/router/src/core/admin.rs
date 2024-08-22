@@ -2091,7 +2091,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                         key_manager_state,
                         type_name!(domain::MerchantConnectorAccount),
                         domain_types::CryptoOperation::Encrypt(Secret::new(mcd)),
-                        identifier,
+                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                         key_store.key.peek(),
                     )
                     .await
