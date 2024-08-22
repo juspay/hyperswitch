@@ -4416,7 +4416,7 @@ pub async fn get_extended_card_info(
 pub async fn payments_manual_update(
     state: SessionState,
     req: api_models::payments::PaymentsManualUpdateRequest,
-) -> RouterResponse<serde_json::Value> {
+) -> RouterResponse<api_models::payments::PaymentsManualUpdateResponse> {
     let api_models::payments::PaymentsManualUpdateRequest {
         payment_id,
         attempt_id,
@@ -4425,6 +4425,7 @@ pub async fn payments_manual_update(
         error_code,
         error_message,
         error_reason,
+        connector_transaction_id,
     } = req;
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -4494,6 +4495,7 @@ pub async fn payments_manual_update(
         updated_by: merchant_account.storage_scheme.to_string(),
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
+        connector_transaction_id,
     };
     let updated_payment_attempt = state
         .store
@@ -4525,5 +4527,16 @@ pub async fn payments_manual_update(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Error while updating payment_intent")?;
     }
-    Ok(services::ApplicationResponse::StatusOk)
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsManualUpdateResponse {
+            payment_id: updated_payment_attempt.payment_id,
+            attempt_id: updated_payment_attempt.attempt_id,
+            merchant_id: updated_payment_attempt.merchant_id,
+            attempt_status: updated_payment_attempt.status,
+            error_code: updated_payment_attempt.error_code,
+            error_message: updated_payment_attempt.error_message,
+            error_reason: updated_payment_attempt.error_reason,
+            connector_transaction_id: updated_payment_attempt.connector_transaction_id,
+        },
+    ))
 }
