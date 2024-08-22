@@ -6,13 +6,15 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::errors::ReportSwitchExt;
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{
+    associations::HasTable, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl,
+};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2")
 ))]
-use diesel::{JoinOnDsl, NullableExpressionMethods};
+use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
@@ -21,8 +23,10 @@ use diesel::{JoinOnDsl, NullableExpressionMethods};
 use diesel_models::schema::address::dsl as add_dsl;
 #[cfg(feature = "olap")]
 use diesel_models::{
-    address::Address as DieselAddress, customers::Customer as DieselCustomer,
-    enums as storage_enums, query::generics::db_metrics, schema::payouts::dsl as po_dsl,
+    customers::Customer as DieselCustomer,
+    enums as storage_enums,
+    query::generics::db_metrics,
+    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -31,15 +35,6 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
-};
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
-use diesel_models::{
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
