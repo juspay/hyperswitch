@@ -1058,7 +1058,6 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_name,
                 bank_type,
                 bank_holder_type,
-                card_holder_name: None,
                 bank_account_holder_name: None,
             }),
             BankDebitData::SepaBankDebit { iban, .. } => {
