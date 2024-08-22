@@ -214,7 +214,8 @@ impl BusinessProfileUpdateInternal {
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
-            is_tax_connector_enabled: is_tax_connector_enabled.unwrap_or(source.is_tax_connector_enabled),
+            is_tax_connector_enabled: is_tax_connector_enabled
+                .unwrap_or(source.is_tax_connector_enabled),
         }
     }
 }
