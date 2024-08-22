@@ -16304,11 +16304,11 @@
         "type": "object",
         "required": [
           "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -16325,7 +16325,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -16359,7 +16358,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -17357,11 +17357,11 @@
         "type": "object",
         "required": [
           "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -17378,7 +17378,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -17412,7 +17411,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
