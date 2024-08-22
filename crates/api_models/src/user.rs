@@ -390,3 +390,21 @@ pub struct UserKeyTransferRequest {
 pub struct UserTransferKeyResponse {
     pub total_transferred: usize,
 }
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListOrgsForUserResponse {
+    pub org_id: id_type::OrganizationId,
+    pub org_name: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListMerchantsForUserInOrgResponse {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_name: OptionalEncryptableName,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
+    pub profile_id: String,
+    pub profile_name: String,
+}
