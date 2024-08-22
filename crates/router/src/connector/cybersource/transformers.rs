@@ -729,7 +729,12 @@ impl
                 None => (None, None, None),
             }
         } else {
-            (None, None, None)
+            (None, None, Some(CybersourceAuthorizationOptions {
+                initiator: None,
+                merchant_intitiated_transaction: None,
+                ignore_avs_result : connector_merchant_config.disable_avs,
+                ignore_cv_result: connector_merchant_config.disable_cvn,
+            }))
         };
         // this logic is for external authenticated card
         let commerce_indicator_for_external_authentication = item
