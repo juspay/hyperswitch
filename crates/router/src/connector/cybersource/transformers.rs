@@ -57,6 +57,7 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CybersourceRo
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CybersourceConnectorMetadataObject {
     pub disable_avs: Option<bool>,
+    pub disable_cvn: Option<bool>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObject {
@@ -92,8 +93,9 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             },
             bill_to: Some(bill_to),
         };
-        let ignore_avs_result =
-            CybersourceConnectorMetadataObject::try_from(&item.connector_meta_data)?.disable_avs;
+        let connector_merchant_config = CybersourceConnectorMetadataObject::try_from(&item.connector_meta_data)?;
+        
+            
         let (action_list, action_token_types, authorization_options) = (
             Some(vec![CybersourceActionsList::TokenCreate]),
             Some(vec![
@@ -107,7 +109,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     stored_credential_used: None,
                 }),
                 merchant_intitiated_transaction: None,
-                ignore_avs_result,
+                ignore_avs_result : connector_merchant_config.disable_avs,
+                ignore_cv_result: connector_merchant_config.disable_cvn,
             }),
         );
 
@@ -330,6 +333,7 @@ pub struct CybersourceAuthorizationOptions {
     initiator: Option<CybersourcePaymentInitiator>,
     merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
     ignore_avs_result: Option<bool>,
+    ignore_cv_result: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -568,9 +572,8 @@ impl
             .unwrap_or("internet")
             .to_string();
 
-        let ignore_avs_result =
-            CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?
-                .disable_avs;
+        let connector_merchant_config = CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
 
         let (action_list, action_token_types, authorization_options) = if item
             .router_data
@@ -600,7 +603,8 @@ impl
                         credential_stored_on_file: Some(true),
                         stored_credential_used: None,
                     }),
-                    ignore_avs_result,
+                    ignore_avs_result : connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
                     merchant_intitiated_transaction: None,
                 }),
             )
@@ -649,7 +653,8 @@ impl
                                 original_authorized_amount,
                                 previous_transaction_id: None,
                             }),
-                            ignore_avs_result,
+                            ignore_avs_result : connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
                     )
                 }
@@ -716,7 +721,8 @@ impl
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(network_transaction_id)),
                             }),
-                            ignore_avs_result,
+                            ignore_avs_result : connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
                     )
                 }
@@ -819,9 +825,8 @@ impl
             &CybersourceConsumerAuthValidateResponse,
         ),
     ) -> Result<Self, Self::Error> {
-        let ignore_avs_result =
-            CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?
-                .disable_avs;
+        let connector_merchant_config = CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
         let (action_list, action_token_types, authorization_options) = if item
             .router_data
             .request
@@ -844,7 +849,8 @@ impl
                         stored_credential_used: None,
                     }),
                     merchant_intitiated_transaction: None,
-                    ignore_avs_result,
+                    ignore_avs_result : connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
                 }),
             )
         } else {
@@ -1617,9 +1623,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
     fn try_from(
         item: &CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRouterData>,
     ) -> Result<Self, Self::Error> {
-        let ignore_avs_result =
-            CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?
-                .disable_avs;
+        let connector_merchant_config = CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
 
         Ok(Self {
             processing_information: ProcessingInformation {
@@ -1636,7 +1641,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
                         previous_transaction_id: None,
                         original_authorized_amount: None,
                     }),
-                    ignore_avs_result,
+                    ignore_avs_result : connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
                 }),
                 commerce_indicator: String::from("internet"),
                 capture: None,
