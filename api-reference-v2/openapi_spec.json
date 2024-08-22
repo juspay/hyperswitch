@@ -11718,6 +11718,7 @@
       "PaymentsCreateResponseOpenApi": {
         "type": "object",
         "required": [
+          "payment_id",
           "status",
           "amount",
           "net_amount",
@@ -11732,7 +11733,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -12771,6 +12771,7 @@
       "PaymentsResponse": {
         "type": "object",
         "required": [
+          "payment_id",
           "status",
           "amount",
           "net_amount",
@@ -12785,7 +12786,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
