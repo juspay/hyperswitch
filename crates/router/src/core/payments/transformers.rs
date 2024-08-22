@@ -142,9 +142,9 @@ where
         request: T::try_from(additional_data)?,
         response,
         amount_captured: payment_data
-        .payment_intent
-        .amount_captured
-        .map(|amt| amt.get_amount_as_i64()),
+            .payment_intent
+            .amount_captured
+            .map(|amt| amt.get_amount_as_i64()),
         minor_amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
@@ -1781,11 +1781,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsTaxCalcu
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
-        let order_tax_amount = payment_data.payment_intent.tax_details.clone().and_then(| tax_details| 
-                tax_details.pmt.map(| pmt| 
-                    pmt.order_tax_amount 
-                )
-            ).unwrap_or(0);
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax_details| tax_details.pmt.map(|pmt| pmt.order_tax_amount))
+            .unwrap_or(0);
         let amount = MinorUnit::from(payment_data.amount);
         Ok(Self {
             amount: (amount.get_amount_as_i64()) + order_tax_amount, //need to change after we move to connector module

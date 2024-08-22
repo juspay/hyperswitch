@@ -138,7 +138,7 @@ pub struct PaymentIntent {
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct TaxDetails {
     pub default: DefaultTax,
-    pub pmt: Option<PmtTax>
+    pub pmt: Option<PmtTax>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(TaxDetails);
@@ -149,7 +149,6 @@ pub struct PmtTax {
     pub shipping_details: String,
 }
 // common_utils::impl_to_sql_from_sql_json!(PmtTax);
-
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DefaultTax {

@@ -1,8 +1,7 @@
 use common_utils::{self, crypto::Encryptable, id_type, pii, types::MinorUnit};
+use diesel_models::payment_intent::TaxDetails;
 use masking::Secret;
 use time::PrimitiveDateTime;
-
-use diesel_models::payment_intent::TaxDetails;
 
 pub mod payment_attempt;
 pub mod payment_intent;

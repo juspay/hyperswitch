@@ -7,7 +7,7 @@ use common_utils::{
     types::{
         keymanager::{self, KeyManagerState},
         MinorUnit,
-    }
+    },
 };
 use error_stack::ResultExt;
 use masking::PeekInterface;
