@@ -16,7 +16,7 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     services::api::ConnectorValidation,
-    types::{self, api, domain, storage, transformers::ForeignFrom},
+    types::{self, api, domain, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -97,7 +97,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<

@@ -68,6 +68,13 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -143,6 +150,7 @@ pub struct PaymentIntentNew {
     pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -172,6 +180,7 @@ pub struct PaymentIntentUpdateFields {
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -288,6 +297,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub is_payment_processor_token_flow: Option<bool>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -329,6 +339,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_details: value.billing_details,
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details,
+                is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -531,6 +542,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     billing_details: value.billing_details.map(Encryption::from),
                     merchant_order_reference_id: value.merchant_order_reference_id,
                     shipping_details: value.shipping_details.map(Encryption::from),
+                    is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -674,6 +686,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             billing_details,
             merchant_order_reference_id,
             shipping_details,
+            is_payment_processor_token_flow,
         } = value;
 
         Self {
@@ -711,6 +724,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             billing_details: billing_details.map(Encryption::from),
             merchant_order_reference_id,
             shipping_details: shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow,
         }
     }
 }

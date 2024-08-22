@@ -11,9 +11,9 @@ use crate::{enums as storage_enums, schema::payout_attempt};
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub address_id: String,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -47,9 +47,9 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: common_utils::id_type::CustomerId,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub address_id: String,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -83,10 +83,13 @@ pub enum PayoutAttemptUpdate {
     BusinessUpdate {
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
+        address_id: Option<String>,
+        customer_id: Option<common_utils::id_type::CustomerId>,
     },
     UpdateRouting {
         connector: String,
         routing_info: Option<serde_json::Value>,
+        merchant_connector_id: Option<String>,
     },
 }
 
@@ -104,6 +107,9 @@ pub struct PayoutAttemptUpdateInternal {
     pub connector: Option<String>,
     pub routing_info: Option<serde_json::Value>,
     pub last_modified_at: PrimitiveDateTime,
+    pub address_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_connector_id: Option<String>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -119,7 +125,10 @@ impl Default for PayoutAttemptUpdateInternal {
             business_label: None,
             connector: None,
             routing_info: None,
+            merchant_connector_id: None,
             last_modified_at: common_utils::date_time::now(),
+            address_id: None,
+            customer_id: None,
         }
     }
 }
@@ -148,17 +157,23 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
             PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             } => Self {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             } => Self {
                 connector: Some(connector),
                 routing_info,
+                merchant_connector_id,
                 ..Default::default()
             },
         }
@@ -179,6 +194,9 @@ impl PayoutAttemptUpdate {
             connector,
             routing_info,
             last_modified_at,
+            address_id,
+            customer_id,
+            merchant_connector_id,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -192,6 +210,9 @@ impl PayoutAttemptUpdate {
             connector: connector.or(source.connector),
             routing_info: routing_info.or(source.routing_info),
             last_modified_at,
+            address_id: address_id.or(source.address_id),
+            customer_id: customer_id.or(source.customer_id),
+            merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
             ..source
         }
     }

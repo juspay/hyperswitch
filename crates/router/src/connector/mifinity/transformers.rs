@@ -1,4 +1,7 @@
-use common_utils::pii::{self, Email};
+use common_utils::{
+    pii::{self, Email},
+    types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -8,27 +11,22 @@ use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, api, domain, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 pub struct MifinityRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MifinityRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for MifinityRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
-
 pub mod auth_headers {
     pub const API_VERSION: &str = "api-version";
 }
@@ -69,7 +67,7 @@ pub struct MifinityPaymentsRequest {
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Money {
-    amount: String,
+    amount: StringMajorUnit,
     currency: String,
 }
 
@@ -197,7 +195,8 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
                 )

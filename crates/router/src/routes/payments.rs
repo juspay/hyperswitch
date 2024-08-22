@@ -106,6 +106,13 @@ pub async fn payments_create(
         return api::log_and_return_error_response(err);
     }
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
     tracing::Span::current().record(
         "payment_id",
         payload
@@ -130,8 +137,9 @@ pub async fn payments_create(
                 state,
                 req_state,
                 auth.merchant_account,
+                auth.profile_id,
                 auth.key_store,
-                HeaderPayload::default(),
+                header_payload.clone(),
                 req,
                 api::AuthFlow::Merchant,
             )
@@ -200,7 +208,7 @@ pub async fn payments_start(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::operations::PaymentStart,
                 req,
@@ -254,6 +262,12 @@ pub async fn payments_retrieve(
         expand_captures: json_payload.expand_captures,
         ..Default::default()
     };
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
 
     tracing::Span::current().record("payment_id", path.to_string());
     tracing::Span::current().record("flow", flow.to_string());
@@ -276,14 +290,14 @@ pub async fn payments_retrieve(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                HeaderPayload::default(),
+                header_payload.clone(),
             )
         },
         auth::auth_type(
@@ -350,7 +364,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentStatus,
                 req,
@@ -422,6 +436,7 @@ pub async fn payments_update(
                 state,
                 req_state,
                 auth.merchant_account,
+                auth.profile_id,
                 auth.key_store,
                 HeaderPayload::default(),
                 req,
@@ -500,6 +515,7 @@ pub async fn payments_confirm(
                 state,
                 req_state,
                 auth.merchant_account,
+                auth.profile_id,
                 auth.key_store,
                 header_payload.clone(),
                 req,
@@ -558,7 +574,7 @@ pub async fn payments_capture(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentCapture,
                 payload,
@@ -628,7 +644,7 @@ pub async fn payments_connector_session(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentSession,
                 payload,
@@ -861,7 +877,7 @@ pub async fn payments_complete_authorize(
                 state.clone(),
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::operations::payment_complete_authorize::CompleteAuthorize,
                 payment_confirm_req.clone(),
@@ -921,7 +937,7 @@ pub async fn payments_cancel(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentCancel,
                 req,
@@ -1059,6 +1075,29 @@ pub async fn get_payment_filters(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payments_aggregates(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PaymentsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::get_aggregates_for_payments(state, auth.merchant_account, req)
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "oltp")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsApprove, payment_id))]
 // #[post("/{payment_id}/approve")]
@@ -1088,7 +1127,7 @@ pub async fn payments_approve(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentApprove,
                 payment_types::PaymentsCaptureRequest {
@@ -1143,7 +1182,7 @@ pub async fn payments_reject(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentReject,
                 payment_types::PaymentsCancelRequest {
@@ -1176,6 +1215,7 @@ async fn authorize_verify_select<Op>(
     state: app::SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
+    profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
@@ -1211,7 +1251,7 @@ where
             state,
             req_state,
             merchant_account,
-            None,
+            profile_id,
             key_store,
             operation,
             req,
@@ -1232,7 +1272,7 @@ where
                 state,
                 req_state,
                 merchant_account,
-                None,
+                profile_id,
                 key_store,
                 operation,
                 req,
@@ -1295,7 +1335,7 @@ pub async fn payments_incremental_authorization(
                 state,
                 req_state,
                 auth.merchant_account,
-                None,
+                auth.profile_id,
                 auth.key_store,
                 payments::PaymentIncrementalAuthorization,
                 req,
@@ -1446,7 +1486,7 @@ pub async fn payments_manual_update(
         &req,
         payload,
         |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
-        &auth::AdminApiAuth,
+        &auth::AdminApiAuthWithMerchantId::default(),
         locking_action,
     ))
     .await

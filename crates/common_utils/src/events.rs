@@ -63,7 +63,7 @@ pub enum ApiEventsType {
         dispute_id: String,
     },
     Events {
-        merchant_id_or_profile_id: String,
+        merchant_id: id_type::MerchantId,
     },
     PaymentMethodCollectLink {
         link_id: String,

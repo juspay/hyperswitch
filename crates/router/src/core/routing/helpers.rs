@@ -3,11 +3,8 @@
 //! Functions that are used to perform the retrieval of merchant's
 //! routing dict, configs, defaults
 use api_models::routing as routing_types;
-use common_utils::ext_traits::Encode;
-use diesel_models::{
-    business_profile::{BusinessProfile, BusinessProfileUpdate},
-    configs,
-};
+use common_utils::{ext_traits::Encode, types::keymanager::KeyManagerState};
+use diesel_models::configs;
 use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
@@ -119,6 +116,10 @@ pub async fn update_merchant_routing_dictionary(
 
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 pub async fn update_merchant_active_algorithm_ref(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -152,6 +153,7 @@ pub async fn update_merchant_active_algorithm_ref(
         payment_link_config: None,
         pm_collect_link_config: None,
     };
+
     let db = &*state.store;
     db.update_specific_fields_in_merchant(
         &state.into(),
@@ -170,10 +172,27 @@ pub async fn update_merchant_active_algorithm_ref(
 
     Ok(())
 }
-// TODO: Move it to business_profile
+
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn update_merchant_active_algorithm_ref(
+    _state: &SessionState,
+    _key_store: &domain::MerchantKeyStore,
+    _config_key: cache::CacheKind<'_>,
+    _algorithm_id: routing_types::RoutingAlgorithmRef,
+) -> RouterResult<()> {
+    // TODO: handle updating the active routing algorithm for v2 in merchant account
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
-    current_business_profile: BusinessProfile,
+    key_manager_state: &KeyManagerState,
+    merchant_key_store: &domain::MerchantKeyStore,
+    current_business_profile: domain::BusinessProfile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
@@ -200,15 +219,20 @@ pub async fn update_business_profile_active_algorithm_ref(
         storage::enums::TransactionType::Payout => (None, Some(ref_val)),
     };
 
-    let business_profile_update = BusinessProfileUpdate::RoutingAlgorithmUpdate {
+    let business_profile_update = domain::BusinessProfileUpdate::RoutingAlgorithmUpdate {
         routing_algorithm,
         payout_routing_algorithm,
     };
 
-    db.update_business_profile_by_profile_id(current_business_profile, business_profile_update)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+    db.update_business_profile_by_profile_id(
+        key_manager_state,
+        merchant_key_store,
+        current_business_profile,
+        business_profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
     cache::publish_into_redact_channel(db.get_cache_store().as_ref(), [routing_cache_key])
         .await
@@ -226,7 +250,7 @@ pub struct RoutingAlgorithmHelpers<'h> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, &'a String)>);
+pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, String)>);
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
@@ -282,7 +306,7 @@ impl MerchantConnectorAccounts {
     where
         T: std::hash::Hash + Eq,
     {
-        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
+        self.filter_and_map(|mca| mca.profile_id == profile_id, func)
     }
 }
 
@@ -294,7 +318,7 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id)),
+                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
                             "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
@@ -389,13 +413,13 @@ pub async fn validate_connectors_in_routing_config(
         })?;
     let name_mca_id_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == profile_id)
         .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == profile_id)
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 

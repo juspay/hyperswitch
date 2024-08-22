@@ -102,11 +102,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_kv_status,
 
         // Routes for merchant connector account
-        routes::merchant_connector_account::payment_connector_create,
-        routes::merchant_connector_account::payment_connector_retrieve,
+        routes::merchant_connector_account::connector_create,
+        routes::merchant_connector_account::connector_retrieve,
         routes::merchant_connector_account::payment_connector_list,
-        routes::merchant_connector_account::payment_connector_update,
-        routes::merchant_connector_account::payment_connector_delete,
+        routes::merchant_connector_account::connector_update,
+        routes::merchant_connector_account::connector_delete,
 
         //Routes for gsm
         routes::gsm::create_gsm_rule,
@@ -138,10 +138,10 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for Business Profile
         routes::business_profile::business_profile_create,
-        routes::business_profile::business_profiles_list,
-        routes::business_profile::business_profiles_retrieve,
-        routes::business_profile::business_profiles_update,
-        routes::business_profile::business_profiles_delete,
+        routes::business_profile::business_profile_list,
+        routes::business_profile::business_profile_retrieve,
+        routes::business_profile::business_profile_update,
+        routes::business_profile::business_profile_delete,
 
         // Routes for disputes
         routes::disputes::retrieve_dispute,
@@ -172,8 +172,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payouts::payouts_cancel,
         routes::payouts::payouts_fulfill,
         routes::payouts::payouts_list,
-        routes::payouts::payouts_filter,
         routes::payouts::payouts_confirm,
+        routes::payouts::payouts_list_filters,
+        routes::payouts::payouts_list_by_filter,
 
         // Routes for api keys
         routes::api_keys::api_key_create,
@@ -465,6 +466,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::MandateResponse,
         api_models::mandates::MandateCardDetails,
         api_models::mandates::RecurringDetails,
+        api_models::mandates::ProcessorPaymentToken,
         api_models::ephemeral_key::EphemeralKeyCreateResponse,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
@@ -478,16 +480,19 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,
         api_models::payouts::PixBankTransfer,
-        api_models::payouts::PayoutRequest,
+        api_models::payouts::PayoutsCreateRequest,
+        api_models::payouts::PayoutUpdateRequest,
+        api_models::payouts::PayoutConfirmRequest,
+        api_models::payouts::PayoutCancelRequest,
+        api_models::payouts::PayoutFulfillRequest,
+        api_models::payouts::PayoutRetrieveRequest,
         api_models::payouts::PayoutAttemptResponse,
-        api_models::payouts::PayoutActionRequest,
-        api_models::payouts::PayoutCreateRequest,
         api_models::payouts::PayoutCreateResponse,
         api_models::payouts::PayoutListConstraints,
+        api_models::payouts::PayoutListFilters,
         api_models::payouts::PayoutListFilterConstraints,
         api_models::payouts::PayoutListResponse,
         api_models::payouts::PayoutRetrieveBody,
-        api_models::payouts::PayoutRetrieveRequest,
         api_models::payouts::PayoutMethodData,
         api_models::payouts::PayoutLinkResponse,
         api_models::payouts::Bank,

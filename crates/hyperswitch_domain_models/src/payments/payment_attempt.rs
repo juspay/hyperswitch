@@ -3,7 +3,7 @@ use common_enums as storage_enums;
 use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    id_type, pii,
+    id_type, pii, type_name,
     types::{
         keymanager::{self, KeyManagerState},
         MinorUnit,
@@ -18,7 +18,7 @@ use super::PaymentIntent;
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
-    type_encryption::{decrypt_optional, AsyncLift},
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
     ForeignIDRef, RemoteStorageObject,
 };
 
@@ -473,6 +473,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<String>,
         unified_message: Option<String>,
+        connector_transaction_id: Option<String>,
     },
 }
 
@@ -541,6 +542,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
     async fn convert_back(
@@ -553,8 +555,17 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt =
-                |inner| decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek());
+            let inner_decrypt = |inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            };
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -613,6 +624,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .shipping_details
                     .async_lift(inner_decrypt)
                     .await?,
+                is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
             })
         }
         .await
@@ -670,6 +682,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
 }
@@ -729,6 +742,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
 
@@ -742,8 +756,17 @@ impl behaviour::Conversion for PaymentIntent {
         Self: Sized,
     {
         async {
-            let inner_decrypt =
-                |inner| decrypt_optional(state, inner, key_manager_identifier.clone(), key.peek());
+            let inner_decrypt = |inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|val| val.try_into_optionaloperation())
+            };
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,
@@ -802,6 +825,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .shipping_details
                     .async_lift(inner_decrypt)
                     .await?,
+                is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
             })
         }
         .await
@@ -859,6 +883,7 @@ impl behaviour::Conversion for PaymentIntent {
             billing_details: self.billing_details.map(Encryption::from),
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow: self.is_payment_processor_token_flow,
         })
     }
 }
