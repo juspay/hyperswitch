@@ -884,7 +884,7 @@ impl From<api_models::payments::VoucherData> for VoucherData {
 
 impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherData> {
     fn from(value: Box<BoletoVoucherData>) -> Self {
-        Box::new(api_models::payments::BoletoVoucherData {
+        Self::new(api_models::payments::BoletoVoucherData {
             social_security_number: value.social_security_number,
         })
     }
@@ -892,7 +892,7 @@ impl From<Box<BoletoVoucherData>> for Box<api_models::payments::BoletoVoucherDat
 
 impl From<Box<AlfamartVoucherData>> for Box<api_models::payments::AlfamartVoucherData> {
     fn from(_value: Box<AlfamartVoucherData>) -> Self {
-        Box::new(api_models::payments::AlfamartVoucherData {
+        Self::new(api_models::payments::AlfamartVoucherData {
             first_name: None,
             last_name: None,
             email: None,
@@ -902,7 +902,7 @@ impl From<Box<AlfamartVoucherData>> for Box<api_models::payments::AlfamartVouche
 
 impl From<Box<IndomaretVoucherData>> for Box<api_models::payments::IndomaretVoucherData> {
     fn from(_value: Box<IndomaretVoucherData>) -> Self {
-        Box::new(api_models::payments::IndomaretVoucherData {
+        Self::new(api_models::payments::IndomaretVoucherData {
             first_name: None,
             last_name: None,
             email: None,
@@ -912,7 +912,7 @@ impl From<Box<IndomaretVoucherData>> for Box<api_models::payments::IndomaretVouc
 
 impl From<Box<JCSVoucherData>> for Box<api_models::payments::JCSVoucherData> {
     fn from(_value: Box<JCSVoucherData>) -> Self {
-        Box::new(api_models::payments::JCSVoucherData {
+        Self::new(api_models::payments::JCSVoucherData {
             first_name: None,
             last_name: None,
             email: None,

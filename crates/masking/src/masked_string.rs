@@ -22,33 +22,29 @@ use super::SerializableSecret;
 fn apply_mask(val: &str, unmasked_char_count: usize, min_masked_char_count: usize) -> String {
     let len = val.len();
     if len <= unmasked_char_count {
-        val.to_string()
-    } else if len <= (unmasked_char_count * 2 + min_masked_char_count) {
-        val.chars()
-            .enumerate()
-            .fold(String::new(), |mut acc, (index, ch)| {
-                if ch.is_alphanumeric() && index < (len - unmasked_char_count) {
-                    acc.push('*');
-                } else {
-                    acc.push(ch);
-                }
-                acc
-            })
-    } else {
-        val.chars()
-            .enumerate()
-            .fold(String::new(), |mut acc, (index, ch)| {
-                if ch.is_alphanumeric()
-                    && index > unmasked_char_count
-                    && index < (len - unmasked_char_count)
-                {
-                    acc.push('*');
-                } else {
-                    acc.push(ch);
-                }
-                acc
-            })
+        return val.to_string();
     }
+
+    let mask_start_index =
+    // For showing only last `unmasked_char_count` characters
+    if len < (unmasked_char_count * 2 + min_masked_char_count) {
+        0
+    // For showing first and last `unmasked_char_count` characters
+    } else {
+        unmasked_char_count
+    };
+    let mask_end_index = len - unmasked_char_count - 1;
+
+    val.chars()
+        .enumerate()
+        .fold(String::new(), |mut acc, (index, ch)| {
+            if ch.is_alphanumeric() && (mask_start_index..=mask_end_index).contains(&index) {
+                acc.push('*');
+            } else {
+                acc.push(ch);
+            }
+            acc
+        })
 }
 
 /// Masked sort code
