@@ -20,11 +20,157 @@
     }
   ],
   "paths": {
+    "/organization": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Create",
+        "description": "Organization - Create\n\nCreate a new organization",
+        "operationId": "Create an Organization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Create an organization with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/organization/{organization_id}": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Retrieve",
+        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
+        "operationId": "Retrieve an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Update",
+        "description": "Organization - Update\n\nCreate a new organization for .",
+        "operationId": "Update an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Update organization_name of the organization": {
+                  "value": {
+                    "organization_name": "organization_abcd"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
     "/v2/connector_accounts": {
       "post": {
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Create",
+        "description": "Merchant Connector - Create\n\nCreates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -100,6 +246,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Retrieve",
+        "description": "Merchant Connector - Retrieve\n\nRetrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -137,10 +285,12 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Update",
+        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -211,6 +361,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Delete",
+        "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -357,7 +509,7 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Merchant Account"
         ],
@@ -414,6 +566,150 @@
           },
           "404": {
             "description": "Merchant account not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles": {
+      "post": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Create",
+        "description": "Business Profile - Create\n\nCreates a new *business profile* for a merchant",
+        "operationId": "Create A Business Profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProfileCreate"
+              },
+              "examples": {
+                "Create a business profile with profile name": {
+                  "value": {
+                    "profile_name": "shoe_business"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Business Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Retrieve",
+        "description": "Business Profile - Retrieve\n\nRetrieve existing *business profile*",
+        "operationId": "Retrieve a Business Profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business Profile Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Update",
+        "description": "Business Profile - Update\n\nUpdate the *business profile*",
+        "operationId": "Update a Business Profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProfileCreate"
+              },
+              "examples": {
+                "Update business profile with profile name fields": {
+                  "value": {
+                    "profile_name": "shoe_business"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Business Profile Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
           }
         },
         "security": [
@@ -1900,9 +2196,6 @@
             "properties": {
               "przelewy24": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "bank_name": {
                     "allOf": [
@@ -1913,7 +2206,12 @@
                     "nullable": true
                   },
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -2661,11 +2959,13 @@
       },
       "BusinessProfileCreate": {
         "type": "object",
+        "required": [
+          "profile_name"
+        ],
         "properties": {
           "profile_name": {
             "type": "string",
             "description": "The name of business profile",
-            "nullable": true,
             "maxLength": 64
           },
           "return_url": {
@@ -2707,12 +3007,7 @@
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
-            "nullable": true
-          },
-          "intent_fulfillment_time": {
+          "order_fulfillment_time": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
@@ -2720,15 +3015,10 @@
             "nullable": true,
             "minimum": 0
           },
-          "frm_routing_algorithm": {
-            "type": "object",
-            "description": "The frm routing algorithm to be used for routing payments to desired FRM's",
-            "nullable": true
-          },
-          "payout_routing_algorithm": {
+          "order_fulfillment_time_origin": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
               }
             ],
             "nullable": true
@@ -2772,14 +3062,14 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
             "default": false,
             "example": false,
             "nullable": true
@@ -2809,7 +3099,7 @@
         "type": "object",
         "required": [
           "merchant_id",
-          "profile_id",
+          "id",
           "profile_name",
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post"
@@ -2821,9 +3111,9 @@
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64
           },
-          "profile_id": {
+          "id": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "description": "The identifier for business profile. This must be used for creating merchant accounts, payments and payouts",
             "example": "pro_abcdefghijklmnopqrstuvwxyz",
             "maxLength": 64
           },
@@ -2847,7 +3137,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -2867,31 +3157,6 @@
           "metadata": {
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
-          },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
-            "nullable": true
-          },
-          "intent_fulfillment_time": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
-            "example": 900,
-            "nullable": true
-          },
-          "frm_routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
-            "nullable": true
-          },
-          "payout_routing_algorithm": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
-              }
-            ],
             "nullable": true
           },
           "applepay_verified_domains": {
@@ -2939,14 +3204,14 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
             "default": false,
             "example": false,
             "nullable": true
@@ -2967,6 +3232,22 @@
           "outgoing_webhook_custom_http_headers": {
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
+            "nullable": true
+          },
+          "order_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "order_fulfillment_time_origin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8487,6 +8768,13 @@
           }
         }
       },
+      "OrderFulfillmentTimeOrigin": {
+        "type": "string",
+        "enum": [
+          "create",
+          "confirm"
+        ]
+      },
       "OrganizationRequest": {
         "type": "object",
         "properties": {
@@ -13956,6 +14244,12 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Unique identifier of the merchant connector account",
+            "example": "mca_sAD3OZLATetvjLOYhUSy",
             "nullable": true
           },
           "status": {

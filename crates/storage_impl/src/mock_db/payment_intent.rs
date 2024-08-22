@@ -41,6 +41,15 @@ impl PaymentIntentInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
     #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+    #[cfg(feature = "olap")]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,

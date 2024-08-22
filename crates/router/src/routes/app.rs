@@ -539,6 +539,7 @@ impl Payments {
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
+                .service(web::resource("/aggregate").route(web::get().to(get_payments_aggregates)))
                 .service(
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments_manual_update)),
@@ -1132,7 +1133,7 @@ impl MerchantAccount {
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
-                    .route(web::post().to(update_merchant_account)),
+                    .route(web::put().to(update_merchant_account)),
             )
     }
 }
@@ -1183,9 +1184,12 @@ impl MerchantConnectorAccount {
 
             route = route
                 .service(web::resource("").route(web::post().to(connector_create)))
-                .service(web::resource("/{id}").route(web::post().to(connector_update)))
-                .service(web::resource("/{id}").route(web::get().to(connector_retrieve)))
-                .service(web::resource("/{id}").route(web::delete().to(connector_delete)));
+                .service(
+                    web::resource("/{id}")
+                        .route(web::put().to(connector_update))
+                        .route(web::get().to(connector_retrieve))
+                        .route(web::delete().to(connector_delete)),
+                );
         }
         route
     }
@@ -1469,7 +1473,11 @@ impl BusinessProfile {
             .service(web::resource("").route(web::post().to(business_profile_create)))
             .service(
                 web::scope("/{profile_id}")
-                    .service(web::resource("").route(web::get().to(business_profile_retrieve)))
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(business_profile_retrieve))
+                            .route(web::put().to(business_profile_update)),
+                    )
                     .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
@@ -1611,6 +1619,7 @@ impl User {
                     .route(web::get().to(list_merchants_for_user)),
             )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
+            .service(web::resource("/module/list").route(web::get().to(get_role_information)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
@@ -1621,6 +1630,18 @@ impl User {
         route = route.service(
             web::scope("/key")
                 .service(web::resource("/transfer").route(web::post().to(transfer_user_key))),
+        );
+
+        route = route.service(
+            web::scope("/list")
+                .service(web::resource("/org").route(web::get().to(list_orgs_for_user)))
+                .service(
+                    web::resource("/merchant").route(web::get().to(list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
+                ),
         );
 
         // Two factor auth routes
@@ -1711,10 +1732,6 @@ impl User {
                         .route(web::put().to(accept_invitation)),
                 )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
-                .service(
-                    web::resource("/transfer_ownership")
-                        .route(web::post().to(transfer_org_ownership)),
-                )
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
         );
 

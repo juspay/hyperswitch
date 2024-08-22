@@ -167,6 +167,8 @@ pub enum Flow {
     PaymentsList,
     /// Payments filters flow
     PaymentsFilters,
+    /// Payments aggregates flow
+    PaymentsAggregate,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -354,6 +356,8 @@ pub enum Flow {
     SwitchMerchant,
     /// Get permission info
     GetAuthorizationInfo,
+    /// Get Roles info
+    GetRolesInfo,
     /// List roles
     ListRoles,
     /// Get role
@@ -452,6 +456,12 @@ pub enum Flow {
     SignInWithSso,
     /// Auth Select
     AuthSelect,
+    /// List Orgs for user
+    ListOrgForUser,
+    /// List Merchants for user in org
+    ListMerchantsForUserInOrg,
+    /// List Profile for user in org and merchant
+    ListProfileForUserInOrgAndMerchant,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

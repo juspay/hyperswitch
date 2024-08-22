@@ -47,50 +47,16 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
-pub async fn get_mca_for_payout<'a>(
-    state: &'a SessionState,
-    connector_data: &api::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    payout_data: &PayoutData,
-) -> RouterResult<helpers::MerchantConnectorAccountType> {
-    match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok(mca),
-        None => {
-            let merchant_connector_account = helpers::get_merchant_connector_account(
-                state,
-                merchant_account.get_id(),
-                None,
-                key_store,
-                &payout_data.profile_id,
-                &connector_data.connector_name.to_string(),
-                connector_data.merchant_connector_id.as_ref(),
-            )
-            .await?;
-            Ok(merchant_connector_account)
-        }
-    }
-}
-
-#[cfg(feature = "payouts")]
-#[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
-    state: &'a SessionState,
     connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let merchant_connector_account = get_mca_for_payout(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let merchant_connector_account = payout_data
+        .merchant_connector_account
+        .clone()
+        .get_required_value("merchant_connector_account")?;
     let connector_name = connector_data.connector_name;
-    payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
