@@ -2413,6 +2413,10 @@ pub struct BusinessGenericLinkConfig {
     #[serde(flatten)]
     #[schema(value_type = GenericLinkUiConfig)]
     pub ui_config: link_utils::GenericLinkUiConfig,
+
+    /// `test_mode` allows for removing any validations which are necessary in a production environment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub test_mode: Option<bool>,
 }
 
 impl BusinessGenericLinkConfig {

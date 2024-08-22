@@ -1776,6 +1776,7 @@ impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
             ui_config: item.ui_config,
+            test_mode: item.test_mode,
         }
     }
 }
@@ -1788,6 +1789,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
             ui_config: item.ui_config,
+            test_mode: item.test_mode,
         }
     }
 }

@@ -4,7 +4,7 @@ pub mod helpers;
 pub mod retry;
 pub mod transformers;
 pub mod validator;
-use std::vec::IntoIter;
+use std::{collections::HashSet, vec::IntoIter};
 
 use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 #[cfg(feature = "payout_retry")]
@@ -28,7 +28,7 @@ use futures::future::join_all;
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
 use serde_json;
 use time::Duration;
@@ -2614,15 +2614,32 @@ pub async fn create_payout_link(
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
 
-    // Validate allowed_domains presence
-    let allowed_domains = profile_config
+    let test_mode_in_config = payout_link_config_req
         .as_ref()
-        .map(|config| config.config.allowed_domains.to_owned())
-        .get_required_value("allowed_domains")
-        .change_context(errors::ApiErrorResponse::LinkConfigurationError {
-            message: "Payout links cannot be used without setting allowed_domains in profile"
-                .to_string(),
-        })?;
+        .and_then(|config| config.test_mode)
+        .or_else(|| profile_config.as_ref().and_then(|c| c.config.test_mode));
+    let is_test_mode_enabled = test_mode_in_config.unwrap_or(false);
+
+    let allowed_domains = match router_env::which() {
+        Env::Production => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
+            message: "test_mode cannot be true for creating payout_links in production".to_string()
+        })),
+        _ => {
+            if is_test_mode_enabled {
+                Ok(HashSet::new())
+            } else {
+                profile_config
+                    .as_ref()
+                    .map(|config| config.config.allowed_domains.to_owned())
+                    .get_required_value("allowed_domains")
+                    .change_context(errors::ApiErrorResponse::LinkConfigurationError {
+                        message:
+                            "Payout links cannot be used without setting allowed_domains in profile. If you're using a non-production environment, you can set test_mode to true while in payout_link_config"
+                                .to_string(),
+                    })
+            }
+        }
+    }?;
 
     // Form data to be injected in the link
     let (logo, merchant_name, theme) = match ui_config {
@@ -2685,6 +2702,7 @@ pub async fn create_payout_link(
         amount: MinorUnit::from(*amount),
         currency: *currency,
         allowed_domains,
+        test_mode: test_mode_in_config,
     };
 
     create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await
