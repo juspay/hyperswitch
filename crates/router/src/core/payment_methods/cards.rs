@@ -60,7 +60,10 @@ use crate::types::domain::types::AsyncLift;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::utils::{self};
 use crate::{
-    configs::settings,
+    configs::{
+        defaults::{get_billing_required_fields, get_shipping_required_fields},
+        settings,
+    },
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
@@ -3330,11 +3333,11 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
             });
 
             if always_send_billing_details == Some(true) {
-                let billing_details = crate::configs::defaults::get_billing_required_fields();
+                let billing_details = get_billing_required_fields();
                 required_fields_hs.extend(billing_details)
             };
             if always_send_shipping_details == Some(true) {
-                let shipping_details = crate::configs::defaults::get_shipping_required_fields();
+                let shipping_details = get_shipping_required_fields();
                 required_fields_hs.extend(shipping_details)
             };
 

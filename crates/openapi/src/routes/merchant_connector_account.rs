@@ -61,6 +61,9 @@
 )]
 pub async fn connector_create() {}
 
+/// Merchant Connector - Create
+///
+/// Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
@@ -143,6 +146,9 @@ pub async fn connector_create() {}
 )]
 pub async fn connector_retrieve() {}
 
+/// Merchant Connector - Retrieve
+///
+/// Retrieves details of a Connector account
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
@@ -229,6 +235,9 @@ pub async fn payment_connector_list() {}
 )]
 pub async fn connector_update() {}
 
+/// Merchant Connector - Update
+///
+/// To update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
@@ -295,6 +304,9 @@ pub async fn connector_update() {}
 )]
 pub async fn connector_delete() {}
 
+/// Merchant Connector - Delete
+///
+/// Delete or Detach a Merchant Connector from Merchant Account
 #[cfg(feature = "v2")]
 #[utoipa::path(
     delete,
