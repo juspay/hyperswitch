@@ -210,7 +210,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Fiserv,
-    // Fiservemea,
+    Fiservemea,
     Forte,
     Globalpay,
     Globepay,

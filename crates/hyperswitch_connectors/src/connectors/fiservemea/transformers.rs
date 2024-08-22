@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::StringMajorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -19,12 +19,12 @@ use crate::{
 
 //TODO: Fill the struct with respective fields
 pub struct FiservemeaRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for FiservemeaRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(StringMajorUnit, T)> for FiservemeaRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -33,20 +33,46 @@ impl<T> From<(StringMinorUnit, T)> for FiservemeaRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct FiservemeaPaymentsRequest {
-    amount: StringMinorUnit,
-    card: FiservemeaCard,
+#[derive(Debug, Serialize)]
+pub struct FiservemeaTransactionAmount {
+    total: StringMajorUnit,
+    currency: common_enums::Currency,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct FiservemeaCard {
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FiservemeaRequestType {
+    PaymentCardSaleTransaction,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaExpiryDate {
+    month: Secret<String>,
+    year: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaPaymentCard {
     number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+    expiry_date: FiservemeaExpiryDate,
+    security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FiservemeaPaymentMethods {
+    PaymentCard(FiservemeaPaymentCard),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaPaymentsRequest {
+    request_type: FiservemeaRequestType,
+    merchant_transaction_id: String,
+    transaction_amount: FiservemeaTransactionAmount,
+    payment_method: FiservemeaPaymentMethods,
 }
 
 impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for FiservemeaPaymentsRequest {
@@ -56,16 +82,25 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card = FiservemeaCard {
+                let card = FiservemeaPaymentCard {
                     number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
+                    expiry_date: FiservemeaExpiryDate {
+                        month: req_card.card_exp_month,
+                        year: req_card.card_exp_year,
+                    },
+                    security_code: req_card.card_cvc,
                 };
                 Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
+                    request_type: FiservemeaRequestType::PaymentCardSaleTransaction,
+                    merchant_transaction_id: item
+                        .router_data
+                        .connector_request_reference_id
+                        .clone(),
+                    transaction_amount: FiservemeaTransactionAmount {
+                        total: item.amount.clone(),
+                        currency: item.router_data.request.currency,
+                    },
+                    payment_method: FiservemeaPaymentMethods::PaymentCard(card),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -77,14 +112,16 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
 // Auth Struct
 pub struct FiservemeaAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) secret_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for FiservemeaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
+                secret_key: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -147,7 +184,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct FiservemeaRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: StringMajorUnit,
 }
 
 impl<F> TryFrom<&FiservemeaRouterData<&RefundsRouterData<F>>> for FiservemeaRefundRequest {

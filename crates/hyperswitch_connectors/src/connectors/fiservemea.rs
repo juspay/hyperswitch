@@ -1,10 +1,11 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -33,21 +34,44 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use masking::{ExposeInterface, Mask, PeekInterface};
+use ring::hmac;
+use time::OffsetDateTime;
 use transformers as fiservemea;
+use uuid::Uuid;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Fiservemea {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Fiservemea {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
+    }
+
+    pub fn generate_authorization_signature(
+        &self,
+        auth: fiservemea::FiservemeaAuthType,
+        request_id: &str,
+        payload: &str,
+        timestamp: i128,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let fiservemea::FiservemeaAuthType {
+            api_key,
+            secret_key,
+            ..
+        } = auth;
+        let raw_signature = format!("{}{request_id}{timestamp}{payload}", api_key.peek());
+
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.expose().as_bytes());
+        let signature_value = common_utils::consts::BASE64_ENGINE
+            .encode(hmac::sign(&key, raw_signature.as_bytes()).as_ref());
+        Ok(signature_value)
     }
 }
 
@@ -77,15 +101,38 @@ where
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
+        let auth: fiservemea::FiservemeaAuthType =
+            fiservemea::FiservemeaAuthType::try_from(&req.connector_auth_type)?;
+        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+
+        let fiserv_req = self.get_request_body(req, connectors)?;
+
+        let client_request_id = Uuid::new_v4().to_string();
+        let hmac = self
+            .generate_authorization_signature(
+                auth,
+                &client_request_id,
+                fiserv_req.get_inner_value().peek(),
+                timestamp,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            ("Client-Request-Id".to_string(), client_request_id.into()),
+            ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
+            (headers::TIMESTAMP.to_string(), timestamp.to_string().into()),
+            (headers::AUTHORIZATION.to_string(), hmac.into_masked()),
+        ];
+        headers.append(&mut auth_header);
+        Ok(headers)
     }
 }
 
@@ -176,9 +223,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/ipp/payments-gateway/v2/payments",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
