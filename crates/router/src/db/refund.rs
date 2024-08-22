@@ -952,7 +952,7 @@ impl RefundInterface for MockDb {
 
         Ok(refunds
             .iter()
-            .filter(|refund| refund.merchant_id == *merchant_id && refund.payment_id == payment_id)
+            .filter(|refund| refund.merchant_id == *merchant_id && refund.payment_id == *payment_id)
             .cloned()
             .collect::<Vec<_>>())
     }

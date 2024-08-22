@@ -736,7 +736,7 @@ where
                     .parse_value("PaymentChargeRequest")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(format!(
-                        "Failed to parse PaymentChargeRequest for payment_intent {}",
+                        "Failed to parse PaymentChargeRequest for payment_intent {:?}",
                         payment_intent.payment_id
                     ))?;
 

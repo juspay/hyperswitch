@@ -164,7 +164,7 @@ pub async fn construct_payout_router_data<'a, F>(
         customer_id: customer_details.to_owned().map(|c| c.get_customer_id()),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
-        payment_id: "".to_string(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout"),
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Failure,
         payment_method: enums::PaymentMethod::default(),
@@ -995,7 +995,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector: connector_id.to_string(),
         customer_id: None,
         connector_customer: None,
-        payment_id: IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW.to_string(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("dispute"),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
@@ -1063,7 +1063,7 @@ pub fn get_connector_request_reference_id(
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
     // Send payment_id if config is enabled for a merchant, else send attempt_id
     if is_config_enabled_for_merchant {
-        payment_attempt.payment_id.clone()
+        payment_attempt.payment_id.get_string_repr().to_owned()
     } else {
         payment_attempt.attempt_id.clone()
     }
@@ -1205,9 +1205,9 @@ pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: S
 }
 
 pub fn get_external_authentication_request_poll_id(
-    payment_id: &common_utils::id_type::PaymentIding,
+    payment_id: &common_utils::id_type::PaymentId,
 ) -> String {
-    format!("external_authentication_{}", payment_id)
+    payment_id.get_external_authentication_request_poll_id()
 }
 
 pub fn get_html_redirect_response_for_external_authentication(

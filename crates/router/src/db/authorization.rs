@@ -115,7 +115,7 @@ impl AuthorizationInterface for MockDb {
         let authorizations = self.authorizations.lock().await;
         let authorizations_found: Vec<storage::Authorization> = authorizations
             .iter()
-            .filter(|a| a.merchant_id == *merchant_id && a.payment_id == payment_id)
+            .filter(|a| a.merchant_id == *merchant_id && a.payment_id == *payment_id)
             .cloned()
             .collect();
 

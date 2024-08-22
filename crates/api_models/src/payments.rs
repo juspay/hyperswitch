@@ -4174,7 +4174,7 @@ pub struct TimeRange {
 
 #[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct VerifyResponse {
-    pub verify_id: Option<String>,
+    pub verify_id: Option<id_type::PaymentId>,
     pub merchant_id: Option<id_type::MerchantId>,
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,

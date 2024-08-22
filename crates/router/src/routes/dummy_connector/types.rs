@@ -286,7 +286,7 @@ pub enum DummyConnectorNextAction {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorPaymentResponse {
     pub status: DummyConnectorStatus,
-    pub id: String,
+    pub id: common_utils::id_type::PaymentId,
     pub amount: i64,
     pub currency: Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]

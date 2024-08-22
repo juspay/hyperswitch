@@ -774,7 +774,7 @@ impl ForeignFrom<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
         Self {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
-            connector_transaction_id: data.payment_id.clone(),
+            connector_transaction_id: data.payment_id.clone().get_string_repr().to_owned(),
             amount: Some(data.request.amount),
         }
     }

@@ -249,7 +249,7 @@ pub async fn create_or_update_address_for_payment_by_request(
 
                 let payment_address = domain::PaymentAddress {
                     address,
-                    payment_id: payment_id,
+                    payment_id: payment_id.clone(),
                     customer_id: customer_id.cloned(),
                 };
 
@@ -313,7 +313,7 @@ pub async fn create_or_find_address_for_payment_by_request(
 
                 let payment_address = domain::PaymentAddress {
                     address,
-                    payment_id: payment_id,
+                    payment_id: payment_id.clone(),
                     customer_id: customer_id.cloned(),
                 };
 
@@ -2964,6 +2964,12 @@ pub async fn verify_payment_intent_time_and_client_secret(
     client_secret
         .async_map(|cs| async move {
             let payment_id = get_payment_id_from_client_secret(&cs)?;
+
+            let payment_id =
+                common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id))
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_id",
+                    })?;
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(

@@ -41,6 +41,24 @@ impl PaymentId {
     pub fn generate_client_secret(&self) -> String {
         generate_id_with_default_len(&format!("{}_secret", self.get_string_repr()))
     }
+
+    /// Generate a key for pm_auth
+    pub fn get_pm_auth_key(&self) -> String {
+        format!("pm_auth_{}", self.get_string_repr())
+    }
+
+    /// Get external authentication request poll id
+    pub fn get_external_authentication_request_poll_id(&self) -> String {
+        format!("external_authentication_{}", self.get_string_repr())
+    }
+
+    /// Generate a test payment id with prefix test_
+    pub fn generate_test_payment_id_for_sample_data() -> Self {
+        let id = generate_id_with_default_len("test");
+        let alphanumeric_id = AlphaNumericId::new_unchecked(id);
+        let id = LengthId::new_unchecked(alphanumeric_id);
+        Self(id)
+    }
 }
 
 #[cfg(feature = "metrics")]

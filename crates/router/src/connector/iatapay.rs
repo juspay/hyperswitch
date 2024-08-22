@@ -699,13 +699,13 @@ impl api::IncomingWebhook for Iatapay {
                     Some(merchant_payment_id) => {
                         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                             api_models::payments::PaymentIdType::PaymentAttemptId(
-                                merchant_payment_id,
+                                merchant_payment_id.get_string_repr().to_owned(),
                             ),
                         ))
                     }
                     None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::ConnectorTransactionId(
-                            wh_body.iata_payment_id,
+                            wh_body.iata_payment_id.get_string_repr().to_owned(),
                         ),
                     )),
                 }

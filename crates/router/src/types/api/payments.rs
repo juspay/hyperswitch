@@ -131,7 +131,12 @@ mod payments_test {
     // Intended to test the serialization and deserialization of the enum PaymentIdType
     #[test]
     fn test_connector_id_type() {
-        let sample_1 = PaymentIdType::PaymentIntentId("test_234565430uolsjdnf48i0".to_string());
+        let sample_1 = PaymentIdType::PaymentIntentId(
+            common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "test_234565430uolsjdnf48i0",
+            ))
+            .unwrap(),
+        );
         let s_sample_1 = serde_json::to_string(&sample_1).unwrap();
         let ds_sample_1 = serde_json::from_str::<PaymentIdType>(&s_sample_1).unwrap();
         assert_eq!(ds_sample_1, sample_1)

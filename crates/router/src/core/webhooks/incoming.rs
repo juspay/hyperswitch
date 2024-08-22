@@ -520,7 +520,7 @@ async fn payments_incoming_webhook_flow(
 
             let lock_action = api_locking::LockAction::Hold {
                 input: api_locking::LockingInput {
-                    unique_locking_key: payment_id,
+                    unique_locking_key: payment_id.get_string_repr().to_owned(),
                     api_identifier: lock_utils::ApiIdentifier::Payments,
                     override_lock_retries: None,
                 },
@@ -617,7 +617,7 @@ async fn payments_incoming_webhook_flow(
                     &key_store,
                     outgoing_event_type,
                     enums::EventClass::Payments,
-                    payment_id.clone(),
+                    payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                     primary_object_created_at,
@@ -1124,7 +1124,7 @@ async fn external_authentication_incoming_webhook_flow(
                                 &key_store,
                                 outgoing_event_type,
                                 enums::EventClass::Payments,
-                                payment_id.clone(),
+                                payment_id.get_string_repr().to_owned(),
                                 enums::EventObjectType::PaymentDetails,
                                 api::OutgoingWebhookContent::PaymentDetails(payments_response),
                                 primary_object_created_at,
@@ -1333,7 +1333,7 @@ async fn frm_incoming_webhook_flow(
                         &key_store,
                         outgoing_event_type,
                         enums::EventClass::Payments,
-                        payment_id.clone(),
+                        payment_id.get_string_repr().to_owned(),
                         enums::EventObjectType::PaymentDetails,
                         api::OutgoingWebhookContent::PaymentDetails(payments_response),
                         primary_object_created_at,
@@ -1500,7 +1500,7 @@ async fn bank_transfer_webhook_flow(
                     &key_store,
                     outgoing_event_type,
                     enums::EventClass::Payments,
-                    payment_id.clone(),
+                    payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                     primary_object_created_at,
@@ -1516,16 +1516,15 @@ async fn bank_transfer_webhook_flow(
     }
 }
 
-#[inline]
 async fn get_payment_id(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
     merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: enums::MerchantStorageScheme,
-) -> errors::RouterResult<String> {
+) -> errors::RouterResult<common_utils::id_type::PaymentId> {
     let pay_id = || async {
         match payment_id {
-            api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_string()),
+            api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_owned()),
             api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
                 .find_payment_attempt_by_merchant_id_connector_txn_id(
                     merchant_id,

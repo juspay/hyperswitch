@@ -121,6 +121,8 @@ pub async fn payments_create(
             .map(|payment_id_type| payment_id_type.get_payment_intent_id())
             .transpose()
             .unwrap_or_default()
+            .as_ref()
+            .map(|id| id.get_string_repr())
             .unwrap_or_default(),
     );
 
@@ -335,19 +337,22 @@ pub async fn payments_retrieve_with_gateway_creds(
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
+
+    tracing::Span::current().record("payment_id", json_payload.payment_id.get_string_repr());
+
     let payload = payment_types::PaymentsRetrieveRequest {
-        resource_id: payment_types::PaymentIdType::PaymentIntentId(json_payload.payment_id),
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(json_payload.payment_id.clone()),
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
         merchant_connector_details: json_payload.merchant_connector_details.clone(),
         ..Default::default()
     };
+
     let flow = match json_payload.force_sync {
         Some(true) => Flow::PaymentsRetrieveForceSync,
         _ => Flow::PaymentsRetrieve,
     };
 
-    tracing::Span::current().record("payment_id", json_payload.payment_id.get_string_repr());
     tracing::Span::current().record("flow", flow.to_string());
 
     let locking_action = payload.get_locking_input(flow.clone());
@@ -1151,7 +1156,7 @@ pub async fn payments_reject(
     let mut payload = json_payload.into_inner();
     let payment_id = path.into_inner();
 
-    tracing::Span::current().record("payment_id", &payment_id);
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
     payload.payment_id = payment_id;
     let flow = Flow::PaymentsReject;
