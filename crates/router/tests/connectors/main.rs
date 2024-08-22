@@ -47,6 +47,7 @@ mod netcetera;
 mod nexinets;
 mod nmi;
 mod noon;
+mod novalnet;
 mod nuvei;
 #[cfg(feature = "dummy_connector")]
 mod opayo;
