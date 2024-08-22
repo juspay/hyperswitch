@@ -1221,6 +1221,24 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    unified_translations (unified_code, unified_message, locale) {
+        #[max_length = 255]
+        unified_code -> Varchar,
+        #[max_length = 1024]
+        unified_message -> Varchar,
+        #[max_length = 255]
+        locale -> Varchar,
+        #[max_length = 1024]
+        translation -> Varchar,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     user_authentication_methods (id) {
         #[max_length = 64]
         id -> Varchar,
@@ -1345,6 +1363,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    unified_translations,
     user_authentication_methods,
     user_key_store,
     user_roles,

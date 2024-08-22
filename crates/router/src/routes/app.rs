@@ -539,6 +539,7 @@ impl Payments {
                 )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
+                .service(web::resource("/aggregate").route(web::get().to(get_payments_aggregates)))
                 .service(
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments_manual_update)),
@@ -1183,9 +1184,12 @@ impl MerchantConnectorAccount {
 
             route = route
                 .service(web::resource("").route(web::post().to(connector_create)))
-                .service(web::resource("/{id}").route(web::post().to(connector_update)))
-                .service(web::resource("/{id}").route(web::get().to(connector_retrieve)))
-                .service(web::resource("/{id}").route(web::delete().to(connector_delete)));
+                .service(
+                    web::resource("/{id}")
+                        .route(web::post().to(connector_update))
+                        .route(web::get().to(connector_retrieve))
+                        .route(web::delete().to(connector_delete)),
+                );
         }
         route
     }
@@ -1716,10 +1720,6 @@ impl User {
                         .route(web::put().to(accept_invitation)),
                 )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
-                .service(
-                    web::resource("/transfer_ownership")
-                        .route(web::post().to(transfer_org_ownership)),
-                )
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
         );
 
