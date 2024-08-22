@@ -1632,6 +1632,18 @@ impl User {
                 .service(web::resource("/transfer").route(web::post().to(transfer_user_key))),
         );
 
+        route = route.service(
+            web::scope("/list")
+                .service(web::resource("/org").route(web::get().to(list_orgs_for_user)))
+                .service(
+                    web::resource("/merchant").route(web::get().to(list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")
