@@ -825,6 +825,7 @@ fn create_paypal_sdk_session_token(
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::Confirm,
                     },
+                    vault_account_reference: paypal_sdk_data.data.email_or_card_of_vault,
                 },
             )),
         }),

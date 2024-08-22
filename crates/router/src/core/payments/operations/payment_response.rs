@@ -1370,7 +1370,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     payment_data.payment_attempt.currency,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     connector_mandate_id,
-    connector_customer_id,
+                    connector_customer_id,
                 )?;
             payment_methods::cards::update_payment_method_connector_mandate_details(
                 &*state.store,

@@ -987,7 +987,7 @@ pub fn update_connector_mandate_details_in_payment_method(
                     payment_method_type,
                     original_payment_authorized_amount: authorized_amount,
                     original_payment_authorized_currency: authorized_currency,
-                    connector_customer_id:connector_customer_id.clone(),
+                    connector_customer_id: connector_customer_id.clone(),
                 };
                 mandate_details.map(|mut payment_mandate_reference| {
                     payment_mandate_reference

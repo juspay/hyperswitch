@@ -266,6 +266,7 @@ pub struct Attributes {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalRedirectionResponse {
     attributes: AttributeResponse,
+    email: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1404,7 +1405,7 @@ impl<F, T>
                     connector_customer_id: match item.response.payment_source {
                         Some(paypal_source) => match paypal_source {
                             PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                Some(paypal_source.attributes.vault.id)
+                                Some(paypal_source.email)
                             }
                             PaymentSourceItemResponse::Card(card) => Some(card.attributes.vault.id),
                         },
