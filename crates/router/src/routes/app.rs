@@ -30,6 +30,12 @@ use super::blocklist;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    feature = "oltp"
+))]
+use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods::*;
 #[cfg(feature = "payouts")]
@@ -48,6 +54,8 @@ use super::poll::retrieve_poll_status;
 use super::routing;
 #[cfg(feature = "olap")]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
+#[cfg(feature = "oltp")]
+use super::webhooks::*;
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
@@ -56,8 +64,6 @@ use super::{
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
-#[cfg(feature = "oltp")]
-use super::{ephemeral_key::*, webhooks::*};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
@@ -886,7 +892,11 @@ impl Customers {
         {
             route = route
                 .service(web::resource("").route(web::post().to(customers_create)))
-                .service(web::resource("/{id}").route(web::put().to(customers_update)))
+                .service(
+                    web::resource("/{id}")
+                        .route(web::put().to(customers_update))
+                        .route(web::post().to(customers_retrieve)),
+                )
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
@@ -1260,7 +1270,11 @@ impl MerchantConnectorAccount {
 
 pub struct EphemeralKey;
 
-#[cfg(feature = "oltp")]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    feature = "oltp"
+))]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
