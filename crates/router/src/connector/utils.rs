@@ -20,6 +20,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::{report, ResultExt};
+pub use hyperswitch_connectors::utils::ErrorCodeAndMessage;
 use hyperswitch_domain_models::{
     mandates,
     payments::payment_attempt::PaymentAttempt,
@@ -2139,12 +2140,6 @@ pub trait ConnectorErrorTypeMapping {
     ) -> ConnectorErrorType {
         ConnectorErrorType::UnknownError
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ErrorCodeAndMessage {
-    pub error_code: String,
-    pub error_message: String,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
