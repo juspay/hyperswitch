@@ -37,7 +37,7 @@ pub(crate) struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CellIdError {
-    #[error("{0}")]
+    #[error("cell id error: {0}")]
     InvalidCellLength(LengthIdError),
 
     #[error("{0}")]
@@ -187,5 +187,32 @@ mod global_id_tests {
         let input_string = "12345_cus_abcdefghijklmnopqrstuvwxyz1234567890";
         let global_id = GlobalId::from_string(input_string.to_string()).unwrap();
         assert_eq!(global_id.0 .0 .0, input_string);
+    }
+
+    #[test]
+    fn test_global_id_deser() {
+        let input_string_for_serde_json_conversion =
+            r#""12345_cus_abcdefghijklmnopqrstuvwxyz1234567890""#;
+
+        let input_string = "12345_cus_abcdefghijklmnopqrstuvwxyz1234567890";
+        let global_id =
+            serde_json::from_str::<GlobalId>(input_string_for_serde_json_conversion).unwrap();
+        assert_eq!(global_id.0 .0 .0, input_string);
+    }
+
+    #[test]
+    fn test_global_id_deser_error() {
+        let input_string_for_serde_json_conversion =
+            r#""123_45_cus_abcdefghijklmnopqrstuvwxyz1234567890""#;
+
+        let global_id = serde_json::from_str::<GlobalId>(input_string_for_serde_json_conversion);
+        assert!(global_id.is_err());
+
+        let expected_error_message = format!(
+            "cell id error: the minimum required length for this field is {CELL_IDENTIFIER_LENGTH}"
+        );
+
+        let error_message = global_id.unwrap_err().to_string();
+        assert_eq!(error_message, expected_error_message);
     }
 }
