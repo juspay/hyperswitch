@@ -3557,14 +3557,7 @@ pub struct ReceiverDetails {
 }
 
 #[derive(
-    Setter,
-    Clone,
-    Default,
-    Debug,
-    PartialEq,
-    serde::Serialize,
-    ToSchema,
-    router_derive::PolymorphicSchema,
+    Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema,
 )]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
 
@@ -3576,12 +3569,12 @@ pub struct PaymentsResponse {
         max_length = 30,
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
-    pub payment_id: Option<String>,
+    pub payment_id: String,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
     #[schema(max_length = 255, example = "merchant_1668273825", value_type = Option<String>)]
-    pub merchant_id: Option<id_type::MerchantId>,
+    pub merchant_id: id_type::MerchantId,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
@@ -3597,7 +3590,7 @@ pub struct PaymentsResponse {
 
     /// The maximum amount that could be captured from the payment
     #[schema(value_type = i64, minimum = 100, example = 6540)]
-    pub amount_capturable: Option<MinorUnit>,
+    pub amount_capturable: MinorUnit,
 
     /// The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.
     #[schema(value_type = i64, example = 6540)]
