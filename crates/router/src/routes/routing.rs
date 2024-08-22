@@ -50,7 +50,7 @@ pub async fn routing_create_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuthProfileFromRoute {
-            profile_id: json_payload.profile_id,
+            profile_id: Some(json_payload.profile_id),
             required_permission: Permission::RoutingWrite,
         },
         api_locking::LockAction::NotApplicable,
@@ -118,7 +118,7 @@ pub async fn routing_link_config(
         flow,
         state,
         &req,
-        wrapper,
+        wrapper.clone(),
         |state, auth: auth::AuthenticationData, wrapper, _| {
             routing::link_routing_config_under_profile(
                 state,
@@ -140,7 +140,7 @@ pub async fn routing_link_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuthProfileFromRoute {
-            profile_id: Some(routing_payload_wrapper.profile_id),
+            profile_id: Some(wrapper.profile_id),
             required_permission: Permission::RoutingWrite,
         },
         api_locking::LockAction::NotApplicable,
@@ -302,7 +302,7 @@ pub async fn routing_unlink_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuthProfileFromRoute {
-            profile_id: Some(payload.profile_id),
+            profile_id: payload.profile_id,
             required_permission: Permission::RoutingWrite,
         },
         api_locking::LockAction::NotApplicable,
@@ -746,7 +746,7 @@ pub async fn routing_retrieve_linked_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuthProfileFromRoute {
-            profile_id: wrapper.profile_id,
+            profile_id: Some(wrapper.profile_id),
             required_permission: Permission::RoutingRead,
         },
         api_locking::LockAction::NotApplicable,

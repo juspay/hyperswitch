@@ -444,8 +444,8 @@ pub async fn link_routing_config(
 pub async fn retrieve_active_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    authentication_profile_id: Option<String>,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<String>,
     algorithm_id: routing_types::RoutingAlgorithmId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);

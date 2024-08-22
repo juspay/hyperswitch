@@ -54,7 +54,7 @@ pub struct ProfileDefaultRoutingConfig {
     pub connectors: Vec<RoutableConnectorChoice>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
@@ -65,7 +65,7 @@ pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQueryWrapper {
     pub routing_query: RoutingRetrieveQuery,
     pub profile_id: String,
