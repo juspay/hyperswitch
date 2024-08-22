@@ -9952,8 +9952,8 @@ impl Default for super::settings::RequiredFields {
                                                 (
                                                     "shipping.address.line2".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "shipping.address.line1".to_string(),
-                                                        display_name: "line1".to_string(),
+                                                        required_field: "shipping.address.line2".to_string(),
+                                                        display_name: "line2".to_string(),
                                                         field_type: enums::FieldType::UserShippingAddressLine1,
                                                         value: None,
                                                     }
