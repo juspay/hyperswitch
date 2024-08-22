@@ -5043,12 +5043,7 @@
         "type": "object",
         "required": [
           "account_number",
-          "routing_number",
-          "card_holder_name",
-          "bank_account_holder_name",
-          "bank_name",
-          "bank_type",
-          "bank_holder_type"
+          "routing_number"
         ],
         "properties": {
           "account_number": {
@@ -5061,25 +5056,35 @@
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
           },
-          "card_holder_name": {
-            "type": "string",
-            "example": "John Test"
-          },
           "bank_account_holder_name": {
             "type": "string",
-            "example": "John Doe"
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
           },
           "bank_name": {
-            "type": "string",
-            "example": "ACH"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
           },
           "bank_type": {
-            "type": "string",
-            "example": "Checking"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
           },
           "bank_holder_type": {
-            "type": "string",
-            "example": "Personal"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankHolderType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5665,8 +5670,7 @@
         "type": "object",
         "required": [
           "account_number",
-          "sort_code",
-          "bank_account_holder_name"
+          "sort_code"
         ],
         "properties": {
           "account_number": {
@@ -5681,8 +5685,9 @@
           },
           "bank_account_holder_name": {
             "type": "string",
-            "description": "holder name for bank debit",
-            "example": "A. Schneider"
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -6047,6 +6052,13 @@
           }
         ]
       },
+      "BankHolderType": {
+        "type": "string",
+        "enum": [
+          "personal",
+          "business"
+        ]
+      },
       "BankNames": {
         "type": "string",
         "description": "Name of banks supported by Hyperswitch",
@@ -6199,25 +6211,29 @@
         ]
       },
       "BankRedirectAdditionalData": {
-        "type": "object",
-        "properties": {
-          "bank_name": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/common_enums.BankNames"
-              }
-            ],
-            "nullable": true
-          },
-          "additional_details": {
+        "allOf": [
+          {
             "allOf": [
               {
                 "$ref": "#/components/schemas/BankRedirectDetails"
               }
             ],
             "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bank_name": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
+              }
+            }
           }
-        }
+        ]
       },
       "BankRedirectBilling": {
         "type": "object",
@@ -7243,6 +7259,13 @@
           }
         ]
       },
+      "BankType": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "savings"
+        ]
+      },
       "BecsBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -7253,7 +7276,7 @@
           "account_number": {
             "type": "string",
             "description": "Partially masked account number for Becs payment method",
-            "example": "0001 **** 3456"
+            "example": "0001****3456"
           },
           "bsb_number": {
             "type": "string",
@@ -7262,8 +7285,8 @@
           },
           "bank_account_holder_name": {
             "type": "string",
-            "description": "Owner name for bank debit",
-            "example": "A. Schneider",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -8335,6 +8358,19 @@
             "type": "string",
             "description": "The CVC number for the card",
             "nullable": true
+          }
+        }
+      },
+      "CardTokenAdditionalData": {
+        "type": "object",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
           }
         }
       },
@@ -10745,9 +10781,6 @@
       },
       "GiropayBankRedirectAdditionalData": {
         "type": "object",
-        "required": [
-          "country"
-        ],
         "properties": {
           "bic": {
             "type": "string",
@@ -10760,7 +10793,12 @@
             "nullable": true
           },
           "country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -15238,7 +15276,7 @@
             ],
             "properties": {
               "bank_transfer": {
-                "$ref": "#/components/schemas/additional_info.BankTransferAdditionalData"
+                "$ref": "#/components/schemas/BankTransferAdditionalData"
               }
             }
           },
@@ -15271,7 +15309,7 @@
             ],
             "properties": {
               "bank_redirect": {
-                "$ref": "#/components/schemas/additional_info.BankRedirectAdditionalData"
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
           },
@@ -15293,7 +15331,7 @@
             ],
             "properties": {
               "bank_debit": {
-                "$ref": "#/components/schemas/additional_info.BankDebitAdditionalData"
+                "$ref": "#/components/schemas/BankDebitAdditionalData"
               }
             }
           },
@@ -15337,7 +15375,7 @@
             ],
             "properties": {
               "upi": {
-                "$ref": "#/components/schemas/additional_info.UpiAdditionalData"
+                "$ref": "#/components/schemas/UpiAdditionalData"
               }
             }
           },
@@ -15359,7 +15397,7 @@
             ],
             "properties": {
               "gift_card": {
-                "$ref": "#/components/schemas/additional_info.GiftCardAdditionalData"
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
               }
             }
           },
@@ -15381,7 +15419,7 @@
             ],
             "properties": {
               "card_token": {
-                "$ref": "#/components/schemas/additional_info.CardTokenAdditionalData"
+                "$ref": "#/components/schemas/CardTokenAdditionalData"
               }
             }
           },
@@ -21638,8 +21676,7 @@
       "SepaBankDebitAdditionalData": {
         "type": "object",
         "required": [
-          "iban",
-          "bank_account_holder_name"
+          "iban"
         ],
         "properties": {
           "iban": {
@@ -21649,8 +21686,9 @@
           },
           "bank_account_holder_name": {
             "type": "string",
-            "description": "Owner name for bank debit",
-            "example": "A. Schneider"
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -22300,7 +22338,7 @@
             ],
             "properties": {
               "upi_intent": {
-                "$ref": "#/components/schemas/super.UpiIntentData"
+                "$ref": "#/components/schemas/UpiIntentData"
               }
             }
           }
@@ -22312,7 +22350,6 @@
           "vpa_id": {
             "type": "string",
             "description": "Masked VPA ID",
-            "example": "succ****@iata",
             "nullable": true
           }
         }

@@ -21,23 +21,25 @@ pub struct AchBankDebitAdditionalData {
     /// Partially masked account number for ach bank debit payment
     #[schema(value_type = String, example = "0001****3456")]
     pub account_number: Secret<MaskedBankAccount>,
+
     /// Partially masked routing number for ach bank debit payment
     #[schema(value_type = String, example = "110***000")]
     pub routing_number: Secret<MaskedRoutingNumber>,
 
-    #[schema(value_type = String, example = "John Test")]
-    pub card_holder_name: Option<Secret<String>>,
-
-    #[schema(value_type = String, example = "John Doe")]
+    /// Bank account's owner name
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub bank_account_holder_name: Option<Secret<String>>,
 
-    #[schema(value_type = String, example = "ACH")]
+    /// Name of the bank
+    #[schema(value_type = Option<BankNames>, example = "ach")]
     pub bank_name: Option<common_enums::BankNames>,
 
-    #[schema(value_type = String, example = "Checking")]
+    /// Bank account type
+    #[schema(value_type = Option<BankType>, example = "checking")]
     pub bank_type: Option<common_enums::BankType>,
 
-    #[schema(value_type = String, example = "Personal")]
+    /// Bank holder entity type
+    #[schema(value_type = Option<BankHolderType>, example = "personal")]
     pub bank_holder_type: Option<common_enums::BankHolderType>,
 }
 
@@ -46,24 +48,28 @@ pub struct BacsBankDebitAdditionalData {
     /// Partially masked account number for Bacs payment method
     #[schema(value_type = String, example = "0001****3456")]
     pub account_number: Secret<MaskedBankAccount>,
+
     /// Partially masked sort code for Bacs payment method
     #[schema(value_type = String, example = "108800")]
     pub sort_code: Secret<MaskedSortCode>,
-    /// holder name for bank debit
-    #[schema(value_type = String, example = "A. Schneider")]
+
+    /// Bank account's owner name
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub bank_account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BecsBankDebitAdditionalData {
     /// Partially masked account number for Becs payment method
-    #[schema(value_type = String, example = "0001 **** 3456")]
+    #[schema(value_type = String, example = "0001****3456")]
     pub account_number: Secret<MaskedBankAccount>,
+
     /// Bank-State-Branch (bsb) number
     #[schema(value_type = String, example = "000000")]
     pub bsb_number: Secret<String>,
-    /// Owner name for bank debit
-    #[schema(value_type = Option<String>, example = "A. Schneider")]
+
+    /// Bank account's owner name
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub bank_account_holder_name: Option<Secret<String>>,
 }
 
@@ -72,15 +78,19 @@ pub struct SepaBankDebitAdditionalData {
     /// Partially masked international bank account number (iban) for SEPA
     #[schema(value_type = String, example = "DE8937******013000")]
     pub iban: Secret<MaskedIban>,
-    /// Owner name for bank debit
-    #[schema(value_type = String, example = "A. Schneider")]
+
+    /// Bank account's owner name
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub bank_account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub struct BankRedirectAdditionalData {
+    /// Name of the bank
+    #[schema(value_type = Option<BankNames>)]
     pub bank_name: Option<common_enums::BankNames>,
+    #[serde(flatten)]
     pub additional_details: Option<BankRedirectDetails>,
 }
 
@@ -127,7 +137,7 @@ pub struct GiropayBankRedirectAdditionalData {
     pub iban: Option<Secret<MaskedIban>>,
 
     /// Country for bank payment
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub country: Option<api_enums::CountryAlpha2>,
 }
 
@@ -155,9 +165,11 @@ pub struct PixBankTransferAdditionalData {
     /// Partially masked unique key for pix transfer
     #[schema(value_type = Option<String>, example = "a1f4102e ****** 6fa48899c1d1")]
     pub pix_key: Option<Secret<MaskedBankAccount>>,
+
     /// Partially masked CPF - CPF is a Brazilian tax identification number
     #[schema(value_type = Option<String>, example = "**** 124689")]
     pub cpf: Option<Secret<MaskedBankAccount>>,
+
     /// Partially masked CNPJ - CNPJ is a Brazilian company tax identification number
     #[schema(value_type = Option<String>, example = "**** 417312")]
     pub cnpj: Option<Secret<MaskedBankAccount>>,
@@ -195,6 +207,7 @@ pub struct CardTokenAdditionalData {
 #[serde(rename_all = "snake_case")]
 pub enum UpiAdditionalData {
     UpiCollect(UpiCollectAdditionalData),
+    #[schema(value_type = UpiIntentData)]
     UpiIntent(super::UpiIntentData),
 }
 
@@ -202,6 +215,6 @@ pub enum UpiAdditionalData {
 #[serde(rename_all = "snake_case")]
 pub struct UpiCollectAdditionalData {
     /// Masked VPA ID
-    #[schema(value_type = Option<String>, example = "succ****@iata")]
+    #[schema(value_type = Option<String>)]
     pub vpa_id: Option<Secret<String, pii::UpiVpaMaskingStrategy>>,
 }

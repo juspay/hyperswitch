@@ -3008,21 +3008,26 @@ where
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
-    #[serde(rename = "card")]
     Card(Box<CardResponse>),
+    #[schema(value_type = BankTransferAdditionalData)]
     BankTransfer(additional_info::BankTransferAdditionalData),
     Wallet {},
     PayLater(Box<PaylaterResponse>),
+    #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(additional_info::BankRedirectAdditionalData),
     Crypto(CryptoData),
+    #[schema(value_type = BankDebitAdditionalData)]
     BankDebit(additional_info::BankDebitAdditionalData),
     MandatePayment {},
     Reward {},
     RealTimePayment(RealTimePaymentData),
+    #[schema(value_type = UpiAdditionalData)]
     Upi(additional_info::UpiAdditionalData),
     Voucher(VoucherData),
+    #[schema(value_type = GiftCardAdditionalData)]
     GiftCard(additional_info::GiftCardAdditionalData),
     CardRedirect(CardRedirectData),
+    #[schema(value_type = CardTokenAdditionalData)]
     CardToken(additional_info::CardTokenAdditionalData),
     OpenBanking(OpenBankingData),
 }
