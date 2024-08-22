@@ -568,9 +568,7 @@ impl MerchantConnectorAccountInterface for Store {
                 merchant_connector_accounts
             {
                 let _connector_name = merchant_connector_account.connector_name.clone();
-                let _profile_id = merchant_connector_account.profile_id.clone().ok_or(
-                    errors::StorageError::ValueNotFound("profile_id".to_string()),
-                )?;
+                let _profile_id = merchant_connector_account.profile_id.clone();
 
                 let _merchant_id = merchant_connector_account.merchant_id.clone();
                 let _merchant_connector_id = merchant_connector_account.get_id().clone();
@@ -653,12 +651,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let _connector_name = this.connector_name.clone();
-        let _profile_id = this
-            .profile_id
-            .clone()
-            .ok_or(errors::StorageError::ValueNotFound(
-                "profile_id".to_string(),
-            ))?;
+        let _profile_id = this.profile_id.clone();
 
         let _merchant_id = this.merchant_id.clone();
         let _merchant_connector_id = this.merchant_connector_id.clone();
@@ -732,12 +725,7 @@ impl MerchantConnectorAccountInterface for Store {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let _connector_name = this.connector_name.clone();
-        let _profile_id = this
-            .profile_id
-            .clone()
-            .ok_or(errors::StorageError::ValueNotFound(
-                "profile_id".to_string(),
-            ))?;
+        let _profile_id = this.profile_id.clone();
 
         let _merchant_id = this.merchant_id.clone();
         let _merchant_connector_id = this.get_id().clone();
@@ -896,9 +884,7 @@ impl MerchantConnectorAccountInterface for Store {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-            let _profile_id = mca.profile_id.ok_or(errors::StorageError::ValueNotFound(
-                "profile_id".to_string(),
-            ))?;
+            let _profile_id = mca.profile_id;
 
             cache::publish_and_redact_multiple(
                 self,
@@ -1173,12 +1159,13 @@ impl MerchantConnectorAccountInterface for MockDb {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             connector_webhook_details: t.connector_webhook_details,
-            profile_id: t.profile_id,
+            profile_id: Some(t.profile_id),
             applepay_verified_domains: t.applepay_verified_domains,
             pm_auth_config: t.pm_auth_config,
             status: t.status,
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
+            version: t.version,
         };
         accounts.push(account.clone());
         account
@@ -1219,6 +1206,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             status: t.status,
             connector_wallets_details: t.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: t.additional_merchant_data.map(|data| data.into()),
+            version: t.version,
         };
         accounts.push(account.clone());
         account
@@ -1548,7 +1536,7 @@ mod merchant_connector_account_cache_tests {
             created_at: date_time::now(),
             modified_at: date_time::now(),
             connector_webhook_details: None,
-            profile_id: Some(profile_id.to_string()),
+            profile_id: profile_id.to_string(),
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
@@ -1565,6 +1553,7 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
+            version: hyperswitch_domain_models::consts::API_VERSION,
         };
 
         db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)
@@ -1712,7 +1701,7 @@ mod merchant_connector_account_cache_tests {
             created_at: date_time::now(),
             modified_at: date_time::now(),
             connector_webhook_details: None,
-            profile_id: Some(profile_id.to_string()),
+            profile_id: profile_id.to_string(),
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
@@ -1729,6 +1718,7 @@ mod merchant_connector_account_cache_tests {
                 .unwrap(),
             ),
             additional_merchant_data: None,
+            version: hyperswitch_domain_models::consts::API_VERSION,
         };
 
         db.insert_merchant_connector_account(key_manager_state, mca.clone(), &merchant_key)

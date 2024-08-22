@@ -18,6 +18,7 @@ use crate::{
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
+        payment_methods::cards::decrypt_generic_data,
         payments::{self, helpers},
         utils as core_utils,
     },
@@ -25,8 +26,8 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
-        self, api,
-        api::ConnectorTransactionId,
+        self,
+        api::{self, ConnectorTransactionId},
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
@@ -42,7 +43,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
+    key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -135,6 +136,25 @@ where
         Some(merchant_connector_account),
     );
 
+    let unified_address =
+        if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
+            let payment_method_billing = decrypt_generic_data::<Address>(
+                state,
+                payment_method_info.payment_method_billing_address,
+                key_store,
+            )
+            .await
+            .attach_printable("unable to decrypt payment method billing address details")?;
+            payment_data
+                .address
+                .clone()
+                .unify_with_payment_data_billing(payment_method_billing)
+        } else {
+            payment_data.address
+        };
+
+    crate::logger::debug!("unified address details {:?}", unified_address);
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -147,7 +167,7 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        address: payment_data.address.clone(),
+        address: unified_address,
         auth_type: payment_data
             .payment_attempt
             .authentication_type

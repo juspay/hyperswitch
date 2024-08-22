@@ -41,9 +41,9 @@ pub trait PayoutAttemptInterface {
 
     async fn get_filters_for_payouts(
         &self,
-        payout: &[Payouts],
-        merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
+        _payout: &[Payouts],
+        _merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutListFilters, errors::StorageError>;
 }
 
@@ -152,6 +152,7 @@ pub enum PayoutAttemptUpdate {
     UpdateRouting {
         connector: String,
         routing_info: Option<serde_json::Value>,
+        merchant_connector_id: Option<String>,
     },
 }
 
@@ -169,6 +170,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub routing_info: Option<serde_json::Value>,
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
+    pub merchant_connector_id: Option<String>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -207,9 +209,11 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
             PayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             } => Self {
                 connector: Some(connector),
                 routing_info,
+                merchant_connector_id,
                 ..Default::default()
             },
         }
