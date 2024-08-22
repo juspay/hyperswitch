@@ -50,7 +50,7 @@ pub async fn routing_create_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuthProfileFromRoute {
-            profile_id: Some(json_payload.profile_id),
+            profile_id: json_payload.profile_id,
             required_permission: Permission::RoutingWrite,
         },
         api_locking::LockAction::NotApplicable,
