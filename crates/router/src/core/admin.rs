@@ -3444,10 +3444,10 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector_if_required
+                .collect_shipping_details_from_wallet_connector
                 .or(Some(false)),
             collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector_if_required
+                .collect_billing_details_from_wallet_connector
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
@@ -3535,10 +3535,10 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                 .use_billing_as_payment_method_billing
                 .or(Some(true)),
             collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector_if_required
+                .collect_shipping_details_from_wallet_connector
                 .or(Some(false)),
             collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector_if_required
+                .collect_billing_details_from_wallet_connector
                 .or(Some(false)),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .map(Into::into),
@@ -3811,9 +3811,9 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                 extended_card_info_config,
                 use_billing_as_payment_method_billing: self.use_billing_as_payment_method_billing,
                 collect_shipping_details_from_wallet_connector: self
-                    .collect_shipping_details_from_wallet_connector_if_required,
+                    .collect_shipping_details_from_wallet_connector,
                 collect_billing_details_from_wallet_connector: self
-                    .collect_billing_details_from_wallet_connector_if_required,
+                    .collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                     .map(Into::into),
@@ -3901,7 +3901,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                 collect_shipping_details_from_wallet_connector: self
                     .collect_shipping_details_from_wallet_connector_if_required,
                 collect_billing_details_from_wallet_connector: self
-                    .collect_billing_details_from_wallet_connector_if_required,
+                    .collect_billing_details_from_wallet_connector,
                 is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
                 outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                     .map(Into::into),

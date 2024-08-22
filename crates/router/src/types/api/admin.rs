@@ -156,9 +156,9 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .extended_card_info_config
                 .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
                 .transpose()?,
-            collect_shipping_details_from_wallet_connector_if_required: item
+            collect_shipping_details_from_wallet_connector: item
                 .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector_if_required: item
+            collect_billing_details_from_wallet_connector: item
                 .collect_billing_details_from_wallet_connector,
             always_collect_billing_details_from_wallet_connector: item
                 .always_collect_billing_details_from_wallet_connector,
@@ -333,10 +333,10 @@ pub async fn create_business_profile_from_merchant_account(
             .use_billing_as_payment_method_billing
             .or(Some(true)),
         collect_shipping_details_from_wallet_connector: request
-            .collect_shipping_details_from_wallet_connector_if_required
+            .collect_shipping_details_from_wallet_connector
             .or(Some(false)),
         collect_billing_details_from_wallet_connector: request
-            .collect_billing_details_from_wallet_connector_if_required
+            .collect_billing_details_from_wallet_connector
             .or(Some(false)),
         always_collect_billing_details_from_wallet_connector: request
             .always_collect_billing_details_from_wallet_connector
