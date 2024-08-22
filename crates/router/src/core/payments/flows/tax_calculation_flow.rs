@@ -27,7 +27,7 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        _merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
         // create a new function to construct router data to send the updated amount
         Box::pin(

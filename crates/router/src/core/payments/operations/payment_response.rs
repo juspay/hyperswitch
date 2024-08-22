@@ -504,6 +504,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculatio
         >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -518,6 +519,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculatio
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
