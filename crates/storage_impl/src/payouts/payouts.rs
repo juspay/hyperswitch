@@ -23,6 +23,7 @@ use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
 use diesel_models::schema::address::dsl as add_dsl;
 #[cfg(feature = "olap")]
 use diesel_models::{
+    address::Address as DieselAddress,
     customers::Customer as DieselCustomer,
     enums as storage_enums,
     query::generics::db_metrics,
