@@ -1,241 +1,368 @@
-use common_utils::types::StringMinorUnit;
+#[cfg(feature = "payouts")]
+use api_models::payouts::{Bank, PayoutMethodData};
+use common_enums::Currency;
+#[cfg(feature = "payouts")]
+use common_utils::pii;
+#[cfg(feature = "payouts")]
+use diesel_models::enums as storage_enums;
+#[cfg(feature = "payouts")]
+use error_stack::ResultExt;
+#[cfg(feature = "payouts")]
+use masking::PeekInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "payouts")]
+use crate::connector::utils::{AddressDetailsData, RouterData};
+#[cfg(feature = "payouts")]
+use crate::types::api;
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils,
     core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{self, api::CurrencyUnit},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct WellsfargopayoutRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: String,
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for WellsfargopayoutRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
-        Self {
-            amount,
-            router_data: item,
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct WellsfargopayoutPaymentsRequest {
-    amount: StringMinorUnit,
-    card: WellsfargopayoutCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct WellsfargopayoutCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>>
-    for WellsfargopayoutPaymentsRequest
-{
+impl<T> TryFrom<(&CurrencyUnit, Currency, i64, T)> for WellsfargopayoutRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &WellsfargopayoutRouterData<&types::PaymentsAuthorizeRouterData>,
+        (_currency_unit, currency, amount, item): (&CurrencyUnit, Currency, i64, T),
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
-                let card = WellsfargopayoutCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
+        Ok(Self {
+            amount: utils::to_currency_base_unit(amount, currency)?,
+            router_data: item,
+        })
     }
 }
-
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct WellsfargopayoutAuthType {
-    pub(super) api_key: Secret<String>,
+#[derive(Debug, Serialize)]
+pub struct WellsfargopayoutAuthpdateRequest {
+    grant_type: String,
+    scope: String,
 }
-
-impl TryFrom<&types::ConnectorAuthType> for WellsfargopayoutAuthType {
+impl TryFrom<&types::RefreshTokenRouterData> for WellsfargopayoutAuthpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
-}
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum WellsfargopayoutPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<WellsfargopayoutPaymentStatus> for enums::AttemptStatus {
-    fn from(item: WellsfargopayoutPaymentStatus) -> Self {
-        match item {
-            WellsfargopayoutPaymentStatus::Succeeded => Self::Charged,
-            WellsfargopayoutPaymentStatus::Failed => Self::Failure,
-            WellsfargopayoutPaymentStatus::Processing => Self::Authorizing,
-        }
+    fn try_from(_item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            grant_type: "client_credentials".to_string(),
+            scope: "ACH-ALL".to_string(),
+        })
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct WellsfargopayoutPaymentsResponse {
-    status: WellsfargopayoutPaymentStatus,
-    id: String,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct WellsfargopayoutAuthUpdateResponse {
+    pub access_token: Secret<String>,
+    pub expires_in: i64,
 }
 
 impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            WellsfargopayoutPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<types::ResponseRouterData<F, WellsfargopayoutAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            WellsfargopayoutPaymentsResponse,
+            WellsfargopayoutAuthUpdateResponse,
             T,
-            types::PaymentsResponseData,
+            types::AccessToken,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+            response: Ok(types::AccessToken {
+                token: item.response.access_token,
+                expires: item.response.expires_in,
             }),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct WellsfargopayoutRefundRequest {
-    pub amount: StringMinorUnit,
+#[derive(Deserialize, Debug, Serialize)]
+pub struct AccessTokenErrorResponse {
+    pub error: String,
+    pub error_description: String,
 }
 
-impl<F> TryFrom<&WellsfargopayoutRouterData<&types::RefundsRouterData<F>>>
-    for WellsfargopayoutRefundRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &WellsfargopayoutRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.amount.to_owned(),
-        })
-    }
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Clone)]
+pub enum SecCode {
+    PPD,
+    CCD,
+    WEB,
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Debtor {
+    ach_company_id: String,
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Clone, Deserialize)]
+pub struct CreditTransfer {
+    payment: PaymentInfo,
+    creditor: Creditor,
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaymentInfo {
+    amount: String,
+    currency: Currency,
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Creditor {
+    name: Secret<String>,
+    bank_account: BankAccount,
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccount {
+    account_type: WellsfargopayoutPayoutAccountType,
+    account_number: Secret<String>,
+    routing_number: Secret<String>,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WellsfargopayoutPayoutAccountType {
+    CHECKING,
+    SAVINGS,
+    LOAN,
+    GL,
+}
+#[cfg(feature = "payouts")]
+impl From<storage_enums::AccountType> for WellsfargopayoutPayoutAccountType {
+    fn from(item: storage_enums::AccountType) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            storage_enums::AccountType::Checking => Self::CHECKING,
+            storage_enums::AccountType::Savings => Self::SAVINGS,
+            storage_enums::AccountType::Loan => Self::LOAN,
+            storage_enums::AccountType::GeneralLedger => Self::GL,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+#[cfg(feature = "payouts")]
+impl TryFrom<storage_enums::SecCode> for SecCode {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: storage_enums::SecCode) -> Result<Self, Self::Error> {
+        match item {
+            storage_enums::SecCode::PPD => Ok(Self::PPD),
+            storage_enums::SecCode::CCD => Ok(Self::CCD),
+            storage_enums::SecCode::WEB => Ok(Self::WEB),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Only PPD and CCD SecCode Allowed ".to_string(),
+                connector: "Wellsfargopayout",
+            }
+            .into()),
+        }
+    }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize)]
+pub struct WellsfargopayoutPayoutMeta {
+    ach_company_id: Secret<String>,
+}
+#[cfg(feature = "payouts")]
+impl TryFrom<&Option<pii::SecretSerdeValue>> for WellsfargopayoutPayoutMeta {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Clone)]
+pub struct WellsfargopayoutPayoutCreateRequest {
+    sec_code: SecCode,
+    debtor: Debtor,
+    credit_transfer: CreditTransfer,
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<&WellsfargopayoutRouterData<&types::PayoutsRouterData<api::PoFulfill>>>
+    for WellsfargopayoutPayoutCreateRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: &WellsfargopayoutRouterData<&types::PayoutsRouterData<api::PoFulfill>>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.get_payout_method_data()? {
+            PayoutMethodData::Bank(Bank::Ach(ach_data)) => {
+                let metadata: WellsfargopayoutPayoutMeta = utils::to_connector_meta_from_secret(
+                    item.router_data.connector_meta_data.clone(),
+                )
+                .change_context(
+                    errors::ConnectorError::InvalidConnectorConfig { config: "metadata" },
+                )?;
+                let billing_address = item.router_data.get_billing_address()?;
+                Ok(Self {
+                    sec_code: SecCode::try_from(item.router_data.request.sec_code.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "sec_code",
+                        },
+                    )?)?,
+                    debtor: Debtor {
+                        ach_company_id: metadata.ach_company_id.peek().to_owned(),
+                    },
+                    credit_transfer: CreditTransfer {
+                        payment: PaymentInfo {
+                            amount: item.amount.clone().to_string(),
+                            currency: item.router_data.request.source_currency,
+                        },
+                        creditor: Creditor {
+                            name: billing_address.get_full_name()?,
+                            bank_account: BankAccount {
+                                account_type: WellsfargopayoutPayoutAccountType::from(
+                                    item.router_data.request.account_type.ok_or(
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "account_type",
+                                        },
+                                    )?,
+                                ),
+                                account_number: ach_data.bank_account_number.clone(),
+                                routing_number: ach_data.bank_routing_number.clone(),
+                            },
+                        },
+                    },
+                })
+            }
+            PayoutMethodData::Card(_) | PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Payment Method Not Supported".to_string(),
+                    connector: "Wellsfargopayout",
+                })?
+            }
+        }
+    }
+}
+#[allow(dead_code)]
+pub struct WellsfargopayoutAuthType {
+    pub(super) consumer_key: Secret<String>,
+    pub(super) consumer_secret: Secret<String>,
+    pub(super) gateway_entity_id: Secret<String>,
+}
+
+impl TryFrom<&types::ConnectorAuthType> for WellsfargopayoutAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::SignatureKey {
+            api_key,
+            api_secret,
+            key1,
+        } = auth_type
+        {
+            Ok(Self {
+                consumer_key: api_key.to_owned(),
+                consumer_secret: api_secret.to_owned(),
+                gateway_entity_id: key1.to_owned(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WellsfargopayoutPayoutStatus {
+    PROCESSING,
+    SUBMITTED,
+    RECEIVED,
+    SCHEDULED,
+    SENT,
+    REJECTED,
+}
+
+#[cfg(feature = "payouts")]
+impl From<WellsfargopayoutPayoutStatus> for storage_enums::PayoutStatus {
+    fn from(item: WellsfargopayoutPayoutStatus) -> Self {
+        match item {
+            WellsfargopayoutPayoutStatus::SENT => Self::Success,
+            WellsfargopayoutPayoutStatus::SUBMITTED => Self::Initiated,
+            WellsfargopayoutPayoutStatus::PROCESSING
+            | WellsfargopayoutPayoutStatus::RECEIVED
+            | WellsfargopayoutPayoutStatus::SCHEDULED => Self::Pending,
+            WellsfargopayoutPayoutStatus::REJECTED => Self::Cancelled,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WellsfargopayoutPayoutResponse {
+    payment_id: String,
+    status: WellsfargopayoutPayoutStatus,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, WellsfargopayoutPayoutResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, WellsfargopayoutPayoutResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+            response: Ok(types::PayoutsResponseData {
+                status: Some(storage_enums::PayoutStatus::from(item.response.status)),
+                connector_payout_id: Some(item.response.payment_id),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WellsfargopayoutErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub errors: Vec<WellsfargopayoutError>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WellsfargopayoutError {
+    pub error_code: String,
+    pub description: String,
+}
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WellsFargoPayoutSyncResponse {
+    payment_id: String,
+    status: WellsfargopayoutPayoutStatus,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, WellsFargoPayoutSyncResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, WellsFargoPayoutSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PayoutsResponseData {
+                status: Some(storage_enums::PayoutStatus::from(item.response.status)),
+                connector_payout_id: Some(item.response.payment_id),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
 }

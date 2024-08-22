@@ -118,6 +118,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     payout_link_id: new.payout_link_id.clone(),
                     client_secret: new.client_secret.clone(),
                     priority: new.priority,
+                    sec_code: new.sec_code,
+                    account_type: new.account_type,
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -885,6 +887,8 @@ impl DataModelExt for Payouts {
             payout_link_id: self.payout_link_id,
             client_secret: self.client_secret,
             priority: self.priority,
+            sec_code: self.sec_code,
+            account_type: self.account_type,
         }
     }
 
@@ -914,6 +918,8 @@ impl DataModelExt for Payouts {
             payout_link_id: storage_model.payout_link_id,
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
+            sec_code: storage_model.sec_code,
+            account_type: storage_model.account_type,
         }
     }
 }
@@ -948,6 +954,8 @@ impl DataModelExt for PayoutsNew {
             payout_link_id: self.payout_link_id,
             client_secret: self.client_secret,
             priority: self.priority,
+            sec_code: self.sec_code,
+            account_type: self.account_type,
         }
     }
 
@@ -977,6 +985,8 @@ impl DataModelExt for PayoutsNew {
             payout_link_id: storage_model.payout_link_id,
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
+            sec_code: storage_model.sec_code,
+            account_type: storage_model.account_type,
         }
     }
 }
@@ -1000,6 +1010,8 @@ impl DataModelExt for PayoutsUpdate {
                 payout_type,
                 address_id,
                 customer_id,
+                sec_code,
+                account_type,
             } => DieselPayoutsUpdate::Update {
                 amount,
                 destination_currency,
@@ -1016,6 +1028,8 @@ impl DataModelExt for PayoutsUpdate {
                 payout_type,
                 address_id,
                 customer_id,
+                sec_code,
+                account_type,
             },
             Self::PayoutMethodIdUpdate { payout_method_id } => {
                 DieselPayoutsUpdate::PayoutMethodIdUpdate { payout_method_id }

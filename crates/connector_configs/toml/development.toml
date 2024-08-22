@@ -3888,3 +3888,11 @@ api_secret="CLE Secret"
 api_key="Key"
 key1="Merchant ID"
 api_secret="Shared Secret"
+
+[wellsfargopayout]
+[[wellsfargopayout.bank_transfer]]
+  payment_method_type = "ach"
+[wellsfargopayout.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"

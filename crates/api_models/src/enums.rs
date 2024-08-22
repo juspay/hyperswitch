@@ -137,7 +137,7 @@ pub enum Connector {
     Tsys,
     Volt,
     Wellsfargo,
-    // Wellsfargopayout,
+    Wellsfargopayout,
     Wise,
     Worldline,
     Worldpay,
@@ -156,6 +156,7 @@ impl Connector {
             (Self::Paypal, Some(PayoutType::Wallet))
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
+                | (Self::Wellsfargopayout, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -172,7 +173,10 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(&self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (Self::Paypal, _))
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, _) | (Self::Wellsfargopayout, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(&self) -> bool {
@@ -260,7 +264,7 @@ impl Connector {
             | Self::Tsys
             | Self::Volt
             | Self::Wellsfargo
-			// | Self::Wellsfargopayout
+			| Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
@@ -332,6 +336,7 @@ pub enum PayoutConnectors {
     Payone,
     Paypal,
     Stripe,
+    Wellsfargopayout,
     Wise,
 }
 
@@ -347,6 +352,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Wellsfargopayout => Self::Wellsfargopayout,
         }
     }
 }
@@ -363,6 +369,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
+            PayoutConnectors::Wellsfargopayout => Self::Wellsfargopayout,
         }
     }
 }
@@ -380,6 +387,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
+            Connector::Wellsfargopayout => Ok(Self::Wellsfargopayout),
             _ => Err(format!("Invalid payout connector {}", value)),
         }
     }

@@ -203,6 +203,8 @@ pub struct ConnectorConfig {
     pub wellsfargo: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub wise_payout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub wellsfargopayout: Option<ConnectorTomlConfig>,
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
     pub square: Option<ConnectorTomlConfig>,
@@ -255,6 +257,7 @@ impl ConnectorConfig {
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
+            PayoutConnectors::Wellsfargopayout => Ok(connector_data.wellsfargopayout),
         }
     }
 
@@ -344,6 +347,7 @@ impl ConnectorConfig {
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),
+            Connector::Wellsfargopayout => Ok(connector_data.wellsfargopayout),
             Connector::Wise => Err("Use get_payout_connector_config".to_string()),
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),

@@ -178,6 +178,12 @@ pub struct PayoutCreateRequest {
     /// Customer's phone country code. _Deprecated: Use customer object instead._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
+    /// Three-letter code that shows how an ACH transaction was authorized.
+    #[schema(value_type = Option<api_enums::SecCode>, example = "CCD")]
+    pub sec_code: Option<api_enums::SecCode>,
+    ///Type of  Bank Account
+    #[schema(value_type = Option<api_enums::AccountType>, example = "CHECKING")]
+    pub account_type: Option<api_enums::AccountType>,
 }
 
 impl PayoutCreateRequest {
