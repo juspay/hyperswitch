@@ -81,6 +81,12 @@ The fastest and easiest way to try Hyperswitch is via our CDK scripts
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch
 
+### One-click deployment on Elestio
+
+Elestio provides option to deploy fully managed option of Huperswitch. Elestio manages the migrations, backups, version changes and security of the application.
+
+[![Deploy on Elestio](https://elest.io/images/logos/deploy-to-elestio-btn.png)](https://elest.io/open-source/hyperswitch)
+
 ### Run it on your system
 
 You can run Hyperswitch on your system using Docker Compose after cloning this repository:
