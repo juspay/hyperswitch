@@ -8,23 +8,19 @@ use std::{
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use api_models::{
-    admin::PaymentMethodsEnabled,
-    payment_methods::{
-        CardNetworkTypes, PaymentExperienceTypes, RequiredFieldInfo, ResponsePaymentMethodTypes,
-    },
-    pm_auth::PaymentMethodAuthConfig,
-};
+use api_models::admin::PaymentMethodsEnabled;
 use api_models::{
     enums as api_enums,
     payment_methods::{
-        BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod,
+        BankAccountTokenData, Card, CardDetailUpdate, CardDetailsPaymentMethod, CardNetworkTypes,
         CountryCodeWithName, CustomerDefaultPaymentMethodResponse, ListCountriesCurrenciesRequest,
-        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentMethodsData,
-        RequestPaymentMethodTypes, ResponsePaymentMethodIntermediate,
+        ListCountriesCurrenciesResponse, MaskedBankDetails, PaymentExperienceTypes,
+        PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
+        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
+    pm_auth::PaymentMethodAuthConfig,
     surcharge_decision_configs as api_surcharge_decision_configs,
 };
 use common_enums::{enums::MerchantStorageScheme, ConnectorType};
