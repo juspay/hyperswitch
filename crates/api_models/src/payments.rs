@@ -3556,9 +3556,7 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
-#[derive(
-    Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
 
 pub struct PaymentsResponse {
@@ -3653,7 +3651,6 @@ pub struct PaymentsResponse {
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
-    #[auth_based]
     pub mandate_data: Option<MandateData>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
@@ -3677,12 +3674,10 @@ pub struct PaymentsResponse {
 
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
-    #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>, example = "bank_transfer")]
-    #[auth_based]
     #[serde(serialize_with = "serialize_payment_method_data_response")]
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
