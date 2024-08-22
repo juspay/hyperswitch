@@ -901,7 +901,7 @@ pub async fn add_payment_method_data(
                             payment_method: req.payment_method,
                             payment_method_issuer: req.payment_method_issuer,
                             payment_method_type: req.payment_method_type,
-                            network_token_locker_id: None,           // todo!
+                            network_token_locker_id: None, // todo!
                             network_token_payment_method_data: None, //todo!
                         };
 
