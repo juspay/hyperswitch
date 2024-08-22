@@ -33,10 +33,10 @@ mod bytes;
 #[cfg(feature = "bytes")]
 pub use self::bytes::SecretBytesMut;
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", feature = "serde"))]
 pub mod masked_string;
 
-#[cfg(all(feature = "alloc", feature = "serde"))]
+#[cfg(feature = "alloc")]
 mod string;
 
 #[cfg(feature = "alloc")]
