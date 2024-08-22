@@ -25,7 +25,7 @@ use crate::{
         api::enums as api_enums,
         domain,
         storage::enums as storage_enums,
-        transformers::{ForeignFrom, ForeignTryFrom}
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils as crate_utils,
 };
