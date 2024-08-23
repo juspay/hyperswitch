@@ -527,10 +527,7 @@ pub async fn retrieve_payment_method_with_token(
         storage::PaymentTokenData::PermanentCard(card_token) => {
             helpers::retrieve_card_with_permanent_token(
                 state,
-                card_token
-                    .locker_id
-                    .as_ref()
-                    .unwrap_or(&card_token.token),
+                card_token.locker_id.as_ref().unwrap_or(&card_token.token),
                 card_token
                     .payment_method_id
                     .as_ref()
