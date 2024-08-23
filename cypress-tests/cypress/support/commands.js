@@ -1385,25 +1385,37 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("retrievePaymentCallTest", (globalState) => {
-  const payment_id = globalState.get("paymentID");
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+Cypress.Commands.add(
+  "retrievePaymentCallTest",
+  (globalState, autoretries = false, attempt = 1) => {
+    const payment_id = globalState.get("paymentID");
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-    expect(response.headers["content-type"]).to.include("application/json");
-    expect(response.body.payment_id).to.equal(payment_id);
-    expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
-    globalState.set("paymentID", response.body.payment_id);
-  });
-});
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body.payment_id).to.equal(payment_id);
+      expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
+      globalState.set("paymentID", response.body.payment_id);
+
+      if (autoretries) {
+        expect(response.body).to.have.property("attempts");
+        expect(response.body.attempts).to.be.an("array").and.not.empty;
+        expect(response.body.attempts.length).to.equal(attempt);
+        expect(response.body.attempts[0].attempt_id).to.include(
+          `${payment_id}_`
+        );
+      }
+    });
+  }
+);
 
 Cypress.Commands.add(
   "refundCallTest",
