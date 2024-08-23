@@ -228,7 +228,8 @@ impl BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector
                     .or(source.always_collect_shipping_details_from_wallet_connector),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
-            is_tax_connector_enabled: is_tax_connector_enabled.unwrap_or(source.is_tax_connector_enabled),
+            is_tax_connector_enabled: is_tax_connector_enabled
+                .unwrap_or(source.is_tax_connector_enabled),
         }
     }
 }
