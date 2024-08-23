@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/organization": {
+    "/v2/organization": {
       "post": {
         "tags": [
           "Organization"
@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/organization/{organization_id}": {
+    "/v2/organization/{organization_id}": {
       "get": {
         "tags": [
           "Organization"
