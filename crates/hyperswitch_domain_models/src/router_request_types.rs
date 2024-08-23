@@ -1,9 +1,8 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::RequestSurchargeDetails;
+use api_models::payments::{Address, RequestSurchargeDetails};
 use common_utils::{
     consts,
-    crypto::Encryptable,
     errors,
     ext_traits::OptionExt,
     id_type, pii,
@@ -782,8 +781,8 @@ pub struct PaymentsTaxCalculationData {
     // New amount for amount frame work
     // pub minor_amount: MinorUnit,
     pub shipping_cost: MinorUnit,
-    pub shipping: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub order_details: Option<Vec<Secret<serde_json::Value>>>,
+    pub shipping: Option<Address>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone, Default)]

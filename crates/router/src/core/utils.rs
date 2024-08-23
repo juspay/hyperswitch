@@ -1,8 +1,11 @@
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payments::{Address, OrderDetailsWithAmount},
+};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
@@ -81,7 +84,7 @@ pub async fn construct_payout_router_data<'a, F>(
             state: a.state.map(Encryptable::into_inner),
         };
 
-        api_models::payments::Address {
+        Address {
             phone: Some(phone_details),
             address: Some(address_details),
             email: a.email.to_owned().map(Email::from),
@@ -869,6 +872,30 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
+    let shipping: Option<Address> = payment_intent
+        .shipping_details.clone()
+        .map(|a| {
+            a.into_inner()
+                .expose()
+                .parse_value("Address")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while parsing value for shipping_details")
+        })
+        .transpose()?;
+
+        let order: Option<Result<Vec<OrderDetailsWithAmount>, _>> =
+    payment_intent.order_details.clone().map(|o| {
+        o.into_iter()
+            .map(|order| {
+                order
+                    .expose()
+                    .parse_value("OrderDetailsWithAmount")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+            })
+            .collect()
+    });
+    let order_details = order.map_or(Ok(None), |r| r.map(Some))?;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
@@ -908,8 +935,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
                 .shipping_cost
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing shipping_cost")?,
-            shipping: payment_intent.shipping_details.clone(),
-            order_details: payment_intent.order_details.clone(),
+            shipping,
+            order_details,
         },
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(
