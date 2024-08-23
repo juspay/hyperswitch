@@ -572,4 +572,14 @@ ach = { country = "US", currency = "USD" }
 connector_list = ""
 
 [network_tokenization_supported_card_networks]
-card_networks = "visa"
+card_networks = "Visa"
+
+[network_tokenization_service]
+generate_token_url= ""
+fetch_token_url= ""
+token_service_api_key= ""
+public_key= ""
+private_key= ""
+key_id= ""
+delete_token_url= ""
+check_token_status_url= ""

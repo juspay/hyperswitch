@@ -204,7 +204,7 @@ where
                         pm_status = Some(common_enums::PaymentMethodStatus::from(
                             save_payment_method_data.attempt_status,
                         ));
-                        let (res, dc, ref_id) = Box::pin(save_in_locker(
+                        let (res, dc, _ref_id) = Box::pin(save_in_locker(
                             state,
                             merchant_account,
                             Some(&save_payment_method_data.request.get_payment_method_data()),
@@ -216,7 +216,7 @@ where
                         .await?;
 
                         if is_network_tokenization_enabled {
-                            let (res2, dc2, network_token_requestor_ref_id) =
+                            let (res2, _dc2, network_token_requestor_ref_id) =
                                 Box::pin(save_in_locker(
                                     state,
                                     merchant_account,
@@ -802,7 +802,7 @@ pub async fn save_in_locker(
     merchant_account: &domain::MerchantAccount,
     payment_method_data: Option<&domain::PaymentMethodData>,
     payment_method_request: api::PaymentMethodCreate,
-    save_token: bool,
+    save_network_token: bool,
     amount: Option<i64>,
     currency: Option<storage_enums::Currency>,
 ) -> RouterResult<(
@@ -811,7 +811,7 @@ pub async fn save_in_locker(
     Option<String>,
 )> {
     payment_method_request.validate()?;
-    if save_token {
+    if save_network_token {
         save_token_in_locker(
             state,
             merchant_account,

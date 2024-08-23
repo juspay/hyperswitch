@@ -3702,7 +3702,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                             .await
                     {
                         logger::info!(
-                            "using network_tokenization with transaction_id for MIT flow"
+                            "using network_tokenization with network_transaction_id for MIT flow"
                         );
 
                         let network_transaction_id = payment_method_info
@@ -3722,7 +3722,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                         connector_choice = Some((connector_data, mandate_reference_id.clone()));
                         break;
                     } else {
-                        logger::info!("using network_transaction_id for MIT flow"); //
+                        logger::info!("Proceeding with MIT flow using the provided network_transaction_id, as network tokenization details are unavailable or failed to validate.");
                         let network_transaction_id = payment_method_info
                             .network_transaction_id
                             .as_ref()

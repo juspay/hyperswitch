@@ -983,7 +983,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
             };
 
             let encrypted_payload =
-                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek(), "A256GCM", None)
+                    services::encrypt_jwe(&card_data, merchant_config.public_key.peek(), services::EncryptionAlgorithm::A256GCM, None)
                         .await
                         .map_err(|err| {
                             logger::error!(jwe_encryption_err=?err,"Error while JWE encrypting extended card info")

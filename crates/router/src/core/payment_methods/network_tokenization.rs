@@ -26,7 +26,7 @@ use crate::{
     },
     headers, logger,
     routes::{self},
-    services::{self, encryption},
+    services::{self, encryption, EncryptionAlgorithm},
     types::{
         api::{self},
         domain,
@@ -67,13 +67,6 @@ pub struct ApiPayload {
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub struct CardNetworkTokenResponse {
     payload: String,
-}
-
-#[derive(Debug, Deserialize, Eq, PartialEq)]
-#[serde(untagged)]
-pub enum CardNTResponse {
-    CardNetworkTokenResponse(CardNetworkTokenResponse),
-    CardNetworkTokenErrorResponse(NetworkTokenErrorResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -203,7 +196,7 @@ pub async fn mk_tokenization_req(
     let jwt = encryption::encrypt_jwe(
         payload_bytes,
         enc_key,
-        "A128GCM",
+        EncryptionAlgorithm::A128GCM,
         Some(key_id.as_str()),
     )
     .await
@@ -389,13 +382,13 @@ pub async fn get_token_from_tokenization_service(
     .await
     .and_then(|val| val.try_into_optionaloperation())
     .change_context(errors::StorageError::DecryptionError)
-    .attach_printable("unable to decrypt card details")
+    .attach_printable("unable to decrypt network token details")
     .ok()
     .flatten()
     .map(|x| x.into_inner().expose())
     .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
     .and_then(|pmd| match pmd {
-        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+        PaymentMethodsData::Card(token) => Some(api::CardDetailFromLocker::from(token)),
         _ => None,
     });
     let network_token_data = NetworkTokenData {

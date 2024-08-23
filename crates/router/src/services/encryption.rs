@@ -26,15 +26,22 @@ pub struct JweBody {
     pub encrypted_key: String,
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone, strum::AsRefStr, strum::Display)]
+pub enum EncryptionAlgorithm{
+    A128GCM,
+    A256GCM,
+}
+
 pub async fn encrypt_jwe(
     payload: &[u8],
     public_key: impl AsRef<[u8]>,
-    enc: &str,
+    enc: EncryptionAlgorithm,
     key_id: Option<&str>,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
     let mut src_header = jwe::JweHeader::new();
-    src_header.set_content_encryption(enc);
+    let enc_str = enc.as_ref();
+    src_header.set_content_encryption(enc_str);
     src_header.set_token_type("JWT");
     if let Some(kid) = key_id {
         src_header.set_key_id(kid);
@@ -215,7 +222,7 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
         let jwt = encrypt_jwe(
             "request_payload".as_bytes(),
             ENCRYPTION_KEY,
-            "A256GCM",
+            EncryptionAlgorithm::A256GCM,
             None,
         )
         .await

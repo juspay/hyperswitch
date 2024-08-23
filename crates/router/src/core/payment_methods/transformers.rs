@@ -14,7 +14,7 @@ use crate::{
     core::errors::{self, CustomResult},
     headers,
     pii::{prelude::*, Secret},
-    services::{api as services, encryption},
+    services::{api as services, encryption, EncryptionAlgorithm},
     types::{api, storage},
     utils::OptionExt,
 };
@@ -264,7 +264,7 @@ pub async fn mk_basilisk_req(
         }
     };
 
-    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key, "A256GCM", None)
+    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
         .await
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Error on jwe encrypt")?;

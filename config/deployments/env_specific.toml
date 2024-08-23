@@ -300,3 +300,13 @@ public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "p
 
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
+
+[network_tokenization_service]
+generate_token_url= ""
+fetch_token_url= ""
+token_service_api_key= ""
+public_key= ""
+private_key= ""
+key_id= ""
+delete_token_url= ""
+check_token_status_url= ""

@@ -570,37 +570,6 @@ impl From<api_models::payments::Card> for Card {
     }
 }
 
-// impl From<api_models::payments::Card> for NetworkTokenData {
-//     fn from(value: api_models::payments::Card) -> Self {
-//         let api_models::payments::Card {
-//             card_number,
-//             card_exp_month,
-//             card_exp_year,
-//             card_holder_name: _,
-//             card_cvc,
-//             card_issuer,
-//             card_network,
-//             card_type,
-//             card_issuing_country,
-//             bank_code,
-//             nick_name,
-//         } = value;
-
-//         Self {
-//             token_number,
-//             token_exp_month,
-//             token_exp_year,
-//             token_cryptogram,
-//             card_issuer,
-//             card_network,
-//             card_type,
-//             card_issuing_country,
-//             bank_code,
-//             nick_name,
-//         }
-//     }
-// }
-
 impl From<api_models::payments::CardRedirectData> for CardRedirectData {
     fn from(value: api_models::payments::CardRedirectData) -> Self {
         match value {
