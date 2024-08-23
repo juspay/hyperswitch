@@ -186,15 +186,15 @@ pub struct CardRequestStruct {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CardVaultStruct {
-    vault_id: String,
+pub struct VaultStruct {
+    vault_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum CardRequest {
     CardRequestStruct(CardRequestStruct),
-    CardVaultStruct(CardVaultStruct),
+    CardVaultStruct(VaultStruct),
 }
 #[derive(Debug, Serialize)]
 pub struct CardRequestAttributes {
@@ -246,11 +246,7 @@ pub enum ShippingPreference {
 #[serde(untagged)]
 pub enum PaypalRedirectionRequest {
     PaypalRedirectionStruct(PaypalRedirectionStruct),
-    PaypalVaultStruct(PaypalVaultStruct),
-}
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaypalVaultStruct {
-    vault_id: String,
+    PaypalVaultStruct(VaultStruct),
 }
 
 #[derive(Debug, Serialize)]
@@ -681,13 +677,13 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
 
                 let payment_source = match payment_method_type {
                     enums::PaymentMethodType::Credit => Ok(Some(PaymentSourceItem::Card(
-                        CardRequest::CardVaultStruct(CardVaultStruct {
-                            vault_id: connector_mandate_id.clone(),
+                        CardRequest::CardVaultStruct(VaultStruct {
+                            vault_id: connector_mandate_id.into(),
                         }),
                     ))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
-                        PaypalRedirectionRequest::PaypalVaultStruct(PaypalVaultStruct {
-                            vault_id: connector_mandate_id.clone(),
+                        PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
+                            vault_id: connector_mandate_id.into(),
                         }),
                     ))),
                     enums::PaymentMethodType::Ach
@@ -1671,13 +1667,10 @@ impl<F>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: match paypal_threeds_link((
+                redirection_data: Some(paypal_threeds_link((
                     link,
                     item.data.request.complete_authorize_url.clone(),
-                )) {
-                    Ok(url) => Some(url),
-                    Err(_) => None,
-                },
+                ))?),
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
