@@ -9,7 +9,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -106,20 +106,19 @@ where
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
         let auth: fiservemea::FiservemeaAuthType =
             fiservemea::FiservemeaAuthType::try_from(&req.connector_auth_type)?;
-        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
 
         let fiserv_req = self.get_request_body(req, connectors)?;
 
         let client_request_id = Uuid::new_v4().to_string();
         let hmac = self
             .generate_authorization_signature(
-                auth,
+                auth.clone(),
                 &client_request_id,
                 fiserv_req.get_inner_value().peek(),
                 timestamp,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let mut headers = vec![
+        let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self)
@@ -127,11 +126,10 @@ where
                     .into(),
             ),
             ("Client-Request-Id".to_string(), client_request_id.into()),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
+            (headers::API_KEY.to_string(), auth.api_key.expose().into()),
             (headers::TIMESTAMP.to_string(), timestamp.to_string().into()),
-            (headers::AUTHORIZATION.to_string(), hmac.into_masked()),
+            (headers::MESSAGE_SIGNATURE.to_string(), hmac.into_masked()),
         ];
-        headers.append(&mut auth_header);
         Ok(headers)
     }
 }
@@ -143,9 +141,6 @@ impl ConnectorCommon for Fiservemea {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -154,18 +149,6 @@ impl ConnectorCommon for Fiservemea {
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.fiservemea.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = fiservemea::FiservemeaAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
     }
 
     fn build_error_response(

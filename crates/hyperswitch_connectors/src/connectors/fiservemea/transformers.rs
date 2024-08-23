@@ -12,10 +12,7 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 //TODO: Fill the struct with respective fields
 pub struct FiservemeaRouterData<T> {
@@ -40,12 +37,11 @@ pub struct FiservemeaTransactionAmount {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
 pub enum FiservemeaRequestType {
     PaymentCardSaleTransaction,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservemeaExpiryDate {
     month: Secret<String>,
@@ -108,8 +104,8 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
+#[derive(Clone)]
 pub struct FiservemeaAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) secret_key: Secret<String>,
@@ -127,32 +123,162 @@ impl TryFrom<&ConnectorAuthType> for FiservemeaAuthType {
         }
     }
 }
+
 // PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ResponseType {
+    BadRequest,
+    Unauthenticated,
+    Unauthorized,
+    NotFound,
+    GatewayDeclined,
+    EndpointDeclined,
+    ServerError,
+    EndpointCommunicationError,
+    UnsupportedMediaType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FiservemeaResponseType {
+    TransactionResponse,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservemeaTransactionType {
+    Sale,
+    Preauth,
+    Credit,
+    ForcedTicket,
+    Void,
+    Return,
+    Postauth,
+    PayerAuth,
+    Disbursement,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum FiservemeaTransactionOrigin {
+    Ecom,
+    Moto,
+    Mail,
+    Phone,
+    Retail,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservemeaPaymentStatus {
-    Succeeded,
+    Approved,
+    Waiting,
+    Partial,
+    ValidationFailed,
+    ProcessingFailed,
+    Declined,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FiservemeaPaymentResult {
+    Approved,
+    Declined,
     Failed,
-    #[default]
-    Processing,
+    Waiting,
+    Partial,
+    Fraud,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaPaymentCardResponse {
+    expiry_date: Option<FiservemeaExpiryDate>,
+    bin: Option<String>,
+    last4: Option<String>,
+    brand: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaPaymentMethodDetails {
+    payment_card: Option<FiservemeaPaymentCardResponse>,
+    payment_method_type: Option<String>,
+    payment_method_brand: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Components {
+    subtotal: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AmountDetails {
+    total: Option<f64>,
+    currency: Option<common_enums::Currency>,
+    components: Option<Components>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AvsResponse {
+    street_match: Option<String>,
+    postal_code_match: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Processor {
+    reference_number: Option<String>,
+    authorization_code: Option<String>,
+    response_code: Option<String>,
+    response_message: Option<String>,
+    avs_response: Option<AvsResponse>,
+    security_code_response: Option<String>,
 }
 
 impl From<FiservemeaPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: FiservemeaPaymentStatus) -> Self {
         match item {
-            FiservemeaPaymentStatus::Succeeded => Self::Charged,
-            FiservemeaPaymentStatus::Failed => Self::Failure,
-            FiservemeaPaymentStatus::Processing => Self::Authorizing,
+            FiservemeaPaymentStatus::Approved => Self::Charged,
+            FiservemeaPaymentStatus::Waiting => Self::Pending,
+            FiservemeaPaymentStatus::Partial => Self::PartialCharged,
+            FiservemeaPaymentStatus::ValidationFailed
+            | FiservemeaPaymentStatus::ProcessingFailed
+            | FiservemeaPaymentStatus::Declined => Self::Failure,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FiservemeaPaymentsResponse {
-    status: FiservemeaPaymentStatus,
-    id: String,
+    response_type: Option<ResponseType>,
+    #[serde(rename = "type")]
+    fiservemea_type: Option<FiservemeaResponseType>,
+    client_request_id: Option<String>,
+    api_trace_id: Option<String>,
+    ipg_transaction_id: String,
+    order_id: Option<String>,
+    transaction_type: Option<FiservemeaTransactionType>,
+    transaction_origin: Option<FiservemeaTransactionOrigin>,
+    payment_method_details: Option<FiservemeaPaymentMethodDetails>,
+    country: Option<Secret<String>>,
+    terminal_id: Option<String>,
+    merchant_id: Option<String>,
+    merchant_transaction_id: Option<String>,
+    transaction_time: Option<i64>,
+    approved_amount: Option<AmountDetails>,
+    transaction_amount: Option<AmountDetails>,
+    transaction_status: FiservemeaPaymentStatus, // FiservEMEA Docs mention that this field is deprecated. We are using it for now because transaction_result is not present in the response.
+    transaction_result: Option<FiservemeaPaymentResult>,
+    approval_code: Option<String>,
+    error_message: Option<String>,
+    transaction_state: Option<String>,
+    scheme_transaction_id: Option<String>,
+    processor: Option<Processor>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, PaymentsResponseData>>
@@ -163,14 +289,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
         item: ResponseRouterData<F, FiservemeaPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
+            status: common_enums::AttemptStatus::from(item.response.transaction_status),
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.merchant_transaction_id,
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
