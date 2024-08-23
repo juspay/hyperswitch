@@ -4955,7 +4955,8 @@
         "type": "object",
         "required": [
           "merchant_reference_id",
-          "created_at"
+          "created_at",
+          "id"
         ],
         "properties": {
           "merchant_reference_id": {
@@ -5033,6 +5034,10 @@
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 64
+          },
+          "id": {
+            "type": "string",
+            "description": "Global id"
           }
         }
       },
