@@ -2191,18 +2191,48 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("enableAutoRetry", (autoRetryShouldCallGsmConfig, globalState) => {
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/configs`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    body: autoRetryShouldCallGsmConfig,
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-  });
-});
+Cypress.Commands.add(
+  "enableAutoRetry",
+  (autoRetryGsmBody, globalState, value) => {
+    const key = `should_call_gsm_${globalState.get("merchantId")}`;
+    autoRetryGsmBody.key = key;
+    autoRetryGsmBody.value = value;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/configs/${key}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: autoRetryGsmBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "setMaxAutoRetries",
+  (maxAutoRetryBody, globalState, value) => {
+    const key = `max_auto_retries_enabled_${globalState.get("merchantId")}`;
+    maxAutoRetryBody.key = key;
+    maxAutoRetryBody.value = value;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/configs/${key}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: maxAutoRetryBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+    });
+  }
+);
