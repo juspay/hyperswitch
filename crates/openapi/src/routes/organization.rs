@@ -43,7 +43,8 @@ pub async fn organization_create() {}
 )]
 pub async fn organization_retrieve() {}
 
-#[cfg(feature = "v1")]/// Organization - Update
+#[cfg(feature = "v1")]
+/// Organization - Update
 ///
 /// Create a new organization for .
 #[utoipa::path(
@@ -69,7 +70,6 @@ pub async fn organization_retrieve() {}
     security(("admin_api_key" = []))
 )]
 pub async fn organization_update() {}
-
 
 #[cfg(feature = "v2")]
 /// Organization - Create
