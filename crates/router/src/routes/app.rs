@@ -1159,7 +1159,7 @@ impl Organization {
 #[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
 impl Organization {
     pub fn server(state: AppState) -> Scope {
-        web::scope("v2/organization")
+        web::scope("/v2/organization")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(organization_create)))
             .service(
