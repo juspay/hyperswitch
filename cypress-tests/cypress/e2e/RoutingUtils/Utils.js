@@ -1,7 +1,9 @@
+import { connectorDetails as autoretryConnectorDetails } from "./Autoretries.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 
 const connectorDetails = {
   common: commonConnectorDetails,
+  autoretries: autoretryConnectorDetails,
 };
 
 export const getConnectorDetails = (connectorId) => {
