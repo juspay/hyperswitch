@@ -5,8 +5,8 @@ use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
 use crate::redis::cache::{
-    CacheKey, CacheKind, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE, DECISION_MANAGER_CACHE,
-    PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE, SURCHARGE_CACHE,
+    CacheKey, CacheKind, CacheRedact, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE,
+    DECISION_MANAGER_CACHE, PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE, SURCHARGE_CACHE,
 };
 
 #[async_trait::async_trait]
@@ -66,15 +66,23 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         channel: &str,
         key: CacheKind<'a>,
     ) -> error_stack::Result<usize, redis_errors::RedisError> {
+        let key = CacheRedact {
+            kind: key,
+            tenant: self.key_prefix.clone(),
+        };
+
         self.publisher
-            .publish(channel, RedisValue::from(key).into_inner())
+            .publish(
+                channel,
+                RedisValue::try_from(key).change_context(redis_errors::RedisError::PublishError)?,
+            )
             .await
             .change_context(redis_errors::RedisError::SubscribeError)
     }
 
     #[inline]
     async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
-        logger::debug!("Started on message: {:?}", self.key_prefix);
+        logger::debug!("Started on message");
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
             let channel_name = message.channel.to_string();
@@ -82,7 +90,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
 
             match channel_name.as_str() {
                 super::cache::IMC_INVALIDATION_CHANNEL => {
-                    let key = match CacheKind::try_from(RedisValue::new(message.value))
+                    let message = match CacheRedact::try_from(RedisValue::new(message.value))
                         .change_context(redis_errors::RedisError::OnMessageError)
                     {
                         Ok(value) => value,
@@ -92,12 +100,12 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                         }
                     };
 
-                    let key = match key {
+                    let key = match message.kind {
                         CacheKind::Config(key) => {
                             CONFIG_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             key
@@ -106,7 +114,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             ACCOUNTS_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             key
@@ -115,7 +123,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             CGRAPH_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             key
@@ -124,7 +132,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             PM_FILTERS_CGRAPH_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             key
@@ -133,7 +141,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             ROUTING_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             key
@@ -142,7 +150,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             DECISION_MANAGER_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             key
@@ -151,7 +159,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             SURCHARGE_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             key
@@ -160,43 +168,43 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                             CONFIG_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             ACCOUNTS_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             CGRAPH_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             PM_FILTERS_CGRAPH_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             ROUTING_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             DECISION_MANAGER_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
                             SURCHARGE_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
-                                    prefix: self.key_prefix.clone(),
+                                    prefix: message.tenant.clone(),
                                 })
                                 .await;
 
@@ -210,7 +218,9 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                         .ok();
 
                     logger::debug!(
-                        "Handled message on channel {channel_name} - Done invalidating {key}"
+                        key_prefix=?message.tenant.clone(),
+                        channel_name=?channel_name,
+                        "Done invalidating {key}"
                     );
                 }
                 _ => {

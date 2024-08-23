@@ -7,7 +7,7 @@ use api_models::{
 use base64::Engine;
 use common_utils::{
     date_time,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
     id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState},
 };
@@ -28,14 +28,10 @@ use crate::{
     core::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{
-            cards::{self, create_encrypted_data},
-            transformers,
-        },
+        payment_methods::{cards, transformers},
         payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
-        routing::helpers as routing_helpers,
-        utils as core_utils,
+        routing, utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
@@ -400,6 +396,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                     payment_link_config: None,
                     pm_collect_link_config,
+                    version: hyperswitch_domain_models::consts::API_VERSION,
                 },
             )
         }
@@ -561,7 +558,7 @@ impl CreateBusinessProfile {
         state: &SessionState,
         merchant_account: domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<diesel_models::business_profile::BusinessProfile> {
+    ) -> RouterResult<domain::BusinessProfile> {
         let business_profile = create_and_insert_business_profile(
             state,
             api_models::admin::BusinessProfileCreate::default(),
@@ -581,7 +578,7 @@ impl CreateBusinessProfile {
         merchant_account: domain::MerchantAccount,
         primary_business_details: &Vec<admin_types::PrimaryBusinessDetails>,
         key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<Vec<diesel_models::business_profile::BusinessProfile>> {
+    ) -> RouterResult<Vec<domain::BusinessProfile>> {
         let mut business_profiles_vector = Vec::with_capacity(primary_business_details.len());
 
         // This must ideally be run in a transaction,
@@ -680,17 +677,11 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                             .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
-                    routing_algorithm: Some(serde_json::json!({
-                        "algorithm_id": null,
-                        "timestamp": 0
-                    })),
                     publishable_key,
                     metadata,
                     storage_scheme: MerchantStorageScheme::PostgresOnly,
                     created_at: date_time::now(),
                     modified_at: date_time::now(),
-                    frm_routing_algorithm: None,
-                    payout_routing_algorithm: None,
                     organization_id: organization.get_organization_id(),
                     recon_status: diesel_models::enums::ReconStatus::NotRequested,
                 }),
@@ -898,6 +889,8 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 // Validate whether profile_id passed in request is valid and is linked to the merchant
                 core_utils::validate_and_get_business_profile(
                     state.store.as_ref(),
+                    key_manager_state,
+                    key_store,
                     Some(profile_id),
                     merchant_id,
                 )
@@ -953,7 +946,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                         key_manager_state,
                         type_name!(storage::MerchantAccount),
                         domain_types::CryptoOperation::EncryptOptional(inner),
-                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        identifier.clone(),
                         key,
                     )
                     .await
@@ -1016,34 +1009,37 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             merchant_name: self
                 .merchant_name
                 .map(Secret::new)
-                .async_lift(|inner| {
-                    domain_types::encrypt_optional(
+                .async_lift(|inner| async {
+                    domain_types::crypto_operation(
                         key_manager_state,
-                        inner,
+                        type_name!(storage::MerchantAccount),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
                         identifier.clone(),
                         key,
                     )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant name")?,
             merchant_details: merchant_details
-                .async_lift(|inner| {
-                    domain_types::encrypt_optional(
+                .async_lift(|inner| async {
+                    domain_types::crypto_operation(
                         key_manager_state,
-                        inner,
-                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        type_name!(storage::MerchantAccount),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
+                        identifier.clone(),
                         key,
                     )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt merchant details")?,
             metadata,
             publishable_key: None,
-            frm_routing_algorithm: None,
-            payout_routing_algorithm: None,
-            routing_algorithm: None,
         })
     }
 }
@@ -1333,6 +1329,9 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
             }
             api_enums::Connector::Cybersource => {
                 cybersource::transformers::CybersourceAuthType::try_from(self.auth_type)?;
+                cybersource::transformers::CybersourceConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Datatrans => {
@@ -1432,7 +1431,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 opennode::transformers::OpennodeAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Paybox => todo!(), added for future usage
+            api_enums::Connector::Paybox => {
+                paybox::transformers::PayboxAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Payme => {
                 payme::transformers::PaymeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1763,7 +1765,7 @@ struct PMAuthConfigValidation<'a> {
     pm_auth_config: &'a Option<pii::SecretSerdeValue>,
     db: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
-    profile_id: &'a Option<String>,
+    profile_id: &'a String,
     key_store: &'a domain::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
 }
@@ -1866,23 +1868,40 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
         Ok(routable_connector)
     }
 }
-
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2",))
+))]
 struct MerchantDefaultConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a String,
     store: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
-    default_routing_config: &'a Vec<api_models::routing::RoutableConnectorChoice>,
-    default_routing_config_for_profile: &'a Vec<api_models::routing::RoutableConnectorChoice>,
     profile_id: &'a String,
     transaction_type: &'a api_enums::TransactionType,
 }
-
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2",))
+))]
 impl<'a> MerchantDefaultConfigUpdate<'a> {
-    async fn update_merchant_default_config(&self) -> RouterResult<()> {
-        let mut default_routing_config = self.default_routing_config.to_owned();
-        let mut default_routing_config_for_profile =
-            self.default_routing_config_for_profile.to_owned();
+    async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
+        &self,
+    ) -> RouterResult<()> {
+        let mut default_routing_config = routing::helpers::get_merchant_default_config(
+            self.store,
+            self.merchant_id.get_string_repr(),
+            self.transaction_type,
+        )
+        .await?;
+
+        let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
+            self.store,
+            self.profile_id,
+            self.transaction_type,
+        )
+        .await?;
+
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
                 choice_kind: routing_types::RoutableChoiceKind::FullStruct,
@@ -1891,7 +1910,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
             };
             if !default_routing_config.contains(&choice) {
                 default_routing_config.push(choice.clone());
-                routing_helpers::update_merchant_default_config(
+                routing::helpers::update_merchant_default_config(
                     self.store,
                     self.merchant_id.get_string_repr(),
                     default_routing_config.clone(),
@@ -1901,7 +1920,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
             }
             if !default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.push(choice);
-                routing_helpers::update_merchant_default_config(
+                routing::helpers::update_merchant_default_config(
                     self.store,
                     self.profile_id,
                     default_routing_config_for_profile.clone(),
@@ -1913,7 +1932,53 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
         Ok(())
     }
 }
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2",
+))]
+struct DefaultFallbackRoutingConfigUpdate<'a> {
+    routable_connector: &'a Option<api_enums::RoutableConnectors>,
+    merchant_connector_id: &'a String,
+    store: &'a dyn StorageInterface,
+    business_profile: domain::BusinessProfile,
+    key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    key_manager_state: &'a KeyManagerState,
+}
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
+    async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
+        &self,
+    ) -> RouterResult<()> {
+        let profile_wrapper = BusinessProfileWrapper::new(self.business_profile.clone());
+        let default_routing_config_for_profile =
+            &mut profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
+        if let Some(routable_connector_val) = self.routable_connector {
+            let choice = routing_types::RoutableConnectorChoice {
+                choice_kind: routing_types::RoutableChoiceKind::FullStruct,
+                connector: *routable_connector_val,
+                merchant_connector_id: Some(self.merchant_connector_id.clone()),
+            };
+            if !default_routing_config_for_profile.contains(&choice.clone()) {
+                default_routing_config_for_profile.push(choice);
 
+                profile_wrapper
+                    .update_default_fallback_routing_of_connectors_under_profile(
+                        self.store,
+                        &default_routing_config_for_profile,
+                        self.key_manager_state,
+                        &self.key_store,
+                    )
+                    .await?
+            }
+        }
+        Ok(())
+    }
+}
 #[cfg(any(feature = "v1", feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 trait MerchantConnectorAccountUpdateBridge {
@@ -2031,7 +2096,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                     domain_types::crypto_operation(
                         key_manager_state,
                         type_name!(storage::MerchantConnectorAccount),
-                        domai_types::CryptoOperation::EncryptOptional(inner),
+                        domain_types::CryptoOperation::EncryptOptional(inner),
                         km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                         key_store.key.get_inner().peek(),
                     )
@@ -2210,16 +2275,17 @@ trait MerchantConnectorAccountCreateBridge {
         self,
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount>;
 
-    async fn validate_and_get_profile_id(
+    async fn validate_and_get_business_profile(
         self,
         merchant_account: &domain::MerchantAccount,
         db: &dyn StorageInterface,
-        should_validate: bool,
-    ) -> RouterResult<String>;
+        key_manager_state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfile>;
 }
 
 #[cfg(all(
@@ -2234,7 +2300,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         self,
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
         // If connector label is not passed in the request, generate one
@@ -2329,7 +2395,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 }
                 None => None,
             },
-            profile_id: Some(business_profile.profile_id.clone()),
+            profile_id: business_profile.profile_id.clone(),
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
@@ -2349,34 +2415,32 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             } else {
                 None
             },
+            version: hyperswitch_domain_models::consts::API_VERSION,
         })
     }
 
-    /// If profile_id is not passed, use default profile if available
-    /// or return a `MissingRequiredField` error
-    async fn validate_and_get_profile_id(
+    async fn validate_and_get_business_profile(
         self,
         merchant_account: &domain::MerchantAccount,
         db: &dyn StorageInterface,
-        should_validate: bool,
-    ) -> RouterResult<String> {
-        match self.profile_id {
-            Some(profile_id) => {
-                // Check whether this business profile belongs to the merchant
-                if should_validate {
-                    let _ = core_utils::validate_and_get_business_profile(
-                        db,
-                        Some(&profile_id),
-                        merchant_account.get_id(),
-                    )
-                    .await?;
-                }
-                Ok(profile_id.clone())
-            }
-            None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "profile_id"
-            })),
-        }
+        key_manager_state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfile> {
+        let profile_id = self.profile_id;
+        // Check whether this business profile belongs to the merchant
+
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            key_manager_state,
+            key_store,
+            Some(&profile_id),
+            merchant_account.get_id(),
+        )
+        .await?
+        .get_required_value("BusinessProfile")
+        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id })?;
+
+        Ok(business_profile)
     }
 }
 
@@ -2391,7 +2455,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         self,
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
-        business_profile: &storage::business_profile::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
         // If connector label is not passed in the request, generate one
@@ -2498,7 +2562,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 }
                 None => None,
             },
-            profile_id: Some(business_profile.profile_id.clone()),
+            profile_id: business_profile.profile_id.clone(),
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
@@ -2522,36 +2586,46 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             } else {
                 None
             },
+            version: hyperswitch_domain_models::consts::API_VERSION,
         })
     }
 
     /// If profile_id is not passed, use default profile if available, or
     /// If business_details (business_country and business_label) are passed, get the business_profile
     /// or return a `MissingRequiredField` error
-    async fn validate_and_get_profile_id(
+    async fn validate_and_get_business_profile(
         self,
         merchant_account: &domain::MerchantAccount,
         db: &dyn StorageInterface,
-        should_validate: bool,
-    ) -> RouterResult<String> {
+        key_manager_state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfile> {
         match self.profile_id.or(merchant_account.default_profile.clone()) {
             Some(profile_id) => {
                 // Check whether this business profile belongs to the merchant
-                if should_validate {
-                    let _ = core_utils::validate_and_get_business_profile(
-                        db,
-                        Some(&profile_id),
-                        merchant_account.get_id(),
-                    )
-                    .await?;
-                }
-                Ok(profile_id.clone())
+
+                let business_profile = core_utils::validate_and_get_business_profile(
+                    db,
+                    key_manager_state,
+                    key_store,
+                    Some(&profile_id),
+                    merchant_account.get_id(),
+                )
+                .await?
+                .get_required_value("BusinessProfile")
+                .change_context(
+                    errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_id },
+                )?;
+
+                Ok(business_profile)
             }
             None => match self.business_country.zip(self.business_label) {
                 Some((business_country, business_label)) => {
                     let profile_name = format!("{business_country}_{business_label}");
                     let business_profile = db
                         .find_business_profile_by_profile_name_merchant_id(
+                            key_manager_state,
+                            key_store,
                             &profile_name,
                             merchant_account.get_id(),
                         )
@@ -2560,7 +2634,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                             errors::ApiErrorResponse::BusinessProfileNotFound { id: profile_name },
                         )?;
 
-                    Ok(business_profile.profile_id)
+                    Ok(business_profile)
                 }
                 _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "profile_id or business_country, business_label"
@@ -2616,9 +2690,9 @@ pub async fn create_connector(
         &merchant_account,
     )?;
 
-    let profile_id = req
+    let business_profile = req
         .clone()
-        .validate_and_get_profile_id(&merchant_account, store, true)
+        .validate_and_get_business_profile(&merchant_account, store, key_manager_state, &key_store)
         .await?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
@@ -2626,19 +2700,11 @@ pub async fn create_connector(
         pm_auth_config: &req.pm_auth_config,
         db: store,
         merchant_id,
-        profile_id: &Some(profile_id.clone()),
+        profile_id: &business_profile.profile_id,
         key_store: &key_store,
         key_manager_state,
     };
     pm_auth_config_validation.validate_pm_auth_config().await?;
-
-    let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(&profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_owned(),
-        })?;
 
     let connector_type_and_connector_enum = ConnectorTypeAndConnectorName {
         connector_type: &req.connector_type,
@@ -2670,22 +2736,6 @@ pub async fn create_connector(
         )
         .await?;
 
-    let transaction_type = req.get_transaction_type();
-
-    let mut default_routing_config = routing_helpers::get_merchant_default_config(
-        &*state.store,
-        merchant_id.get_string_repr(),
-        &transaction_type,
-    )
-    .await?;
-
-    let mut default_routing_config_for_profile = routing_helpers::get_merchant_default_config(
-        &*state.clone().store,
-        &profile_id,
-        &transaction_type,
-    )
-    .await?;
-
     let mca = state
         .store
         .insert_merchant_connector_account(
@@ -2696,27 +2746,44 @@ pub async fn create_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id: profile_id.clone(),
+                profile_id: business_profile.profile_id.clone(),
                 connector_label: merchant_connector_account
                     .connector_label
                     .unwrap_or_default(),
             },
         )?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(any(feature = "routing_v2", feature = "business_profile_v2",))
+    ))]
     //update merchant default config
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
         store,
         merchant_id,
-        default_routing_config: &mut default_routing_config,
-        default_routing_config_for_profile: &mut default_routing_config_for_profile,
-        profile_id: &profile_id,
-        transaction_type: &transaction_type,
+        profile_id: &business_profile.profile_id,
+        transaction_type: &req.get_transaction_type(),
+    };
+
+    #[cfg(all(
+        feature = "v2",
+        feature = "routing_v2",
+        feature = "business_profile_v2",
+    ))]
+    //update merchant default config
+    let merchant_default_config_update = DefaultFallbackRoutingConfigUpdate {
+        routable_connector: &routable_connector,
+        merchant_connector_id: &mca.get_id(),
+        store,
+        business_profile,
+        key_store,
+        key_manager_state,
     };
 
     merchant_default_config_update
-        .update_merchant_default_config()
+        .retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists()
         .await?;
 
     metrics::MCA_CREATE.add(
@@ -2742,7 +2809,7 @@ async fn validate_pm_auth(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     merchant_account: domain::MerchantAccount,
-    profile_id: &Option<String>,
+    profile_id: &String,
 ) -> RouterResponse<()> {
     let config =
         serde_json::from_value::<api_models::pm_auth::PaymentMethodAuthConfig>(val.expose())
@@ -2791,7 +2858,7 @@ async fn validate_pm_auth(
 pub async fn retrieve_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
@@ -2821,6 +2888,7 @@ pub async fn retrieve_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.clone(),
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
     Ok(service_api::ApplicationResponse::Json(
         mca.foreign_try_into()?,
@@ -2871,7 +2939,7 @@ pub async fn retrieve_connector(
 pub async fn list_payment_connectors(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<String>>,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -2899,6 +2967,10 @@ pub async fn list_payment_connectors(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+    let merchant_connector_accounts = core_utils::filter_objects_based_on_profile_id_list(
+        profile_id_list,
+        merchant_connector_accounts,
+    );
     let mut response = vec![];
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
@@ -2912,7 +2984,7 @@ pub async fn list_payment_connectors(
 pub async fn update_connector(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
-    _profile_id: Option<String>,
+    profile_id: Option<String>,
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
@@ -2942,6 +3014,7 @@ pub async fn update_connector(
             key_manager_state,
         )
         .await?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
     let payment_connector = req
         .clone()
@@ -2955,11 +3028,7 @@ pub async fn update_connector(
         .await?;
 
     // Profile id should always be present
-    let profile_id = mca
-        .profile_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Missing `profile_id` in merchant connector account")?;
+    let profile_id = mca.profile_id.clone();
 
     let request_connector_label = req.connector_label;
 
@@ -3251,31 +3320,29 @@ pub fn get_frm_config_as_secret(
     }
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
 pub async fn create_and_insert_business_profile(
     state: &SessionState,
     request: api::BusinessProfileCreate,
     merchant_account: domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-) -> RouterResult<storage::business_profile::BusinessProfile> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
-    let business_profile_new =
-        admin::create_business_profile(state, merchant_account, request, key_store).await?;
-
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let business_profile_new = {
-        let _ = merchant_account;
-        admin::create_business_profile(state, request, key_store).await?
-    };
+) -> RouterResult<domain::BusinessProfile> {
+    let business_profile_new = admin::create_business_profile_from_merchant_account(
+        state,
+        merchant_account,
+        request,
+        key_store,
+    )
+    .await?;
 
     let profile_name = business_profile_new.profile_name.clone();
 
     state
         .store
-        .insert_business_profile(business_profile_new)
+        .insert_business_profile(&state.into(), key_store, business_profile_new)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -3285,23 +3352,269 @@ pub async fn create_and_insert_business_profile(
         .attach_printable("Failed to insert Business profile because of duplication error")
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+trait BusinessProfileCreateBridge {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfile>;
+
+    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+    ) -> RouterResult<domain::BusinessProfile>;
+}
+
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfile> {
+        use common_utils::ext_traits::AsyncExt;
+
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        if let Some(intent_fulfillment_expiry) = self.intent_fulfillment_time {
+            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
+        }
+
+        if let Some(ref routing_algorithm) = self.routing_algorithm {
+            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+                .clone()
+                .parse_value("RoutingAlgorithm")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "routing_algorithm",
+                })
+                .attach_printable("Invalid routing algorithm given")?;
+        }
+
+        // Generate a unique profile id
+        let profile_id = common_utils::generate_id_with_default_len("pro");
+        let profile_name = self.profile_name.unwrap_or("default".to_string());
+
+        let current_time = date_time::now();
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        let payment_response_hash_key = self
+            .payment_response_hash_key
+            .or(merchant_account.payment_response_hash_key.clone())
+            .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
+
+        let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(error_stack::report!(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: e.to_string()
+                    }
+                )),
+            })
+            .transpose()?;
+
+        Ok(domain::BusinessProfile {
+            profile_id,
+            merchant_id: merchant_account.get_id().clone(),
+            profile_name,
+            created_at: current_time,
+            modified_at: current_time,
+            return_url: self
+                .return_url
+                .map(|return_url| return_url.to_string())
+                .or(merchant_account.return_url.clone()),
+            enable_payment_response_hash: self
+                .enable_payment_response_hash
+                .unwrap_or(merchant_account.enable_payment_response_hash),
+            payment_response_hash_key: Some(payment_response_hash_key),
+            redirect_to_merchant_with_http_post: self
+                .redirect_to_merchant_with_http_post
+                .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
+            webhook_details: webhook_details.or(merchant_account.webhook_details.clone()),
+            metadata: self.metadata,
+            routing_algorithm: None,
+            intent_fulfillment_time: self
+                .intent_fulfillment_time
+                .map(i64::from)
+                .or(merchant_account.intent_fulfillment_time)
+                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
+            frm_routing_algorithm: self
+                .frm_routing_algorithm
+                .or(merchant_account.frm_routing_algorithm.clone()),
+            #[cfg(feature = "payouts")]
+            payout_routing_algorithm: self
+                .payout_routing_algorithm
+                .or(merchant_account.payout_routing_algorithm.clone()),
+            #[cfg(not(feature = "payouts"))]
+            payout_routing_algorithm: None,
+            is_recon_enabled: merchant_account.is_recon_enabled,
+            applepay_verified_domains: self.applepay_verified_domains,
+            payment_link_config,
+            session_expiry: self
+                .session_expiry
+                .map(i64::from)
+                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: self
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config,
+            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+            is_extended_card_info_enabled: None,
+            extended_card_info_config: None,
+            use_billing_as_payment_method_billing: self
+                .use_billing_as_payment_method_billing
+                .or(Some(true)),
+            collect_shipping_details_from_wallet_connector: self
+                .collect_shipping_details_from_wallet_connector
+                .or(Some(false)),
+            collect_billing_details_from_wallet_connector: self
+                .collect_billing_details_from_wallet_connector
+                .or(Some(false)),
+            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                .map(Into::into),
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
+        })
+    }
+
+    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    async fn create_domain_model_from_request(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+    ) -> RouterResult<domain::BusinessProfile> {
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        // Generate a unique profile id
+        // TODO: the profile_id should be generated from the profile_name
+        let profile_id = common_utils::generate_id_with_default_len("pro");
+        let profile_name = self.profile_name;
+
+        let current_time = date_time::now();
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        let payment_response_hash_key = self
+            .payment_response_hash_key
+            .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
+
+        let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(error_stack::report!(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: e.to_string()
+                    }
+                )),
+            })
+            .transpose()?;
+
+        Ok(domain::BusinessProfile {
+            profile_id,
+            merchant_id: merchant_id.clone(),
+            profile_name,
+            created_at: current_time,
+            modified_at: current_time,
+            return_url: self.return_url.map(|return_url| return_url.to_string()),
+            enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
+            payment_response_hash_key: Some(payment_response_hash_key),
+            redirect_to_merchant_with_http_post: self
+                .redirect_to_merchant_with_http_post
+                .unwrap_or(true),
+            webhook_details,
+            metadata: self.metadata,
+            is_recon_enabled: false,
+            applepay_verified_domains: self.applepay_verified_domains,
+            payment_link_config,
+            session_expiry: self
+                .session_expiry
+                .map(i64::from)
+                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+            authentication_connector_details: self
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config,
+            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+            is_extended_card_info_enabled: None,
+            extended_card_info_config: None,
+            use_billing_as_payment_method_billing: self
+                .use_billing_as_payment_method_billing
+                .or(Some(true)),
+            collect_shipping_details_from_wallet_connector: self
+                .collect_shipping_details_from_wallet_connector_if_required
+                .or(Some(false)),
+            collect_billing_details_from_wallet_connector: self
+                .collect_billing_details_from_wallet_connector_if_required
+                .or(Some(false)),
+            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                .map(Into::into),
+            always_collect_billing_details_from_wallet_connector: self
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: self
+                .always_collect_shipping_details_from_wallet_connector,
+            routing_algorithm_id: None,
+            frm_routing_algorithm_id: None,
+            payout_routing_algorithm_id: None,
+            order_fulfillment_time: self
+                .order_fulfillment_time
+                .map(|order_fulfillment_time| order_fulfillment_time.into_inner())
+                .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
+            order_fulfillment_time_origin: self.order_fulfillment_time_origin,
+            default_fallback_routing: None,
+        })
+    }
+}
+
+#[cfg(feature = "olap")]
 pub async fn create_business_profile(
     state: SessionState,
     request: api::BusinessProfileCreate,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    if let Some(session_expiry) = &request.session_expiry {
-        helpers::validate_session_expiry(session_expiry.to_owned())?;
-    }
-
-    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
-    }
-
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store = db
@@ -3320,20 +3633,33 @@ pub async fn create_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
+    let business_profile = request
+        .create_domain_model_from_request(&state, &merchant_account, &key_store)
+        .await?;
 
-    let business_profile =
-        create_and_insert_business_profile(&state, request, merchant_account.clone(), &key_store)
-            .await?;
+    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    let business_profile = request
+        .create_domain_model_from_request(&state, &key_store, merchant_account.get_id())
+        .await?;
 
+    let profile_id = business_profile.profile_id.clone();
+
+    let business_profile = db
+        .insert_business_profile(key_manager_state, &key_store, business_profile)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: format!("Business Profile with the profile_id {profile_id} already exists"),
+        })
+        .attach_printable("Failed to insert Business profile because of duplication error")?;
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
     if merchant_account.default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
         db.update_merchant(
@@ -3347,20 +3673,10 @@ pub async fn create_business_profile(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        admin::business_profile_response(&state, business_profile, &key_store)
+        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")
-            .await?,
+            .attach_printable("Failed to parse business profile details")?,
     ))
-}
-
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-pub async fn create_business_profile(
-    _state: SessionState,
-    _request: api::BusinessProfileCreate,
-    _merchant_id: &id_type::MerchantId,
-) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    todo!()
 }
 
 pub async fn list_business_profile(
@@ -3377,16 +3693,16 @@ pub async fn list_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let profiles = db
-        .list_business_profile_by_merchant_id(&merchant_id)
+        .list_business_profile_by_merchant_id(&(&state).into(), &key_store, &merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         .clone();
     let mut business_profiles = Vec::new();
     for profile in profiles {
-        let business_profile = admin::business_profile_response(&state, profile, &key_store)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?;
+        let business_profile =
+            api_models::admin::BusinessProfileResponse::foreign_try_from(profile)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse business profile details")?;
         business_profiles.push(business_profile);
     }
 
@@ -3408,17 +3724,16 @@ pub async fn retrieve_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let business_profile = db
-        .find_business_profile_by_profile_id(&profile_id)
+        .find_business_profile_by_profile_id(&(&state).into(), &key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id,
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        admin::business_profile_response(&state, business_profile, &key_store)
+        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")
-            .await?,
+            .attach_printable("Failed to parse business profile details")?,
     ))
 }
 
@@ -3438,6 +3753,222 @@ pub async fn delete_business_profile(
     Ok(service_api::ApplicationResponse::Json(delete_result))
 }
 
+#[cfg(feature = "olap")]
+#[async_trait::async_trait]
+trait BusinessProfileUpdateBridge {
+    async fn get_update_business_profile_object(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfileUpdate>;
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "business_profile_v2")
+))]
+#[async_trait::async_trait]
+impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
+    async fn get_update_business_profile_object(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfileUpdate> {
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        if let Some(intent_fulfillment_expiry) = self.intent_fulfillment_time {
+            helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
+        }
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        if let Some(ref routing_algorithm) = self.routing_algorithm {
+            let _: api_models::routing::RoutingAlgorithm = routing_algorithm
+                .clone()
+                .parse_value("RoutingAlgorithm")
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "routing_algorithm",
+                })
+                .attach_printable("Invalid routing algorithm given")?;
+        }
+
+        let payment_link_config = self
+            .payment_link_config
+            .map(|payment_link_conf| match payment_link_conf.validate() {
+                Ok(_) => Ok(payment_link_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        let extended_card_info_config = self
+            .extended_card_info_config
+            .as_ref()
+            .map(|config| {
+                config.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "extended_card_info_config",
+                    },
+                )
+            })
+            .transpose()?
+            .map(Secret::new);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        Ok(domain::BusinessProfileUpdate::Update(Box::new(
+            domain::BusinessProfileGeneralUpdate {
+                profile_name: self.profile_name,
+                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                enable_payment_response_hash: self.enable_payment_response_hash,
+                payment_response_hash_key: self.payment_response_hash_key,
+                redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
+                webhook_details,
+                metadata: self.metadata,
+                routing_algorithm: self.routing_algorithm,
+                intent_fulfillment_time: self.intent_fulfillment_time.map(i64::from),
+                frm_routing_algorithm: self.frm_routing_algorithm,
+                #[cfg(feature = "payouts")]
+                payout_routing_algorithm: self.payout_routing_algorithm,
+                #[cfg(not(feature = "payouts"))]
+                payout_routing_algorithm: None,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self.session_expiry.map(i64::from),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                extended_card_info_config,
+                use_billing_as_payment_method_billing: self.use_billing_as_payment_method_billing,
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector,
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+            },
+        )))
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v2", feature = "business_profile_v2"))]
+#[async_trait::async_trait]
+impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
+    async fn get_update_business_profile_object(
+        self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<domain::BusinessProfileUpdate> {
+        if let Some(session_expiry) = &self.session_expiry {
+            helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
+
+        let payment_link_config = self
+            .payment_link_config
+            .map(|payment_link_conf| match payment_link_conf.validate() {
+                Ok(_) => Ok(payment_link_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        let extended_card_info_config = self
+            .extended_card_info_config
+            .as_ref()
+            .map(|config| {
+                config.encode_to_value().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "extended_card_info_config",
+                    },
+                )
+            })
+            .transpose()?
+            .map(Secret::new);
+        let outgoing_webhook_custom_http_headers = self
+            .outgoing_webhook_custom_http_headers
+            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let payout_link_config = self
+            .payout_link_config
+            .map(|payout_conf| match payout_conf.config.validate() {
+                Ok(_) => Ok(payout_conf.foreign_into()),
+                Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: e.to_string()
+                })),
+            })
+            .transpose()?;
+
+        Ok(domain::BusinessProfileUpdate::Update(Box::new(
+            domain::BusinessProfileGeneralUpdate {
+                profile_name: self.profile_name,
+                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                enable_payment_response_hash: self.enable_payment_response_hash,
+                payment_response_hash_key: self.payment_response_hash_key,
+                redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
+                webhook_details,
+                metadata: self.metadata,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self.session_expiry.map(i64::from),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                extended_card_info_config,
+                use_billing_as_payment_method_billing: self.use_billing_as_payment_method_billing,
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector_if_required,
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector_if_required,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                order_fulfillment_time: self
+                    .order_fulfillment_time
+                    .map(|order_fulfillment_time| order_fulfillment_time.into_inner()),
+                order_fulfillment_time_origin: self.order_fulfillment_time_origin,
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+            },
+        )))
+    }
+}
+
+#[cfg(feature = "olap")]
 pub async fn update_business_profile(
     state: SessionState,
     profile_id: &str,
@@ -3445,12 +3976,6 @@ pub async fn update_business_profile(
     request: api::BusinessProfileUpdate,
 ) -> RouterResponse<api::BusinessProfileResponse> {
     let db = state.store.as_ref();
-    let business_profile = db
-        .find_business_profile_by_profile_id(profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_owned(),
-        })?;
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             &(&state).into(),
@@ -3460,6 +3985,14 @@ pub async fn update_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
+    let key_manager_state = &(&state).into();
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
 
     if business_profile.merchant_id != *merchant_id {
         Err(errors::ApiErrorResponse::AccessForbidden {
@@ -3467,124 +4000,195 @@ pub async fn update_business_profile(
         })?
     }
 
-    if let Some(session_expiry) = &request.session_expiry {
-        helpers::validate_session_expiry(session_expiry.to_owned())?;
-    }
-
-    if let Some(intent_fulfillment_expiry) = &request.intent_fulfillment_time {
-        helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry.to_owned())?;
-    }
-
-    let webhook_details = request.webhook_details.map(ForeignInto::foreign_into);
-
-    if let Some(ref routing_algorithm) = request.routing_algorithm {
-        let _: api_models::routing::RoutingAlgorithm = routing_algorithm
-            .clone()
-            .parse_value("RoutingAlgorithm")
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "routing_algorithm",
-            })
-            .attach_printable("Invalid routing algorithm given")?;
-    }
-
-    let payment_link_config = request
-        .payment_link_config
-        .map(|payment_link_conf| match payment_link_conf.validate() {
-            Ok(_) => Ok(payment_link_conf.foreign_into()),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
-        })
-        .transpose()?;
-
-    let extended_card_info_config = request
-        .extended_card_info_config
-        .as_ref()
-        .map(|config| {
-            config
-                .encode_to_value()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "extended_card_info_config",
-                })
-        })
-        .transpose()?
-        .map(Secret::new);
-    let outgoing_webhook_custom_http_headers = request
-        .outgoing_webhook_custom_http_headers
-        .async_map(|headers| create_encrypted_data(&state, &key_store, headers))
-        .await
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
-
-    let payout_link_config = request
-        .payout_link_config
-        .map(|payout_conf| match payout_conf.config.validate() {
-            Ok(_) => Ok(payout_conf.foreign_into()),
-            Err(e) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: e.to_string()
-            })),
-        })
-        .transpose()?;
-
-    let business_profile_update =
-        storage::BusinessProfileUpdate::Update(Box::new(storage::BusinessProfileGeneralUpdate {
-            profile_name: request.profile_name,
-            return_url: request.return_url.map(|return_url| return_url.to_string()),
-            enable_payment_response_hash: request.enable_payment_response_hash,
-            payment_response_hash_key: request.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
-            webhook_details,
-            metadata: request.metadata,
-            routing_algorithm: request.routing_algorithm,
-            intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
-            frm_routing_algorithm: request.frm_routing_algorithm,
-            #[cfg(feature = "payouts")]
-            payout_routing_algorithm: request.payout_routing_algorithm,
-            #[cfg(not(feature = "payouts"))]
-            payout_routing_algorithm: None,
-            is_recon_enabled: None,
-            applepay_verified_domains: request.applepay_verified_domains,
-            payment_link_config,
-            session_expiry: request.session_expiry.map(i64::from),
-            authentication_connector_details: request
-                .authentication_connector_details
-                .map(ForeignInto::foreign_into),
-            payout_link_config,
-            extended_card_info_config,
-            use_billing_as_payment_method_billing: request.use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector: request
-                .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector: request
-                .collect_billing_details_from_wallet_connector,
-            is_connector_agnostic_mit_enabled: request.is_connector_agnostic_mit_enabled,
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
-        }));
+    let business_profile_update = request
+        .get_update_business_profile_object(&state, &key_store)
+        .await?;
 
     let updated_business_profile = db
-        .update_business_profile_by_profile_id(business_profile, business_profile_update)
+        .update_business_profile_by_profile_id(
+            key_manager_state,
+            &key_store,
+            business_profile,
+            business_profile_update,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_owned(),
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        admin::business_profile_response(&state, updated_business_profile, &key_store)
+        api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")
-            .await?,
+            .attach_printable("Failed to parse business profile details")?,
     ))
+}
+
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+#[derive(Clone, Debug)]
+pub struct BusinessProfileWrapper {
+    pub profile: domain::BusinessProfile,
+}
+
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+impl BusinessProfileWrapper {
+    pub fn new(profile: domain::BusinessProfile) -> Self {
+        Self { profile }
+    }
+    fn get_routing_config_cache_key(self) -> storage_impl::redis::cache::CacheKind<'static> {
+        let merchant_id = self.profile.merchant_id.clone();
+
+        let profile_id = self.profile.profile_id.clone();
+
+        storage_impl::redis::cache::CacheKind::Routing(
+            format!(
+                "routing_config_{}_{profile_id}",
+                merchant_id.get_string_repr()
+            )
+            .into(),
+        )
+    }
+
+    pub async fn update_business_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
+        self,
+        db: &dyn StorageInterface,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        algorithm_id: String,
+        transaction_type: &storage::enums::TransactionType,
+    ) -> RouterResult<()> {
+        let routing_cache_key = self.clone().get_routing_config_cache_key();
+
+        let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
+            storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
+            #[cfg(feature = "payouts")]
+            storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
+        };
+
+        let business_profile_update = domain::BusinessProfileUpdate::RoutingAlgorithmUpdate {
+            routing_algorithm_id,
+            payout_routing_algorithm_id,
+        };
+
+        let profile = self.profile;
+
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+
+        storage_impl::redis::cache::publish_into_redact_channel(
+            db.get_cache_store().as_ref(),
+            [routing_cache_key],
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to invalidate routing cache")?;
+        Ok(())
+    }
+
+    pub fn get_routing_algorithm_id<'a, F>(
+        &'a self,
+        transaction_data: &'a routing::TransactionData<'_, F>,
+    ) -> Option<String>
+    where
+        F: Send + Clone,
+    {
+        match transaction_data {
+            routing::TransactionData::Payment(_) => self.profile.routing_algorithm_id.clone(),
+            #[cfg(feature = "payouts")]
+            routing::TransactionData::Payout(_) => self.profile.payout_routing_algorithm_id.clone(),
+        }
+    }
+    pub fn get_default_fallback_list_of_connector_under_profile(
+        &self,
+    ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
+        use masking::ExposeOptionInterface;
+        self.profile
+            .default_fallback_routing
+            .clone()
+            .expose_option()
+            .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                "Vec<RoutableConnectorChoice>",
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Merchant default config has invalid structure")
+    }
+    pub fn get_default_routing_configs_from_profile(
+        &self,
+    ) -> RouterResult<routing_types::ProfileDefaultRoutingConfig> {
+        let profile_id = self.profile.profile_id.clone();
+        let connectors = self.get_default_fallback_list_of_connector_under_profile()?;
+
+        Ok(routing_types::ProfileDefaultRoutingConfig {
+            profile_id,
+            connectors,
+        })
+    }
+
+    pub async fn update_default_fallback_routing_of_connectors_under_profile(
+        self,
+        db: &dyn StorageInterface,
+        updated_config: &Vec<routing_types::RoutableConnectorChoice>,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<()> {
+        let default_fallback_routing = Secret::from(
+            updated_config
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert routing ref to value")?,
+        );
+        let business_profile_update = domain::BusinessProfileUpdate::DefaultRoutingFallbackUpdate {
+            default_fallback_routing: Some(default_fallback_routing),
+        };
+
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            merchant_key_store,
+            self.profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
+        Ok(())
+    }
 }
 
 pub async fn extended_card_info_toggle(
     state: SessionState,
+    merchant_id: &id_type::MerchantId,
     profile_id: &str,
     ext_card_info_choice: admin_types::ExtendedCardInfoChoice,
 ) -> RouterResponse<admin_types::ExtendedCardInfoChoice> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
     let business_profile = db
-        .find_business_profile_by_profile_id(profile_id)
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
@@ -3595,16 +4199,20 @@ pub async fn extended_card_info_toggle(
             .is_extended_card_info_enabled
             .is_some_and(|existing_config| existing_config != ext_card_info_choice.enabled)
     {
-        let business_profile_update =
-            storage::business_profile::BusinessProfileUpdate::ExtendedCardInfoUpdate {
-                is_extended_card_info_enabled: Some(ext_card_info_choice.enabled),
-            };
+        let business_profile_update = domain::BusinessProfileUpdate::ExtendedCardInfoUpdate {
+            is_extended_card_info_enabled: Some(ext_card_info_choice.enabled),
+        };
 
-        db.update_business_profile_by_profile_id(business_profile, business_profile_update)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_owned(),
-            })?;
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            &key_store,
+            business_profile,
+            business_profile_update,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
     }
 
     Ok(service_api::ApplicationResponse::Json(ext_card_info_choice))
@@ -3617,9 +4225,20 @@ pub async fn connector_agnostic_mit_toggle(
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
     let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(profile_id)
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_string(),
@@ -3634,16 +4253,20 @@ pub async fn connector_agnostic_mit_toggle(
     if business_profile.is_connector_agnostic_mit_enabled
         != Some(connector_agnostic_mit_choice.enabled)
     {
-        let business_profile_update =
-            storage::business_profile::BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
-                is_connector_agnostic_mit_enabled: Some(connector_agnostic_mit_choice.enabled),
-            };
+        let business_profile_update = domain::BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
+            is_connector_agnostic_mit_enabled: Some(connector_agnostic_mit_choice.enabled),
+        };
 
-        db.update_business_profile_by_profile_id(business_profile, business_profile_update)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_owned(),
-            })?;
+        db.update_business_profile_by_profile_id(
+            key_manager_state,
+            &key_store,
+            business_profile,
+            business_profile_update,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
     }
 
     Ok(service_api::ApplicationResponse::Json(

@@ -41,6 +41,9 @@ jobs:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
 
+    env:
+      RUSTFLAGS: "-D warnings"
+
     strategy:
       fail-fast: true
       matrix:
@@ -87,10 +90,6 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
         shell: bash
@@ -125,6 +124,9 @@ jobs:
   test:
     name: Run tests on stable toolchain
     runs-on: ${{ matrix.runner }}
+
+    env:
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: true
@@ -171,16 +173,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2.7.0
         with:
           save-if: ${{ github.event_name == 'push' }}
-
-      # - name: Setup Embark Studios lint rules
-      #   shell: bash
-      #   run: |
-      #     mkdir -p .cargo
-      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
-
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Run clippy
         shell: bash

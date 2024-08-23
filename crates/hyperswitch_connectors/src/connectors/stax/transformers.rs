@@ -117,7 +117,8 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Stax"),
             ))?,
         }
@@ -267,7 +268,8 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Stax"),
             ))?,
         }

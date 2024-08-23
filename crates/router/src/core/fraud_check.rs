@@ -1,10 +1,9 @@
 use std::fmt::Debug;
 
-use api_models::{admin::FrmConfigs, enums as api_enums};
+use api_models::{self, enums as api_enums};
 use common_enums::CaptureMethod;
-use common_utils::ext_traits::OptionExt;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface};
+use masking::PeekInterface;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -120,7 +119,25 @@ where
     Ok(router_data_res)
 }
 
-pub async fn should_call_frm<F>(
+#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+pub async fn should_call_frm<F: Send + Clone>(
+    _merchant_account: &domain::MerchantAccount,
+    _payment_data: &payments::PaymentData<F>,
+    _state: &SessionState,
+    _key_store: domain::MerchantKeyStore,
+) -> RouterResult<(
+    bool,
+    Option<FrmRoutingAlgorithm>,
+    Option<String>,
+    Option<FrmConfigsObject>,
+)> {
+    // Frm routing algorithm is not present in the merchant account
+    // it has to be fetched from the business profile
+    todo!()
+}
+
+#[cfg(all(feature = "v1", not(feature = "merchant_account_v2")))]
+pub async fn should_call_frm<F: Send + Clone>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &payments::PaymentData<F>,
     state: &SessionState,
@@ -130,13 +147,13 @@ pub async fn should_call_frm<F>(
     Option<FrmRoutingAlgorithm>,
     Option<String>,
     Option<FrmConfigsObject>,
-)>
-where
-    F: Send + Clone,
-{
+)> {
+    use common_utils::ext_traits::OptionExt;
+    use masking::ExposeInterface;
+
+    let db = &*state.store;
     match merchant_account.frm_routing_algorithm.clone() {
         Some(frm_routing_algorithm_value) => {
-            let db = &*state.store;
             let frm_routing_algorithm_struct: FrmRoutingAlgorithm = frm_routing_algorithm_value
                 .clone()
                 .parse_value("FrmRoutingAlgorithm")
@@ -166,10 +183,26 @@ where
                     &key_store,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.get_id().get_string_repr().to_owned(),
+                .map_err(|error| {
+                    logger::error!(
+                        "{:?}",
+                        error.change_context(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_account.get_id().get_string_repr().to_owned(),
+                            }
+                        )
+                    )
                 })
                 .ok();
+            let enabled_merchant_connector_account_from_db_option =
+                merchant_connector_account_from_db_option.and_then(|mca| {
+                    if mca.disabled.unwrap_or(false) {
+                        logger::info!("No eligible connector found for FRM");
+                        None
+                    } else {
+                        Some(mca)
+                    }
+                });
 
             #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
             let merchant_connector_account_from_db_option: Option<
@@ -181,7 +214,7 @@ where
                 todo!()
             };
 
-            match merchant_connector_account_from_db_option {
+            match enabled_merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
                     let frm_configs_option = merchant_connector_account_from_db
                         .frm_configs
@@ -191,7 +224,7 @@ where
                         .ok();
                     match frm_configs_option {
                         Some(frm_configs_value) => {
-                            let frm_configs_struct: Vec<FrmConfigs> = frm_configs_value
+                            let frm_configs_struct: Vec<api_models::admin::FrmConfigs> = frm_configs_value
                                 .into_iter()
                                 .map(|config| { config
                                     .expose()

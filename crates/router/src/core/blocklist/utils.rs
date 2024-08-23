@@ -304,7 +304,7 @@ where
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
-    let card_number_fingerprint = if let Some(api_models::payments::PaymentMethodData::Card(card)) =
+    let card_number_fingerprint = if let Some(domain::PaymentMethodData::Card(card)) =
         payment_data.payment_method_data.as_ref()
     {
         generate_fingerprint(
@@ -332,9 +332,7 @@ where
         .payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            api_models::payments::PaymentMethodData::Card(card) => {
-                Some(card.card_number.get_card_isin())
-            }
+            domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
             _ => None,
         });
 
@@ -344,7 +342,7 @@ where
             .payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                api_models::payments::PaymentMethodData::Card(card) => {
+                domain::PaymentMethodData::Card(card) => {
                     Some(card.card_number.get_extended_card_bin())
                 }
                 _ => None,
@@ -446,14 +444,12 @@ where
 pub async fn generate_payment_fingerprint(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_method_data: Option<crate::types::api::PaymentMethodData>,
+    payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
 
     Ok(
-        if let Some(api_models::payments::PaymentMethodData::Card(card)) =
-            payment_method_data.as_ref()
-        {
+        if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
             generate_fingerprint(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),

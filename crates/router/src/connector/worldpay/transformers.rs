@@ -109,10 +109,13 @@ fn fetch_payment_instrument(
         | domain::PaymentMethodData::CardRedirect(_)
         | domain::PaymentMethodData::GiftCard(_)
         | domain::PaymentMethodData::OpenBanking(_)
-        | domain::PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
-            utils::get_unimplemented_payment_method_error_message("worldpay"),
-        )
-        .into()),
+        | domain::PaymentMethodData::CardToken(_)
+        | domain::PaymentMethodData::NetworkToken(_) => {
+            Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("worldpay"),
+            )
+            .into())
+        }
     }
 }
 

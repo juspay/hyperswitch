@@ -4,7 +4,7 @@ use std::{borrow::Cow, str::FromStr};
 use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
-    payments::{AddressDetailsWithPhone, CardToken, GetPaymentMethodType, RequestSurchargeDetails},
+    payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
 };
 use base64::Engine;
 use common_enums::ConnectorType;
@@ -25,6 +25,7 @@ use futures::future::Either;
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_domain_models::{
     mandates::MandateData,
+    payment_method_data::GetPaymentMethodType,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
     router_data::KlarnaSdkResponse,
 };
@@ -44,6 +45,12 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
@@ -123,15 +130,12 @@ pub fn create_certificate(
 
 pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<&String>,
+    profile_id: &String,
     connector_type: ConnectorType,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
         .into_iter()
-        .filter(|mca| {
-            profile_id.map_or(true, |id| mca.profile_id.as_ref() == Some(id))
-                && mca.connector_type == connector_type
-        })
+        .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
         .collect()
 }
 
@@ -446,6 +450,20 @@ pub async fn get_token_pm_type_mandate_details(
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
                 Some(recurring_details) => match recurring_details {
+                    RecurringDetails::ProcessorPaymentToken(processor_payment_token) => (
+                        None,
+                        request.payment_method,
+                        None,
+                        None,
+                        None,
+                        Some(payments::MandateConnectorDetails {
+                            connector: processor_payment_token.connector.to_string(),
+                            merchant_connector_id: Some(
+                                processor_payment_token.merchant_connector_id.clone(),
+                            ),
+                        }),
+                        None,
+                    ),
                     RecurringDetails::MandateId(mandate_id) => {
                         let mandate_generic_data = get_token_for_recurring_mandate(
                             state,
@@ -1168,26 +1186,31 @@ pub fn create_complete_authorize_url(
 }
 
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
-    req.recurring_details
-        .check_value_present("recurring_details")?;
+    let recurring_details = req
+        .recurring_details
+        .get_required_value("recurring_details")?;
 
-    req.customer_id.check_value_present("customer_id")?;
+    match recurring_details {
+        RecurringDetails::ProcessorPaymentToken(_) => Ok(()),
+        _ => {
+            req.customer_id.check_value_present("customer_id")?;
 
-    let confirm = req.confirm.get_required_value("confirm")?;
-    if !confirm {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`confirm` must be `true` for mandates".into()
-        }))?
+            let confirm = req.confirm.get_required_value("confirm")?;
+            if !confirm {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "`confirm` must be `true` for mandates".into()
+                }))?
+            }
+
+            let off_session = req.off_session.get_required_value("off_session")?;
+            if !off_session {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "`off_session` should be `true` for mandates".into()
+                }))?
+            }
+            Ok(())
+        }
     }
-
-    let off_session = req.off_session.get_required_value("off_session")?;
-    if !off_session {
-        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: "`off_session` should be `true` for mandates".into()
-        }))?
-    }
-
-    Ok(())
 }
 
 pub fn verify_mandate_details(
@@ -1414,6 +1437,19 @@ pub(crate) async fn get_payment_method_create_request(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn get_customer_from_details<F: Clone>(
+    _state: &SessionState,
+    _customer_id: Option<id_type::CustomerId>,
+    _merchant_id: &id_type::MerchantId,
+    _payment_data: &mut PaymentData<F>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_customer_from_details<F: Clone>(
     state: &SessionState,
     customer_id: Option<id_type::CustomerId>,
@@ -1435,6 +1471,7 @@ pub async fn get_customer_from_details<F: Clone>(
                     storage_scheme,
                 )
                 .await?;
+
             payment_data.email = payment_data.email.clone().or_else(|| {
                 customer.as_ref().and_then(|inner| {
                     inner
@@ -1709,7 +1746,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         address_id: None,
                         default_payment_method_id: None,
                         updated_by: None,
-                        version: common_enums::ApiVersion::V1,
+                        version: hyperswitch_domain_models::consts::API_VERSION,
                     };
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
@@ -1757,8 +1794,8 @@ pub async fn retrieve_payment_method_with_temporary_token(
     token: &str,
     payment_intent: &PaymentIntent,
     merchant_key_store: &domain::MerchantKeyStore,
-    card_token_data: Option<&CardToken>,
-) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
+    card_token_data: Option<&domain::CardToken>,
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let (pm, supplementary_data) =
         vault::Vault::get_payment_method_data_from_locker(state, token, merchant_key_store)
             .await
@@ -1776,31 +1813,18 @@ pub async fn retrieve_payment_method_with_temporary_token(
     )?;
 
     Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm {
-        Some(api::PaymentMethodData::Card(card)) => {
+        Some(domain::PaymentMethodData::Card(card)) => {
             let mut updated_card = card.clone();
             let mut is_card_updated = false;
 
             // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
             // from payment_method_data.card_token object
-            let name_on_card = if let Some(name) = card.card_holder_name.clone() {
-                if name.clone().expose().is_empty() {
-                    card_token_data
-                        .and_then(|token_data| {
-                            is_card_updated = true;
-                            token_data.card_holder_name.clone()
-                        })
-                        .or(Some(name))
-                } else {
-                    card.card_holder_name.clone()
-                }
-            } else {
-                card_token_data.and_then(|token_data| {
-                    is_card_updated = true;
-                    token_data.card_holder_name.clone()
-                })
-            };
+            let name_on_card = card_token_data.and_then(|token_data| {
+                is_card_updated = true;
+                token_data.card_holder_name.clone()
+            });
 
-            updated_card.card_holder_name = name_on_card;
+            updated_card.nick_name = name_on_card;
 
             if let Some(token_data) = card_token_data {
                 if let Some(cvc) = token_data.card_cvc.clone() {
@@ -1810,7 +1834,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
             }
 
             if is_card_updated {
-                let updated_pm = api::PaymentMethodData::Card(updated_card);
+                let updated_pm = domain::PaymentMethodData::Card(updated_card);
                 vault::Vault::store_payment_method_data_in_locker(
                     state,
                     Some(token.to_owned()),
@@ -1824,21 +1848,21 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 Some((updated_pm, enums::PaymentMethod::Card))
             } else {
                 Some((
-                    api::PaymentMethodData::Card(card),
+                    domain::PaymentMethodData::Card(card),
                     enums::PaymentMethod::Card,
                 ))
             }
         }
 
-        Some(the_pm @ api::PaymentMethodData::Wallet(_)) => {
+        Some(the_pm @ domain::PaymentMethodData::Wallet(_)) => {
             Some((the_pm, enums::PaymentMethod::Wallet))
         }
 
-        Some(the_pm @ api::PaymentMethodData::BankTransfer(_)) => {
+        Some(the_pm @ domain::PaymentMethodData::BankTransfer(_)) => {
             Some((the_pm, enums::PaymentMethod::BankTransfer))
         }
 
-        Some(the_pm @ api::PaymentMethodData::BankRedirect(_)) => {
+        Some(the_pm @ domain::PaymentMethodData::BankRedirect(_)) => {
             Some((the_pm, enums::PaymentMethod::BankRedirect))
         }
 
@@ -1854,10 +1878,10 @@ pub async fn retrieve_card_with_permanent_token(
     locker_id: &str,
     _payment_method_id: &str,
     payment_intent: &PaymentIntent,
-    card_token_data: Option<&CardToken>,
+    card_token_data: Option<&domain::CardToken>,
     _merchant_key_store: &domain::MerchantKeyStore,
     _storage_scheme: enums::MerchantStorageScheme,
-) -> RouterResult<api::PaymentMethodData> {
+) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
         .as_ref()
@@ -1911,7 +1935,7 @@ pub async fn retrieve_card_with_permanent_token(
         bank_code: None,
     };
 
-    Ok(api::PaymentMethodData::Card(api_card))
+    Ok(domain::PaymentMethodData::Card(api_card.into()))
 }
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
@@ -2006,22 +2030,22 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
-    Option<api::PaymentMethodData>,
+    Option<domain::PaymentMethodData>,
     Option<String>,
 )> {
-    let request = &payment_data.payment_method_data.clone();
+    let request = payment_data.payment_method_data.clone();
 
     let mut card_token_data = payment_data
         .payment_method_data
         .clone()
         .and_then(|pmd| match pmd {
-            api_models::payments::PaymentMethodData::CardToken(token_data) => Some(token_data),
+            domain::PaymentMethodData::CardToken(token_data) => Some(token_data),
             _ => None,
         })
-        .or(Some(CardToken::default()));
+        .or(Some(domain::CardToken::default()));
 
     if let Some(cvc) = payment_data.card_cvc.clone() {
         if let Some(token_data) = card_token_data.as_mut() {
@@ -2049,7 +2073,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     }
 
     // TODO: Handle case where payment method and token both are present in request properly.
-    let (payment_method, pm_id) = match (request, payment_data.token_data.as_ref()) {
+    let (payment_method, pm_id) = match (&request, payment_data.token_data.as_ref()) {
         (_, Some(hyperswitch_token)) => {
             let pm_data = payment_methods::retrieve_payment_method_with_token(
                 state,
@@ -2080,7 +2104,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
         (Some(_), _) => {
             let (payment_method_data, payment_token) = payment_methods::retrieve_payment_method(
-                request,
+                &request,
                 state,
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
@@ -2101,12 +2125,12 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
 pub async fn store_in_vault_and_generate_ppmt(
     state: &SessionState,
-    payment_method_data: &api_models::payments::PaymentMethodData,
+    payment_method_data: &domain::PaymentMethodData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
@@ -2126,7 +2150,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     });
 
     let intent_fulfillment_time = business_profile
-        .and_then(|b_profile| b_profile.intent_fulfillment_time)
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
         .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
 
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
@@ -2146,9 +2170,9 @@ pub async fn store_payment_method_data_in_vault(
     payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
-    payment_method_data: &api::PaymentMethodData,
+    payment_method_data: &domain::PaymentMethodData,
     merchant_key_store: &domain::MerchantKeyStore,
-    business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
         &state.conf.temp_locker_enable_config,
@@ -2566,7 +2590,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -2587,7 +2611,7 @@ pub fn get_handle_response_url(
 }
 
 pub fn make_merchant_url_with_response(
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
     client_secret: Option<&masking::Secret<String>>,
@@ -2696,7 +2720,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    business_profile: &diesel_models::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3069,6 +3093,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3133,6 +3158,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3195,6 +3221,7 @@ mod tests {
             billing_details: None,
             merchant_order_reference_id: None,
             shipping_details: None,
+            is_payment_processor_token_flow: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3886,12 +3913,13 @@ mod test {
 
 #[instrument(skip_all)]
 pub async fn get_additional_payment_data(
-    pm_data: &api_models::payments::PaymentMethodData,
+    pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
     profile_id: &str,
-) -> api_models::payments::AdditionalPaymentData {
+) -> Option<api_models::payments::AdditionalPaymentData> {
     match pm_data {
-        api_models::payments::PaymentMethodData::Card(card_data) => {
+        domain::PaymentMethodData::Card(card_data) => {
+            //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
@@ -3912,7 +3940,7 @@ pub async fn get_additional_payment_data(
                 && card_data.card_issuing_country.is_some()
                 && card_data.bank_code.is_some()
             {
-                api_models::payments::AdditionalPaymentData::Card(Box::new(
+                Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
                     api_models::payments::AdditionalCardInfo {
                         card_issuer: card_data.card_issuer.to_owned(),
                         card_network: card_data.card_network.clone(),
@@ -3921,7 +3949,7 @@ pub async fn get_additional_payment_data(
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: card_data.card_holder_name.clone(),
+                        card_holder_name: card_data.nick_name.clone(), //todo!
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
@@ -3929,7 +3957,7 @@ pub async fn get_additional_payment_data(
                         payment_checks: None,
                         authentication_data: None,
                     },
-                ))
+                )))
             } else {
                 let card_info = card_isin
                     .clone()
@@ -3954,14 +3982,14 @@ pub async fn get_additional_payment_data(
                                 card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.card_holder_name.clone(),
+                                card_holder_name: card_data.nick_name.clone(), //todo!
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
                             },
                         ))
                     });
-                card_info.unwrap_or_else(|| {
+                Some(card_info.unwrap_or_else(|| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: None,
@@ -3974,77 +4002,82 @@ pub async fn get_additional_payment_data(
                             card_extended_bin,
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
-                            card_holder_name: card_data.card_holder_name.clone(),
+                            card_holder_name: card_data.nick_name.clone(), //todo!
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
                         },
                     ))
+                }))
+            }
+        }
+        domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
+            domain::BankRedirectData::Eps { bank_name, .. } => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: bank_name.to_owned(),
                 })
             }
-        }
-        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
-            match bank_redirect_data {
-                api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
-                    api_models::payments::AdditionalPaymentData::BankRedirect {
-                        bank_name: bank_name.to_owned(),
-                    }
-                }
-                api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
-                    api_models::payments::AdditionalPaymentData::BankRedirect {
-                        bank_name: bank_name.to_owned(),
-                    }
-                }
-                _ => api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None },
+            domain::BankRedirectData::Ideal { bank_name, .. } => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: bank_name.to_owned(),
+                })
             }
-        }
-        api_models::payments::PaymentMethodData::Wallet(wallet) => match wallet {
-            api_models::payments::WalletData::ApplePay(apple_pay_wallet_data) => {
-                api_models::payments::AdditionalPaymentData::Wallet {
-                    apple_pay: Some(apple_pay_wallet_data.payment_method.to_owned()),
-                }
+            _ => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None })
             }
-            _ => api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None },
         },
-        api_models::payments::PaymentMethodData::PayLater(_) => {
-            api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None }
+        domain::PaymentMethodData::Wallet(wallet) => match wallet {
+            domain::WalletData::ApplePay(apple_pay_wallet_data) => {
+                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                    apple_pay: Some(api_models::payments::ApplepayPaymentMethod {
+                        display_name: apple_pay_wallet_data.payment_method.display_name.clone(),
+                        network: apple_pay_wallet_data.payment_method.network.clone(),
+                        pm_type: apple_pay_wallet_data.payment_method.pm_type.clone(),
+                    }),
+                })
+            }
+            _ => Some(api_models::payments::AdditionalPaymentData::Wallet { apple_pay: None }),
+        },
+        domain::PaymentMethodData::PayLater(_) => {
+            Some(api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None })
         }
-        api_models::payments::PaymentMethodData::BankTransfer(_) => {
-            api_models::payments::AdditionalPaymentData::BankTransfer {}
+        domain::PaymentMethodData::BankTransfer(_) => {
+            Some(api_models::payments::AdditionalPaymentData::BankTransfer {})
         }
-        api_models::payments::PaymentMethodData::Crypto(_) => {
-            api_models::payments::AdditionalPaymentData::Crypto {}
+        domain::PaymentMethodData::Crypto(_) => {
+            Some(api_models::payments::AdditionalPaymentData::Crypto {})
         }
-        api_models::payments::PaymentMethodData::BankDebit(_) => {
-            api_models::payments::AdditionalPaymentData::BankDebit {}
+        domain::PaymentMethodData::BankDebit(_) => {
+            Some(api_models::payments::AdditionalPaymentData::BankDebit {})
         }
-        api_models::payments::PaymentMethodData::MandatePayment => {
-            api_models::payments::AdditionalPaymentData::MandatePayment {}
+        domain::PaymentMethodData::MandatePayment => {
+            Some(api_models::payments::AdditionalPaymentData::MandatePayment {})
         }
-        api_models::payments::PaymentMethodData::Reward => {
-            api_models::payments::AdditionalPaymentData::Reward {}
+        domain::PaymentMethodData::Reward => {
+            Some(api_models::payments::AdditionalPaymentData::Reward {})
         }
-        api_models::payments::PaymentMethodData::RealTimePayment(_) => {
-            api_models::payments::AdditionalPaymentData::RealTimePayment {}
+        domain::PaymentMethodData::RealTimePayment(_) => {
+            Some(api_models::payments::AdditionalPaymentData::RealTimePayment {})
         }
-        api_models::payments::PaymentMethodData::Upi(_) => {
-            api_models::payments::AdditionalPaymentData::Upi {}
+        domain::PaymentMethodData::Upi(_) => {
+            Some(api_models::payments::AdditionalPaymentData::Upi {})
         }
-        api_models::payments::PaymentMethodData::CardRedirect(_) => {
-            api_models::payments::AdditionalPaymentData::CardRedirect {}
+        domain::PaymentMethodData::CardRedirect(_) => {
+            Some(api_models::payments::AdditionalPaymentData::CardRedirect {})
         }
-        api_models::payments::PaymentMethodData::Voucher(_) => {
-            api_models::payments::AdditionalPaymentData::Voucher {}
+        domain::PaymentMethodData::Voucher(_) => {
+            Some(api_models::payments::AdditionalPaymentData::Voucher {})
         }
-        api_models::payments::PaymentMethodData::GiftCard(_) => {
-            api_models::payments::AdditionalPaymentData::GiftCard {}
+        domain::PaymentMethodData::GiftCard(_) => {
+            Some(api_models::payments::AdditionalPaymentData::GiftCard {})
         }
-        api_models::payments::PaymentMethodData::CardToken(_) => {
-            api_models::payments::AdditionalPaymentData::CardToken {}
+        domain::PaymentMethodData::CardToken(_) => {
+            Some(api_models::payments::AdditionalPaymentData::CardToken {})
         }
-        api_models::payments::PaymentMethodData::OpenBanking(_) => {
-            api_models::payments::AdditionalPaymentData::OpenBanking {}
+        domain::PaymentMethodData::OpenBanking(_) => {
+            Some(api_models::payments::AdditionalPaymentData::OpenBanking {})
         }
+        domain::PaymentMethodData::NetworkToken(_) => None,
     }
 }
 
@@ -4240,18 +4273,12 @@ pub async fn get_apple_pay_retryable_connectors<F>(
     key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&String>,
+    business_profile: domain::BusinessProfile,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
 {
-    let profile_id = &payment_data
-        .payment_intent
-        .profile_id
-        .clone()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })?;
+    let profile_id = &business_profile.profile_id;
 
     let pre_decided_connector_data_first = pre_routing_connector_data_list
         .first()
@@ -4289,7 +4316,7 @@ where
         let profile_specific_merchant_connector_account_list =
             filter_mca_based_on_profile_and_connector_type(
                 merchant_connector_account_list,
-                Some(profile_id),
+                profile_id,
                 ConnectorType::PaymentProcessor,
             );
 
@@ -4320,7 +4347,10 @@ where
                 }
             }
         }
-
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(any(feature = "routing_v2", feature = "business_profile_v2"))
+        ))]
         let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             profile_id,
@@ -4329,6 +4359,16 @@ where
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
+
+        #[cfg(all(
+            feature = "v2",
+            feature = "routing_v2",
+            feature = "business_profile_v2"
+        ))]
+        let fallback_connetors_list = core_admin::BusinessProfileWrapper::new(business_profile)
+            .get_default_fallback_list_of_connector_under_profile()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get merchant default fallback connectors config")?;
 
         let mut routing_connector_data_list = Vec::new();
 
@@ -4532,14 +4572,14 @@ impl ApplePayData {
 }
 
 pub fn get_key_params_for_surcharge_details(
-    payment_method_data: &api_models::payments::PaymentMethodData,
+    payment_method_data: &domain::PaymentMethodData,
 ) -> Option<(
     common_enums::PaymentMethod,
     common_enums::PaymentMethodType,
     Option<common_enums::CardNetwork>,
 )> {
     match payment_method_data {
-        api_models::payments::PaymentMethodData::Card(card) => {
+        domain::PaymentMethodData::Card(card) => {
             // surcharge generated will always be same for credit as well as debit
             // since surcharge conditions cannot be defined on card_type
             Some((
@@ -4548,69 +4588,70 @@ pub fn get_key_params_for_surcharge_details(
                 card.card_network.clone(),
             ))
         }
-        api_models::payments::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
+        domain::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
             common_enums::PaymentMethod::CardRedirect,
             card_redirect_data.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Wallet(wallet) => Some((
+        domain::PaymentMethodData::Wallet(wallet) => Some((
             common_enums::PaymentMethod::Wallet,
             wallet.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::PayLater(pay_later) => Some((
+        domain::PaymentMethodData::PayLater(pay_later) => Some((
             common_enums::PaymentMethod::PayLater,
             pay_later.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankRedirect(bank_redirect) => Some((
+        domain::PaymentMethodData::BankRedirect(bank_redirect) => Some((
             common_enums::PaymentMethod::BankRedirect,
             bank_redirect.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => Some((
+        domain::PaymentMethodData::BankDebit(bank_debit) => Some((
             common_enums::PaymentMethod::BankDebit,
             bank_debit.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::BankTransfer(bank_transfer) => Some((
+        domain::PaymentMethodData::BankTransfer(bank_transfer) => Some((
             common_enums::PaymentMethod::BankTransfer,
             bank_transfer.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Crypto(crypto) => Some((
+        domain::PaymentMethodData::Crypto(crypto) => Some((
             common_enums::PaymentMethod::Crypto,
             crypto.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::MandatePayment => None,
-        api_models::payments::PaymentMethodData::Reward => None,
-        api_models::payments::PaymentMethodData::RealTimePayment(real_time_payment) => Some((
+        domain::PaymentMethodData::MandatePayment => None,
+        domain::PaymentMethodData::Reward => None,
+        domain::PaymentMethodData::RealTimePayment(real_time_payment) => Some((
             common_enums::PaymentMethod::RealTimePayment,
             real_time_payment.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Upi(upi_data) => Some((
+        domain::PaymentMethodData::Upi(upi_data) => Some((
             common_enums::PaymentMethod::Upi,
             upi_data.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::Voucher(voucher) => Some((
+        domain::PaymentMethodData::Voucher(voucher) => Some((
             common_enums::PaymentMethod::Voucher,
             voucher.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::GiftCard(gift_card) => Some((
+        domain::PaymentMethodData::GiftCard(gift_card) => Some((
             common_enums::PaymentMethod::GiftCard,
             gift_card.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::OpenBanking(ob_data) => Some((
+        domain::PaymentMethodData::OpenBanking(ob_data) => Some((
             common_enums::PaymentMethod::OpenBanking,
             ob_data.get_payment_method_type(),
             None,
         )),
-        api_models::payments::PaymentMethodData::CardToken(_) => None,
+        domain::PaymentMethodData::CardToken(_) => None,
+        domain::PaymentMethodData::NetworkToken(_) => None,
     }
 }
 
@@ -4664,14 +4705,47 @@ pub async fn get_gsm_record(
     };
     get_gsm()
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             // warn log should suffice here because we are not propagating this error
             logger::warn!(get_gsm_decision_fetch_error=?err, "error fetching gsm decision");
-            err
         })
         .ok()
 }
 
+pub async fn get_unified_translation(
+    state: &SessionState,
+    unified_code: String,
+    unified_message: String,
+    locale: String,
+) -> Option<String> {
+    let get_unified_translation = || async {
+        state.store.find_translation(
+                unified_code.clone(),
+                unified_message.clone(),
+                locale.clone(),
+            )
+            .await
+            .map_err(|err| {
+                if err.current_context().is_db_not_found() {
+                    logger::warn!(
+                        "Translation missing for unified_code - {:?}, unified_message - {:?}, locale - {:?}",
+                        unified_code,
+                        unified_message,
+                        locale
+                    );
+                }
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to fetch translation from unified_translations")
+            })
+    };
+    get_unified_translation()
+        .await
+        .inspect_err(|err| {
+            // warn log should suffice here because we are not propagating this error
+            logger::warn!(get_translation_error=?err, "error fetching unified translations");
+        })
+        .ok()
+}
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: i64,
@@ -4831,7 +4905,7 @@ pub async fn get_payment_method_details_from_payment_token(
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
-) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
         let redis_conn = state
             .store
@@ -4979,7 +5053,7 @@ pub enum PaymentExternalAuthenticationFlow {
 pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
@@ -5006,7 +5080,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         connector_supports_separate_authn.is_some()
     );
     let card_number = payment_data.payment_method_data.as_ref().and_then(|pmd| {
-        if let api_models::payments::PaymentMethodData::Card(card) = pmd {
+        if let domain::PaymentMethodData::Card(card) = pmd {
             Some(card.card_number.clone())
         } else {
             None

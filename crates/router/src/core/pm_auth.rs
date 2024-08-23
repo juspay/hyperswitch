@@ -3,7 +3,6 @@ use std::{collections::HashMap, str::FromStr};
 use api_models::{
     enums,
     payment_methods::{self, BankAccountAccessCreds},
-    payments::{AddressDetails, BankDebitBilling, BankDebitData, PaymentMethodData},
 };
 use common_enums::{enums::MerchantStorageScheme, PaymentMethodType};
 use hex;
@@ -49,7 +48,6 @@ use crate::{
         storage,
         transformers::ForeignTryFrom,
     },
-    utils::ext_traits::OptionExt,
 };
 
 pub async fn create_link_token(
@@ -348,7 +346,9 @@ async fn store_bank_details_in_payment_methods(
     > = HashMap::new();
 
     for pm in payment_methods {
-        if pm.payment_method == Some(enums::PaymentMethod::BankDebit) {
+        if pm.payment_method == Some(enums::PaymentMethod::BankDebit)
+            && pm.payment_method_data.is_some()
+        {
             let bank_details_pm_data = crypto_operation::<serde_json::Value, masking::WithType>(
                 &(&state).into(),
                 type_name!(storage::PaymentMethod),
@@ -723,8 +723,8 @@ pub async fn retrieve_payment_method_from_auth_service(
     key_store: &domain::MerchantKeyStore,
     auth_token: &payment_methods::BankAccountTokenData,
     payment_intent: &PaymentIntent,
-    customer: &Option<domain::Customer>,
-) -> RouterResult<Option<(PaymentMethodData, enums::PaymentMethod)>> {
+    _customer: &Option<domain::Customer>,
+) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let db = state.store.as_ref();
 
     let connector = PaymentAuthConnectorData::get_connector_by_name(
@@ -814,84 +814,25 @@ pub async fn retrieve_payment_method_from_auth_service(
             .ok();
     }
 
-    let address = oss_helpers::get_address_by_id(
-        state,
-        payment_intent.billing_address_id.clone(),
-        key_store,
-        &payment_intent.payment_id,
-        merchant_account.get_id(),
-        merchant_account.storage_scheme,
-    )
-    .await?;
-
-    let name = address
-        .as_ref()
-        .and_then(|addr| addr.first_name.clone().map(|name| name.into_inner()))
-        .ok_or(ApiErrorResponse::GenericNotFoundError {
-            message: "billing_first_name not found".to_string(),
-        })
-        .attach_printable("billing_first_name not found")?;
-
-    let address_details = address.clone().map(|addr| {
-        let line1 = addr.line1.map(|line1| line1.into_inner());
-        let line2 = addr.line2.map(|line2| line2.into_inner());
-        let line3 = addr.line3.map(|line3| line3.into_inner());
-        let zip = addr.zip.map(|zip| zip.into_inner());
-        let state = addr.state.map(|state| state.into_inner());
-        let first_name = addr.first_name.map(|first_name| first_name.into_inner());
-        let last_name = addr.last_name.map(|last_name| last_name.into_inner());
-
-        AddressDetails {
-            city: addr.city,
-            country: addr.country,
-            line1,
-            line2,
-            line3,
-            zip,
-            state,
-            first_name,
-            last_name,
-        }
-    });
-
-    let email = customer
-        .as_ref()
-        .and_then(|customer| customer.email.clone())
-        .map(common_utils::pii::Email::from)
-        .get_required_value("email")?;
-
-    let billing_details = BankDebitBilling {
-        name: Some(name),
-        email: Some(email),
-        address: address_details,
-    };
-
     let payment_method_data = match &bank_account.account_details {
         pm_auth_types::PaymentMethodTypeDetails::Ach(ach) => {
-            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                billing_details: Some(billing_details),
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::AchBankDebit {
                 account_number: ach.account_number.clone(),
                 routing_number: ach.routing_number.clone(),
-                card_holder_name: None,
-                bank_account_holder_name: None,
                 bank_name: None,
                 bank_type,
                 bank_holder_type: None,
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Bacs(bacs) => {
-            PaymentMethodData::BankDebit(BankDebitData::BacsBankDebit {
-                billing_details: Some(billing_details),
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::BacsBankDebit {
                 account_number: bacs.account_number.clone(),
                 sort_code: bacs.sort_code.clone(),
-                bank_account_holder_name: None,
             })
         }
         pm_auth_types::PaymentMethodTypeDetails::Sepa(sepa) => {
-            PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
-                billing_details: Some(billing_details),
+            domain::PaymentMethodData::BankDebit(domain::BankDebitData::SepaBankDebit {
                 iban: sepa.iban.clone(),
-                bank_account_holder_name: None,
             })
         }
     };

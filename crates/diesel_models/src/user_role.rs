@@ -51,6 +51,7 @@ pub struct UserRoleUpdateInternal {
     last_modified: PrimitiveDateTime,
 }
 
+#[derive(Clone)]
 pub enum UserRoleUpdate {
     UpdateStatus {
         status: enums::UserStatus,

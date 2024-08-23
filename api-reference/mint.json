@@ -104,6 +104,14 @@
       ]
     },
     {
+      "group": "Organization",
+      "pages": [
+        "api-reference/organization/organization--create",
+        "api-reference/organization/organization--retrieve",
+        "api-reference/organization/organization--update"
+      ]
+    },
+    {
       "group": "Merchant Account",
       "pages": [
         "api-reference/merchant-account/merchant-account--create",
@@ -146,11 +154,13 @@
       "group": "Payouts",
       "pages": [
         "api-reference/payouts/payouts--create",
-        "api-reference/payouts/payouts--retrieve",
         "api-reference/payouts/payouts--update",
         "api-reference/payouts/payouts--cancel",
         "api-reference/payouts/payouts--fulfill",
+        "api-reference/payouts/payouts--confirm",
+        "api-reference/payouts/payouts--retrieve",
         "api-reference/payouts/payouts--list",
+        "api-reference/payouts/payouts--list-filters",
         "api-reference/payouts/payouts--filter"
       ]
     },

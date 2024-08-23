@@ -6,7 +6,7 @@ use std::{
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
-    ext_traits::{Encode, OptionExt},
+    ext_traits::{AsyncExt, Encode, OptionExt},
     link_utils,
     types::{AmountConvertor, StringMajorUnitForConnector},
 };
@@ -24,12 +24,26 @@ use crate::{
     types::domain,
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn initiate_payout_link(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _req: payouts::PayoutLinkInitiateRequest,
+    _request_headers: &header::HeaderMap,
+    _locale: String,
+) -> RouterResponse<services::GenericLinkFormData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn initiate_payout_link(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
+    locale: String,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -108,6 +122,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::ExpiredLink(expired_link_data),
+                    locale,
                 },
             )))
         }
@@ -138,6 +153,7 @@ pub async fn initiate_payout_link(
                 .attach_printable_lazy(|| {
                     format!("customer [{}] not found", payout_link.primary_reference)
                 })?;
+
             let enabled_payout_methods =
                 filter_payout_methods(&state, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods
@@ -187,6 +203,7 @@ pub async fn initiate_payout_link(
                 enabled_payment_methods,
                 amount,
                 currency: payout.destination_currency,
+                locale: locale.clone(),
             };
 
             let serialized_css_content = String::new();
@@ -209,6 +226,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::PayoutLink(generic_form_data),
+                    locale,
                 },
             )))
         }
@@ -251,6 +269,7 @@ pub async fn initiate_payout_link(
                 GenericLinks {
                     allowed_domains: (link_data.allowed_domains),
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
+                    locale,
                 },
             )))
         }
@@ -281,17 +300,23 @@ pub async fn filter_payout_methods(
     // Filter MCAs based on profile_id and connector_type
     let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
         all_mcas,
-        Some(&payout.profile_id),
+        &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,
     );
-    let address = db
-        .find_address_by_address_id(key_manager_state, &payout.address_id.clone(), key_store)
+    let address = payout
+        .address_id
+        .as_ref()
+        .async_map(|address_id| async {
+            db.find_address_by_address_id(key_manager_state, address_id, key_store)
+                .await
+        })
         .await
+        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while fetching address with address id {}",
-                payout.address_id.clone()
+                "Failed while fetching address [id - {:?}] for payout [id - {}]",
+                payout.address_id, payout.payout_id
             )
         })?;
 
@@ -326,7 +351,10 @@ pub async fn filter_payout_methods(
                         payout_filter,
                         request_payout_method_type,
                         &payout.destination_currency,
-                        &address.country,
+                        address
+                            .as_ref()
+                            .and_then(|address| address.country)
+                            .as_ref(),
                     )?;
                     if currency_country_filter.unwrap_or(true) {
                         match payment_method {
@@ -381,7 +409,7 @@ pub fn check_currency_country_filters(
     payout_method_filter: Option<&PaymentMethodFilters>,
     request_payout_method_type: &api_models::payment_methods::RequestPaymentMethodTypes,
     currency: &common_enums::Currency,
-    country: &Option<common_enums::CountryAlpha2>,
+    country: Option<&common_enums::CountryAlpha2>,
 ) -> errors::RouterResult<Option<bool>> {
     if matches!(
         request_payout_method_type.payment_method_type,

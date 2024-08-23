@@ -1,4 +1,5 @@
 use cards::CardNumber;
+use common_utils::types::FloatMajorUnit;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -11,9 +12,24 @@ use crate::{
 };
 
 #[derive(Debug, Serialize)]
+pub struct ForteRouterData<T> {
+    pub amount: FloatMajorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(FloatMajorUnit, T)> for ForteRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct FortePaymentsRequest {
     action: ForteAction,
-    authorization_amount: f64,
+    authorization_amount: FloatMajorUnit,
     billing_address: BillingAddress,
     card: Card,
 }
@@ -62,9 +78,12 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
+impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &ForteRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data;
         if item.request.currency != enums::Currency::USD {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Forte"),
@@ -93,8 +112,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     first_name: first_name.clone(),
                     last_name: address.get_last_name().unwrap_or(first_name).clone(),
                 };
-                let authorization_amount =
-                    utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
+                let authorization_amount = item_data.amount;
                 Ok(Self {
                     action,
                     authorization_amount,
@@ -116,7 +134,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Forte"),
                 ))?
@@ -244,7 +263,7 @@ pub struct FortePaymentsResponse {
     pub transaction_id: String,
     pub location_id: Secret<String>,
     pub action: ForteAction,
-    pub authorization_amount: Option<f64>,
+    pub authorization_amount: Option<FloatMajorUnit>,
     pub authorization_code: String,
     pub entered_by: String,
     pub billing_address: Option<BillingAddress>,
@@ -295,7 +314,7 @@ pub struct FortePaymentsSyncResponse {
     pub location_id: Secret<String>,
     pub status: FortePaymentStatus,
     pub action: ForteAction,
-    pub authorization_amount: Option<f64>,
+    pub authorization_amount: Option<FloatMajorUnit>,
     pub authorization_code: String,
     pub entered_by: String,
     pub billing_address: Option<BillingAddress>,
@@ -478,20 +497,22 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 pub struct ForteRefundRequest {
     action: String,
-    authorization_amount: f64,
+    authorization_amount: FloatMajorUnit,
     original_transaction_id: String,
     authorization_code: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
+impl<F> TryFrom<&ForteRouterData<&types::RefundsRouterData<F>>> for ForteRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &ForteRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data;
         let trn_id = item.request.connector_transaction_id.clone();
         let connector_auth_id: ForteMeta =
             utils::to_connector_meta(item.request.connector_metadata.clone())?;
         let auth_code = connector_auth_id.auth_id;
-        let authorization_amount =
-            utils::to_currency_base_unit_asf64(item.request.refund_amount, item.request.currency)?;
+        let authorization_amount = item_data.amount;
         Ok(Self {
             action: "reverse".to_string(),
             authorization_amount,
@@ -534,7 +555,7 @@ pub struct RefundResponse {
     pub transaction_id: String,
     pub original_transaction_id: String,
     pub action: String,
-    pub authorization_amount: Option<f64>,
+    pub authorization_amount: Option<FloatMajorUnit>,
     pub authorization_code: String,
     pub response: ResponseStatus,
 }

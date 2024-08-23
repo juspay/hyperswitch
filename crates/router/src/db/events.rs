@@ -84,14 +84,6 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
-    async fn list_events_by_profile_id_initial_attempt_id(
-        &self,
-        state: &KeyManagerState,
-        profile_id: &str,
-        initial_attempt_id: &str,
-        merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
-
     async fn update_event_by_merchant_id_event_id(
         &self,
         state: &KeyManagerState,
@@ -336,37 +328,6 @@ impl EventInterface for Store {
             Ok(domain_events)
         })
         .await
-    }
-
-    #[instrument(skip_all)]
-    async fn list_events_by_profile_id_initial_attempt_id(
-        &self,
-        state: &KeyManagerState,
-        profile_id: &str,
-        initial_attempt_id: &str,
-        merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        storage::Event::list_by_profile_id_initial_attempt_id(&conn, profile_id, initial_attempt_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-            .async_and_then(|events| async {
-                let mut domain_events = Vec::with_capacity(events.len());
-                for event in events.into_iter() {
-                    domain_events.push(
-                        event
-                            .convert(
-                                state,
-                                merchant_key_store.key.get_inner(),
-                                merchant_key_store.merchant_id.clone().into(),
-                            )
-                            .await
-                            .change_context(errors::StorageError::DecryptionError)?,
-                    );
-                }
-                Ok(domain_events)
-            })
-            .await
     }
 
     #[instrument(skip_all)]
@@ -676,39 +637,6 @@ impl EventInterface for MockDb {
         let events = events_iter
             .skip(offset)
             .take(limit)
-            .cloned()
-            .collect::<Vec<_>>();
-        let mut domain_events = Vec::with_capacity(events.len());
-
-        for event in events {
-            let domain_event = event
-                .convert(
-                    state,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?;
-            domain_events.push(domain_event);
-        }
-
-        Ok(domain_events)
-    }
-
-    async fn list_events_by_profile_id_initial_attempt_id(
-        &self,
-        state: &KeyManagerState,
-        profile_id: &str,
-        initial_attempt_id: &str,
-        merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let locked_events = self.events.lock().await;
-        let events = locked_events
-            .iter()
-            .filter(|event| {
-                event.business_profile_id == Some(profile_id.to_owned())
-                    && event.initial_attempt_id == Some(initial_attempt_id.to_owned())
-            })
             .cloned()
             .collect::<Vec<_>>();
         let mut domain_events = Vec::with_capacity(events.len());
