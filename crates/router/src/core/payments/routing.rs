@@ -209,11 +209,12 @@ where
                 })
             }),
         payment_type: Some(
-            if payment_data
-                .recurring_details
-                .as_ref()
-                .is_some_and(|data| matches!(data, api_models::mandates::RecurringDetails::ProcessorPaymentToken(_)))
-            {
+            if payment_data.recurring_details.as_ref().is_some_and(|data| {
+                matches!(
+                    data,
+                    api_models::mandates::RecurringDetails::ProcessorPaymentToken(_)
+                )
+            }) {
                 euclid_enums::PaymentType::PptMandate
             } else {
                 payment_data.setup_mandate.clone().map_or_else(
