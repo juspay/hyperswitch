@@ -1070,7 +1070,7 @@ diesel::table! {
         #[max_length = 32]
         priority -> Nullable<Varchar>,
         sec_code -> Nullable<Varchar>,
-        account_type -> Nullable<Varchar>,
+        bank_type -> Nullable<Varchar>,
     }
 }
 

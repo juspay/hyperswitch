@@ -3,4 +3,4 @@ ALTER TABLE payouts
 DROP COLUMN sec_code;
 
 ALTER TABLE payouts 
-DROP COLUMN account_type;
+DROP COLUMN bank_type;

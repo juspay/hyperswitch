@@ -731,7 +731,7 @@ pub struct PayoutsData {
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
     pub sec_code: Option<storage_enums::SecCode>,
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,

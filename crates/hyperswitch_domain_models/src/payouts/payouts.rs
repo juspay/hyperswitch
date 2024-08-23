@@ -113,7 +113,7 @@ pub struct Payouts {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub sec_code: Option<storage_enums::SecCode>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -143,7 +143,7 @@ pub struct PayoutsNew {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub sec_code: Option<storage_enums::SecCode>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
 }
 
 impl Default for PayoutsNew {
@@ -176,7 +176,7 @@ impl Default for PayoutsNew {
             client_secret: None,
             priority: None,
             sec_code: None,
-            account_type: None,
+            bank_type: None,
         }
     }
 }
@@ -200,7 +200,7 @@ pub enum PayoutsUpdate {
         address_id: Option<String>,
         customer_id: Option<id_type::CustomerId>,
         sec_code: Option<storage_enums::SecCode>,
-        account_type: Option<storage_enums::AccountType>,
+        bank_type: Option<storage_enums::BankType>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -236,7 +236,7 @@ pub struct PayoutsUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub sec_code: Option<storage_enums::SecCode>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -259,7 +259,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 address_id,
                 customer_id,
                 sec_code,
-                account_type,
+                bank_type,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -277,7 +277,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 address_id,
                 customer_id,
                 sec_code,
-                account_type,
+                bank_type,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {

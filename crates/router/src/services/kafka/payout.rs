@@ -30,7 +30,7 @@ pub struct KafkaPayout<'a> {
     pub status: storage_enums::PayoutStatus,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub sec_code: Option<storage_enums::SecCode>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
     pub connector: Option<&'a String>,
     pub connector_payout_id: Option<&'a String>,
     pub is_eligible: Option<bool>,
@@ -74,7 +74,7 @@ impl<'a> KafkaPayout<'a> {
             business_country: payout_attempt.business_country,
             business_label: payout_attempt.business_label.as_ref(),
             merchant_connector_id: payout_attempt.merchant_connector_id.as_ref(),
-            account_type: payouts.account_type,
+            bank_type: payouts.bank_type,
             sec_code: payouts.sec_code,
         }
     }

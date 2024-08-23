@@ -2313,7 +2313,7 @@ pub async fn payout_create_db_entries(
         client_secret: Some(client_secret),
         priority: req.priority,
         sec_code: req.sec_code,
-        account_type: req.account_type,
+        bank_type: req.bank_type,
         status,
         ..Default::default()
     };

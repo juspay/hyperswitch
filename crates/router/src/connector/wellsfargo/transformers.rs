@@ -1070,6 +1070,11 @@ impl TryFrom<Option<common_enums::BankType>> for AccountType {
             Some(bank_type) => match bank_type {
                 common_enums::BankType::Checking => Ok(Self::C),
                 common_enums::BankType::Savings => Ok(Self::S),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: "Only Checking and Savings Allowed ".to_string(),
+                    connector: "Wellsfargo",
+                }
+                .into()),
             },
         }
     }

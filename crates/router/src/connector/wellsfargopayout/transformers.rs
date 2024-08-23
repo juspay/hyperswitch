@@ -136,13 +136,13 @@ pub enum WellsfargopayoutPayoutAccountType {
     GL,
 }
 #[cfg(feature = "payouts")]
-impl From<storage_enums::AccountType> for WellsfargopayoutPayoutAccountType {
-    fn from(item: storage_enums::AccountType) -> Self {
+impl From<storage_enums::BankType> for WellsfargopayoutPayoutAccountType {
+    fn from(item: storage_enums::BankType) -> Self {
         match item {
-            storage_enums::AccountType::Checking => Self::CHECKING,
-            storage_enums::AccountType::Savings => Self::SAVINGS,
-            storage_enums::AccountType::Loan => Self::LOAN,
-            storage_enums::AccountType::GeneralLedger => Self::GL,
+            storage_enums::BankType::Checking => Self::CHECKING,
+            storage_enums::BankType::Savings => Self::SAVINGS,
+            storage_enums::BankType::Loan => Self::LOAN,
+            storage_enums::BankType::GeneralLedger => Self::GL,
         }
     }
 }
@@ -224,9 +224,9 @@ impl TryFrom<&WellsfargopayoutRouterData<&types::PayoutsRouterData<api::PoFulfil
                             name: billing_address.get_full_name()?,
                             bank_account: BankAccount {
                                 account_type: WellsfargopayoutPayoutAccountType::from(
-                                    item.router_data.request.account_type.ok_or(
+                                    item.router_data.request.bank_type.ok_or(
                                         errors::ConnectorError::MissingRequiredField {
-                                            field_name: "account_type",
+                                            field_name: "bank_type",
                                         },
                                     )?,
                                 ),

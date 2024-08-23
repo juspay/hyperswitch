@@ -38,7 +38,7 @@ pub struct Payouts {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub sec_code: Option<storage_enums::SecCode>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
 }
 
 #[derive(
@@ -81,7 +81,7 @@ pub struct PayoutsNew {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub sec_code: Option<storage_enums::SecCode>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,7 +103,7 @@ pub enum PayoutsUpdate {
         address_id: Option<String>,
         customer_id: Option<common_utils::id_type::CustomerId>,
         sec_code: Option<storage_enums::SecCode>,
-        account_type: Option<storage_enums::AccountType>,
+        bank_type: Option<storage_enums::BankType>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -141,7 +141,7 @@ pub struct PayoutsUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub sec_code: Option<storage_enums::SecCode>,
-    pub account_type: Option<storage_enums::AccountType>,
+    pub bank_type: Option<storage_enums::BankType>,
 }
 
 impl Default for PayoutsUpdateInternal {
@@ -166,7 +166,7 @@ impl Default for PayoutsUpdateInternal {
             address_id: None,
             customer_id: None,
             sec_code: None,
-            account_type: None,
+            bank_type: None,
         }
     }
 }
@@ -191,7 +191,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 address_id,
                 customer_id,
                 sec_code,
-                account_type,
+                bank_type,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -209,7 +209,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 address_id,
                 customer_id,
                 sec_code,
-                account_type,
+                bank_type,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
@@ -254,7 +254,7 @@ impl PayoutsUpdate {
             address_id,
             customer_id,
             sec_code,
-            account_type,
+            bank_type,
         } = self.into();
         Payouts {
             amount: amount.unwrap_or(source.amount),
@@ -276,7 +276,7 @@ impl PayoutsUpdate {
             address_id: address_id.or(source.address_id),
             customer_id: customer_id.or(source.customer_id),
             sec_code: sec_code.or(source.sec_code),
-            account_type: account_type.or(source.account_type),
+            bank_type: bank_type.or(source.bank_type),
             ..source
         }
     }
