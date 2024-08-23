@@ -84,6 +84,10 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
     expect(response.body.default_profile).to.not.be.empty;
     expect(response.body.organization_id).to.not.be.empty;
     globalState.set("organizationId", response.body.organization_id);
+
+    if (globalState.get("publishableKey") === undefined) {
+      globalState.set("publishableKey", response.body.publishable_key);
+    }
   });
 });
 
