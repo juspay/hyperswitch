@@ -468,6 +468,9 @@ impl ConnectorData {
                 enums::Connector::Netcetera => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Netcetera)))
                 }
+                // enums::Connector::Nexixpay => {
+                //     Ok(ConnectorEnum::Old(Box::new(&connector::Nexixpay)))
+                // }
                 enums::Connector::Nexinets => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Nexinets)))
                 }

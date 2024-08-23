@@ -49,6 +49,7 @@ pub struct Connectors {
     pub multisafepay: ConnectorParams,
     pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
+    pub nexixpay: ConnectorParams,
     pub nmi: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
     pub novalnet: ConnectorParams,
