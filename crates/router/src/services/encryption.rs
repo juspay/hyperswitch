@@ -27,7 +27,7 @@ pub struct JweBody {
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, strum::AsRefStr, strum::Display)]
-pub enum EncryptionAlgorithm{
+pub enum EncryptionAlgorithm {
     A128GCM,
     A256GCM,
 }
