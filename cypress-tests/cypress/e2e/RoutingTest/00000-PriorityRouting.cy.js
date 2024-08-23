@@ -5,25 +5,17 @@ import * as utils from "../RoutingUtils/utils";
 let globalState;
 
 describe("Priority Based Routing Test", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
-
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
-  });
-
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
+  let should_continue = true;
   context("Routing with Stripe as top priority", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
     it("create-jwt-token", () => {
       let data = utils.getConnectorDetails("common")["jwt"];
       let req_data = data["Request"];
@@ -34,6 +26,21 @@ describe("Priority Based Routing Test", () => {
         should_continue = utils.should_continue_further(res_data);
     });
 
+    it("merchant retrieve call", () => {
+      cy.merchantRetrieveCall(globalState);
+    });
+  });
+
+  context("Routing with Stripe as top priority", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
     it("retrieve-mca", () => {
       cy.ListMCAbyMID(globalState);
     });
@@ -114,20 +121,15 @@ describe("Priority Based Routing Test", () => {
   });
 
   context("Routing with adyen as top priority", () => {
-    it("create-jwt-token", () => {
-      let data = utils.getConnectorDetails("common")["jwt"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.createJWTToken(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
     });
 
-    it("retrieve-merchant-account", () => {
-      cy.merchantRetrieveCallTest(globalState);
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
     });
-
     it("retrieve-mca", () => {
       cy.ListMCAbyMID(globalState);
     });

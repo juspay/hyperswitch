@@ -84,6 +84,7 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
     expect(response.body.default_profile).to.not.be.empty;
     expect(response.body.organization_id).to.not.be.empty;
     globalState.set("organizationId", response.body.organization_id);
+    globalState.set("publishableKey", response.body.publishable_key);
   });
 });
 
@@ -158,24 +159,6 @@ Cypress.Commands.add(
     });
   }
 );
-
-Cypress.Commands.add("merchantRetrieveCallTest", (globalState) => {
-  const merchantId = globalState.get("merchantId");
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-    expect(response.headers["content-type"]).to.include("application/json");
-    expect(response.body.merchant_id).to.equal(merchantId);
-    globalState.set("publishableKey", response.body.publishable_key);
-  });
-});
 
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
   cy.request({
@@ -976,6 +959,7 @@ Cypress.Commands.add(
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentId = globalState.get("paymentID");
     const connectorId = globalState.get("connectorId");
+    console.log("connectorId", connectorId);
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
@@ -997,6 +981,7 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         globalState.set("paymentID", paymentIntentId);
         globalState.set("connectorId", response.body.connector);
+        console.log("connectorId", response.body.connector);
         globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
         switch (response.body.authentication_type) {
@@ -2061,6 +2046,8 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
       expect(response.body).to.have.property("token");
       //set jwt_token
       globalState.set("jwtToken", response.body.token);
+
+      //setting merchantId for manual create merchant
       globalState.set("merchantId", response.body.merchant_id);
 
       // set session cookie

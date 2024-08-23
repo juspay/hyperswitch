@@ -11,21 +11,31 @@ describe("Rule Based Routing Test", () => {
     });
   });
 
-  afterEach("flush global state", () => {
+  after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Rule based routing,Card->Stripe,Bank_redirect->adyen", () => {
-    it("create-jwt-token", () => {
-      let data = utils.getConnectorDetails("common")["jwt"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+  it("create-jwt-token", () => {
+    let data = utils.getConnectorDetails("common")["jwt"];
+    let req_data = data["Request"];
+    let res_data = data["Response"];
 
-      cy.createJWTToken(req_data, res_data, globalState);
+    cy.createJWTToken(req_data, res_data, globalState);
+  });
+
+  it("merchant retrieve call", () => {
+    cy.merchantRetrieveCall(globalState);
+  });
+
+  context("Rule based routing,Card->Stripe,Bank_redirect->adyen", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
     });
 
-    it("retrieve-merchant-account", () => {
-      cy.merchantRetrieveCallTest(globalState);
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
     });
 
     it("retrieve-mca", () => {
@@ -194,16 +204,14 @@ describe("Rule Based Routing Test", () => {
   });
 
   context("Rule based routing,Currency->is->USD->Stripe->else->adyen", () => {
-    it("create-jwt-token", () => {
-      let data = utils.getConnectorDetails("common")["jwt"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.createJWTToken(req_data, res_data, globalState);
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
     });
 
-    it("retrieve-merchant-account", () => {
-      cy.merchantRetrieveCallTest(globalState);
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
     });
 
     it("retrieve-mca", () => {
@@ -364,19 +372,8 @@ describe("Rule Based Routing Test", () => {
         });
       });
 
-      afterEach("flush global state", () => {
+      after("flush global state", () => {
         cy.task("setGlobalState", globalState.data);
-      });
-      it("create-jwt-token", () => {
-        let data = utils.getConnectorDetails("common")["jwt"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.createJWTToken(req_data, res_data, globalState);
-      });
-
-      it("retrieve-merchant-account", () => {
-        cy.merchantRetrieveCallTest(globalState);
       });
 
       it("retrieve-mca", () => {
