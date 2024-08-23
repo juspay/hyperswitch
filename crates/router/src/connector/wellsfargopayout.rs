@@ -5,8 +5,6 @@ use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use transformers as wellsfargopayout;
-#[cfg(feature = "payouts")]
-use uuid::Uuid;
 
 use crate::{
     configs::settings,
@@ -88,7 +86,7 @@ where
             ),
             (
                 "client-request-id".to_string(),
-                Uuid::new_v4().to_string().into(),
+                req.payment_id.clone().into_masked(),
             ),
         ];
 
