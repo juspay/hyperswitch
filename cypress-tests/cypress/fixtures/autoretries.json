@@ -1,0 +1,10 @@
+{
+  "gsm": {
+    "key": "should_call_gsm_{{merchant_id}}",
+    "value": ""
+  },
+  "max_auto_retries": {
+    "key": "max_auto_retries_enabled_{{merchant_id}}",
+    "value": ""
+  }
+}

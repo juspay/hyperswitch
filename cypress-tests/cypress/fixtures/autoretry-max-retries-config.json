@@ -1,0 +1,4 @@
+{
+  "key": "max_auto_retries_enabled_{{merchant_id}}",
+  "value": "{{value}}"
+}

@@ -2174,3 +2174,19 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("enableAutoRetry", (autoRetryShouldCallGsmConfig, globalState) => {
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/configs`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: autoRetryShouldCallGsmConfig,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+  });
+});
