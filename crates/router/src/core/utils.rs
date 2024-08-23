@@ -873,7 +873,8 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     let shipping: Option<Address> = payment_intent
-        .shipping_details.clone()
+        .shipping_details
+        .clone()
         .map(|a| {
             a.into_inner()
                 .expose()
@@ -883,17 +884,17 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         })
         .transpose()?;
 
-        let order: Option<Result<Vec<OrderDetailsWithAmount>, _>> =
-    payment_intent.order_details.clone().map(|o| {
-        o.into_iter()
-            .map(|order| {
-                order
-                    .expose()
-                    .parse_value("OrderDetailsWithAmount")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-            })
-            .collect()
-    });
+    let order: Option<Result<Vec<OrderDetailsWithAmount>, _>> =
+        payment_intent.order_details.clone().map(|o| {
+            o.into_iter()
+                .map(|order| {
+                    order
+                        .expose()
+                        .parse_value("OrderDetailsWithAmount")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                })
+                .collect()
+        });
     let order_details = order.map_or(Ok(None), |r| r.map(Some))?;
 
     let router_data = types::RouterData {

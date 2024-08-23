@@ -2,8 +2,7 @@ pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::{Address, RequestSurchargeDetails};
 use common_utils::{
-    consts,
-    errors,
+    consts, errors,
     ext_traits::OptionExt,
     id_type, pii,
     types::{self as common_types, MinorUnit},
