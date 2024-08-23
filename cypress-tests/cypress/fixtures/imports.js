@@ -1,3 +1,4 @@
+import autoretries from "./autoretries.json";
 import captureBody from "./capture-flow-body.json";
 import confirmBody from "./confirm-body.json";
 import apiKeyCreateBody from "./create-api-key-body.json";
@@ -19,11 +20,11 @@ import apiKeyUpdateBody from "./update-api-key-body.json";
 import updateConnectorBody from "./update-connector-body.json";
 import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
-import autoRetryShouldCallGsmConfig from "./autoretry-should-call-gsm-config.json";
 
 export {
   apiKeyCreateBody,
   apiKeyUpdateBody,
+  autoretries,
   captureBody,
   citConfirmBody,
   confirmBody,
@@ -43,5 +44,4 @@ export {
   saveCardConfirmBody,
   updateConnectorBody,
   voidBody,
-  autoRetryShouldCallGsmConfig,
 };
