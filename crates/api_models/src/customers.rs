@@ -318,7 +318,7 @@ pub struct GlobalId {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl GlobalId {
-    pub fn new_global_id_struct(id: String) -> Self {
+    pub fn new(id: String) -> Self {
         Self { id }
     }
 }

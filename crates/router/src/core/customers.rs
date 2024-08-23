@@ -475,7 +475,7 @@ pub async fn retrieve_customer(
     let key_manager_state = &(&state).into();
 
     let response = db
-        .find_customer_by_id(
+        .find_customer_by_global_id(
             key_manager_state,
             &req.id,
             merchant_account.get_id(),
@@ -490,6 +490,7 @@ pub async fn retrieve_customer(
     ))
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,

@@ -87,8 +87,7 @@ pub async fn customers_retrieve(
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
 
-    let payload =
-        web::Json(customers::GlobalId::new_global_id_struct(path.into_inner())).into_inner();
+    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth(Permission::CustomerRead))
@@ -111,6 +110,7 @@ pub async fn customers_retrieve(
     .await
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::CustomersList;

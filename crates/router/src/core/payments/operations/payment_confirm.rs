@@ -1430,34 +1430,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
                         Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
                     }
-                    #[cfg(all(feature = "v2", feature = "customer_v2"))]
-                    {
-                        let global_id = "temp_id".to_string();
-                        let _ = customer_id;
-                        m_db.update_customer_by_id(
-                            &key_manager_state,
-                            global_id,
-                            customer,
-                            &m_customer_merchant_id,
-                            m_updated_customer,
-                            &m_key_store,
-                            storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to update CustomerConnector in customer")?;
-
-                        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
-                    }
-                }
-                .in_current_span(),
-            )
-        } else {
-            tokio::spawn(
-                async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) }
                     .in_current_span(),
-            )
-        };
+                )
+            } else {
+                tokio::spawn(
+                    async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) }
+                        .in_current_span(),
+                )
+            };
 
         let (payment_intent, payment_attempt, _) = tokio::try_join!(
             utils::flatten_join_error(payment_intent_fut),

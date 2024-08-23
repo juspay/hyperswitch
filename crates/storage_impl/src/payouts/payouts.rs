@@ -12,9 +12,7 @@ use common_utils::ext_traits::Encode;
 ))]
 use diesel::JoinOnDsl;
 #[cfg(feature = "olap")]
-use diesel::{
-    associations::HasTable, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl,
-};
+use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethods, QueryDsl};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
@@ -35,15 +33,6 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
-};
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
-use diesel_models::{
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
