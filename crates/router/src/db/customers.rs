@@ -1,6 +1,5 @@
 use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use futures::future::try_join_all;
 use hyperswitch_domain_models::customer;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -84,7 +83,6 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -129,7 +127,6 @@ mod storage {
     use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use diesel_models::kv;
     use error_stack::{report, ResultExt};
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     use futures::future::try_join_all;
     use hyperswitch_domain_models::customer;
     use masking::PeekInterface;
@@ -511,7 +508,6 @@ mod storage {
             }
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
@@ -1053,7 +1049,6 @@ mod storage {
             }
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
@@ -1245,7 +1240,6 @@ impl CustomerInterface for MockDb {
             .transpose()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,

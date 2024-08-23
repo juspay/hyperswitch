@@ -490,7 +490,6 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -513,7 +512,7 @@ pub async fn list_customers(
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     let customers = domain_customers
         .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::foreign_from(domain_customer))
+        .map(customers::CustomerResponse::foreign_from)
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))
