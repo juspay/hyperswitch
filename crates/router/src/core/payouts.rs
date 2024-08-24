@@ -2291,7 +2291,7 @@ pub async fn payout_create_db_entries(
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_owned(),
-        customer_id,
+        customer_id: customer_id.to_owned(),
         address_id: address_id.to_owned(),
         payout_type,
         amount,
@@ -2303,7 +2303,7 @@ pub async fn payout_create_db_entries(
         return_url: req.return_url.to_owned(),
         entity_type: req.entity_type.unwrap_or_default(),
         payout_method_id,
-        profile_id: profile_id.to_string(),
+        profile_id: profile_id.to_owned(),
         attempt_count: 1,
         metadata: req.metadata.clone(),
         confirm: req.confirm,
@@ -2313,7 +2313,8 @@ pub async fn payout_create_db_entries(
         client_secret: Some(client_secret),
         priority: req.priority,
         status,
-        ..Default::default()
+        created_at: common_utils::date_time::now(),
+        last_modified_at: common_utils::date_time::now(),
     };
     let payouts = db
         .insert_payout(payouts_req, merchant_account.storage_scheme)
@@ -2333,8 +2334,18 @@ pub async fn payout_create_db_entries(
         business_country: req.business_country.to_owned(),
         business_label: req.business_label.to_owned(),
         payout_token: req.payout_token.to_owned(),
-        profile_id: profile_id.to_string(),
-        ..Default::default()
+        profile_id: profile_id.to_owned(),
+        customer_id,
+        address_id,
+        connector: None,
+        connector_payout_id: None,
+        is_eligible: None,
+        error_message: None,
+        error_code: None,
+        created_at: common_utils::date_time::now(),
+        last_modified_at: common_utils::date_time::now(),
+        merchant_connector_id: None,
+        routing_info: None,
     };
     let payout_attempt = db
         .insert_payout_attempt(

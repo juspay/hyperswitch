@@ -131,8 +131,8 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub created_at: Option<PrimitiveDateTime>,
-    pub last_modified_at: Option<PrimitiveDateTime>,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
     pub profile_id: String,
     pub status: storage_enums::PayoutStatus,
@@ -140,39 +140,6 @@ pub struct PayoutsNew {
     pub payout_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
-}
-
-impl Default for PayoutsNew {
-    fn default() -> Self {
-        let now = common_utils::date_time::now();
-
-        Self {
-            payout_id: String::default(),
-            merchant_id: id_type::MerchantId::default(),
-            customer_id: None,
-            address_id: None,
-            payout_type: None,
-            payout_method_id: None,
-            amount: MinorUnit::new(i64::default()),
-            destination_currency: storage_enums::Currency::default(),
-            source_currency: storage_enums::Currency::default(),
-            description: None,
-            recurring: bool::default(),
-            auto_fulfill: bool::default(),
-            return_url: None,
-            entity_type: storage_enums::PayoutEntityType::default(),
-            metadata: None,
-            created_at: Some(now),
-            last_modified_at: Some(now),
-            attempt_count: 1,
-            profile_id: String::default(),
-            status: storage_enums::PayoutStatus::default(),
-            confirm: None,
-            payout_link_id: None,
-            client_secret: None,
-            priority: None,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
