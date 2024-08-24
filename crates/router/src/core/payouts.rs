@@ -66,7 +66,7 @@ pub struct PayoutData {
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
 }
@@ -514,7 +514,7 @@ pub async fn payouts_update_core(
 pub async fn payouts_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -740,7 +740,7 @@ pub async fn payouts_fulfill_core(
 pub async fn payouts_list_core(
     _state: SessionState,
     _merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     _key_store: domain::MerchantKeyStore,
     _constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -755,7 +755,7 @@ pub async fn payouts_list_core(
 pub async fn payouts_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -864,7 +864,7 @@ pub async fn payouts_list_core(
 pub async fn payouts_filtered_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -1143,7 +1143,11 @@ pub async fn create_recipient(
     let connector_name = connector_data.connector_name.to_string();
 
     // Create the connector label using {profile_id}_{connector_name}
-    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
+    let connector_label = format!(
+        "{}_{}",
+        payout_data.profile_id.get_string_repr(),
+        connector_name
+    );
     let (should_call_connector, _connector_customer_id) =
         helpers::should_call_payout_connector_create_customer(
             state,
@@ -2217,7 +2221,7 @@ pub async fn payout_create_db_entries(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
     payout_id: &String,
-    profile_id: &String,
+    profile_id: &common_utils::id_type::ProfileId,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     locale: &String,
     customer: Option<&domain::Customer>,
@@ -2382,7 +2386,7 @@ pub async fn payout_create_db_entries(
 pub async fn make_payout_data(
     _state: &SessionState,
     _merchant_account: &domain::MerchantAccount,
-    _auth_profile_id: Option<String>,
+    _auth_profile_id: Option<common_utils::id_type::ProfileId>,
     _key_store: &domain::MerchantKeyStore,
     _req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
@@ -2393,7 +2397,7 @@ pub async fn make_payout_data(
 pub async fn make_payout_data(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    auth_profile_id: Option<String>,
+    auth_profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
@@ -2579,7 +2583,7 @@ pub async fn add_external_account_addition_task(
 async fn validate_and_get_business_profile(
     state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
-    profile_id: &String,
+    profile_id: &common_utils::id_type::ProfileId,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<domain::BusinessProfile> {
     let db = &*state.store;
@@ -2599,7 +2603,7 @@ async fn validate_and_get_business_profile(
         db.find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })
     }
 }
@@ -2738,7 +2742,7 @@ pub async fn create_payout_link_db_entry(
 pub async fn get_mca_from_profile_id(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    profile_id: &String,
+    profile_id: &common_utils::id_type::ProfileId,
     connector_name: &str,
     merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,

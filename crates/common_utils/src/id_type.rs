@@ -20,6 +20,7 @@ use diesel::{
 };
 pub use merchant::MerchantId;
 pub use organization::OrganizationId;
+pub use profile::ProfileId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

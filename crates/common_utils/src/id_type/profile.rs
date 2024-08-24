@@ -12,3 +12,11 @@ crate::impl_generate_id_id_type!(ProfileId, "pro");
 crate::impl_serializable_secret_id_type!(ProfileId);
 crate::impl_queryable_id_type!(ProfileId);
 crate::impl_to_sql_from_sql_id_type!(ProfileId);
+
+impl crate::events::ApiEventMetric for ProfileId {
+    fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
+        Some(crate::events::ApiEventsType::BusinessProfile {
+            profile_id: self.clone(),
+        })
+    }
+}

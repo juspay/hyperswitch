@@ -75,7 +75,7 @@ pub struct PayoutAttempt {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<String>,
     pub routing_info: Option<serde_json::Value>,
 }
@@ -98,7 +98,7 @@ pub struct PayoutAttemptNew {
     pub business_label: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<String>,
     pub routing_info: Option<serde_json::Value>,
 }

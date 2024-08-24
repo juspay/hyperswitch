@@ -12023,7 +12023,8 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 64
           },
           "connector_account_details": {
             "allOf": [

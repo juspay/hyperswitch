@@ -246,7 +246,7 @@ pub async fn create_business_profile_from_merchant_account(
     use crate::core;
 
     // Generate a unique profile id
-    let profile_id = common_utils::generate_id_with_default_len("pro");
+    let profile_id = common_utils::generate_profile_id_of_default_length();
     let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();

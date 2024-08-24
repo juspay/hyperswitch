@@ -178,7 +178,7 @@ pub async fn create_new_authentication(
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     payment_id: Option<String>,
     merchant_connector_id: String,
 ) -> RouterResult<storage::Authentication> {
@@ -285,7 +285,7 @@ pub async fn get_authentication_connector_data(
         .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
             message: format!(
                 "No authentication_connector found for profile_id {}",
-                business_profile.profile_id
+                business_profile.profile_id.get_string_repr()
             ),
         })
         .attach_printable(

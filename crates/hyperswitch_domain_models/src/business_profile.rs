@@ -23,7 +23,7 @@ use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 ))]
 #[derive(Clone, Debug)]
 pub struct BusinessProfile {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -433,7 +433,7 @@ impl super::behaviour::Conversion for BusinessProfile {
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 #[derive(Clone, Debug)]
 pub struct BusinessProfile {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,

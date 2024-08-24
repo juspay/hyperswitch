@@ -144,7 +144,8 @@ pub struct PayoutCreateRequest {
     pub payout_token: Option<String>,
 
     /// The business profile to use for this payout, especially if there are multiple business profiles associated with the account, otherwise default business profile associated with the merchant account will be used.
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     /// The send method which will be required for processing payouts, check options for better understanding.
     #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
@@ -481,7 +482,8 @@ pub struct PayoutCreateResponse {
     pub error_code: Option<String>,
 
     /// The business profile that is associated with this payout
-    pub profile_id: String,
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// Time when the payout was created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -685,7 +687,8 @@ pub struct PayoutListFilterConstraints {
 )]
     pub payout_id: Option<String>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
     /// The identifier for customer
     #[schema(value_type = Option<String>,example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
