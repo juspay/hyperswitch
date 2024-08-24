@@ -269,14 +269,14 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
-    pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<String>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -310,14 +310,14 @@ pub struct BusinessProfileNew {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
-    pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<String>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
