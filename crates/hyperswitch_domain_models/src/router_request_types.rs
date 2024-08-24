@@ -776,12 +776,13 @@ pub struct PaymentsSessionData {
 
 #[derive(Debug, Clone, Default)]
 pub struct PaymentsTaxCalculationData {
-    pub amount: i64,
+    pub amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub shipping_cost: MinorUnit,
+    pub shipping: Address,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     // New amount for amount frame work
     // pub minor_amount: MinorUnit,
-    pub shipping_cost: MinorUnit,
-    pub shipping: Option<Address>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone, Default)]

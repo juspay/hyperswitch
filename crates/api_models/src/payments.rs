@@ -4379,6 +4379,8 @@ pub struct OrderDetailsWithAmount {
     pub brand: Option<String>,
     /// Type of the product that is being purchased
     pub product_type: Option<ProductType>,
+    /// The tax code for the product
+    pub product_tax_code: Option<String>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -4415,6 +4417,8 @@ pub struct OrderDetails {
     pub brand: Option<String>,
     /// Type of the product that is being purchased
     pub product_type: Option<ProductType>,
+    /// The tax code for the product
+    pub product_tax_code: Option<String>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

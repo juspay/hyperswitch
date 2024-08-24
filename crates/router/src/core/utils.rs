@@ -872,17 +872,16 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let shipping: Option<Address> = payment_intent
+    let shipping: Address = payment_intent
         .shipping_details
         .clone()
-        .map(|a| {
-            a.into_inner()
-                .expose()
-                .parse_value("Address")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while parsing value for shipping_details")
-        })
-        .transpose()?;
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Missing payment_intent.shipping_details")?
+        .into_inner()
+        .expose()
+        .parse_value("Address")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for shipping_details")?;
 
     let order: Option<Result<Vec<OrderDetailsWithAmount>, _>> =
         payment_intent.order_details.clone().map(|o| {
@@ -931,13 +930,16 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         payment_method_balance: None,
         connector_api_version: None,
         request: types::PaymentsTaxCalculationData {
-            amount: payment_intent.amount.clone().get_amount_as_i64(),
+            amount: payment_intent.amount,
             shipping_cost: payment_intent
                 .shipping_cost
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing shipping_cost")?,
             shipping,
             order_details,
+            currency: payment_intent
+                .currency
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?,
         },
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(

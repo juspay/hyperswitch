@@ -118,8 +118,7 @@ default_imp_for_calculate_tax!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Helcim,
-    connectors::Stax,
-    connectors::Taxjar
+    connectors::Stax
 );
 
 macro_rules! default_imp_for_session_update {

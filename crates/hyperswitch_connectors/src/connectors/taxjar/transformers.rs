@@ -1,12 +1,12 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::{MinorUnit, StringMinorUnit};
+use error_stack::report;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_response_types::{RefundsResponseData, TaxCalculationResponseData},
+    types,
+    types::RefundsRouterData,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{AddressDetailsData, RouterData as _},
 };
 
 //TODO: Fill the struct with respective fields
@@ -36,8 +36,27 @@ impl<T> From<(StringMinorUnit, T)> for TaxjarRouterData<T> {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct TaxjarPaymentsRequest {
-    amount: StringMinorUnit,
-    card: TaxjarCard,
+    from_country: enums::CountryAlpha2,
+    from_zip: Secret<String>,
+    from_state: Secret<String>,
+    from_city: Option<String>,
+    from_street: Option<Secret<String>>,
+    to_country: enums::CountryAlpha2,
+    to_zip: Secret<String>,
+    to_state: Secret<String>,
+    to_city: Option<String>,
+    to_street: Option<Secret<String>>,
+    amount: MinorUnit,
+    shipping_cost: MinorUnit,
+    line_items: Vec<LineItem>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct LineItem {
+    id: Option<String>,
+    quantity: Option<u16>,
+    product_tax_code: Option<String>,
+    unit_price: Option<i64>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -49,32 +68,47 @@ pub struct TaxjarCard {
     complete: bool,
 }
 
-impl TryFrom<&TaxjarRouterData<&PaymentsAuthorizeRouterData>> for TaxjarPaymentsRequest {
+impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
+    for TaxjarPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &TaxjarRouterData<&PaymentsAuthorizeRouterData>,
+        item: &TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = TaxjarCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        let request = &item.router_data.request;
+        let shipping = item.router_data.get_shipping_address()?;
+        // let shipping = item.router_data.request.shipping
+        match request.order_details.clone() {
+            Some(order_details) => Ok(Self {
+                from_country: item.router_data.get_billing_country()?,
+                from_zip: item.router_data.get_billing_zip()?,
+                from_state: item.router_data.get_billing_state_code()?,
+                from_city: item.router_data.get_optional_billing_city(),
+                from_street: item.router_data.get_optional_billing_line1(),
+                to_country: shipping.get_country()?.to_owned(),
+                to_zip: shipping.get_zip()?.to_owned(),
+                to_state: shipping.to_state_code()?.to_owned(),
+                to_city: shipping.get_optional_city(),
+                to_street: shipping.get_optional_line1(),
+                amount: request.amount,
+                shipping_cost: request.shipping_cost,
+                line_items: order_details
+                    .iter()
+                    .map(|line_item| LineItem {
+                        id: line_item.product_id.clone(),
+                        quantity: Some(line_item.quantity),
+                        product_tax_code: line_item.product_tax_code.clone(),
+                        unit_price: Some(line_item.amount),
+                    })
+                    .collect(),
+            }),
+            None => Err(report!(errors::ConnectorError::MissingRequiredField {
+                field_name: "order_details"
+            })),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct TaxjarAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -90,52 +124,29 @@ impl TryFrom<&ConnectorAuthType> for TaxjarAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum TaxjarPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<TaxjarPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: TaxjarPaymentStatus) -> Self {
-        match item {
-            TaxjarPaymentStatus::Succeeded => Self::Charged,
-            TaxjarPaymentStatus::Failed => Self::Failure,
-            TaxjarPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TaxjarPaymentsResponse {
-    status: TaxjarPaymentStatus,
-    id: String,
+    order_total_amount: i64,
+    amount_to_collect: i64, //calculated_tax_amount
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, TaxjarPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, TaxjarPaymentsResponse, T, TaxCalculationResponseData>>
+    for RouterData<F, T, TaxCalculationResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, TaxjarPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, TaxjarPaymentsResponse, T, TaxCalculationResponseData>,
     ) -> Result<Self, Self::Error> {
+        let calculated_tax = item.response.amount_to_collect;
+        let order_total_amount = item.response.order_total_amount;
+
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+            response: Ok(TaxCalculationResponseData {
+                order_tax_amount: calculated_tax,
+                net_amount: calculated_tax + order_total_amount,
+                shipping_address: None,
             }),
             ..item.data
         })

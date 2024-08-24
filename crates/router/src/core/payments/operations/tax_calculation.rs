@@ -94,12 +94,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 
         let amount = payment_attempt.get_total_amount().into();
 
-        let shipping_address = helpers::get_address_by_id(
+        let shipping_address = helpers::create_or_update_address_for_payment_by_request(
             state,
-            payment_intent.shipping_address_id.clone(),
+            Some(&request.shipping),
+            payment_intent.shipping_address_id.as_deref(),
+            merchant_id,
+            payment_intent.customer_id.as_ref(),
             key_store,
             &payment_intent.payment_id,
-            merchant_id,
             merchant_account.storage_scheme,
         )
         .await?;
