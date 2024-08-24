@@ -654,9 +654,9 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         recon_status -> ReconStatus,
-        version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
@@ -687,9 +687,9 @@ diesel::table! {
         status -> ConnectorStatus,
         additional_merchant_data -> Nullable<Bytea>,
         connector_wallets_details -> Nullable<Bytea>,
-        version -> ApiVersion,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 
