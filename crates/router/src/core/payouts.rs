@@ -2729,7 +2729,7 @@ pub async fn get_mca_from_profile_id(
     merchant_account: &domain::MerchantAccount,
     profile_id: &String,
     connector_name: &str,
-    merchant_connector_id: Option<&String>,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(

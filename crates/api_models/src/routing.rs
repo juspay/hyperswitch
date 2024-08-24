@@ -169,7 +169,7 @@ pub struct RoutableConnectorChoice {
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -184,7 +184,7 @@ pub enum RoutableChoiceSerde {
     OnlyConnector(Box<RoutableConnectors>),
     FullStruct {
         connector: RoutableConnectors,
-        merchant_connector_id: Option<String>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
 }
 

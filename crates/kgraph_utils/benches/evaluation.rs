@@ -56,7 +56,7 @@ fn build_test_data(
     let stripe_account = MerchantConnectorResponse {
         connector_type: api_enums::ConnectorType::FizOperations,
         connector_name: "stripe".to_string(),
-        id: "something".to_string(),
+        id: common_utils::id_type::MerchantConnectorAccountId::default(),
         connector_account_details: masking::Secret::new(serde_json::json!({})),
         disabled: None,
         metadata: None,
@@ -78,7 +78,7 @@ fn build_test_data(
     let stripe_account = MerchantConnectorResponse {
         connector_type: api_enums::ConnectorType::FizOperations,
         connector_name: "stripe".to_string(),
-        merchant_connector_id: "something".to_string(),
+        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId::default(),
         connector_account_details: masking::Secret::new(serde_json::json!({})),
         test_mode: None,
         disabled: None,

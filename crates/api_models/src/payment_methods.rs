@@ -149,7 +149,9 @@ pub struct PaymentMethodMigrate {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReference(pub HashMap<String, PaymentsMandateReferenceRecord>);
+pub struct PaymentsMandateReference(
+    pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
+);
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
@@ -452,7 +454,7 @@ pub struct BankAccountTokenData {
 pub struct BankAccountConnectorDetails {
     pub connector: String,
     pub account_id: masking::Secret<String>,
-    pub mca_id: String,
+    pub mca_id: id_type::MerchantConnectorAccountId,
     pub access_token: BankAccountAccessCreds,
 }
 
@@ -1470,7 +1472,7 @@ pub struct PaymentMethodRecord {
     pub billing_address_line2: Option<masking::Secret<String>>,
     pub billing_address_line3: Option<masking::Secret<String>>,
     pub raw_card_number: Option<masking::Secret<String>>,
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,

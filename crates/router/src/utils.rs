@@ -384,7 +384,10 @@ pub async fn find_mca_from_authentication_id_type(
         .await
         .to_not_found_response(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: authentication.merchant_connector_id.to_string(),
+                id: authentication
+                    .merchant_connector_id
+                    .get_string_repr()
+                    .to_string(),
             },
         )
     }
@@ -430,7 +433,7 @@ pub async fn get_mca_from_payment_intent(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }
@@ -525,7 +528,7 @@ pub async fn get_mca_from_payout_attempt(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }

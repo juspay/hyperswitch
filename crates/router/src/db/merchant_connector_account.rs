@@ -173,7 +173,7 @@ where
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
@@ -181,7 +181,7 @@ where
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
@@ -216,13 +216,13 @@ where
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError>;
 
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     async fn delete_merchant_connector_account_by_id(
         &self,
-        id: &str,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError>;
 }
 
@@ -387,7 +387,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
@@ -421,7 +421,7 @@ impl MerchantConnectorAccountInterface for Store {
                 &format!(
                     "{}_{}",
                     merchant_id.get_string_repr(),
-                    merchant_connector_id
+                    merchant_connector_id.get_string_repr()
                 ),
                 find_call,
                 &cache::ACCOUNTS_CACHE,
@@ -442,7 +442,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
@@ -467,17 +467,22 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(self, id, find_call, &cache::ACCOUNTS_CACHE)
-                .await?
-                .convert(
-                    state,
-                    key_store.key.get_inner(),
-                    common_utils::types::keymanager::Identifier::Merchant(
-                        key_store.merchant_id.clone(),
-                    ),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
+            cache::get_or_populate_in_memory(
+                self,
+                id.get_string_repr(),
+                find_call,
+                &cache::ACCOUNTS_CACHE,
+            )
+            .await?
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    key_store.merchant_id.clone(),
+                ),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
         }
     }
 
@@ -591,7 +596,7 @@ impl MerchantConnectorAccountInterface for Store {
                         ),
                         cache::CacheKind::Accounts(
                             format!(
-                                "{}_{}",
+                                "{}_{:?}",
                                 _merchant_id.get_string_repr(),
                                 _merchant_connector_id
                             )
@@ -687,7 +692,7 @@ impl MerchantConnectorAccountInterface for Store {
                     ),
                     cache::CacheKind::Accounts(
                         format!(
-                            "{}_{}",
+                            "{}_{:?}",
                             _merchant_id.get_string_repr(),
                             _merchant_connector_id
                         )
@@ -765,7 +770,7 @@ impl MerchantConnectorAccountInterface for Store {
                         format!(
                             "{}_{}",
                             _merchant_id.get_string_repr(),
-                            _merchant_connector_id
+                            _merchant_connector_id.get_string_repr()
                         )
                         .into(),
                     ),
@@ -799,7 +804,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let delete_call = || async {
@@ -864,7 +869,7 @@ impl MerchantConnectorAccountInterface for Store {
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     async fn delete_merchant_connector_account_by_id(
         &self,
-        id: &str,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let delete_call = || async {
@@ -1056,7 +1061,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         state: &KeyManagerState,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         match self
@@ -1066,7 +1071,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .iter()
             .find(|account| {
                 account.merchant_id == *merchant_id
-                    && account.merchant_connector_id == merchant_connector_id
+                    && account.merchant_connector_id == *merchant_connector_id
             })
             .cloned()
             .async_map(|account| async {
@@ -1095,7 +1100,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         match self
@@ -1103,7 +1108,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|account| account.get_id() == id)
+            .find(|account| account.get_id() == *id)
             .cloned()
             .async_map(|account| async {
                 account
@@ -1357,12 +1362,12 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         match accounts.iter().position(|account| {
             account.merchant_id == *merchant_id
-                && account.merchant_connector_id == merchant_connector_id
+                && account.merchant_connector_id == *merchant_connector_id
         }) {
             Some(index) => {
                 accounts.remove(index);
@@ -1380,10 +1385,10 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     async fn delete_merchant_connector_account_by_id(
         &self,
-        id: &str,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
-        match accounts.iter().position(|account| account.get_id() == id) {
+        match accounts.iter().position(|account| account.get_id() == *id) {
             Some(index) => {
                 accounts.remove(index);
                 return Ok(true);
@@ -1524,7 +1529,10 @@ mod merchant_connector_account_cache_tests {
             .unwrap(),
             test_mode: None,
             disabled: None,
-            merchant_connector_id: merchant_connector_id.to_string(),
+            merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId::wrap(
+                merchant_connector_id.to_string(),
+            )
+            .unwrap(),
             payment_methods_enabled: None,
             connector_type: ConnectorType::FinOperations,
             metadata: None,
@@ -1586,7 +1594,10 @@ mod merchant_connector_account_cache_tests {
         let delete_call = || async {
             db.delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
                 &merchant_id,
-                merchant_connector_id,
+                &common_utils::id_type::MerchantConnectorAccountId::wrap(
+                    merchant_connector_id.to_string(),
+                )
+                .unwrap(),
             )
             .await
         };
@@ -1643,7 +1654,7 @@ mod merchant_connector_account_cache_tests {
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("test_merchant"))
                 .unwrap();
         let connector_label = "stripe_USA";
-        let id = "simple_id";
+        let id = common_utils::id_type::MerchantConnectorAccountId::default();
         let profile_id = "pro_max_ultra";
         let key_manager_state = &state.into();
         db.insert_merchant_key_store(
@@ -1679,7 +1690,7 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
 
         let mca = domain::MerchantConnectorAccount {
-            id: id.to_string(),
+            id: id.clone(),
             merchant_id: merchant_id.clone(),
             connector_name: "stripe".to_string(),
             connector_account_details: domain::types::crypto_operation(
@@ -1755,7 +1766,7 @@ mod merchant_connector_account_cache_tests {
         .await
         .unwrap();
 
-        let delete_call = || async { db.delete_merchant_connector_account_by_id(id).await };
+        let delete_call = || async { db.delete_merchant_connector_account_by_id(&id).await };
 
         cache::publish_and_redact(
             &db,

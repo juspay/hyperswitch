@@ -1163,7 +1163,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         self.diesel_store
@@ -1180,7 +1180,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         self.diesel_store
@@ -1224,7 +1224,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
@@ -1237,7 +1237,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     async fn delete_merchant_connector_account_by_id(
         &self,
-        id: &str,
+        id: &id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_merchant_connector_account_by_id(id)
@@ -1473,7 +1473,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method: Option<Vec<common_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store

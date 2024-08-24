@@ -2485,7 +2485,10 @@ pub async fn list_payment_methods(
         // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
-            let domain_id = builder.make_domain(mca.get_id(), mca.connector_name.as_str());
+            let domain_id = builder.make_domain(
+                mca.get_id().get_string_repr().to_string(),
+                mca.connector_name.as_str(),
+            );
 
             let Ok(domain_id) = domain_id else {
                 logger::error!("Failed to construct domain for list payment methods");
@@ -3471,7 +3474,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
-    mca_id: String,
+    mca_id: id_type::MerchantConnectorAccountId,
     payment_methods: &[Secret<serde_json::Value>],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
@@ -3621,7 +3624,7 @@ pub async fn filter_payment_methods(
                     let context = AnalysisContext::from_dir_values(context_values.clone());
                     logger::info!("Context created for List Payment method is {:?}", context);
 
-                    let domain_ident: &[String] = &[mca_id.clone()];
+                    let domain_ident: &[String] = &[mca_id.clone().get_string_repr().to_string()];
                     let result = graph.key_value_analysis(
                         pm_dir_value.clone(),
                         &context,

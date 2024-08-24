@@ -48,7 +48,7 @@ pub struct Refund {
     pub refund_error_code: Option<String>,
     pub profile_id: Option<String>,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub charges: Option<ChargeRefunds>,
 }
 
@@ -90,7 +90,7 @@ pub struct RefundNew {
     pub refund_reason: Option<String>,
     pub profile_id: Option<String>,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub charges: Option<ChargeRefunds>,
 }
 

@@ -3834,7 +3834,7 @@ pub struct PaymentsResponse {
     pub merchant_decision: Option<String>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// If true, incremental authorization can be performed on this payment, in case the funds authorized initially fall short.
     pub incremental_authorization_allowed: Option<bool>,
@@ -4064,7 +4064,7 @@ pub struct PaymentListFilterConstraints {
     /// The list of authentication types to filter payments list
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The list of merchant connector ids to filter payments list for selected label
-    pub merchant_connector_id: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     /// The order in which payments list should be sorted
     #[serde(default)]
     pub order: Order,

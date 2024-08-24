@@ -675,12 +675,12 @@ pub struct MerchantId {
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
-    pub id: String,
+    pub id: id_type::MerchantConnectorAccountId,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -759,7 +759,7 @@ pub struct MerchantConnectorCreate {
 
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
     #[schema(value_type = Option<Object>)]
@@ -904,7 +904,7 @@ pub struct MerchantConnectorCreate {
 
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
@@ -1030,11 +1030,14 @@ pub struct MerchantConnectorWebhookDetails {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorInfo {
     pub connector_label: String,
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
 impl MerchantConnectorInfo {
-    pub fn new(connector_label: String, merchant_connector_id: String) -> Self {
+    pub fn new(
+        connector_label: String,
+        merchant_connector_id: id_type::MerchantConnectorAccountId,
+    ) -> Self {
         Self {
             connector_label,
             merchant_connector_id,
@@ -1060,7 +1063,7 @@ pub struct MerchantConnectorResponse {
 
     /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub id: String,
+    pub id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
@@ -1167,7 +1170,7 @@ pub struct MerchantConnectorResponse {
 
     /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
@@ -1291,7 +1294,7 @@ pub struct MerchantConnectorListResponse {
 
     /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
@@ -1400,7 +1403,7 @@ pub struct MerchantConnectorListResponse {
 
     /// Unique ID of the merchant connector account
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub id: String,
+    pub id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64)]
@@ -1752,7 +1755,7 @@ pub struct MerchantConnectorDeleteResponse {
     pub merchant_id: id_type::MerchantId,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
     /// If the connector is deleted or not
     #[schema(example = false)]
     pub deleted: bool,
@@ -1766,7 +1769,7 @@ pub struct MerchantConnectorDeleteResponse {
     pub merchant_id: id_type::MerchantId,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
-    pub id: String,
+    pub id: id_type::MerchantConnectorAccountId,
     /// If the connector is deleted or not
     #[schema(example = false)]
     pub deleted: bool,

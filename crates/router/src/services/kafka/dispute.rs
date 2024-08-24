@@ -31,7 +31,7 @@ pub struct KafkaDispute<'a> {
     pub connector: &'a String,
     pub evidence: &'a Secret<serde_json::Value>,
     pub profile_id: Option<&'a String>,
-    pub merchant_connector_id: Option<&'a String>,
+    pub merchant_connector_id: Option<&'a common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl<'a> KafkaDispute<'a> {
