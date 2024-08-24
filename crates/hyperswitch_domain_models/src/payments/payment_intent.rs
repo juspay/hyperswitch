@@ -181,6 +181,7 @@ pub struct PaymentIntentUpdateFields {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -256,6 +257,9 @@ pub enum PaymentIntentUpdate {
         status: Option<storage_enums::IntentStatus>,
         updated_by: String,
     },
+    TaxCalculationUpdate {
+        tax_details: diesel_models::TaxDetails,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -298,6 +302,7 @@ pub struct PaymentIntentUpdateInternal {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub tax_details: diesel_models::TaxDetails,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -480,6 +485,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
+            PaymentIntentUpdate::TaxCalculationUpdate { tax_details } => Self {
+                tax_details,
+                ..Default::default()
+            },
         }
     }
 }
@@ -543,6 +552,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     merchant_order_reference_id: value.merchant_order_reference_id,
                     shipping_details: value.shipping_details.map(Encryption::from),
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
+                    tax_details: value.tax_details,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -643,6 +653,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
                 Self::ManualUpdate { status, updated_by }
             }
+            PaymentIntentUpdate::TaxCalculationUpdate { tax_details } => {
+                Self::TaxCalculationUpdate { tax_details }
+            }
         }
     }
 }
@@ -687,6 +700,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             merchant_order_reference_id,
             shipping_details,
             is_payment_processor_token_flow,
+            tax_details,
         } = value;
 
         Self {
@@ -725,6 +739,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             merchant_order_reference_id,
             shipping_details: shipping_details.map(Encryption::from),
             is_payment_processor_token_flow,
+            tax_details: Some(tax_details),
         }
     }
 }

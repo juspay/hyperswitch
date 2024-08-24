@@ -347,9 +347,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        //update shipping and tax_details
-        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::CompleteAuthorizeUpdate {
-            shipping_address_id: payment_data.payment_intent.shipping_address_id.clone()
+        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::TaxCalculationUpdate {
+            tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?
         };
 
         let db = &*state.store;

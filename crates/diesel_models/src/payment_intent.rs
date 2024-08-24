@@ -134,7 +134,7 @@ pub struct PaymentIntent {
     pub tax_details: Option<TaxDetails>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct TaxDetails {
     pub default: DefaultTax,
@@ -148,16 +148,13 @@ pub struct PmtTax {
     pub order_tax_amount: i64,
     pub shipping_details: String,
 }
-// common_utils::impl_to_sql_from_sql_json!(PmtTax);
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DefaultTax {
     pub order_tax_amount: i64,
     pub pmt: Option<String>,
     pub shipping_details: String,
 }
-
-// common_utils::impl_to_sql_from_sql_json!(DefaultTax);
 
 #[derive(
     Clone, Debug, PartialEq, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
@@ -294,6 +291,9 @@ pub enum PaymentIntentUpdate {
         status: Option<storage_enums::IntentStatus>,
         updated_by: String,
     },
+    TaxCalculationUpdate {
+        tax_details: TaxDetails,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -324,6 +324,7 @@ pub struct PaymentIntentUpdateFields {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub tax_details: Option<TaxDetails>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -365,6 +366,7 @@ pub struct PaymentIntentUpdateInternal {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub tax_details: Option<TaxDetails>,
 }
 
 impl PaymentIntentUpdate {
@@ -405,6 +407,7 @@ impl PaymentIntentUpdate {
             merchant_order_reference_id,
             shipping_details,
             is_payment_processor_token_flow,
+            tax_details,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -449,6 +452,7 @@ impl PaymentIntentUpdate {
             shipping_details: shipping_details.or(source.shipping_details),
             is_payment_processor_token_flow: is_payment_processor_token_flow
                 .or(source.is_payment_processor_token_flow),
+            tax_details: tax_details.or(source.tax_details),
             ..source
         }
     }
@@ -496,6 +500,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -534,6 +539,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 incremental_authorization_allowed: None,
                 authorization_count: None,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
+                tax_details: None,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -579,6 +585,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -620,6 +627,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -662,6 +670,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -712,6 +721,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -753,6 +763,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -795,6 +806,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -836,6 +848,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -877,6 +890,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -917,6 +931,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -954,6 +969,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -993,6 +1009,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1032,6 +1049,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1069,6 +1087,45 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
+                tax_details: None,
+            },
+            PaymentIntentUpdate::TaxCalculationUpdate { tax_details } => Self {
+                shipping_address_id: None,
+                amount: None,
+                currency: None,
+                status: None,
+                amount_captured: None,
+                customer_id: None,
+                return_url: None,
+                setup_future_usage: None,
+                off_session: None,
+                metadata: None,
+                billing_address_id: None,
+                modified_at: common_utils::date_time::now(),
+                active_attempt_id: None,
+                business_country: None,
+                business_label: None,
+                description: None,
+                statement_descriptor_name: None,
+                statement_descriptor_suffix: None,
+                order_details: None,
+                attempt_count: None,
+                merchant_decision: None,
+                payment_confirm_source: None,
+                updated_by: String::default(),
+                surcharge_applicable: None,
+                incremental_authorization_allowed: None,
+                authorization_count: None,
+                session_expiry: None,
+                fingerprint_id: None,
+                request_external_three_ds_authentication: None,
+                frm_metadata: None,
+                customer_details: None,
+                billing_details: None,
+                merchant_order_reference_id: None,
+                shipping_details: None,
+                is_payment_processor_token_flow: None,
+                tax_details: Some(tax_details),
             },
         }
     }
