@@ -46,6 +46,7 @@ pub struct DisputeResponse {
     /// The `profile_id` associated with the dispute
     pub profile_id: Option<String>,
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
+    #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 

@@ -10286,17 +10286,6 @@
           {
             "type": "object",
             "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "bank_redirect"
             ],
             "properties": {
@@ -14927,8 +14916,7 @@
         "description": "Processor payment token for MIT payments where payment_method_data is not available",
         "required": [
           "processor_payment_token",
-          "connector",
-          "merchant_connector_id"
+          "connector"
         ],
         "properties": {
           "processor_payment_token": {
@@ -14938,7 +14926,8 @@
             "$ref": "#/components/schemas/Connector"
           },
           "merchant_connector_id": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           }
         }
       },

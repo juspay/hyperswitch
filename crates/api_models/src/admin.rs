@@ -675,11 +675,13 @@ pub struct MerchantId {
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
+    #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 #[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
+    #[schema(value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,
 }
 
@@ -758,7 +760,7 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// Unique ID of the connector
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = Option<String>)]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
@@ -903,7 +905,7 @@ pub struct MerchantConnectorCreate {
     pub business_sub_label: Option<String>,
 
     /// Unique ID of the connector
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = Option<String>)]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     #[schema(value_type = Option<Object>)]
@@ -1030,6 +1032,7 @@ pub struct MerchantConnectorWebhookDetails {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct MerchantConnectorInfo {
     pub connector_label: String,
+    #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 
@@ -1062,7 +1065,7 @@ pub struct MerchantConnectorResponse {
     pub connector_label: Option<String>,
 
     /// Unique ID of the merchant connector account
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
@@ -1169,7 +1172,7 @@ pub struct MerchantConnectorResponse {
     pub connector_label: Option<String>,
 
     /// Unique ID of the merchant connector account
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
@@ -1293,7 +1296,7 @@ pub struct MerchantConnectorListResponse {
     pub connector_label: Option<String>,
 
     /// Unique ID of the merchant connector account
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
@@ -1402,7 +1405,7 @@ pub struct MerchantConnectorListResponse {
     pub connector_label: Option<String>,
 
     /// Unique ID of the merchant connector account
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
@@ -1754,7 +1757,7 @@ pub struct MerchantConnectorDeleteResponse {
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// Unique ID of the connector
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
     /// If the connector is deleted or not
     #[schema(example = false)]
@@ -1768,7 +1771,7 @@ pub struct MerchantConnectorDeleteResponse {
     #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// Unique ID of the connector
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,
     /// If the connector is deleted or not
     #[schema(example = false)]

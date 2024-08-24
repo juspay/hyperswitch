@@ -158,6 +158,7 @@ pub struct RefundResponse {
     /// The id of business profile for this refund
     pub profile_id: Option<String>,
     /// The merchant_connector_id of the processor through which this payment went through
+    #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<ChargeRefunds>)]
@@ -184,6 +185,7 @@ pub struct RefundListRequest {
     /// The list of connectors to filter refunds list
     pub connector: Option<Vec<String>>,
     /// The list of merchant connector ids to filter the refunds list for selected label
+    #[schema(value_type = Option<Vec<String>>)]
     pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     /// The list of currencies to filter refunds list
     #[schema(value_type = Option<Vec<Currency>>)]
