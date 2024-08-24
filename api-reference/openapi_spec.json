@@ -13292,6 +13292,11 @@
               }
             ],
             "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
+            "nullable": true
           }
         }
       },
@@ -13356,6 +13361,11 @@
                 "$ref": "#/components/schemas/ProductType"
               }
             ],
+            "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
             "nullable": true
           }
         }
