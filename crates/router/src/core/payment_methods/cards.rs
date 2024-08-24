@@ -60,7 +60,10 @@ use crate::types::domain::types::AsyncLift;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::utils::{self};
 use crate::{
-    configs::settings,
+    configs::{
+        defaults::{get_billing_required_fields, get_shipping_required_fields},
+        settings,
+    },
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
@@ -2435,10 +2438,17 @@ pub async fn list_payment_methods(
     )
     .await?;
 
+    let profile_id = profile_id
+        .clone()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Profile id not found".to_string(),
+        })?;
+
     // filter out payment connectors based on profile_id
     let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
         all_mcas.clone(),
-        profile_id.as_ref(),
+        &profile_id,
         ConnectorType::PaymentProcessor,
     );
 
@@ -2447,12 +2457,6 @@ pub async fn list_payment_methods(
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     // Key creation for storing PM_FILTER_CGRAPH
     let key = {
-        let profile_id = profile_id
-            .clone()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Profile id not found".to_string(),
-            })?;
         format!(
             "pm_filters_cgraph_{}_{}",
             merchant_account.get_id().get_string_repr(),
@@ -2897,29 +2901,12 @@ pub async fn list_payment_methods(
                                     }
                                 }
 
-                                let should_send_shipping_details =
-                                    business_profile.clone().and_then(|business_profile| {
-                                        business_profile
-                                            .collect_shipping_details_from_wallet_connector
-                                    });
-
-                                // Remove shipping fields from required fields based on business profile configuration
-                                if should_send_shipping_details != Some(true) {
-                                    let shipping_variants =
-                                        api_enums::FieldType::get_shipping_variants();
-
-                                    let keys_to_be_removed = required_fields_hs
-                                        .iter()
-                                        .filter(|(_key, value)| {
-                                            shipping_variants.contains(&value.field_type)
-                                        })
-                                        .map(|(key, _value)| key.to_string())
-                                        .collect::<Vec<_>>();
-
-                                    keys_to_be_removed.iter().for_each(|key_to_be_removed| {
-                                        required_fields_hs.remove(key_to_be_removed);
-                                    });
-                                }
+                                 required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
+                                    &payment_method,
+                                    element.payment_experience.as_ref(),
+                                    business_profile.as_ref(),
+                                    required_fields_hs.clone(),
+                                );
 
                                 // get the config, check the enums while adding
                                 {
@@ -3270,11 +3257,22 @@ pub async fn list_payment_methods(
 
     let collect_shipping_details_from_wallets = business_profile
         .as_ref()
-        .and_then(|bp| bp.collect_shipping_details_from_wallet_connector);
+        .and_then(|business_profile| {
+            business_profile.always_collect_shipping_details_from_wallet_connector
+        })
+        .or(business_profile.as_ref().and_then(|business_profile| {
+            business_profile.collect_shipping_details_from_wallet_connector
+        }));
 
     let collect_billing_details_from_wallets = business_profile
         .as_ref()
-        .and_then(|bp| bp.collect_billing_details_from_wallet_connector);
+        .and_then(|business_profile| {
+            business_profile.always_collect_billing_details_from_wallet_connector
+        })
+        .or(business_profile.as_ref().and_then(|business_profile| {
+            business_profile.collect_billing_details_from_wallet_connector
+        }));
+
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: business_profile
@@ -3317,6 +3315,37 @@ pub async fn list_payment_methods(
             collect_billing_details_from_wallets,
         },
     ))
+}
+
+fn should_collect_shipping_or_billing_details_from_wallet_connector(
+    payment_method: &api_enums::PaymentMethod,
+    payment_experience_optional: Option<&api_enums::PaymentExperience>,
+    business_profile: Option<&BusinessProfile>,
+    mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
+) -> HashMap<String, RequiredFieldInfo> {
+    match (payment_method, payment_experience_optional) {
+        (api_enums::PaymentMethod::Wallet, Some(api_enums::PaymentExperience::InvokeSdkClient)) => {
+            let always_send_billing_details = business_profile.and_then(|business_profile| {
+                business_profile.always_collect_billing_details_from_wallet_connector
+            });
+
+            let always_send_shipping_details = business_profile.and_then(|business_profile| {
+                business_profile.always_collect_shipping_details_from_wallet_connector
+            });
+
+            if always_send_billing_details == Some(true) {
+                let billing_details = get_billing_required_fields();
+                required_fields_hs.extend(billing_details)
+            };
+            if always_send_shipping_details == Some(true) {
+                let shipping_details = get_shipping_required_fields();
+                required_fields_hs.extend(shipping_details)
+            };
+
+            required_fields_hs
+        }
+        _ => required_fields_hs,
+    }
 }
 
 async fn validate_payment_method_and_client_secret(

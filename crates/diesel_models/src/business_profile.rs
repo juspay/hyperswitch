@@ -54,8 +54,10 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
-    pub is_tax_connector_enabled: Option<bool>,
+    pub is_tax_connector_enabled:Option<bool>,
 }
 
 #[cfg(all(
@@ -94,6 +96,8 @@ pub struct BusinessProfileNew {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
 }
@@ -131,6 +135,8 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
 }
@@ -167,6 +173,8 @@ impl BusinessProfileUpdateInternal {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
             tax_connector_id,
             is_tax_connector_enabled,
         } = self;
@@ -213,6 +221,12 @@ impl BusinessProfileUpdateInternal {
                     .or(source.collect_billing_details_from_wallet_connector),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
+            always_collect_billing_details_from_wallet_connector:
+                always_collect_billing_details_from_wallet_connector
+                    .or(source.always_collect_billing_details_from_wallet_connector),
+            always_collect_shipping_details_from_wallet_connector:
+                always_collect_shipping_details_from_wallet_connector
+                    .or(source.always_collect_shipping_details_from_wallet_connector),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
             is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
         }
@@ -253,6 +267,8 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<String>,
@@ -292,6 +308,8 @@ pub struct BusinessProfileNew {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<String>,
@@ -328,6 +346,8 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub routing_algorithm_id: Option<String>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -363,6 +383,8 @@ impl BusinessProfileUpdateInternal {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
             routing_algorithm_id,
             order_fulfillment_time,
             order_fulfillment_time_origin,
@@ -411,6 +433,12 @@ impl BusinessProfileUpdateInternal {
                     .or(source.collect_billing_details_from_wallet_connector),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
+            always_collect_billing_details_from_wallet_connector:
+                always_collect_billing_details_from_wallet_connector
+                    .or(always_collect_billing_details_from_wallet_connector),
+            always_collect_shipping_details_from_wallet_connector:
+                always_collect_shipping_details_from_wallet_connector
+                    .or(always_collect_shipping_details_from_wallet_connector),
             routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
             order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
             order_fulfillment_time_origin: order_fulfillment_time_origin
@@ -459,6 +487,10 @@ impl From<BusinessProfileNew> for BusinessProfile {
                 .collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
             routing_algorithm_id: new.routing_algorithm_id,
+            always_collect_billing_details_from_wallet_connector: new
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: new
+                .always_collect_shipping_details_from_wallet_connector,
             order_fulfillment_time: new.order_fulfillment_time,
             order_fulfillment_time_origin: new.order_fulfillment_time_origin,
             frm_routing_algorithm_id: new.frm_routing_algorithm_id,
