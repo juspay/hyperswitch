@@ -36,6 +36,7 @@ pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;

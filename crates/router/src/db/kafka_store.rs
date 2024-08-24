@@ -68,6 +68,7 @@ use crate::{
         refund::RefundInterface,
         reverse_lookup::ReverseLookupInterface,
         routing_algorithm::RoutingAlgorithmInterface,
+        unified_translations::UnifiedTranslationsInterface,
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
     services::{authentication, kafka::KafkaProducer, Store},
@@ -498,7 +499,7 @@ impl CustomerInterface for KafkaStore {
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: &String,
+        id: &str,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -1617,6 +1618,17 @@ impl PaymentIntentInterface for KafkaStore {
     }
 
     #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::DataStorageError> {
+        self.diesel_store
+            .get_intent_status_with_count(merchant_id, time_range)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -2614,6 +2626,50 @@ impl GsmInterface for KafkaStore {
 }
 
 #[async_trait::async_trait]
+impl UnifiedTranslationsInterface for KafkaStore {
+    async fn add_unfied_translation(
+        &self,
+        translation: storage::UnifiedTranslationsNew,
+    ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
+        self.diesel_store.add_unfied_translation(translation).await
+    }
+
+    async fn find_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+    ) -> CustomResult<String, errors::StorageError> {
+        self.diesel_store
+            .find_translation(unified_code, unified_message, locale)
+            .await
+    }
+
+    async fn update_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+        data: storage::UnifiedTranslationsUpdate,
+    ) -> CustomResult<storage::UnifiedTranslations, errors::StorageError> {
+        self.diesel_store
+            .update_translation(unified_code, unified_message, locale, data)
+            .await
+    }
+
+    async fn delete_translation(
+        &self,
+        unified_code: String,
+        unified_message: String,
+        locale: String,
+    ) -> CustomResult<bool, errors::StorageError> {
+        self.diesel_store
+            .delete_translation(unified_code, unified_message, locale)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
         Box::new(self.clone())
@@ -2737,30 +2793,6 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn update_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        update: user_storage::UserRoleUpdate,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update, version)
-            .await
-    }
-
-    async fn update_user_roles_by_user_id_org_id(
-        &self,
-        user_id: &str,
-        org_id: &id_type::OrganizationId,
-        update: user_storage::UserRoleUpdate,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .update_user_roles_by_user_id_org_id(user_id, org_id, update, version)
-            .await
-    }
-
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -2790,6 +2822,27 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
+    async fn update_user_role_by_user_id_and_lineage(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        update: user_storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .update_user_role_by_user_id_and_lineage(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                update,
+                version,
+            )
+            .await
+    }
+
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
@@ -2809,18 +2862,6 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn transfer_org_ownership_between_users(
-        &self,
-        from_user_id: &str,
-        to_user_id: &str,
-        org_id: &id_type::OrganizationId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<(), errors::StorageError> {
-        self.diesel_store
-            .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id, version)
-            .await
-    }
-
     async fn list_user_roles_by_merchant_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2828,6 +2869,20 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store
             .list_user_roles_by_merchant_id(merchant_id, version)
+            .await
+    }
+
+    async fn list_user_roles(
+        &self,
+        user_id: &str,
+        org_id: Option<&id_type::OrganizationId>,
+        merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&String>,
+        entity_id: Option<&String>,
+        version: Option<enums::UserRoleVersion>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles(user_id, org_id, merchant_id, profile_id, entity_id, version)
             .await
     }
 }

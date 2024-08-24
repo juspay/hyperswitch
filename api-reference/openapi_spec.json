@@ -1157,13 +1157,52 @@
       }
     },
     "/organization/{organization_id}": {
-      "post": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Retrieve",
+        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
+        "operationId": "Retrieve an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
         "tags": [
           "Organization"
         ],
         "summary": "Organization - Update",
         "description": "Organization - Update\n\nCreate a new organization for .",
-        "operationId": "Create an Organization",
+        "operationId": "Update an Organization",
         "parameters": [
           {
             "name": "organization_id",
@@ -3015,7 +3054,7 @@
         },
         "security": [
           {
-            "api_key": []
+            "admin_api_key": []
           }
         ]
       },
@@ -3080,7 +3119,7 @@
         },
         "security": [
           {
-            "api_key": []
+            "admin_api_key": []
           }
         ]
       },
@@ -6378,9 +6417,6 @@
             "properties": {
               "przelewy24": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "bank_name": {
                     "allOf": [
@@ -6391,7 +6427,12 @@
                     "nullable": true
                   },
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -7162,7 +7203,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -7216,7 +7257,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Verified applepay domains for a particular profile",
+            "description": "Verified Apple Pay domains for a particular profile",
             "nullable": true
           },
           "session_expiry": {
@@ -7250,14 +7291,28 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
@@ -7325,7 +7380,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -7377,7 +7432,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Verified applepay domains for a particular profile",
+            "description": "Verified Apple Pay domains for a particular profile",
             "nullable": true
           },
           "session_expiry": {
@@ -7417,14 +7472,28 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
@@ -11511,7 +11580,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -11691,7 +11760,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "example": "xkkdf909012sdjki2dkh5sdf",
             "nullable": true,
             "maxLength": 255
@@ -11874,7 +11943,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -14791,17 +14860,6 @@
             "properties": {
               "pay_later": {
                 "$ref": "#/components/schemas/PaylaterResponse"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "type": "object"
               }
             }
           },
@@ -18778,6 +18836,12 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Unique identifier of the merchant connector account",
+            "example": "mca_sAD3OZLATetvjLOYhUSy",
             "nullable": true
           },
           "status": {

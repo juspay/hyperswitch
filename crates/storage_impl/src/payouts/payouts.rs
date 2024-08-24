@@ -6,17 +6,21 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::errors::ReportSwitchExt;
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{
+    associations::HasTable, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl,
+};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2")
 ))]
-use diesel::{JoinOnDsl, NullableExpressionMethods};
+use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
 #[cfg(feature = "olap")]
 use diesel_models::{
-    customers::Customer as DieselCustomer, enums as storage_enums, query::generics::db_metrics,
-    schema::payouts::dsl as po_dsl,
+    customers::Customer as DieselCustomer,
+    enums as storage_enums,
+    query::generics::db_metrics,
+    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -25,15 +29,6 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
-};
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
-use diesel_models::{
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
@@ -700,8 +695,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             })
     }
 
-    #[cfg(feature = "olap")]
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
@@ -765,7 +759,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        feature = "olap",
+        not(feature = "customer_v2")
+    ))]
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
         &self,
@@ -840,6 +838,16 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             )
             .into()
         })
+    }
+
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PayoutFetchConstraints,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        todo!()
     }
 }
 

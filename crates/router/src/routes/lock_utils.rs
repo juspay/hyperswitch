@@ -126,6 +126,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsStart
             | Flow::PaymentsList
             | Flow::PaymentsFilters
+            | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
             | Flow::PaymentsIncrementalAuthorization
             | Flow::PaymentsExternalAuthentication
@@ -243,6 +244,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
+            | Flow::ListOrgForUser
+            | Flow::ListMerchantsForUserInOrg
+            | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles
@@ -250,6 +254,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
+            | Flow::GetRolesInfo
             | Flow::AcceptInvitation
             | Flow::MerchantSelect
             | Flow::DeleteUserRole
