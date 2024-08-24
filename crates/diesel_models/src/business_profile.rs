@@ -57,7 +57,7 @@ pub struct BusinessProfile {
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
-    pub is_tax_connector_enabled:Option<bool>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
