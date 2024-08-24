@@ -316,7 +316,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
             tax_connector_id: self.tax_connector_id,
-            is_tax_connector_enabled: self.is_tax_connector_enabled,
+            is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
         })
     }
 
@@ -375,7 +375,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                     })
                     .await?,
                 tax_connector_id: item.tax_connector_id,
-                is_tax_connector_enabled: item.is_tax_connector_enabled,
+                is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
             })
         }
         .await
@@ -419,7 +419,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 .outgoing_webhook_custom_http_headers
                 .map(Encryption::from),
             tax_connector_id: self.tax_connector_id,
-            is_tax_connector_enabled: self.is_tax_connector_enabled,
+            is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
         })
     }
 }
@@ -457,6 +457,8 @@ pub struct BusinessProfile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: bool,
 }
 
 impl BusinessProfile {
@@ -576,6 +578,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     frm_routing_algorithm_id: None,
                     payout_routing_algorithm_id: None,
                     default_fallback_routing: None,
+                    tax_connector_id: None,
+                    is_tax_connector_enabled: None,
                 }
             }
             BusinessProfileUpdate::RoutingAlgorithmUpdate {
@@ -609,6 +613,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 frm_routing_algorithm_id: None,
                 payout_routing_algorithm_id,
                 default_fallback_routing: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -640,6 +646,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
                 default_fallback_routing: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
             },
             BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -671,6 +679,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
                 default_fallback_routing: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
             },
             BusinessProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -702,6 +712,8 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 order_fulfillment_time_origin: None,
                 frm_routing_algorithm_id: None,
                 default_fallback_routing,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
             },
         }
     }
@@ -749,6 +761,8 @@ impl super::behaviour::Conversion for BusinessProfile {
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             frm_routing_algorithm_id: self.frm_routing_algorithm_id,
             default_fallback_routing: self.default_fallback_routing,
+            tax_connector_id: self.tax_connector_id,
+            is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
         })
     }
 
@@ -808,6 +822,8 @@ impl super::behaviour::Conversion for BusinessProfile {
                 frm_routing_algorithm_id: item.frm_routing_algorithm_id,
                 payout_routing_algorithm_id: item.payout_routing_algorithm_id,
                 default_fallback_routing: item.default_fallback_routing,
+                tax_connector_id: item.tax_connector_id,
+                is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
             })
         }
         .await
@@ -852,6 +868,8 @@ impl super::behaviour::Conversion for BusinessProfile {
             frm_routing_algorithm_id: self.frm_routing_algorithm_id,
             payout_routing_algorithm_id: self.payout_routing_algorithm_id,
             default_fallback_routing: self.default_fallback_routing,
+            tax_connector_id: self.tax_connector_id,
+            is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
         })
     }
 }

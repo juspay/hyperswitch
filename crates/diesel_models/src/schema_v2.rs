@@ -203,7 +203,7 @@ diesel::table! {
         outgoing_webhook_custom_http_headers -> Nullable<Bytea>,
         #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
-        is_tax_connector_enabled -> Bool,
+        is_tax_connector_enabled -> Nullable<Bool>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
