@@ -4,7 +4,6 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-use base64::Engine;
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -24,7 +23,7 @@ use uuid::Uuid;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
-    consts::{self, BASE64_ENGINE},
+    consts,
     core::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
@@ -35,7 +34,11 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
-    services::{self, api as service_api, authentication, pm_auth as payment_initiation_service},
+    services::{
+        self,
+        api::{self as service_api, client},
+        authentication, pm_auth as payment_initiation_service,
+    },
     types::{
         self,
         api::{self, admin},
@@ -1611,7 +1614,7 @@ impl<'a> ConnectorAuthTypeValidation<'a> {
                 certificate,
                 private_key,
             } => {
-                helpers::create_identity_from_certificate_and_key(
+                client::create_identity_from_certificate_and_key(
                     certificate.to_owned(),
                     private_key.to_owned(),
                 )
@@ -1702,34 +1705,6 @@ impl<'a> PaymentMethodsEnabled<'a> {
     }
 }
 
-struct CertificateAndCertificateKey<'a> {
-    certificate: &'a Secret<String>,
-    certificate_key: &'a Secret<String>,
-}
-
-impl<'a> CertificateAndCertificateKey<'a> {
-    pub fn create_identity_from_certificate_and_key(
-        &self,
-    ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
-        let decoded_certificate = BASE64_ENGINE
-            .decode(self.certificate.clone().expose())
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        let decoded_certificate_key = BASE64_ENGINE
-            .decode(self.certificate_key.clone().expose())
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        let certificate = String::from_utf8(decoded_certificate)
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        let certificate_key = String::from_utf8(decoded_certificate_key)
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)
-    }
-}
-
 struct ConnectorMetadata<'a> {
     connector_metadata: &'a Option<pii::SecretSerdeValue>,
 }
@@ -1746,11 +1721,7 @@ impl<'a> ConnectorMetadata<'a> {
             })?
             .and_then(|metadata| metadata.get_apple_pay_certificates())
             .map(|(certificate, certificate_key)| {
-                let certificate_and_certificate_key = CertificateAndCertificateKey {
-                    certificate: &certificate,
-                    certificate_key: &certificate_key,
-                };
-                certificate_and_certificate_key.create_identity_from_certificate_and_key()
+                client::create_identity_from_certificate_and_key(certificate, certificate_key)
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
