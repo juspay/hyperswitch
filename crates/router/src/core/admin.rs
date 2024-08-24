@@ -4,6 +4,8 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
+#[cfg(feature = "keymanager_create")]
+use base64::Engine;
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -20,6 +22,8 @@ use regex::Regex;
 use router_env::metrics::add_attributes;
 use uuid::Uuid;
 
+#[cfg(feature = "keymanager_create")]
+use crate::consts::BASE64_ENGINE;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
