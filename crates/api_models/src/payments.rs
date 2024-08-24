@@ -15,9 +15,9 @@ use common_utils::{
     types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
-use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
+use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
     ser::Serializer,
@@ -2985,7 +2985,6 @@ where
                 | PaymentMethodDataResponse::MandatePayment {}
                 | PaymentMethodDataResponse::GiftCard {}
                 | PaymentMethodDataResponse::PayLater(_)
-                | PaymentMethodDataResponse::Paypal {}
                 | PaymentMethodDataResponse::RealTimePayment {}
                 | PaymentMethodDataResponse::Upi {}
                 | PaymentMethodDataResponse::Wallet {}
@@ -3012,7 +3011,6 @@ pub enum PaymentMethodDataResponse {
     BankTransfer {},
     Wallet {},
     PayLater(Box<PaylaterResponse>),
-    Paypal {},
     BankRedirect {},
     Crypto {},
     BankDebit {},
@@ -5054,6 +5052,29 @@ pub struct PaymentsManualUpdateRequest {
     pub error_message: Option<String>,
     /// Error reason of the connector
     pub error_reason: Option<String>,
+    /// A unique identifier for a payment provided by the connector
+    pub connector_transaction_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualUpdateResponse {
+    /// The identifier for the payment
+    pub payment_id: String,
+    /// The identifier for the payment attempt
+    pub attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the attempt
+    pub attempt_status: enums::AttemptStatus,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// Error reason of the connector
+    pub error_reason: Option<String>,
+    /// A unique identifier for a payment provided by the connector
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

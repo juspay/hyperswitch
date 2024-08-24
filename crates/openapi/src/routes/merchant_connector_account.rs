@@ -240,7 +240,7 @@ pub async fn connector_update() {}
 /// To update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector
 #[cfg(feature = "v2")]
 #[utoipa::path(
-    post,
+    put,
     path = "/v2/connector_accounts/{id}",
     request_body(
         content = MerchantConnectorUpdate,

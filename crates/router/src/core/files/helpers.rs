@@ -2,6 +2,7 @@ use actix_multipart::Field;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use futures::TryStreamExt;
+use hyperswitch_domain_models::router_response_types::disputes::FileInfo;
 
 use crate::{
     core::{
@@ -175,9 +176,13 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     is_connector_file_data_required: api::FileDataRequired,
-) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
+) -> CustomResult<FileInfo, errors::ApiErrorResponse> {
     match file_id {
-        None => Ok((None, None)),
+        None => Ok(FileInfo {
+            file_data: None,
+            provider_file_id: None,
+            file_type: None,
+        }),
         Some(file_key) => {
             let file_metadata_object = state
                 .store
@@ -194,22 +199,23 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                     .attach_printable("File not available")?,
             };
             match provider {
-                diesel_models::enums::FileUploadProvider::Router => Ok((
-                    Some(
+                diesel_models::enums::FileUploadProvider::Router => Ok(FileInfo {
+                    file_data: Some(
                         state
                             .file_storage_client
                             .retrieve_file(&provider_file_id)
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                     ),
-                    Some(provider_file_id),
-                )),
+                    provider_file_id: Some(provider_file_id),
+                    file_type: Some(file_metadata_object.file_type),
+                }),
                 _ => {
                     let connector_file_data = match is_connector_file_data_required {
                         api::FileDataRequired::Required => Some(
                             retrieve_file_from_connector(
                                 state,
-                                file_metadata_object,
+                                file_metadata_object.clone(),
                                 merchant_account,
                                 key_store,
                             )
@@ -217,7 +223,11 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                         ),
                         api::FileDataRequired::NotRequired => None,
                     };
-                    Ok((connector_file_data, Some(provider_file_id)))
+                    Ok(FileInfo {
+                        file_data: connector_file_data,
+                        provider_file_id: Some(provider_file_id),
+                        file_type: Some(file_metadata_object.file_type),
+                    })
                 }
             }
         }

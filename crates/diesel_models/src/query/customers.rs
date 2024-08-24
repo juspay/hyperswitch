@@ -23,6 +23,7 @@ impl CustomerNew {
     }
 }
 
+// #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn update_by_id(

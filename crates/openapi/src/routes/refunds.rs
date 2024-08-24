@@ -128,6 +128,22 @@ pub async fn refunds_update() {}
 )]
 pub fn refunds_list() {}
 
+/// Refunds - List For the Given profiles
+///
+/// Lists all the refunds associated with the merchant or a payment_id if payment_id is not provided
+#[utoipa::path(
+    post,
+    path = "/refunds/profile/list",
+    request_body=RefundListRequest,
+    responses(
+        (status = 200, description = "List of refunds", body = RefundListResponse),
+    ),
+    tag = "Refunds",
+    operation_id = "List all Refunds for the given Profiles",
+    security(("api_key" = []))
+)]
+pub fn refunds_list_profile() {}
+
 /// Refunds - Filter
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses

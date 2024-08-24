@@ -436,6 +436,7 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         unified_code: Option<String>,
         unified_message: Option<String>,
+        connector_transaction_id: Option<String>,
     },
 }
 
@@ -1645,6 +1646,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => Self {
                 status,
                 error_code: error_code.map(Some),
@@ -1657,7 +1659,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 amount: None,
                 net_amount: None,
                 currency: None,
-                connector_transaction_id: None,
+                connector_transaction_id,
                 amount_to_capture: None,
                 connector: None,
                 authentication_type: None,

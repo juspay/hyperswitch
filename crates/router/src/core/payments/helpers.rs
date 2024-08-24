@@ -45,6 +45,12 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
@@ -124,15 +130,12 @@ pub fn create_certificate(
 
 pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<&String>,
+    profile_id: &String,
     connector_type: ConnectorType,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
         .into_iter()
-        .filter(|mca| {
-            profile_id.map_or(true, |id| &mca.profile_id == id)
-                && mca.connector_type == connector_type
-        })
+        .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
         .collect()
 }
 
@@ -1434,6 +1437,19 @@ pub(crate) async fn get_payment_method_create_request(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn get_customer_from_details<F: Clone>(
+    _state: &SessionState,
+    _customer_id: Option<id_type::CustomerId>,
+    _merchant_id: &id_type::MerchantId,
+    _payment_data: &mut PaymentData<F>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_customer_from_details<F: Clone>(
     state: &SessionState,
     customer_id: Option<id_type::CustomerId>,
@@ -1446,20 +1462,8 @@ pub async fn get_customer_from_details<F: Clone>(
         None => Ok(None),
         Some(customer_id) => {
             let db = &*state.store;
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
-                    &customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-
-            #[cfg(all(feature = "v2", feature = "customer_v2"))]
-            let customer = db
-                .find_optional_by_merchant_id_merchant_reference_id(
                     &state.into(),
                     &customer_id,
                     merchant_id,
@@ -4269,18 +4273,12 @@ pub async fn get_apple_pay_retryable_connectors<F>(
     key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    business_profile: domain::BusinessProfile,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
 {
-    let profile_id = &payment_data
-        .payment_intent
-        .profile_id
-        .clone()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })?;
+    let profile_id = &business_profile.profile_id;
 
     let pre_decided_connector_data_first = pre_routing_connector_data_list
         .first()
@@ -4318,7 +4316,7 @@ where
         let profile_specific_merchant_connector_account_list =
             filter_mca_based_on_profile_and_connector_type(
                 merchant_connector_account_list,
-                Some(profile_id),
+                profile_id,
                 ConnectorType::PaymentProcessor,
             );
 
@@ -4349,7 +4347,10 @@ where
                 }
             }
         }
-
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(any(feature = "routing_v2", feature = "business_profile_v2"))
+        ))]
         let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             profile_id,
@@ -4358,6 +4359,16 @@ where
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
+
+        #[cfg(all(
+            feature = "v2",
+            feature = "routing_v2",
+            feature = "business_profile_v2"
+        ))]
+        let fallback_connetors_list = core_admin::BusinessProfileWrapper::new(business_profile)
+            .get_default_fallback_list_of_connector_under_profile()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get merchant default fallback connectors config")?;
 
         let mut routing_connector_data_list = Vec::new();
 

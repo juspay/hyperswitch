@@ -2871,6 +2871,20 @@ impl UserRoleInterface for KafkaStore {
             .list_user_roles_by_merchant_id(merchant_id, version)
             .await
     }
+
+    async fn list_user_roles(
+        &self,
+        user_id: &str,
+        org_id: Option<&id_type::OrganizationId>,
+        merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&String>,
+        entity_id: Option<&String>,
+        version: Option<enums::UserRoleVersion>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles(user_id, org_id, merchant_id, profile_id, entity_id, version)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
