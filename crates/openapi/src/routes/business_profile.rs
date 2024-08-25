@@ -244,7 +244,7 @@ pub async fn routing_retrieve_linked_config() {}
             )
             ))),
     params(
-        ("profile" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
     ),
     responses(
         (status = 200, description = "Routing Algorithm is activated", body = RoutingDictionaryRecord),
@@ -266,7 +266,7 @@ pub async fn routing_link_config() {}
     patch,
     path = "/v2/profiles/{profile_id}/deactivate_routing_algorithm",
     params(
-        ("profile" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
     ),
     responses(
         (status = 200, description = "Successfully deactivated routing config", body = RoutingDictionaryRecord),
@@ -290,7 +290,7 @@ pub async fn routing_unlink_config() {}
     path = "/v2/profiles/{profile_id}/fallback_routing",
     request_body = Vec<RoutableConnectorChoice>,
     params(
-        ("profile" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
     ),
     responses(
         (status = 200, description = "Successfully updated the default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
@@ -312,7 +312,7 @@ pub async fn routing_update_default_config() {}
     get,
     path = "/v2/profiles/{profile_id}/fallback_routing",
     params(
-        ("profile" = String, Path, description = "The unique identifier for the business profile"),
+        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
     ),
     responses(
         (status = 200, description = "Successfully retrieved default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),

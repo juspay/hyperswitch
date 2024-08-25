@@ -50,7 +50,7 @@ pub async fn routing_create_config() {}
     post,
     path = "/routing/{algorithm_id}/activate",
     params(
-        ("algorithm_id" = String, Path, description = "The unique identifier for a config"),
+        ("routing_algorithm_id" = String, Path, description = "The unique identifier for a config"),
     ),
     responses(
         (status = 200, description = "Routing config activated", body = RoutingDictionaryRecord),
@@ -73,7 +73,7 @@ pub async fn routing_link_config() {}
     get,
     path = "/routing/{algorithm_id}",
     params(
-        ("algorithm_id" = String, Path, description = "The unique identifier for a config"),
+        ("routing_algorithm_id" = String, Path, description = "The unique identifier for a config"),
     ),
     responses(
         (status = 200, description = "Successfully fetched routing config", body = MerchantRoutingAlgorithm),
@@ -96,7 +96,7 @@ pub async fn routing_retrieve_config() {}
     get,
     path = "v2/routing_algorithm/{algorithm_id}",
     params(
-        ("algorithm_id" = String, Path, description = "The unique identifier for a routing algorithm"),
+        ("routing_algorithm_id" = String, Path, description = "The unique identifier for a routing algorithm"),
     ),
     responses(
         (status = 200, description = "Successfully fetched routing algorithm", body = MerchantRoutingAlgorithm),
