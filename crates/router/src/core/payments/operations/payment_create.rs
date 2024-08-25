@@ -40,7 +40,8 @@ use crate::{
     },
     services,
     types::{
-        api::{self, PaymentIdTypeExt},
+        self,
+        api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
         storage::{
             self,
@@ -580,6 +581,77 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             storage_scheme,
         )
         .await
+    }
+
+    async fn payments_dynamic_tax_calculation<'a>(
+        &'a self,
+        state: &SessionState,
+        // key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+        payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        // _merchant_account: &storage::BusinessProfile,
+        key_store: &domain::MerchantKeyStore,
+        // storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        // let db = state.store.as_ref();
+        let payment_intent = payment_data.payment_intent.clone();
+
+        // let attempt_id = payment_intent.active_attempt.get_id().clone();
+
+        let payment_attempt = payment_data.payment_attempt.clone();
+
+        // Derive this connector from business profile
+        let connector_data = api::TaxCalculateConnectorData::get_connector_by_name(
+            payment_attempt.connector.as_ref().unwrap(),
+        )?;
+
+        let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
+            state,
+            &payment_intent,
+            &payment_attempt,
+            merchant_account,
+            key_store,
+            // &customer,
+        )
+        .await?;
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::CalculateTax,
+            types::PaymentsTaxCalculationData,
+            types::TaxCalculationResponseData,
+        > = connector_data.connector.get_connector_integration();
+
+        let response = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let tax_response =
+            response
+                .response
+                .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.code,
+                    message: err.message,
+                    connector: connector_data.connector_name.clone().to_string(),
+                    status_code: err.status_code,
+                    reason: err.reason,
+                })?;
+
+        payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .map(|mut tax_details| {
+                tax_details.default.order_tax_amount = tax_response.order_tax_amount;
+            });
+
+        Ok(())
     }
 
     #[instrument(skip_all)]
