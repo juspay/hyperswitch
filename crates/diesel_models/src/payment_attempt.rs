@@ -78,6 +78,8 @@ pub struct PaymentAttempt {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: String,
+    pub organization_id: String,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -149,6 +151,8 @@ pub struct PaymentAttempt {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: String,
+    pub organization_id: String,
 }
 
 impl PaymentAttempt {
@@ -231,6 +235,8 @@ pub struct PaymentAttemptNew {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: String,
+    pub organization_id: String,
 }
 
 impl PaymentAttemptNew {

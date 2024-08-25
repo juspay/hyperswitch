@@ -23,7 +23,7 @@ pub trait PaymentIntentInterface {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
-
+ 
     async fn insert_payment_intent(
         &self,
         state: &KeyManagerState,
@@ -144,6 +144,7 @@ pub struct PaymentIntentNew {
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

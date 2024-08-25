@@ -43,7 +43,7 @@ pub struct PaymentIntent {
     pub allowed_payment_method_types: Option<serde_json::Value>,
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
-    pub attempt_count: i16,
+    pub attempt_count: i16, 
     pub profile_id: Option<String>,
     pub payment_link_id: Option<String>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -67,4 +67,5 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: String,
 }

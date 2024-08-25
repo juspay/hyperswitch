@@ -50,6 +50,7 @@ pub struct Refund {
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
     pub charges: Option<ChargeRefunds>,
+    pub organization_id: String,
 }
 
 #[derive(
@@ -92,6 +93,7 @@ pub struct RefundNew {
     pub updated_by: String,
     pub merchant_connector_id: Option<String>,
     pub charges: Option<ChargeRefunds>,
+    pub organization_id: String,
 }
 
 impl Default for RefundNew {
@@ -122,6 +124,7 @@ impl Default for RefundNew {
             updated_by: Default::default(),
             merchant_connector_id: Default::default(),
             charges: Default::default(),
+            organization_id: Default::default(),
         }
     }
 }

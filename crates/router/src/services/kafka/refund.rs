@@ -28,6 +28,8 @@ pub struct KafkaRefund<'a> {
     pub attempt_id: &'a String,
     pub refund_reason: Option<&'a String>,
     pub refund_error_code: Option<&'a String>,
+    pub profile_id: Option<&'a String>,
+    pub organization_id: &'a String
 }
 
 impl<'a> KafkaRefund<'a> {
@@ -55,6 +57,8 @@ impl<'a> KafkaRefund<'a> {
             attempt_id: &refund.attempt_id,
             refund_reason: refund.refund_reason.as_ref(),
             refund_error_code: refund.refund_error_code.as_ref(),
+            profile_id: refund.profile_id.as_ref(),
+            organization_id: &refund.organization_id,
         }
     }
 }

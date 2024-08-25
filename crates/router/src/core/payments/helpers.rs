@@ -3752,6 +3752,8 @@ impl AttemptType {
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
             customer_acceptance: old_payment_attempt.customer_acceptance,
+            organization_id: old_payment_attempt.organization_id,
+            profile_id: old_payment_attempt.profile_id,
         }
     }
 

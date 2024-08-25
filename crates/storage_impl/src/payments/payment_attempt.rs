@@ -419,6 +419,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     client_source: payment_attempt.client_source.clone(),
                     client_version: payment_attempt.client_version.clone(),
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
+                    organization_id: payment_attempt.organization_id.clone(),
+                    profile_id: payment_attempt.profile_id.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -1356,6 +1358,8 @@ impl DataModelExt for PaymentAttempt {
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
+            organization_id: self.organization_id,
+            profile_id: self.profile_id,
         }
     }
 
@@ -1423,6 +1427,8 @@ impl DataModelExt for PaymentAttempt {
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
             customer_acceptance: storage_model.customer_acceptance,
+            organization_id: storage_model.organization_id,
+            profile_id: storage_model.profile_id,
         }
     }
 }
@@ -1495,8 +1501,10 @@ impl DataModelExt for PaymentAttemptNew {
             fingerprint_id: self.fingerprint_id,
             charge_id: self.charge_id,
             client_source: self.client_source,
-            client_version: self.client_version,
+             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
+            organization_id: self.organization_id,
+            profile_id: self.profile_id,
         }
     }
 
@@ -1563,6 +1571,8 @@ impl DataModelExt for PaymentAttemptNew {
             client_source: storage_model.client_source,
             client_version: storage_model.client_version,
             customer_acceptance: storage_model.customer_acceptance,
+            organization_id: storage_model.organization_id,
+            profile_id: storage_model.profile_id,
         }
     }
 }

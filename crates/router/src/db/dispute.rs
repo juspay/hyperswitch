@@ -170,6 +170,7 @@ impl DisputeInterface for MockDb {
             evidence,
             merchant_connector_id: dispute.merchant_connector_id,
             dispute_amount: dispute.dispute_amount,
+            organization_id: dispute.organization_id,
         };
 
         locked_disputes.push(new_dispute.clone());

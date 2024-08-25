@@ -30,6 +30,7 @@ pub struct DisputeNew {
     pub profile_id: Option<String>,
     pub merchant_connector_id: Option<String>,
     pub dispute_amount: i64,
+    pub organization_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
@@ -59,6 +60,7 @@ pub struct Dispute {
     pub profile_id: Option<String>,
     pub merchant_connector_id: Option<String>,
     pub dispute_amount: i64,
+    pub organization_id: String,
 }
 
 #[derive(Debug)]

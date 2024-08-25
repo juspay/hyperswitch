@@ -54,6 +54,8 @@ pub struct KafkaPaymentAttempt<'a> {
     pub mandate_data: Option<&'a MandateDetails>,
     pub client_source: Option<&'a String>,
     pub client_version: Option<&'a String>,
+    pub profile_id: &'a String,
+    pub organization_id: &'a String
 }
 
 impl<'a> KafkaPaymentAttempt<'a> {
@@ -100,6 +102,8 @@ impl<'a> KafkaPaymentAttempt<'a> {
             mandate_data: attempt.mandate_data.as_ref(),
             client_source: attempt.client_source.as_ref(),
             client_version: attempt.client_version.as_ref(),
+            profile_id: &attempt.profile_id,
+            organization_id: &attempt.organization_id,
         }
     }
 }

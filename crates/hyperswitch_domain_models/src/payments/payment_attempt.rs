@@ -181,6 +181,8 @@ pub struct PaymentAttempt {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: String,
+    pub organization_id: String,
 }
 
 impl PaymentAttempt {
@@ -271,6 +273,8 @@ pub struct PaymentAttemptNew {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: String,
+    pub organization_id: String,
 }
 
 impl PaymentAttemptNew {
@@ -742,6 +746,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id,
         })
     }
 
@@ -825,6 +830,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .async_lift(inner_decrypt)
                     .await?,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
+                organization_id: storage_model.organization_id,
             })
         }
         .await
@@ -883,6 +889,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id
         })
     }
 }
