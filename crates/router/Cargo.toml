@@ -57,7 +57,7 @@ async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = 
 async-trait = "0.1.79"
 base64 = "0.22.0"
 bb8 = "0.8"
-bigdecimal = "0.3.1"
+bigdecimal = "0.4.5"
 blake3 = "1.5.1"
 bytes = "1.6.0"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
