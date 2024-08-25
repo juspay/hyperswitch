@@ -7354,7 +7354,8 @@
           "profile_id",
           "profile_name",
           "enable_payment_response_hash",
-          "redirect_to_merchant_with_http_post"
+          "redirect_to_merchant_with_http_post",
+          "is_tax_connector_enabled"
         ],
         "properties": {
           "merchant_id": {
