@@ -2182,7 +2182,6 @@ pub struct BusinessProfileResponse {
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
-    #[serde(default)]
     pub is_tax_connector_enabled: bool,
 }
 
@@ -2290,7 +2289,6 @@ pub struct BusinessProfileResponse {
 
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
-    #[serde(default)]
     pub is_tax_connector_enabled: bool,
 }
 
