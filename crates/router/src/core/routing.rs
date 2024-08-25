@@ -424,7 +424,7 @@ pub async fn link_routing_config(
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2",))]
-pub async fn retrieve_active_routing_config(
+pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -434,9 +434,12 @@ pub async fn retrieve_active_routing_config(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let routing_algorithm =
-        RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id.0, db)
-            .await?;
+    let routing_algorithm = RoutingAlgorithmUpdate::fetch_routing_algo(
+        merchant_account.get_id(),
+        &algorithm_id.routing_algorithm_id,
+        db,
+    )
+    .await?;
     core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
@@ -457,7 +460,7 @@ pub async fn retrieve_active_routing_config(
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
-pub async fn retrieve_active_routing_config(
+pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -469,7 +472,7 @@ pub async fn retrieve_active_routing_config(
 
     let routing_algorithm = db
         .find_routing_algorithm_by_algorithm_id_merchant_id(
-            &algorithm_id.0,
+            &algorithm_id.routing_algorithm_id,
             merchant_account.get_id(),
         )
         .await

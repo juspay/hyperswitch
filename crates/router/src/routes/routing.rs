@@ -69,12 +69,12 @@ pub async fn routing_link_config(
         state,
         &req,
         path.into_inner(),
-        |state, auth: auth::AuthenticationData, algorithm_id, _| {
+        |state, auth: auth::AuthenticationData, algorithm, _| {
             routing::link_routing_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                algorithm_id.0,
+                algorithm.routing_algorithm_id,
                 transaction_type,
             )
         },
@@ -117,7 +117,7 @@ pub async fn routing_link_config(
                 auth.merchant_account,
                 auth.key_store,
                 wrapper.profile_id,
-                wrapper.algorithm_id.0,
+                wrapper.algorithm_id.routing_algorithm_id,
                 transaction_type,
             )
         },
@@ -149,7 +149,7 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            routing::retrieve_active_routing_config(
+            routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
                 auth.merchant_account,
                 auth.key_store,
