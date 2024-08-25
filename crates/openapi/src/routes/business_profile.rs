@@ -119,7 +119,7 @@ pub async fn business_profile_update() {}
 ///
 /// Update the *business profile*
 #[utoipa::path(
-    post,
+    put,
     path = "/v2/profiles/{profile_id}",
     params(
         ("profile_id" = String, Path, description = "The unique identifier for the business profile")

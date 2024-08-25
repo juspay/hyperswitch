@@ -22,9 +22,9 @@ use crate::{
         PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
         PaymentsCompleteAuthorizeRequest, PaymentsExternalAuthenticationRequest,
         PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-        PaymentsRetrieveRequest, PaymentsSessionResponse, PaymentsStartRequest,
-        RedirectionResponse,
+        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse, PaymentsRejectRequest,
+        PaymentsRequest, PaymentsResponse, PaymentsRetrieveRequest, PaymentsSessionResponse,
+        PaymentsStartRequest, RedirectionResponse,
     },
 };
 impl ApiEventMetric for PaymentsRetrieveRequest {
@@ -255,6 +255,14 @@ impl ApiEventMetric for PaymentsExternalAuthenticationRequest {
 impl ApiEventMetric for ExtendedCardInfoResponse {}
 
 impl ApiEventMetric for PaymentsManualUpdateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentsManualUpdateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),

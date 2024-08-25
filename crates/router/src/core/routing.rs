@@ -709,7 +709,7 @@ pub async fn update_default_fallback_routing(
         },
     )?;
     profile_wrapper
-        .update_default_routing_for_profile(
+        .update_default_fallback_routing_of_connectors_under_profile(
             db,
             &updated_list_of_connectors,
             key_manager_state,
@@ -952,7 +952,7 @@ pub async fn retrieve_linked_routing_config(
         routing_types::LinkedRoutingConfigRetrieveResponse::ProfileBased(active_algorithms),
     ))
 }
-
+// List all the default fallback algorithms under all the profile under a merchant
 pub async fn retrieve_default_routing_config_for_profiles(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

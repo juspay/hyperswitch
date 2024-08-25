@@ -2793,30 +2793,6 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn update_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        update: user_storage::UserRoleUpdate,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .update_user_role_by_user_id_merchant_id(user_id, merchant_id, update, version)
-            .await
-    }
-
-    async fn update_user_roles_by_user_id_org_id(
-        &self,
-        user_id: &str,
-        org_id: &id_type::OrganizationId,
-        update: user_storage::UserRoleUpdate,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .update_user_roles_by_user_id_org_id(user_id, org_id, update, version)
-            .await
-    }
-
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
@@ -2846,6 +2822,27 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
+    async fn update_user_role_by_user_id_and_lineage(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        merchant_id: &id_type::MerchantId,
+        profile_id: Option<&String>,
+        update: user_storage::UserRoleUpdate,
+        version: enums::UserRoleVersion,
+    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        self.diesel_store
+            .update_user_role_by_user_id_and_lineage(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                update,
+                version,
+            )
+            .await
+    }
+
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
@@ -2865,18 +2862,6 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn transfer_org_ownership_between_users(
-        &self,
-        from_user_id: &str,
-        to_user_id: &str,
-        org_id: &id_type::OrganizationId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<(), errors::StorageError> {
-        self.diesel_store
-            .transfer_org_ownership_between_users(from_user_id, to_user_id, org_id, version)
-            .await
-    }
-
     async fn list_user_roles_by_merchant_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2884,6 +2869,20 @@ impl UserRoleInterface for KafkaStore {
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store
             .list_user_roles_by_merchant_id(merchant_id, version)
+            .await
+    }
+
+    async fn list_user_roles(
+        &self,
+        user_id: &str,
+        org_id: Option<&id_type::OrganizationId>,
+        merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&String>,
+        entity_id: Option<&String>,
+        version: Option<enums::UserRoleVersion>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles(user_id, org_id, merchant_id, profile_id, entity_id, version)
             .await
     }
 }
