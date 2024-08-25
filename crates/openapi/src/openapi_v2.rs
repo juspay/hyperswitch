@@ -69,6 +69,11 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
+        // Routes for Organization
+        routes::organization::organization_create,
+        routes::organization::organization_retrieve,
+        routes::organization::organization_update,
+
         // Routes for merchant connector account
         routes::merchant_connector_account::connector_create,
         routes::merchant_connector_account::connector_retrieve,
@@ -79,6 +84,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_create,
         routes::merchant_account::merchant_account_retrieve,
         routes::merchant_account::merchant_account_update,
+
+        // Routes for business profile
+        routes::business_profile::business_profile_create,
+        routes::business_profile::business_profile_retrieve,
+        routes::business_profile::business_profile_update,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -154,6 +164,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ConnectorStatus,
         api_models::enums::AuthorizationStatus,
         api_models::enums::PaymentMethodStatus,
+        api_models::enums::OrderFulfillmentTimeOrigin,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::MerchantRecipientData,

@@ -18,6 +18,7 @@ use crate::{
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
+        payment_methods::cards::decrypt_generic_data,
         payments::{self, helpers},
         utils as core_utils,
     },
@@ -25,8 +26,8 @@ use crate::{
     routes::{metrics, SessionState},
     services::{self, RedirectForm},
     types::{
-        self, api,
-        api::ConnectorTransactionId,
+        self,
+        api::{self, ConnectorTransactionId},
         domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
@@ -137,14 +138,13 @@ where
 
     let unified_address =
         if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
-            let payment_method_billing =
-                crate::core::payment_methods::cards::decrypt_generic_data::<Address>(
-                    state,
-                    payment_method_info.payment_method_billing_address,
-                    key_store,
-                )
-                .await
-                .attach_printable("unable to decrypt payment method billing address details")?;
+            let payment_method_billing = decrypt_generic_data::<Address>(
+                state,
+                payment_method_info.payment_method_billing_address,
+                key_store,
+            )
+            .await
+            .attach_printable("unable to decrypt payment method billing address details")?;
             payment_data
                 .address
                 .clone()
