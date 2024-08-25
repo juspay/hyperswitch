@@ -1079,7 +1079,7 @@
         ]
       }
     },
-    "v2/routing_algorithm/{algorithm_id}": {
+    "/v2/routing_algorithm/{routing_algorithm_id}": {
       "get": {
         "tags": [
           "Routing"
