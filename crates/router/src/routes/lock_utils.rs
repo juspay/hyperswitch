@@ -212,7 +212,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
+            | Flow::SwitchOrg
             | Flow::SwitchMerchant
+            | Flow::SwitchProfile
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData

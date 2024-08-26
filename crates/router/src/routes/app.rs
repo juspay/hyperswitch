@@ -1644,6 +1644,19 @@ impl User {
                 ),
         );
 
+        route = route.service(
+            web::scope("/switch")
+                .service(web::resource("/org").route(web::post().to(switch_org_for_user)))
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(switch_profile_for_user_in_org_and_merchant)),
+                ),
+        );
+
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")

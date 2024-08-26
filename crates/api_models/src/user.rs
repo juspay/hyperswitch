@@ -124,8 +124,18 @@ pub struct AcceptInviteFromEmailRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct SwitchMerchantIdRequest {
+pub struct SwitchOrganizationRequest {
+    pub org_id: id_type::OrganizationId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SwitchMerchantRequest {
     pub merchant_id: id_type::MerchantId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SwitchProfileRequest {
+    pub profile_id: String,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]

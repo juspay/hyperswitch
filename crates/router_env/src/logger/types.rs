@@ -352,8 +352,12 @@ pub enum Flow {
     VerifyPaymentConnector,
     /// Internal user signup
     InternalUserSignup,
+    /// Switch org
+    SwitchOrg,
     /// Switch merchant
     SwitchMerchant,
+    /// Switch profile
+    SwitchProfile,
     /// Get permission info
     GetAuthorizationInfo,
     /// Get Roles info

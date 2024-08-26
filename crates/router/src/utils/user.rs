@@ -108,7 +108,7 @@ pub async fn generate_jwt_auth_token_without_profile(
     Ok(Secret::new(token))
 }
 
-pub async fn generate_jwt_auth_token_with_custom_role_attributes(
+pub async fn generate_jwt_auth_token_with_attributes(
     state: &SessionState,
     user: &UserFromStorage,
     merchant_id: id_type::MerchantId,
