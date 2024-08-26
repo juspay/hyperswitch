@@ -43,7 +43,7 @@ describe("Auto Retries & Step Up 3DS", () => {
   context("Auto retries", () => {
     context("[ON] Auto retries", () => {
       it("Enable auto retries", () => {
-        cy.autoRetryConfig(fixtures.autoretries.gsm, globalState, "true");
+        cy.autoRetryConfig(fixtures.configs.gsm, globalState, "true");
       });
 
       context("Stripe -> Adyen auto retries", () => {
@@ -100,7 +100,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 1;
             it("Update max auto retries", () => {
               cy.setMaxAutoRetries(
-                fixtures.autoretries.max_auto_retries,
+                fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
               );
@@ -153,7 +153,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 0;
             it("Update max auto retries", () => {
               cy.setMaxAutoRetries(
-                fixtures.autoretries.max_auto_retries,
+                fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
               );
@@ -207,7 +207,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             const max_auto_retries = 2;
             it("Update max auto retries", () => {
               cy.setMaxAutoRetries(
-                fixtures.autoretries.max_auto_retries,
+                fixtures.configs.max_auto_retries,
                 globalState,
                 `${max_auto_retries}`
               );
@@ -263,7 +263,7 @@ describe("Auto Retries & Step Up 3DS", () => {
     });
     context("[OFF] Auto retries", () => {
       it("Disable auto retries", () => {
-        cy.autoRetryConfig(fixtures.autoretries.gsm, globalState, "false");
+        cy.autoRetryConfig(fixtures.configs.gsm, globalState, "false");
       });
       context("[Failed] Make payment", () => {
         it("Payment create call", () => {

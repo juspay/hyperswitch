@@ -6,5 +6,9 @@
   "max_auto_retries": {
     "key": "",
     "value": ""
+  },
+  "step_up": {
+    "key": "",
+    "value": ""
   }
 }

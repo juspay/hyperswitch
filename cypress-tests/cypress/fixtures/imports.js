@@ -1,5 +1,5 @@
-import autoretries from "./autoretries.json";
 import captureBody from "./capture-flow-body.json";
+import configs from "./configs.json";
 import confirmBody from "./confirm-body.json";
 import apiKeyCreateBody from "./create-api-key-body.json";
 import createConfirmPaymentBody from "./create-confirm-body.json";
@@ -24,9 +24,9 @@ import voidBody from "./void-payment-body.json";
 export {
   apiKeyCreateBody,
   apiKeyUpdateBody,
-  autoretries,
   captureBody,
   citConfirmBody,
+  configs,
   confirmBody,
   createConfirmPaymentBody,
   createConnectorBody,
