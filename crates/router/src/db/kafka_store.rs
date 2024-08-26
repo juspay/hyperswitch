@@ -443,7 +443,6 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,

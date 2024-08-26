@@ -7334,6 +7334,15 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         },
         "additionalProperties": false
@@ -7345,7 +7354,8 @@
           "profile_id",
           "profile_name",
           "enable_payment_response_hash",
-          "redirect_to_merchant_with_http_post"
+          "redirect_to_merchant_with_http_post",
+          "is_tax_connector_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -7515,6 +7525,15 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         }
       },
@@ -16292,11 +16311,12 @@
       "PaymentsCreateResponseOpenApi": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -16306,7 +16326,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -16314,7 +16333,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -16348,7 +16366,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -17345,11 +17364,12 @@
       "PaymentsResponse": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -17359,7 +17379,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -17367,7 +17386,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -17401,7 +17419,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",

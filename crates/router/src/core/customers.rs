@@ -490,7 +490,6 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -499,15 +498,21 @@ pub async fn list_customers(
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
-
     let domain_customers = db
         .list_customers_by_merchant_id(&(&state).into(), &merchant_id, &key_store)
         .await
         .switch()?;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customers = domain_customers
         .into_iter()
         .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
+        .collect();
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customers = domain_customers
+        .into_iter()
+        .map(customers::CustomerResponse::foreign_from)
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))
