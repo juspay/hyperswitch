@@ -767,7 +767,7 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::Authorize,
+        api::Authorize,//
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Adyen
@@ -819,7 +819,7 @@ impl
             req.request.currency,
         )?;
         let connector_router_data = adyen::AdyenRouterData::try_from((amount, req))?;
-        let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
+        let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;//
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

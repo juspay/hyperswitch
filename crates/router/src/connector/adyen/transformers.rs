@@ -2979,7 +2979,7 @@ impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::WalletData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'a>//
 {
     type Error = Error;
     fn try_from(
