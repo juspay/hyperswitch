@@ -261,7 +261,87 @@ describe("Auto Retries & Step Up 3DS", () => {
 
       context("Adyen -> Stripe auto retries", () => {});
     });
-    context("[OFF] Auto retries", () => {});
+    context("[OFF] Auto retries", () => {
+      it("Disable auto retries", () => {
+        cy.autoRetryConfig(fixtures.autoretries.gsm, globalState, "false");
+      });
+      context("[Failed] Make payment", () => {
+        it("Payment create call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "PaymentIntent"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            req_data,
+            res_data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+        });
+
+        it("Payment confirm call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "StripeConfirmFail"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            req_data,
+            res_data,
+            true,
+            globalState
+          );
+        });
+
+        it("Payment retrieve call", () => {
+          cy.retrievePaymentCallTest(globalState, true);
+        });
+      });
+      context("[Success] Make payment", () => {
+        it("Payment create call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "PaymentIntent"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            req_data,
+            res_data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+        });
+
+        it("Payment confirm call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "StripeConfirmSuccess"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            req_data,
+            res_data,
+            true,
+            globalState
+          );
+        });
+
+        it("Payment retrieve call", () => {
+          cy.retrievePaymentCallTest(globalState, true);
+        });
+      });
+    });
   });
 
   context("Step up 3DS", () => {

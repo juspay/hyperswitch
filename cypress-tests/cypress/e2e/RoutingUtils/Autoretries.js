@@ -5,6 +5,13 @@ const card_1142 = {
   card_holder_name: "Borino",
   card_cvc: "737",
 };
+const card_4242 = {
+  card_number: "4242424242424242",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "Borino",
+  card_cvc: "737",
+};
 const card_9299 = {
   card_number: "4263982640269299",
   card_exp_month: "02",
@@ -15,38 +22,6 @@ const card_9299 = {
 
 export const connectorDetails = {
   card_pm: {
-    PaymentIntent: {
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-    StripeConfirm: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: card_1142,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          connector: "stripe",
-        },
-      },
-    },
     AdyenConfirm: {
       Request: {
         payment_method: "card",
@@ -82,6 +57,57 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           connector: "bluesnap",
+        },
+      },
+    },
+    PaymentIntent: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    StripeConfirmFail: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: card_1142,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          connector: "stripe",
+        },
+      },
+    },
+    StripeConfirmSuccess: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: card_4242,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector: "stripe",
         },
       },
     },
