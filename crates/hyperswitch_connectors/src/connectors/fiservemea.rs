@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
     configs::Connectors,
-    errors,
+    consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -183,14 +183,29 @@ impl ConnectorCommon for Fiservemea {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+        match response.error {
+            Some(error) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: error.code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .response_type
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: error.message,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+            None => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: response
+                    .response_type
+                    .clone()
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.response_type,
+                attempt_status: None,
+                connector_transaction_id: None,
+            }),
+        }
     }
 }
 

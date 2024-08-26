@@ -166,6 +166,7 @@ pub enum ResponseType {
 #[serde(rename_all = "camelCase")]
 pub enum FiservemeaResponseType {
     TransactionResponse,
+    ErrorResponse,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -505,11 +506,25 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiservemeaPaymentsResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorDetails {
+    field: Option<String>,
+    message: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FiservemeaError {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    details: Option<Vec<ErrorDetails>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FiservemeaErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    #[serde(rename = "type")]
+    fiservemea_type: Option<FiservemeaResponseType>,
+    client_request_id: Option<String>,
+    api_trace_id: Option<String>,
+    pub response_type: Option<String>,
+    pub error: Option<FiservemeaError>,
 }
