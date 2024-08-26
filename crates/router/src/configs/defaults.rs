@@ -149,7 +149,10 @@ impl Default for Mandates {
                     SupportedPaymentMethodTypesForMandate(HashMap::from([(
                         enums::PaymentMethodType::Klarna,
                         SupportedConnectorsForMandate {
-                            connector_list: HashSet::from([enums::Connector::Adyen, enums::Connector::Stripe]),
+                            connector_list: HashSet::from([
+                                enums::Connector::Adyen,
+                                enums::Connector::Stripe,
+                            ]),
                         },
                     )])),
                 ),
@@ -8867,7 +8870,7 @@ impl Default for super::settings::RequiredFields {
                                                     field_type: enums::FieldType::UserAddressLine1,
                                                     value: None,
                                                 }
-                                            ),                                
+                                            ),
                                             (
                                                 "billing.address.city".to_string(),
                                                 RequiredFieldInfo {
@@ -11407,7 +11410,6 @@ impl Default for super::settings::RequiredFields {
                                         ]),
                                     },
                                 ),
-                                
                     ]))),
                     (
                         enums::PaymentMethod::GiftCard,
@@ -11455,8 +11457,7 @@ impl Default for super::settings::RequiredFields {
                                                             value: None,
                                                         }
                                                     ),
-                                                    
-                                    ]),
+                                                ]),
                                                 common: HashMap::new(),
                                             }
                                         ),
