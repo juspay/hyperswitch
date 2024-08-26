@@ -1501,7 +1501,7 @@ impl DataModelExt for PaymentAttemptNew {
             fingerprint_id: self.fingerprint_id,
             charge_id: self.charge_id,
             client_source: self.client_source,
-             client_version: self.client_version,
+            client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
             organization_id: self.organization_id,
             profile_id: self.profile_id,

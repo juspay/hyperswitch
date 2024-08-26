@@ -253,7 +253,7 @@ pub async fn generate_sample_data(
             merchant_order_reference_id: Default::default(),
             shipping_details: None,
             is_payment_processor_token_flow: None,
-            organization_id: org_id.get_string_repr().to_string()
+            organization_id: org_id.get_string_repr().to_string(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
@@ -332,7 +332,7 @@ pub async fn generate_sample_data(
             client_version: None,
             customer_acceptance: None,
             profile_id: String::from("sample_data_profile"),
-            organization_id: org_id.get_string_repr().to_string()
+            organization_id: org_id.get_string_repr().to_string(),
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -368,7 +368,7 @@ pub async fn generate_sample_data(
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 charges: None,
-                organization_id: org_id.get_string_repr().to_string()
+                organization_id: org_id.get_string_repr().to_string(),
             })
         } else {
             None

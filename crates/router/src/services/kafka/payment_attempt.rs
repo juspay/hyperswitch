@@ -55,7 +55,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub client_source: Option<&'a String>,
     pub client_version: Option<&'a String>,
     pub profile_id: &'a String,
-    pub organization_id: &'a String
+    pub organization_id: &'a String,
 }
 
 impl<'a> KafkaPaymentAttempt<'a> {

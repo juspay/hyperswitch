@@ -56,7 +56,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub client_source: Option<&'a String>,
     pub client_version: Option<&'a String>,
     pub profile_id: &'a String,
-    pub organization_id: &'a String
+    pub organization_id: &'a String,
 }
 
 impl<'a> KafkaPaymentAttemptEvent<'a> {
@@ -68,7 +68,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             status: attempt.status,
             amount: attempt.amount,
             currency: attempt.currency,
-            save_to_locker: attempt.save_to_locker, 
+            save_to_locker: attempt.save_to_locker,
             connector: attempt.connector.as_ref(),
             error_message: attempt.error_message.as_ref(),
             offer_amount: attempt.offer_amount,
