@@ -179,10 +179,10 @@ pub struct PayoutCreateRequest {
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
     /// Three-letter code that shows how an ACH transaction was authorized.
-    #[schema(value_type = Option<api_enums::SecCode>, example = "CCD")]
+    #[schema(value_type = Option<SecCode>, example = "CCD")]
     pub sec_code: Option<api_enums::SecCode>,
     /// Type of  Bank Account
-    #[schema(value_type = Option<api_enums::BankType>, example = "Checking")]
+    #[schema(value_type = Option<BankType>, example = "Checking")]
     pub bank_type: Option<api_enums::BankType>,
 }
 
