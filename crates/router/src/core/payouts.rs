@@ -2620,24 +2620,26 @@ pub async fn create_payout_link(
         .or_else(|| profile_config.as_ref().and_then(|c| c.config.test_mode));
     let is_test_mode_enabled = test_mode_in_config.unwrap_or(false);
 
-    let allowed_domains = match router_env::which() {
-        Env::Production => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
+    let allowed_domains = match (router_env::which(), is_test_mode_enabled) {
+        // Throw error in case test_mode was enabled in production
+        (Env::Production, true) => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
             message: "test_mode cannot be true for creating payout_links in production".to_string()
         })),
-        _ => {
-            if is_test_mode_enabled {
-                Ok(HashSet::new())
-            } else {
-                profile_config
-                    .as_ref()
-                    .map(|config| config.config.allowed_domains.to_owned())
-                    .get_required_value("allowed_domains")
-                    .change_context(errors::ApiErrorResponse::LinkConfigurationError {
-                        message:
-                            "Payout links cannot be used without setting allowed_domains in profile. If you're using a non-production environment, you can set test_mode to true while in payout_link_config"
-                                .to_string(),
-                    })
-            }
+        // Send empty set of whitelisted domains
+        (_, true) => {
+            Ok(HashSet::new())
+        },
+        // Otherwise, fetch and use allowed domains from profile config
+        (_, false) => {
+            profile_config
+            .as_ref()
+            .map(|config| config.config.allowed_domains.to_owned())
+            .get_required_value("allowed_domains")
+            .change_context(errors::ApiErrorResponse::LinkConfigurationError {
+                message:
+                    "Payout links cannot be used without setting allowed_domains in profile. If you're using a non-production environment, you can set test_mode to true while in payout_link_config"
+                        .to_string(),
+            })
         }
     }?;
 

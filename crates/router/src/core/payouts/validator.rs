@@ -236,96 +236,93 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
 
     let is_test_mode_enabled = link_data.test_mode.unwrap_or(false);
 
-    match router_env_which() {
-        Env::Production => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
+    match (router_env_which(), is_test_mode_enabled) {
+        (Env::Production, true) => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
             message: "test_mode cannot be true for rendering payout_links in production"
                 .to_string()
         })),
-        _ => {
-            // Skip all validations when test mode is enabled in non prod env
-            if is_test_mode_enabled {
-                Ok(HashSet::new())
-            } else {
-                // Fetch destination is "iframe"
-                match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
-                    Some("iframe") => Ok(()),
-                    Some(requestor) => Err(report!(errors::ApiErrorResponse::AccessForbidden {
-                        resource: "payout_link".to_string(),
-                    }))
+        // Skip all validations when test mode is enabled in non prod env
+        (_, true) => Ok(HashSet::new()),
+        (_, false) => {
+            // Fetch destination is "iframe"
+            match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {
+                Some("iframe") => Ok(()),
+                Some(requestor) => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                }))
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Access to payout_link [{}] is forbidden when requested through {}",
+                        link_id, requestor
+                    )
+                }),
+                None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                }))
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
+                        link_id
+                    )
+                }),
+            }?;
+
+            // Validate origin / referer
+            let domain_in_req = {
+                let origin_or_referer = request_headers
+                    .get("origin")
+                    .or_else(|| request_headers.get("referer"))
+                    .and_then(|v| v.to_str().ok())
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::AccessForbidden {
+                            resource: "payout_link".to_string(),
+                        })
+                    })
                     .attach_printable_lazy(|| {
                         format!(
-                            "Access to payout_link [{}] is forbidden when requested through {}",
-                            link_id, requestor
-                        )
-                    }),
-                    None => Err(report!(errors::ApiErrorResponse::AccessForbidden {
-                        resource: "payout_link".to_string(),
-                    }))
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Access to payout_link [{}] is forbidden when sec-fetch-dest is not present in request headers",
+                            "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
                             link_id
                         )
-                    }),
-                }?;
+                    })?;
 
-                // Validate origin / referer
-                let domain_in_req = {
-                    let origin_or_referer = request_headers
-                        .get("origin")
-                        .or_else(|| request_headers.get("referer"))
-                        .and_then(|v| v.to_str().ok())
-                        .ok_or_else(|| {
-                            report!(errors::ApiErrorResponse::AccessForbidden {
-                                resource: "payout_link".to_string(),
-                            })
+                let url = Url::parse(origin_or_referer)
+                    .map_err(|_| {
+                        report!(errors::ApiErrorResponse::AccessForbidden {
+                            resource: "payout_link".to_string(),
                         })
-                        .attach_printable_lazy(|| {
-                            format!(
-                                "Access to payout_link [{}] is forbidden when origin or referer is not present in request headers",
-                                link_id
-                            )
-                        })?;
-
-                    let url = Url::parse(origin_or_referer)
-                        .map_err(|_| {
-                            report!(errors::ApiErrorResponse::AccessForbidden {
-                                resource: "payout_link".to_string(),
-                            })
-                        })
-                        .attach_printable_lazy(|| {
-                            format!("Invalid URL found in request headers {}", origin_or_referer)
-                        })?;
-
-                    url.host_str()
-                        .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
-                        .or_else(|| url.host_str().map(String::from))
-                        .ok_or_else(|| {
-                            report!(errors::ApiErrorResponse::AccessForbidden {
-                                resource: "payout_link".to_string(),
-                            })
-                        })
-                        .attach_printable_lazy(|| {
-                            format!("host or port not found in request headers {:?}", url)
-                        })?
-                };
-
-                if validate_domain_against_allowed_domains(
-                    &domain_in_req,
-                    link_data.allowed_domains.clone(),
-                ) {
-                    Ok(link_data.allowed_domains)
-                } else {
-                    Err(report!(errors::ApiErrorResponse::AccessForbidden {
-                        resource: "payout_link".to_string(),
-                    }))
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Access to payout_link [{}] is forbidden from requestor - {}",
-                            link_id, domain_in_req
-                        )
                     })
-                }
+                    .attach_printable_lazy(|| {
+                        format!("Invalid URL found in request headers {}", origin_or_referer)
+                    })?;
+
+                url.host_str()
+                    .and_then(|host| url.port().map(|port| format!("{}:{}", host, port)))
+                    .or_else(|| url.host_str().map(String::from))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::AccessForbidden {
+                            resource: "payout_link".to_string(),
+                        })
+                    })
+                    .attach_printable_lazy(|| {
+                        format!("host or port not found in request headers {:?}", url)
+                    })?
+            };
+
+            if validate_domain_against_allowed_domains(
+                &domain_in_req,
+                link_data.allowed_domains.clone(),
+            ) {
+                Ok(link_data.allowed_domains)
+            } else {
+                Err(report!(errors::ApiErrorResponse::AccessForbidden {
+                    resource: "payout_link".to_string(),
+                }))
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Access to payout_link [{}] is forbidden from requestor - {}",
+                        link_id, domain_in_req
+                    )
+                })
             }
         }
     }
