@@ -10,10 +10,10 @@ use crate::enums as api_enums;
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitAdditionalData {
-    Ach(AchBankDebitAdditionalData),
-    Bacs(BacsBankDebitAdditionalData),
-    Becs(BecsBankDebitAdditionalData),
-    Sepa(SepaBankDebitAdditionalData),
+    Ach(Box<AchBankDebitAdditionalData>),
+    Bacs(Box<BacsBankDebitAdditionalData>),
+    Becs(Box<BecsBankDebitAdditionalData>),
+    Sepa(Box<SepaBankDebitAdditionalData>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -96,9 +96,9 @@ pub struct BankRedirectAdditionalData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum BankRedirectDetails {
-    BancontactCard(BancontactBankRedirectAdditionalData),
-    Blik(BlikBankRedirectAdditionalData),
-    Giropay(GiropayBankRedirectAdditionalData),
+    BancontactCard(Box<BancontactBankRedirectAdditionalData>),
+    Blik(Box<BlikBankRedirectAdditionalData>),
+    Giropay(Box<GiropayBankRedirectAdditionalData>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -155,9 +155,9 @@ pub enum BankTransferAdditionalData {
     CimbVa {},
     DanamonVa {},
     MandiriVa {},
-    Pix(PixBankTransferAdditionalData),
+    Pix(Box<PixBankTransferAdditionalData>),
     Pse {},
-    LocalBankTransfer(LocalBankTransferAdditionalData),
+    LocalBankTransfer(Box<LocalBankTransferAdditionalData>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -185,7 +185,7 @@ pub struct LocalBankTransferAdditionalData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GiftCardAdditionalData {
-    Givex(GivexGiftCardAdditionalData),
+    Givex(Box<GivexGiftCardAdditionalData>),
     PaySafeCard {},
 }
 
@@ -206,9 +206,9 @@ pub struct CardTokenAdditionalData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum UpiAdditionalData {
-    UpiCollect(UpiCollectAdditionalData),
+    UpiCollect(Box<UpiCollectAdditionalData>),
     #[schema(value_type = UpiIntentData)]
-    UpiIntent(super::UpiIntentData),
+    UpiIntent(Box<super::UpiIntentData>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

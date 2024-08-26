@@ -4037,25 +4037,25 @@ pub async fn get_additional_payment_data(
             } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                 bank_name: None,
                 additional_details: Some(
-                    payment_additional_types::BankRedirectDetails::BancontactCard(
+                    payment_additional_types::BankRedirectDetails::BancontactCard(Box::new(
                         payment_additional_types::BancontactBankRedirectAdditionalData {
                             last4: card_number.as_ref().map(|c| c.get_last4()),
                             card_exp_month: card_exp_month.clone(),
                             card_exp_year: card_exp_year.clone(),
                             card_holder_name: None,
                         },
-                    ),
+                    )),
                 ),
             }),
             domain::BankRedirectData::Blik { blik_code } => {
                 Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: None,
                     additional_details: blik_code.as_ref().map(|blik_code| {
-                        payment_additional_types::BankRedirectDetails::Blik(
+                        payment_additional_types::BankRedirectDetails::Blik(Box::new(
                             payment_additional_types::BlikBankRedirectAdditionalData {
                                 blik_code: Some(blik_code.to_owned()),
                             },
-                        )
+                        ))
                     }),
                 })
             }
@@ -4065,15 +4065,17 @@ pub async fn get_additional_payment_data(
             } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                 bank_name: None,
                 additional_details: Some(payment_additional_types::BankRedirectDetails::Giropay(
-                    payment_additional_types::GiropayBankRedirectAdditionalData {
-                        bic: bank_account_bic.as_ref().map(|bic| {
-                            masking::Secret::from(MaskedSortCode::from(bic.peek().to_owned()))
-                        }),
-                        iban: bank_account_iban.as_ref().map(|iban| {
-                            masking::Secret::from(MaskedIban::from(iban.peek().to_owned()))
-                        }),
-                        country: None,
-                    },
+                    Box::new(
+                        payment_additional_types::GiropayBankRedirectAdditionalData {
+                            bic: bank_account_bic.as_ref().map(|bic| {
+                                masking::Secret::from(MaskedSortCode::from(bic.peek().to_owned()))
+                            }),
+                            iban: bank_account_iban.as_ref().map(|iban| {
+                                masking::Secret::from(MaskedIban::from(iban.peek().to_owned()))
+                            }),
+                            country: None,
+                        },
+                    ),
                 )),
             }),
             _ => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
