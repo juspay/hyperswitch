@@ -23,7 +23,7 @@ pub trait PaymentIntentInterface {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
- 
+
     async fn insert_payment_intent(
         &self,
         state: &KeyManagerState,

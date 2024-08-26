@@ -40,7 +40,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
-    pub organization_id: &'a String
+    pub organization_id: &'a String,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -97,4 +97,3 @@ impl<'a> super::KafkaMessage for KafkaPaymentIntent<'a> {
         crate::events::EventType::PaymentIntent
     }
 }
- 

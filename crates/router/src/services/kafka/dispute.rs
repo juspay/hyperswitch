@@ -32,7 +32,7 @@ pub struct KafkaDispute<'a> {
     pub evidence: &'a Secret<serde_json::Value>,
     pub profile_id: Option<&'a String>,
     pub merchant_connector_id: Option<&'a String>,
-    pub organization_id: &'a String
+    pub organization_id: &'a String,
 }
 
 impl<'a> KafkaDispute<'a> {
@@ -59,7 +59,7 @@ impl<'a> KafkaDispute<'a> {
             evidence: &dispute.evidence,
             profile_id: dispute.profile_id.as_ref(),
             merchant_connector_id: dispute.merchant_connector_id.as_ref(),
-            organization_id: &dispute.organization_id
+            organization_id: &dispute.organization_id,
         }
     }
 }
@@ -78,4 +78,3 @@ impl<'a> super::KafkaMessage for KafkaDispute<'a> {
         crate::events::EventType::Dispute
     }
 }
- 

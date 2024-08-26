@@ -30,7 +30,7 @@ pub struct KafkaRefundEvent<'a> {
     pub refund_reason: Option<&'a String>,
     pub refund_error_code: Option<&'a String>,
     pub profile_id: Option<&'a String>,
-    pub organization_id: &'a String
+    pub organization_id: &'a String,
 }
 
 impl<'a> KafkaRefundEvent<'a> {

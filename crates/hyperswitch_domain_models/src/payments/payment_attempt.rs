@@ -889,7 +889,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
-            organization_id: self.organization_id
+            organization_id: self.organization_id,
         })
     }
 }

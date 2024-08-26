@@ -56,7 +56,8 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub client_source: Option<&'a String>,
     pub client_version: Option<&'a String>,
     pub profile_id: &'a String,
-    pub organization_id: &'a String
+    pub organization_id: &'a String,
+    pub card_network: Option<String>,
 }
 
 impl<'a> KafkaPaymentAttemptEvent<'a> {
@@ -68,7 +69,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             status: attempt.status,
             amount: attempt.amount,
             currency: attempt.currency,
-            save_to_locker: attempt.save_to_locker, 
+            save_to_locker: attempt.save_to_locker,
             connector: attempt.connector.as_ref(),
             error_message: attempt.error_message.as_ref(),
             offer_amount: attempt.offer_amount,
@@ -105,6 +106,13 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             client_version: attempt.client_version.as_ref(),
             profile_id: &attempt.profile_id,
             organization_id: &attempt.organization_id,
+            card_network: attempt
+                .payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
         }
     }
 }

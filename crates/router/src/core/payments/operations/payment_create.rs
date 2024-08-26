@@ -308,7 +308,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             merchant_id,
-            &merchant_account.organization_id, 
+            &merchant_account.organization_id,
             money,
             payment_method,
             payment_method_type,
@@ -317,7 +317,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             state,
             payment_method_billing_address
                 .as_ref()
-                .map(|address| address.address_id.clone()), 
+                .map(|address| address.address_id.clone()),
             &payment_method_info,
             merchant_key_store,
             profile_id,
@@ -1250,7 +1250,10 @@ impl PaymentCreate {
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
             shipping_details,
             is_payment_processor_token_flow,
-            organization_id: merchant_account.organization_id.get_string_repr().to_string(),
+            organization_id: merchant_account
+                .organization_id
+                .get_string_repr()
+                .to_string(),
         })
     }
 
