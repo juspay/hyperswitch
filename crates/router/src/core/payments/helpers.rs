@@ -4,7 +4,10 @@ use std::{borrow::Cow, str::FromStr};
 use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
-    payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
+    payments::{
+        additional_info as payment_additional_types, AddressDetailsWithPhone,
+        RequestSurchargeDetails,
+    },
 };
 use base64::Engine;
 use common_enums::ConnectorType;
@@ -31,7 +34,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{
+    masked_string::{MaskedIban, MaskedSortCode},
+    ExposeInterface, PeekInterface,
+};
 use openssl::{
     derive::Deriver,
     pkey::PKey,
@@ -4019,16 +4025,67 @@ pub async fn get_additional_payment_data(
             domain::BankRedirectData::Eps { bank_name, .. } => {
                 Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    details: None,
                 })
             }
             domain::BankRedirectData::Ideal { bank_name, .. } => {
                 Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    details: None,
                 })
             }
-            _ => {
-                Some(api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None })
+            domain::BankRedirectData::BancontactCard {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                details: Some(
+                    payment_additional_types::BankRedirectDetails::BancontactCard(Box::new(
+                        payment_additional_types::BancontactBankRedirectAdditionalData {
+                            last4: card_number.as_ref().map(|c| c.get_last4()),
+                            card_exp_month: card_exp_month.clone(),
+                            card_exp_year: card_exp_year.clone(),
+                            card_holder_name: None,
+                        },
+                    )),
+                ),
+            }),
+            domain::BankRedirectData::Blik { blik_code } => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
+                    details: blik_code.as_ref().map(|blik_code| {
+                        payment_additional_types::BankRedirectDetails::Blik(Box::new(
+                            payment_additional_types::BlikBankRedirectAdditionalData {
+                                blik_code: Some(blik_code.to_owned()),
+                            },
+                        ))
+                    }),
+                })
             }
+            domain::BankRedirectData::Giropay {
+                bank_account_bic,
+                bank_account_iban,
+            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                details: Some(payment_additional_types::BankRedirectDetails::Giropay(
+                    Box::new(
+                        payment_additional_types::GiropayBankRedirectAdditionalData {
+                            bic: bank_account_bic.as_ref().map(|bic| {
+                                masking::Secret::from(MaskedSortCode::from(bic.peek().to_owned()))
+                            }),
+                            iban: bank_account_iban.as_ref().map(|iban| {
+                                masking::Secret::from(MaskedIban::from(iban.peek().to_owned()))
+                            }),
+                            country: None,
+                        },
+                    ),
+                )),
+            }),
+            _ => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                details: None,
+            }),
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
@@ -4045,14 +4102,20 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::PayLater(_) => {
             Some(api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None })
         }
-        domain::PaymentMethodData::BankTransfer(_) => {
-            Some(api_models::payments::AdditionalPaymentData::BankTransfer {})
+        domain::PaymentMethodData::BankTransfer(bank_transfer) => {
+            Some(api_models::payments::AdditionalPaymentData::BankTransfer {
+                details: Some((*(bank_transfer.to_owned())).into()),
+            })
         }
-        domain::PaymentMethodData::Crypto(_) => {
-            Some(api_models::payments::AdditionalPaymentData::Crypto {})
+        domain::PaymentMethodData::Crypto(crypto) => {
+            Some(api_models::payments::AdditionalPaymentData::Crypto {
+                details: Some(crypto.to_owned().into()),
+            })
         }
-        domain::PaymentMethodData::BankDebit(_) => {
-            Some(api_models::payments::AdditionalPaymentData::BankDebit {})
+        domain::PaymentMethodData::BankDebit(bank_debit) => {
+            Some(api_models::payments::AdditionalPaymentData::BankDebit {
+                details: Some(bank_debit.to_owned().into()),
+            })
         }
         domain::PaymentMethodData::MandatePayment => {
             Some(api_models::payments::AdditionalPaymentData::MandatePayment {})
@@ -4060,26 +4123,40 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::Reward => {
             Some(api_models::payments::AdditionalPaymentData::Reward {})
         }
-        domain::PaymentMethodData::RealTimePayment(_) => {
-            Some(api_models::payments::AdditionalPaymentData::RealTimePayment {})
+        domain::PaymentMethodData::RealTimePayment(realtime_payment) => Some(
+            api_models::payments::AdditionalPaymentData::RealTimePayment {
+                details: Some((*(realtime_payment.to_owned())).into()),
+            },
+        ),
+        domain::PaymentMethodData::Upi(upi) => {
+            Some(api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(upi.to_owned().into()),
+            })
         }
-        domain::PaymentMethodData::Upi(_) => {
-            Some(api_models::payments::AdditionalPaymentData::Upi {})
+        domain::PaymentMethodData::CardRedirect(card_redirect) => {
+            Some(api_models::payments::AdditionalPaymentData::CardRedirect {
+                details: Some(card_redirect.to_owned().into()),
+            })
         }
-        domain::PaymentMethodData::CardRedirect(_) => {
-            Some(api_models::payments::AdditionalPaymentData::CardRedirect {})
+        domain::PaymentMethodData::Voucher(voucher) => {
+            Some(api_models::payments::AdditionalPaymentData::Voucher {
+                details: Some(voucher.to_owned().into()),
+            })
         }
-        domain::PaymentMethodData::Voucher(_) => {
-            Some(api_models::payments::AdditionalPaymentData::Voucher {})
+        domain::PaymentMethodData::GiftCard(gift_card) => {
+            Some(api_models::payments::AdditionalPaymentData::GiftCard {
+                details: Some((*(gift_card.to_owned())).into()),
+            })
         }
-        domain::PaymentMethodData::GiftCard(_) => {
-            Some(api_models::payments::AdditionalPaymentData::GiftCard {})
+        domain::PaymentMethodData::CardToken(card_token) => {
+            Some(api_models::payments::AdditionalPaymentData::CardToken {
+                details: Some(card_token.to_owned().into()),
+            })
         }
-        domain::PaymentMethodData::CardToken(_) => {
-            Some(api_models::payments::AdditionalPaymentData::CardToken {})
-        }
-        domain::PaymentMethodData::OpenBanking(_) => {
-            Some(api_models::payments::AdditionalPaymentData::OpenBanking {})
+        domain::PaymentMethodData::OpenBanking(open_banking) => {
+            Some(api_models::payments::AdditionalPaymentData::OpenBanking {
+                details: Some(open_banking.to_owned().into()),
+            })
         }
         domain::PaymentMethodData::NetworkToken(_) => None,
     }
