@@ -230,7 +230,7 @@ mod storage {
         async fn find_optional_by_merchant_id_merchant_reference_id(
             &self,
             state: &KeyManagerState,
-            customer_id: &id_type::CustomerId,
+            merchant_reference_id: &id_type::CustomerId,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -239,7 +239,7 @@ mod storage {
             let database_call = || async {
                 storage_types::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
-                    customer_id,
+                    merchant_reference_id,
                     merchant_id,
                 )
                 .await
@@ -253,9 +253,9 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id: merchant_reference_id.get_string_repr(),
                     };
-                    let field = format!("cust_{}", customer_id.get_string_repr());
+                    let field = format!("cust_{}", merchant_reference_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
