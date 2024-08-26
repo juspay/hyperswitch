@@ -857,6 +857,55 @@
           "propertyName": "type"
         }
       },
+      "AchBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "routing_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for ach bank debit payment",
+            "example": "0001****3456"
+          },
+          "routing_number": {
+            "type": "string",
+            "description": "Partially masked routing number for ach bank debit payment",
+            "example": "110***000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_holder_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankHolderType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AchBankTransfer": {
         "type": "object",
         "required": [
@@ -1435,6 +1484,31 @@
           "unresolved"
         ]
       },
+      "BacsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "sort_code"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Bacs payment method",
+            "example": "0001****3456"
+          },
+          "sort_code": {
+            "type": "string",
+            "description": "Partially masked sort code for Bacs payment method",
+            "example": "108800"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -1496,6 +1570,35 @@
           }
         }
       },
+      "BancontactBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "example": "4242",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          }
+        }
+      },
       "Bank": {
         "oneOf": [
           {
@@ -1509,6 +1612,54 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          }
+        ]
+      },
+      "BankDebitAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "$ref": "#/components/schemas/AchBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "$ref": "#/components/schemas/BacsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "becs"
+            ],
+            "properties": {
+              "becs": {
+                "$ref": "#/components/schemas/BecsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -1719,6 +1870,13 @@
           }
         ]
       },
+      "BankHolderType": {
+        "type": "string",
+        "enum": [
+          "personal",
+          "business"
+        ]
+      },
       "BankNames": {
         "type": "string",
         "description": "Name of banks supported by Hyperswitch",
@@ -1868,6 +2026,31 @@
           "yoursafe",
           "n26",
           "nationale_nederlanden"
+        ]
+      },
+      "BankRedirectAdditionalData": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankRedirectDetails"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bank_name": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
         ]
       },
       "BankRedirectBilling": {
@@ -2320,6 +2503,201 @@
           }
         ]
       },
+      "BankRedirectDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "BancontactCard"
+            ],
+            "properties": {
+              "BancontactCard": {
+                "$ref": "#/components/schemas/BancontactBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Blik"
+            ],
+            "properties": {
+              "Blik": {
+                "$ref": "#/components/schemas/BlikBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Giropay"
+            ],
+            "properties": {
+              "Giropay": {
+                "$ref": "#/components/schemas/GiropayBankRedirectAdditionalData"
+              }
+            }
+          }
+        ]
+      },
+      "BankTransferAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco"
+            ],
+            "properties": {
+              "multibanco": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "permata"
+            ],
+            "properties": {
+              "permata": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bca"
+            ],
+            "properties": {
+              "bca": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bni_va"
+            ],
+            "properties": {
+              "bni_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bri_va"
+            ],
+            "properties": {
+              "bri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "cimb_va"
+            ],
+            "properties": {
+              "cimb_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "danamon_va"
+            ],
+            "properties": {
+              "danamon_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mandiri_va"
+            ],
+            "properties": {
+              "mandiri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pse"
+            ],
+            "properties": {
+              "pse": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_transfer"
+            ],
+            "properties": {
+              "local_bank_transfer": {
+                "$ref": "#/components/schemas/LocalBankTransferAdditionalData"
+              }
+            }
+          }
+        ]
+      },
       "BankTransferData": {
         "oneOf": [
           {
@@ -2698,6 +3076,48 @@
             }
           }
         ]
+      },
+      "BankType": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "savings"
+        ]
+      },
+      "BecsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "bsb_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Becs payment method",
+            "example": "0001****3456"
+          },
+          "bsb_number": {
+            "type": "string",
+            "description": "Bank-State-Branch (bsb) number",
+            "example": "000000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "BlikBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "blik_code": {
+            "type": "string",
+            "example": "3GD9MO",
+            "nullable": true
+          }
+        }
       },
       "BlocklistDataKind": {
         "type": "string",
@@ -3786,6 +4206,19 @@
             "type": "string",
             "description": "The CVC number for the card",
             "nullable": true
+          }
+        }
+      },
+      "CardTokenAdditionalData": {
+        "type": "object",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
           }
         }
       },
@@ -6148,6 +6581,32 @@
           }
         }
       },
+      "GiftCardAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GivexGiftCardAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -6188,6 +6647,42 @@
           "cvc": {
             "type": "string",
             "description": "The card verification code."
+          }
+        }
+      },
+      "GiropayBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bic": {
+            "type": "string",
+            "description": "Masked bank account bic code",
+            "nullable": true
+          },
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "nullable": true
+          },
+          "country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GivexGiftCardAdditionalData": {
+        "type": "object",
+        "required": [
+          "last4"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the gift card number",
+            "example": "4242"
           }
         }
       },
@@ -7031,6 +7526,17 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          }
+        }
+      },
+      "LocalBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bank_code": {
+            "type": "string",
+            "description": "Partially masked bank code",
+            "example": "**** OA2312",
+            "nullable": true
           }
         }
       },
@@ -10276,7 +10782,7 @@
             ],
             "properties": {
               "bank_transfer": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankTransferAdditionalData"
               }
             }
           },
@@ -10309,7 +10815,7 @@
             ],
             "properties": {
               "bank_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
           },
@@ -10320,7 +10826,7 @@
             ],
             "properties": {
               "crypto": {
-                "type": "object"
+                "$ref": "#/components/schemas/CryptoData"
               }
             }
           },
@@ -10331,7 +10837,7 @@
             ],
             "properties": {
               "bank_debit": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankDebitAdditionalData"
               }
             }
           },
@@ -10364,7 +10870,7 @@
             ],
             "properties": {
               "real_time_payment": {
-                "type": "object"
+                "$ref": "#/components/schemas/RealTimePaymentData"
               }
             }
           },
@@ -10375,7 +10881,7 @@
             ],
             "properties": {
               "upi": {
-                "type": "object"
+                "$ref": "#/components/schemas/UpiAdditionalData"
               }
             }
           },
@@ -10386,7 +10892,7 @@
             ],
             "properties": {
               "voucher": {
-                "type": "object"
+                "$ref": "#/components/schemas/VoucherData"
               }
             }
           },
@@ -10397,7 +10903,7 @@
             ],
             "properties": {
               "gift_card": {
-                "type": "object"
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
               }
             }
           },
@@ -10408,7 +10914,7 @@
             ],
             "properties": {
               "card_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardRedirectData"
               }
             }
           },
@@ -10419,7 +10925,7 @@
             ],
             "properties": {
               "card_token": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardTokenAdditionalData"
               }
             }
           },
@@ -10430,7 +10936,7 @@
             ],
             "properties": {
               "open_banking": {
-                "type": "object"
+                "$ref": "#/components/schemas/OpenBankingData"
               }
             }
           }
@@ -14865,6 +15371,29 @@
           }
         }
       },
+      "PixBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "pix_key": {
+            "type": "string",
+            "description": "Partially masked unique key for pix transfer",
+            "example": "a1f4102e ****** 6fa48899c1d1",
+            "nullable": true
+          },
+          "cpf": {
+            "type": "string",
+            "description": "Partially masked CPF - CPF is a Brazilian tax identification number",
+            "example": "**** 124689",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "description": "Partially masked CNPJ - CNPJ is a Brazilian company tax identification number",
+            "example": "**** 417312",
+            "nullable": true
+          }
+        }
+      },
       "PollConfigResponse": {
         "type": "object",
         "required": [
@@ -16208,6 +16737,25 @@
           }
         }
       },
+      "SepaBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "iban"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "example": "DE8937******013000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
       "SepaBankTransfer": {
         "type": "object",
         "required": [
@@ -16833,6 +17381,42 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpiAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi_collect"
+            ],
+            "properties": {
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_intent"
+            ],
+            "properties": {
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
+              }
+            }
+          }
+        ]
+      },
+      "UpiCollectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "vpa_id": {
+            "type": "string",
+            "description": "Masked VPA ID",
+            "nullable": true
+          }
+        }
       },
       "UpiCollectData": {
         "type": "object",
