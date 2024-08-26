@@ -10,6 +10,7 @@ import mitConfirmBody from "./create-mandate-mit.json";
 import createPaymentBody from "./create-payment-body.json";
 import createPayoutBody from "./create-payout-confirm-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
+import gsmBody from "./gsm-body.json";
 import listRefundCall from "./list-refund-call-body.json";
 import merchantCreateBody from "./merchant-create-body.json";
 import merchantUpdateBody from "./merchant-update-body.json";
@@ -34,6 +35,7 @@ export {
   createPayoutBody,
   customerCreateBody,
   customerUpdateBody,
+  gsmBody,
   listRefundCall,
   merchantCreateBody,
   merchantUpdateBody,

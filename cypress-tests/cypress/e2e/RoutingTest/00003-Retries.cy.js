@@ -345,7 +345,176 @@ describe("Auto Retries & Step Up 3DS", () => {
   });
 
   context("Step up 3DS", () => {
-    context("[ON] Step up", () => {});
-    context("[OFF] Step up", () => {});
+    context("[ON] Step up", () => {
+      context("Setup GSM", () => {
+        it("[Step up] GSM Config enable", () => {
+          cy.updateGsmConfig(fixtures.gsmBody.gsm_update, globalState, true);
+        });
+        it("Enable step up", () => {
+          cy.stepUp(fixtures.configs.step_up, globalState, '["stripe"]');
+        });
+      });
+
+      context("[Failed] Make payment", () => {
+        it("Payment create call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "PaymentIntent"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            req_data,
+            res_data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+        });
+
+        it("Payment confirm call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "StripeConfirmFail"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            req_data,
+            res_data,
+            true,
+            globalState
+          );
+        });
+
+        it("Payment retrieve call", () => {
+          cy.retrievePaymentCallTest(globalState, true);
+        });
+      });
+
+      context("[Success] Make payment", () => {
+        it("Payment create call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "PaymentIntent"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            req_data,
+            res_data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+        });
+
+        it("Payment confirm call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "StripeConfirmSuccess"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            req_data,
+            res_data,
+            true,
+            globalState
+          );
+        });
+
+        it("Payment retrieve call", () => {
+          cy.retrievePaymentCallTest(globalState, true);
+        });
+      });
+    });
+    context("[OFF] Step up", () => {
+      it("[Step up] GSM Config disable", () => {
+        cy.updateGsmConfig(fixtures.gsmBody.gsm_update, globalState, false);
+      });
+
+      context("[Failed] Make payment", () => {
+        it("Payment create call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "PaymentIntent"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            req_data,
+            res_data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+        });
+
+        it("Payment confirm call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "StripeConfirmFail"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            req_data,
+            res_data,
+            true,
+            globalState
+          );
+        });
+
+        it("Payment retrieve call", () => {
+          cy.retrievePaymentCallTest(globalState, true);
+        });
+      });
+
+      context("[Success] Make payment", () => {
+        it("Payment create call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "PaymentIntent"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            req_data,
+            res_data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+        });
+
+        it("Payment confirm call", () => {
+          let data =
+            utils.getConnectorDetails("autoretries")["card_pm"][
+              "StripeConfirmSuccess"
+            ];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            req_data,
+            res_data,
+            true,
+            globalState
+          );
+        });
+
+        it("Payment retrieve call", () => {
+          cy.retrievePaymentCallTest(globalState, true);
+        });
+      });
+    });
   });
 });

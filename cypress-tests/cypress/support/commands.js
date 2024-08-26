@@ -2222,6 +2222,11 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("key").to.equal(key);
+        expect(response.body).to.have.property("value").to.equal(value);
+      }
     });
   }
 );
@@ -2245,6 +2250,62 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      if (response.status === 200) {
+        expect(response.body).to.have.property("key").to.equal(key);
+        expect(response.body).to.have.property("value").to.equal(value);
+      }
     });
   }
 );
+
+Cypress.Commands.add(
+  "updateGsmConfig",
+  (gsmBody, globalState, step_up_possible) => {
+    gsmBody.step_up_possible = step_up_possible;
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/gsm/update`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: gsmBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      if (response.status === 200) {
+        expect(response.body)
+          .to.have.property("message")
+          .to.equal("card_declined");
+        expect(response.body).to.have.property("connector").to.equal("stripe");
+        expect(response.body)
+          .to.have.property("step_up_possible")
+          .to.equal(step_up_possible);
+      }
+    });
+  }
+);
+
+Cypress.Commands.add("stepUp", (stepUpBody, globalState, value) => {
+  const key = `step_up_enabled_${globalState.get("merchantId")}`;
+  stepUpBody.key = key;
+  stepUpBody.value = value;
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/configs/${key}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: stepUpBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body).to.have.property("key").to.equal(key);
+      expect(response.body).to.have.property("value").to.equal(value);
+    }
+  });
+});
