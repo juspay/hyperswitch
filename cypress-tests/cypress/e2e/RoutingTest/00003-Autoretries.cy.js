@@ -77,8 +77,17 @@ describe("Autoretries", () => {
             routing_data,
             globalState
           );
+
+        });
+        
+        it("Activate routing config", () => {
+          let data = utils.getConnectorDetails("common")["routing"];
+          let req_data = data["Request"];
+          let res_data = data["Response"];
+          cy.activateRoutingConfig(req_data, res_data, globalState);
         });
       });
+
       context("Max auto retries = 1", () => {
         const max_auto_retries = 1;
         context("Setup auto retries", () => {
@@ -129,11 +138,7 @@ describe("Autoretries", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(
-              globalState,
-              true,
-              max_auto_retries + 1
-            );
+            cy.retrievePaymentCallTest(globalState, true, max_auto_retries + 1);
           });
         });
       });
@@ -187,11 +192,7 @@ describe("Autoretries", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(
-              globalState,
-              true,
-              max_auto_retries + 1
-            );
+            cy.retrievePaymentCallTest(globalState, true, max_auto_retries + 1);
           });
         });
       });
