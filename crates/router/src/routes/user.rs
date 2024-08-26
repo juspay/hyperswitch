@@ -975,7 +975,7 @@ pub async fn switch_org_for_user(
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SwitchOrganizationRequest>,
 ) -> HttpResponse {
-    let flow = Flow::SwitchMerchant;
+    let flow = Flow::SwitchOrg;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),
