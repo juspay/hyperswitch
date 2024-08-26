@@ -2204,7 +2204,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "enableAutoRetry",
+  "autoRetryConfig",
   (autoRetryGsmBody, globalState, value) => {
     const key = `should_call_gsm_${globalState.get("merchantId")}`;
     autoRetryGsmBody.key = key;
