@@ -8619,8 +8619,7 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Paypal,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(
-                                        ),
+                                        non_mandate: HashMap::new(),
                                         common: HashMap::new(),
                                     }
                                 ),
@@ -9176,7 +9175,7 @@ impl Default for super::settings::RequiredFields {
                                                         "CH".to_string(),
                                                         "GB".to_string(),
                                                         "US".to_string(),
-                                                    ];
+                                                    ]
                                                 },
                                                 value: None,
                                             }),
