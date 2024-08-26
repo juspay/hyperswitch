@@ -1920,13 +1920,25 @@ pub struct BusinessProfileCreate {
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2003,13 +2015,25 @@ pub struct BusinessProfileCreate {
     /// Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
-    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_shipping_details_from_wallet_connector_if_required: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
-    pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector_if_required: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2103,13 +2127,25 @@ pub struct BusinessProfileResponse {
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2183,13 +2219,25 @@ pub struct BusinessProfileResponse {
     /// Merchant's config to support extended card info feature
     pub extended_card_info_config: Option<ExtendedCardInfoConfig>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
-    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_shipping_details_from_wallet_connector_if_required: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
-    pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector_if_required: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2283,13 +2331,25 @@ pub struct BusinessProfileUpdate {
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
@@ -2363,13 +2423,25 @@ pub struct BusinessProfileUpdate {
     // Whether to use the billing details passed when creating the intent as payment method billing
     pub use_billing_as_payment_method_billing: Option<bool>,
 
-    /// A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
-    pub collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub collect_shipping_details_from_wallet_connector_if_required: Option<bool>,
 
-    /// A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)
     #[schema(default = false, example = false)]
-    pub collect_billing_details_from_wallet_connector: Option<bool>,
+    pub collect_billing_details_from_wallet_connector_if_required: Option<bool>,
+
+    /// A boolean value to indicate if customer shipping details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+
+    /// A boolean value to indicate if customer billing details needs to be collected from wallet
+    /// connector irrespective of connector required fields (Eg. Apple pay, Google pay etc)
+    #[schema(default = false, example = false)]
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
 
     /// Indicates if the MIT (merchant initiated transaction) payments can be made connector
     /// agnostic, i.e., MITs may be processed through different connector than CIT (customer
