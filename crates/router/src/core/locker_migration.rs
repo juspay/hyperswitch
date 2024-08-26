@@ -10,7 +10,6 @@ use common_utils::{errors::CustomResult, id_type};
     not(feature = "payment_methods_v2")
 ))]
 use diesel_models::enums as storage_enums;
-use diesel_models::PaymentMethod;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::FutureExt;
 use error_stack::ResultExt;
@@ -78,6 +77,8 @@ pub async fn rust_locker_migration(
     for customer in domain_customers {
         let result = db
             .find_payment_method_by_customer_id_merchant_id_list(
+                key_manager_state,
+                &key_store,
                 &customer.customer_id,
                 merchant_id,
                 None,
@@ -114,7 +115,7 @@ pub async fn rust_locker_migration(
 ))]
 pub async fn call_to_locker(
     state: &SessionState,
-    payment_methods: Vec<PaymentMethod>,
+    payment_methods: Vec<domain::PaymentMethod>,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     merchant_account: &domain::MerchantAccount,
@@ -212,7 +213,7 @@ pub async fn call_to_locker(
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub async fn call_to_locker(
     _state: &SessionState,
-    _payment_methods: Vec<PaymentMethod>,
+    _payment_methods: Vec<domain::PaymentMethod>,
     _customer_id: &id_type::CustomerId,
     _merchant_id: &id_type::MerchantId,
     _merchant_account: &domain::MerchantAccount,

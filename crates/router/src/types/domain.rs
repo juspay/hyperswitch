@@ -25,6 +25,9 @@ mod merchant_connector_account;
 mod merchant_key_store {
     pub use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 }
+pub mod payment_methods {
+    pub use hyperswitch_domain_models::payment_methods::*;
+}
 pub mod payments;
 pub mod types;
 #[cfg(feature = "olap")]
@@ -36,6 +39,7 @@ pub use business_profile::*;
 pub use event::*;
 pub use merchant_connector_account::*;
 pub use merchant_key_store::*;
+pub use payment_methods::*;
 pub use payments::*;
 #[cfg(feature = "olap")]
 pub use user::*;

@@ -18,7 +18,6 @@ use crate::{
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payment_methods::cards::decrypt_generic_data,
         payments::{self, helpers},
         utils as core_utils,
     },
@@ -43,7 +42,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -138,13 +137,13 @@ where
 
     let unified_address =
         if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
-            let payment_method_billing = decrypt_generic_data::<Address>(
-                state,
-                payment_method_info.payment_method_billing_address,
-                key_store,
-            )
-            .await
-            .attach_printable("unable to decrypt payment method billing address details")?;
+            let payment_method_billing = payment_method_info
+                .payment_method_billing_address
+                .map(|decrypted_data| decrypted_data.into_inner().expose())
+                .map(|decrypted_value| decrypted_value.parse_value("generic_data"))
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to parse generic data value")?;
             payment_data
                 .address
                 .clone()

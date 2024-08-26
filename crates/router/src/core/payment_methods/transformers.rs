@@ -18,7 +18,7 @@ use crate::{
     headers,
     pii::{prelude::*, Secret},
     services::{api as services, encryption},
-    types::{api, storage},
+    types::{api, domain},
     utils::OptionExt,
 };
 
@@ -538,7 +538,7 @@ pub fn mk_delete_card_response(
     not(feature = "payment_methods_v2")
 ))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -567,7 +567,7 @@ pub fn get_card_detail(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    _pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -575,13 +575,7 @@ pub fn get_card_detail(
     //fetch form card bin
 
     let card_detail = api::CardDetailFromLocker {
-        issuer_country: pm
-            .issuer_country
-            .as_ref()
-            .map(|c| api_enums::CountryAlpha2::from_str(c))
-            .transpose()
-            .ok()
-            .flatten(),
+        issuer_country: None,
         last4_digits: Some(last4_digits),
         card_number: Some(card_number),
         expiry_month: Some(response.card_exp_month),
