@@ -2874,7 +2874,7 @@ pub async fn switch_org_for_user(
     // For cache not throwing error
     let _ = utils::user_role::set_role_permissions_in_cache_if_required(
         &state,
-        &user_from_token.role_id.as_str(),
+        &user_from_token.role_id,
         &merchant_id,
         &org_id,
     )
@@ -3049,7 +3049,8 @@ pub async fn switch_merchant_for_user_in_org(
                         e.change_context(UserErrors::InternalServerError)
                     }
                 })?;
-            let profile_id = state
+
+            state
                 .store
                 .list_business_profile_by_merchant_id(
                     key_manager_state,
@@ -3061,8 +3062,7 @@ pub async fn switch_merchant_for_user_in_org(
                 .first()
                 .ok_or(UserErrors::ProfileIdNotFound)?
                 .profile_id
-                .clone();
-            profile_id
+                .clone()
         };
         (org_id, merchant_id, profile_id, user_role.role_id)
     };
@@ -3079,7 +3079,7 @@ pub async fn switch_merchant_for_user_in_org(
 
     let _ = utils::user_role::set_role_permissions_in_cache_if_required(
         &state,
-        &role_id.as_str(),
+        &role_id,
         &merchant_id,
         &org_id,
     )
@@ -3199,7 +3199,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 
     let _ = utils::user_role::set_role_permissions_in_cache_if_required(
         &state,
-        &role_id.as_str(),
+        &role_id,
         &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
