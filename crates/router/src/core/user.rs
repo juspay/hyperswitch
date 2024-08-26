@@ -2817,10 +2817,7 @@ pub async fn switch_org_for_user(
     } else {
         state
             .store
-            .list_merchant_accounts_by_organization_id(
-                key_manager_state,
-                org_id.get_string_repr(),
-            )
+            .list_merchant_accounts_by_organization_id(key_manager_state, org_id.get_string_repr())
             .await
             .change_context(UserErrors::InternalServerError)?
             .first()
