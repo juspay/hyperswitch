@@ -262,7 +262,7 @@ api_key="API Key"
 api_key="API Key"
 
 [nexixpay]
-api_key=API Key"
+api_key="API Key"
 
 [wellsfargopayout]
 api_key = "Consumer Key"
