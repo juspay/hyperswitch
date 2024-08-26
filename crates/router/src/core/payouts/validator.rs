@@ -237,12 +237,14 @@ pub fn validate_payout_link_render_request_and_get_allowed_domains(
     let is_test_mode_enabled = link_data.test_mode.unwrap_or(false);
 
     match (router_env_which(), is_test_mode_enabled) {
+        // Throw error in case test_mode was enabled in production
         (Env::Production, true) => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
             message: "test_mode cannot be true for rendering payout_links in production"
                 .to_string()
         })),
         // Skip all validations when test mode is enabled in non prod env
         (_, true) => Ok(HashSet::new()),
+        // Otherwise, perform validations
         (_, false) => {
             // Fetch destination is "iframe"
             match request_headers.get("sec-fetch-dest").and_then(|v| v.to_str().ok()) {

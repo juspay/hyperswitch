@@ -2472,6 +2472,10 @@ pub struct BusinessCollectLinkConfig {
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+
+    /// Allows for removing any validations / pre-requisites which are necessary in a production environment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub payout_test_mode: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2485,10 +2489,6 @@ pub struct BusinessGenericLinkConfig {
     #[serde(flatten)]
     #[schema(value_type = GenericLinkUiConfig)]
     pub ui_config: link_utils::GenericLinkUiConfig,
-
-    /// `test_mode` allows for removing any validations which are necessary in a production environment
-    #[schema(value_type = Option<bool>, default = false)]
-    pub test_mode: Option<bool>,
 }
 
 impl BusinessGenericLinkConfig {

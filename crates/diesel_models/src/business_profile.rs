@@ -530,6 +530,7 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+    pub payout_test_mode: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -538,7 +539,6 @@ pub struct BusinessGenericLinkConfig {
     pub allowed_domains: HashSet<String>,
     #[serde(flatten)]
     pub ui_config: common_utils::link_utils::GenericLinkUiConfig,
-    pub test_mode: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);

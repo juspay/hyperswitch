@@ -2617,7 +2617,7 @@ pub async fn create_payout_link(
     let test_mode_in_config = payout_link_config_req
         .as_ref()
         .and_then(|config| config.test_mode)
-        .or_else(|| profile_config.as_ref().and_then(|c| c.config.test_mode));
+        .or_else(|| profile_config.as_ref().and_then(|c| c.payout_test_mode));
     let is_test_mode_enabled = test_mode_in_config.unwrap_or(false);
 
     let allowed_domains = match (router_env::which(), is_test_mode_enabled) {

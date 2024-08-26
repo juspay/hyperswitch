@@ -1754,6 +1754,7 @@ impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
     fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            payout_test_mode: item.payout_test_mode,
         }
     }
 }
@@ -1764,6 +1765,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
     fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            payout_test_mode: item.payout_test_mode,
         }
     }
 }
@@ -1776,7 +1778,6 @@ impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
             ui_config: item.ui_config,
-            test_mode: item.test_mode,
         }
     }
 }
@@ -1789,7 +1790,6 @@ impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
             domain_name: item.domain_name,
             allowed_domains: item.allowed_domains,
             ui_config: item.ui_config,
-            test_mode: item.test_mode,
         }
     }
 }
