@@ -123,7 +123,10 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
                     payment_method: FiservemeaPaymentMethods::PaymentCard(card),
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Selected payment method through fiservemea".to_string(),
+            )
+            .into()),
         }
     }
 }
