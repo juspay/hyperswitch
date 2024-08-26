@@ -3105,6 +3105,15 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         },
         "additionalProperties": false
@@ -3116,7 +3125,8 @@
           "id",
           "profile_name",
           "enable_payment_response_hash",
-          "redirect_to_merchant_with_http_post"
+          "redirect_to_merchant_with_http_post",
+          "is_tax_connector_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -3277,6 +3287,15 @@
               }
             ],
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         }
       },
