@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.26.0
+
+### Features
+
+- **connector:** [Adyen] add dispute flows for adyen connector ([#5514](https://github.com/juspay/hyperswitch/pull/5514)) ([`ad9f91b`](https://github.com/juspay/hyperswitch/commit/ad9f91b37cc39c8fb594b48ac60c5e945a0f561f))
+
+**Full Changelog:** [`2024.08.23.0...2024.08.26.0`](https://github.com/juspay/hyperswitch/compare/2024.08.23.0...2024.08.26.0)
+
+- - -
+
+## 2024.08.23.0
+
+### Features
+
+- **customer_v2:** Add route for customer retrieve v2 ([#5516](https://github.com/juspay/hyperswitch/pull/5516)) ([`914cab0`](https://github.com/juspay/hyperswitch/commit/914cab0d7b5a757e58b4ffe175a30f05ed1aeb1c))
+- **router:** [cybersource] add disable_avs and disable_cvn flag in connector metadata ([#5667](https://github.com/juspay/hyperswitch/pull/5667)) ([`36cc0cc`](https://github.com/juspay/hyperswitch/commit/36cc0ccbe69dc8f43c4cdd6daaea5e07beea8514))
+
+**Full Changelog:** [`2024.08.22.1...2024.08.23.0`](https://github.com/juspay/hyperswitch/compare/2024.08.22.1...2024.08.23.0)
+
+- - -
+
 ## 2024.08.22.1
 
 ### Features

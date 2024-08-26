@@ -1329,6 +1329,9 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
             }
             api_enums::Connector::Cybersource => {
                 cybersource::transformers::CybersourceAuthType::try_from(self.auth_type)?;
+                cybersource::transformers::CybersourceConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Datatrans => {
