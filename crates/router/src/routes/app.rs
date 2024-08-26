@@ -1137,10 +1137,29 @@ impl Blocklist {
 
 #[cfg(feature = "olap")]
 pub struct Organization;
-#[cfg(feature = "olap")]
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl Organization {
     pub fn server(state: AppState) -> Scope {
         web::scope("/organization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(organization_retrieve))
+                    .route(web::put().to(organization_update)),
+            )
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
+impl Organization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/organization")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(organization_create)))
             .service(

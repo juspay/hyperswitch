@@ -1354,89 +1354,6 @@ where
     Box::new(PaymentResponse)
 }
 
-#[instrument(skip_all)]
-pub(crate) async fn get_payment_method_create_request(
-    payment_method_data: Option<&domain::PaymentMethodData>,
-    payment_method: Option<storage_enums::PaymentMethod>,
-    payment_method_type: Option<storage_enums::PaymentMethodType>,
-    customer_id: &Option<id_type::CustomerId>,
-    billing_name: Option<masking::Secret<String>>,
-) -> RouterResult<api::PaymentMethodCreate> {
-    match payment_method_data {
-        Some(pm_data) => match payment_method {
-            Some(payment_method) => match pm_data {
-                domain::PaymentMethodData::Card(card) => {
-                    let card_detail = api::CardDetail {
-                        card_number: card.card_number.clone(),
-                        card_exp_month: card.card_exp_month.clone(),
-                        card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: billing_name,
-                        nick_name: card.nick_name.clone(),
-                        card_issuing_country: card.card_issuing_country.clone(),
-                        card_network: card.card_network.clone(),
-                        card_issuer: card.card_issuer.clone(),
-                        card_type: card.card_type.clone(),
-                    };
-                    let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        payment_method_issuer: card.card_issuer.clone(),
-                        payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: Some(card_detail),
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        card_network: card
-                            .card_network
-                            .as_ref()
-                            .map(|card_network| card_network.to_string()),
-                        client_secret: None,
-                        payment_method_data: None,
-                        billing: None,
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
-                    };
-                    Ok(payment_method_request)
-                }
-                _ => {
-                    let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        payment_method_issuer: None,
-                        payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: None,
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        card_network: None,
-                        client_secret: None,
-                        payment_method_data: None,
-                        billing: None,
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
-                    };
-
-                    Ok(payment_method_request)
-                }
-            },
-            None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type"
-            })
-            .attach_printable("PaymentMethodType Required")),
-        },
-        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_method_data"
-        })
-        .attach_printable("PaymentMethodData required Or Card is already saved")),
-    }
-}
-
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn get_customer_from_details<F: Clone>(
     _state: &SessionState,
@@ -4081,6 +3998,10 @@ pub async fn get_additional_payment_data(
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
     db: &dyn StorageInterface,
@@ -4136,6 +4057,14 @@ pub async fn populate_bin_details_for_payment_method_create(
             nick_name: card_details.nick_name.clone(),
         })
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn populate_bin_details_for_payment_method_create(
+    _card_details: api_models::payment_methods::CardDetail,
+    _db: &dyn StorageInterface,
+) -> api_models::payment_methods::CardDetail {
+    todo!()
 }
 
 pub fn validate_customer_access(
