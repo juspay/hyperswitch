@@ -1,10 +1,14 @@
 use actix_web::http::header::HeaderMap;
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+use api_models::payment_methods::PaymentMethodCreate;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
-use api_models::{
-    payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
-    payments,
-};
+use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
 use common_utils::{date_time, id_type};
@@ -1366,9 +1370,20 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 impl ClientSecretFetch for PaymentMethodCreate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl ClientSecretFetch for PaymentMethodIntentConfirm {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(&self.client_secret)
     }
 }
 
