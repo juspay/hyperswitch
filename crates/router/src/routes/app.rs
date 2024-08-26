@@ -894,9 +894,13 @@ impl Customers {
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::put().to(customers_update))
+                        .route(web::post().to(customers_update))
                         .route(web::post().to(customers_retrieve)),
                 )
+        }
+        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
