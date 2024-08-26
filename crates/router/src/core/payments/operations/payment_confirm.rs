@@ -1209,7 +1209,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 .clone(),
         );
 
-        let customer_id = customer.clone().map(|c| c.get_customer_id());
+        let customer_id = customer.clone().map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.take();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = payment_data.payment_intent.business_label.clone();
@@ -1414,7 +1414,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 let key_manager_state = state.into();
                 tokio::spawn(
                     async move {
-                        let m_customer_customer_id = customer.get_customer_id().to_owned();
+                        let m_customer_customer_id = customer.customer_id.to_owned();
                         m_db.update_customer_by_customer_id_merchant_id(
                             &key_manager_state,
                             m_customer_customer_id,

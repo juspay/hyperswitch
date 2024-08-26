@@ -26,6 +26,22 @@ use crate::{
 impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
     for FrmData
 {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn construct_router_data<'a>(
+        &self,
+        _state: &SessionState,
+        _connector_id: &str,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
+    ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
+    {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn construct_router_data<'a>(
         &self,
         _state: &SessionState,
@@ -46,9 +62,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
                 id: "ConnectorAuthType".to_string(),
             })?;
 
-        let customer_id = customer
-            .to_owned()
-            .map(|customer| customer.get_customer_id());
+        let customer_id = customer.to_owned().map(|customer| customer.customer_id);
         let currency = self.payment_attempt.clone().currency;
         let router_data = RouterData {
             flow: std::marker::PhantomData,

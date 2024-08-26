@@ -44,10 +44,26 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn validate_create_request(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _req: &payouts::PayoutCreateRequest,
+    _merchant_key_store: &domain::MerchantKeyStore,
+) -> RouterResult<(
+    String,
+    Option<payouts::PayoutMethodData>,
+    String,
+    Option<domain::Customer>,
+)> {
+    todo!()
+}
+
 /// Validates the request on below checks
 /// - merchant_id passed is same as the one in merchant_account table
 /// - payout_id is unique against merchant_id
 /// - payout_token provided is legitimate
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn validate_create_request(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -129,7 +145,7 @@ pub async fn validate_create_request(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(payout_token),
-                &customer.get_customer_id(),
+                &customer.customer_id,
                 merchant_account.get_id(),
                 req.payout_type,
                 merchant_key_store,

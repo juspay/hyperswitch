@@ -1192,7 +1192,7 @@ impl CustomerInterface for MockDb {
         let customer = customers
             .iter()
             .find(|customer| {
-                customer.get_customer_id() == *customer_id && &customer.merchant_id == merchant_id
+                customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
             })
             .cloned();
         customer
@@ -1219,25 +1219,7 @@ impl CustomerInterface for MockDb {
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
-        let customers = self.customers.lock().await;
-        let customer = customers
-            .iter()
-            .find(|customer| {
-                customer.get_customer_id() == *customer_id && &customer.merchant_id == merchant_id
-            })
-            .cloned();
-        customer
-            .async_map(|c| async {
-                c.convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-            .transpose()
+        todo!()
     }
 
     async fn list_customers_by_merchant_id(
