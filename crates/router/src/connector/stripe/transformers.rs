@@ -1842,8 +1842,6 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                 }
             });
 
-        crate::logger::debug!("aaaaaaaaa2 {:?}", setup_mandate_details);
-
         let meta_data =
             get_transaction_metadata(item.request.metadata.clone().map(Into::into), order_id);
 
