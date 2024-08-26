@@ -61,20 +61,6 @@ pub struct Customer {
     pub version: common_enums::ApiVersion,
 }
 
-// #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-// impl Customer {
-//     pub fn get_customer_id(&self) -> id_type::CustomerId {
-//         self.customer_id.clone()
-//     }
-// }
-
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// impl Customer {
-//     pub fn get_customer_id(&self) -> String {
-//         self.id.clone()
-//     }
-// }
-
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Customer {
