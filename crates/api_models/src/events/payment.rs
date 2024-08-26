@@ -99,9 +99,9 @@ impl ApiEventMetric for PaymentsRequest {
 
 impl ApiEventMetric for PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        self.payment_id
-            .clone()
-            .map(|payment_id| ApiEventsType::Payment { payment_id })
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
     }
 }
 

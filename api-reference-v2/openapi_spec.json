@@ -20,7 +20,7 @@
     }
   ],
   "paths": {
-    "/organization": {
+    "/v2/organization": {
       "post": {
         "tags": [
           "Organization"
@@ -67,7 +67,7 @@
         ]
       }
     },
-    "/organization/{organization_id}": {
+    "/v2/organization/{organization_id}": {
       "get": {
         "tags": [
           "Organization"
@@ -11712,11 +11712,12 @@
       "PaymentsCreateResponseOpenApi": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -11726,7 +11727,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -11734,7 +11734,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -11768,7 +11767,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -12765,11 +12765,12 @@
       "PaymentsResponse": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -12779,7 +12780,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -12787,7 +12787,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -12821,7 +12820,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
