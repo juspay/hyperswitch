@@ -23,7 +23,7 @@ pub use self::connect::*;
 use crate::{
     collect_missing_value_keys,
     connector::utils::{
-        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
+        self as connector_util, ApplePay, ApplePayDecrypt, RouterData,
     },
     consts,
     core::errors,
@@ -1087,13 +1087,13 @@ fn get_bank_debit_data(
         } => {
             let ach_data = BankDebitData::Ach {
                 account_holder_type: "individual".to_string(),
-                account_number: account_number.to_owned(),
-                routing_number: routing_number.to_owned(),
+                account_number: account_number.to_owned(), 
+                routing_number: routing_number.to_owned(), 
             };
             (StripePaymentMethodType::Ach, ach_data)
         }
         domain::BankDebitData::SepaBankDebit { iban, .. } => {
-            let sepa_data = BankDebitData::Sepa {
+            let sepa_data: BankDebitData = BankDebitData::Sepa {
                 iban: iban.to_owned(),
             };
             (StripePaymentMethodType::Sepa, sepa_data)
@@ -1594,35 +1594,36 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
         let shipping_address = match item.get_optional_shipping() {
             Some(shipping_details) => {
                 let shipping_address = shipping_details.address.as_ref();
-                Some(StripeShippingAddress {
-                    city: shipping_address.and_then(|a| a.city.clone()),
-                    country: shipping_address.and_then(|a| a.country),
-                    line1: shipping_address.and_then(|a| a.line1.clone()),
-                    line2: shipping_address.and_then(|a| a.line2.clone()),
-                    zip: shipping_address.and_then(|a| a.zip.clone()),
-                    state: shipping_address.and_then(|a| a.state.clone()),
-                    name: shipping_address
-                        .and_then(|a| {
-                            a.first_name.as_ref().map(|first_name| {
+                shipping_address.and_then(|shipping_detail| {
+                    shipping_detail
+                        .first_name
+                        .as_ref()
+                        .map(|first_name| StripeShippingAddress {
+                            city: shipping_address.and_then(|a| a.city.clone()),
+                            country: shipping_address.and_then(|a| a.country),
+                            line1: shipping_address.and_then(|a| a.line1.clone()),
+                            line2: shipping_address.and_then(|a| a.line2.clone()),
+                            zip: shipping_address.and_then(|a| a.zip.clone()),
+                            state: shipping_address.and_then(|a| a.state.clone()),
+                            name: format!(
+                                "{} {}",
+                                first_name.clone().expose(),
+                                shipping_detail
+                                    .last_name
+                                    .clone()
+                                    .expose_option()
+                                    .unwrap_or_default()
+                            )
+                            .into(),
+                            phone: shipping_details.phone.as_ref().map(|p| {
                                 format!(
-                                    "{} {}",
-                                    first_name.clone().expose(),
-                                    a.last_name.clone().expose_option().unwrap_or_default()
+                                    "{}{}",
+                                    p.country_code.clone().unwrap_or_default(),
+                                    p.number.clone().expose_option().unwrap_or_default()
                                 )
                                 .into()
-                            })
+                            }),
                         })
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "shipping_address.first_name",
-                        })?,
-                    phone: shipping_details.phone.as_ref().map(|p| {
-                        format!(
-                            "{}{}",
-                            p.country_code.clone().unwrap_or_default(),
-                            p.number.clone().expose_option().unwrap_or_default()
-                        )
-                        .into()
-                    }),
                 })
             }
             None => None,
@@ -1785,13 +1786,15 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
             _ => payment_data,
         };
 
-        let setup_mandate_details = item
-            .request
-            .setup_mandate_details
-            .as_ref()
-            .and_then(|mandate_details| {
-                mandate_details
-                    .customer_acceptance
+        let customer_acceptance = item
+        .request
+        .setup_mandate_details
+        .as_ref()
+        .and_then(|mandate_details| {
+            mandate_details
+                .customer_acceptance.clone()}).or(item.request.customer_acceptance.clone());
+
+        let setup_mandate_details = customer_acceptance
                     .as_ref()
                     .map(|customer_acceptance| {
                         Ok::<_, error_stack::Report<errors::ConnectorError>>(
@@ -1826,11 +1829,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                             },
                         )
                     })
-            })
             .transpose()?
             .or_else(|| {
                 //stripe requires us to send mandate_data while making recurring payment through saved bank debit
-                if payment_method.is_some() {
                     //check if payment is done through saved payment method
                     match &payment_method_types {
                         //check if payment method is bank debit
@@ -1844,10 +1845,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         }),
                         _ => None,
                     }
-                } else {
-                    None
-                }
             });
+
+        crate::logger::debug!("aaaaaaaaa2 {:?}", setup_mandate_details);
 
         let meta_data =
             get_transaction_metadata(item.request.metadata.clone().map(Into::into), order_id);
@@ -3252,7 +3252,7 @@ impl
                             transfer_type: StripeCreditTransferTypes::Multibanco,
                             currency,
                             payment_method_data: MultibancoTransferData {
-                                email: item.request.get_email()?,
+                                email: item.get_billing_email()?,
                             },
                             amount: Some(amount),
                             return_url: Some(item.get_return_url()?),
@@ -3262,7 +3262,7 @@ impl
                         Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
                             transfer_type: StripeCreditTransferTypes::AchCreditTransfer,
                             payment_method_data: AchTransferData {
-                                email: item.request.get_email()?,
+                                email: item.get_billing_email()?,
                             },
                             currency,
                         }))
