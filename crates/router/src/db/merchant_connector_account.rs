@@ -596,9 +596,9 @@ impl MerchantConnectorAccountInterface for Store {
                         ),
                         cache::CacheKind::Accounts(
                             format!(
-                                "{}_{:?}",
+                                "{}_{}",
                                 _merchant_id.get_string_repr(),
-                                _merchant_connector_id
+                                _merchant_connector_id.get_string_repr()
                             )
                             .into(),
                         ),
@@ -692,9 +692,9 @@ impl MerchantConnectorAccountInterface for Store {
                     ),
                     cache::CacheKind::Accounts(
                         format!(
-                            "{}_{:?}",
+                            "{}_{}",
                             _merchant_id.get_string_repr(),
-                            _merchant_connector_id
+                            _merchant_connector_id.get_string_repr()
                         )
                         .into(),
                     ),

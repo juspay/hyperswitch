@@ -144,7 +144,7 @@ pub async fn get_tracking_id_from_configs(
         .attach_printable("Error getting data from configs table")?
         .config;
 
-    Ok(format!("{:?}_{}", connector_id, timestamp))
+    Ok(format!("{}_{}", connector_id.get_string_repr(), timestamp))
 }
 
 fn build_key(
@@ -152,9 +152,9 @@ fn build_key(
     connector: enums::Connector,
 ) -> String {
     format!(
-        "{}_{}_{:?}",
+        "{}_{}_{}",
         consts::CONNECTOR_ONBOARDING_CONFIG_PREFIX,
         connector,
-        connector_id,
+        connector_id.get_string_repr(),
     )
 }
