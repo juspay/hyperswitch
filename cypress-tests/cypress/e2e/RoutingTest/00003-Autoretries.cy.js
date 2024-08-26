@@ -68,6 +68,10 @@ describe("Autoretries", () => {
               connector: "adyen",
               merchant_connector_id: globalState.get("adyenMcaId"),
             },
+            {
+              connector: "bluesnap",
+              merchant_connector_id: globalState.get("bluesnapMcaId"),
+            },
           ];
           cy.addRoutingConfig(
             fixtures.routingConfigBody,
@@ -77,9 +81,8 @@ describe("Autoretries", () => {
             routing_data,
             globalState
           );
-
         });
-        
+
         it("Activate routing config", () => {
           let data = utils.getConnectorDetails("common")["routing"];
           let req_data = data["Request"];
@@ -124,7 +127,7 @@ describe("Autoretries", () => {
           it("Payment confirm call", () => {
             let data =
               utils.getConnectorDetails("autoretries")["card_pm"][
-                "StripeConfirmMAR1"
+                "AdyenConfirm"
               ];
             let req_data = data["Request"];
             let res_data = data["Response"];
@@ -178,7 +181,62 @@ describe("Autoretries", () => {
           it("Payment confirm call", () => {
             let data =
               utils.getConnectorDetails("autoretries")["card_pm"][
-                "StripeConfirmMAR0"
+                "StripeConfirm"
+              ];
+            let req_data = data["Request"];
+            let res_data = data["Response"];
+            cy.confirmCallTest(
+              fixtures.confirmBody,
+              req_data,
+              res_data,
+              true,
+              globalState
+            );
+          });
+
+          it("Payment retrieve call", () => {
+            cy.retrievePaymentCallTest(globalState, true, max_auto_retries + 1);
+          });
+        });
+      });
+
+      context("Max auto retries = 2", () => {
+        const max_auto_retries = 2;
+        context("Setup auto retries", () => {
+          it("Enable auto retries", () => {
+            cy.enableAutoRetry(fixtures.autoretries.gsm, globalState, "true");
+          });
+          it("Set max auto retries", () => {
+            cy.setMaxAutoRetries(
+              fixtures.autoretries.max_auto_retries,
+              globalState,
+              `${max_auto_retries}`
+            );
+          });
+        });
+
+        context("Make payment", () => {
+          it("Payment create call", () => {
+            let data =
+              utils.getConnectorDetails("autoretries")["card_pm"][
+                "PaymentIntent"
+              ];
+            let req_data = data["Request"];
+            let res_data = data["Response"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              req_data,
+              res_data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+          });
+
+          it("Payment confirm call", () => {
+            let data =
+              utils.getConnectorDetails("autoretries")["card_pm"][
+                "BluesnapConfirm"
               ];
             let req_data = data["Request"];
             let res_data = data["Response"];
