@@ -55,7 +55,19 @@
       "pages": [
         "api-reference/business-profile/business-profile--create",
         "api-reference/business-profile/business-profile--update",
-        "api-reference/business-profile/business-profile--retrieve"
+        "api-reference/business-profile/business-profile--retrieve",
+        "api-reference/business-profile/business-profile--activate-routing-algorithm",
+        "api-reference/business-profile/business-profile--retrieve-active-routing-algorithm",
+        "api-reference/business-profile/business-profile--deactivate-routing-algorithm",
+        "api-reference/business-profile/business-profile--update-default-fallback-routing-algorithm",
+        "api-reference/business-profile/business-profile--retrieve-default-fallback-routing-algorithm"
+      ]
+    },
+    {
+      "group": "Routing",
+      "pages": [
+        "api-reference/routing/routing--create",
+        "api-reference/routing/routing--retrieve"
       ]
     }
   ],
