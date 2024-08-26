@@ -41,7 +41,11 @@ use time::OffsetDateTime;
 use transformers as fiservemea;
 use uuid::Uuid;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, RefundsRequestData as _},
+};
 
 #[derive(Clone)]
 pub struct Fiservemea {
@@ -116,17 +120,23 @@ where
         let auth: fiservemea::FiservemeaAuthType =
             fiservemea::FiservemeaAuthType::try_from(&req.connector_auth_type)?;
 
-        let fiserv_req = self.get_request_body(req, connectors)?;
-
         let client_request_id = Uuid::new_v4().to_string();
-        let hmac = self
-            .generate_authorization_signature(
-                auth.clone(),
-                &client_request_id,
-                fiserv_req.get_inner_value().peek(),
-                timestamp,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let http_method = self.get_http_method();
+        let hmac = match http_method {
+            Method::Get => self
+                .generate_authorization_signature(auth.clone(), &client_request_id, "", timestamp)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            Method::Post | Method::Put | Method::Delete | Method::Patch => {
+                let fiserv_req = self.get_request_body(req, connectors)?;
+                self.generate_authorization_signature(
+                    auth.clone(),
+                    &client_request_id,
+                    fiserv_req.get_inner_value().peek(),
+                    timestamp,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            }
+        };
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -304,12 +314,24 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fis
         self.common_get_content_type()
     }
 
+    fn get_http_method(&self) -> Method {
+        Method::Get
+    }
+
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/ipp/payments-gateway/v2/payments/{connector_payment_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn build_request(
@@ -539,10 +561,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiserve
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request.connector_transaction_id.clone();
+        Ok(format!(
+            "{}/ipp/payments-gateway/v2/payments/{connector_payment_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -586,7 +612,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiserve
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: fiservemea::RefundResponse = res
+        let response: fiservemea::FiservemeaPaymentsResponse = res
             .response
             .parse_struct("fiservemea RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -621,12 +647,20 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiserveme
         self.common_get_content_type()
     }
 
+    fn get_http_method(&self) -> Method {
+        Method::Get
+    }
+
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}/ipp/payments-gateway/v2/payments/{connector_payment_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn build_request(
@@ -653,7 +687,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiserveme
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: fiservemea::RefundResponse = res
+        let response: fiservemea::FiservemeaPaymentsResponse = res
             .response
             .parse_struct("fiservemea RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

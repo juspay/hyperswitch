@@ -39,12 +39,19 @@ pub struct FiservemeaTransactionAmount {
     currency: common_enums::Currency,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaOrder {
+    order_id: String,
+}
+
 #[derive(Debug, Serialize)]
 pub enum FiservemeaRequestType {
     PaymentCardSaleTransaction,
     PaymentCardPreAuthTransaction,
     PostAuthTransaction,
     VoidPreAuthTransactions,
+    ReturnTransaction,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -74,6 +81,7 @@ pub struct FiservemeaPaymentsRequest {
     request_type: FiservemeaRequestType,
     merchant_transaction_id: String,
     transaction_amount: FiservemeaTransactionAmount,
+    order: FiservemeaOrder,
     payment_method: FiservemeaPaymentMethods,
 }
 
@@ -108,6 +116,9 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
                     transaction_amount: FiservemeaTransactionAmount {
                         total: item.amount.clone(),
                         currency: item.router_data.request.currency,
+                    },
+                    order: FiservemeaOrder {
+                        order_id: item.router_data.connector_request_reference_id.clone(),
                     },
                     payment_method: FiservemeaPaymentMethods::PaymentCard(card),
                 })
@@ -253,29 +264,58 @@ pub struct Processor {
 }
 
 fn map_status(
-    status: FiservemeaPaymentStatus,
+    fiservemea_status: Option<FiservemeaPaymentStatus>,
+    fiservemea_result: Option<FiservemeaPaymentResult>,
     transaction_type: FiservemeaTransactionType,
-) -> common_enums::AttemptStatus {
-    match status {
-        FiservemeaPaymentStatus::Approved => {
-            if transaction_type == FiservemeaTransactionType::Preauth {
-                common_enums::AttemptStatus::Authorized
-            } else if transaction_type == FiservemeaTransactionType::Void {
-                common_enums::AttemptStatus::Voided
-            } else if matches!(
-                transaction_type,
-                FiservemeaTransactionType::Sale | FiservemeaTransactionType::Postauth
-            ) {
-                common_enums::AttemptStatus::Charged
-            } else {
-                common_enums::AttemptStatus::Failure
+) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
+    match fiservemea_status {
+        Some(status) => match status {
+            FiservemeaPaymentStatus::Approved => {
+                if transaction_type == FiservemeaTransactionType::Preauth {
+                    Ok(common_enums::AttemptStatus::Authorized)
+                } else if transaction_type == FiservemeaTransactionType::Void {
+                    Ok(common_enums::AttemptStatus::Voided)
+                } else if matches!(
+                    transaction_type,
+                    FiservemeaTransactionType::Sale | FiservemeaTransactionType::Postauth
+                ) {
+                    Ok(common_enums::AttemptStatus::Charged)
+                } else {
+                    Ok(common_enums::AttemptStatus::Failure)
+                }
             }
-        }
-        FiservemeaPaymentStatus::Waiting => common_enums::AttemptStatus::Pending,
-        FiservemeaPaymentStatus::Partial => common_enums::AttemptStatus::PartialCharged,
-        FiservemeaPaymentStatus::ValidationFailed
-        | FiservemeaPaymentStatus::ProcessingFailed
-        | FiservemeaPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
+            FiservemeaPaymentStatus::Waiting => Ok(common_enums::AttemptStatus::Pending),
+            FiservemeaPaymentStatus::Partial => Ok(common_enums::AttemptStatus::PartialCharged),
+            FiservemeaPaymentStatus::ValidationFailed
+            | FiservemeaPaymentStatus::ProcessingFailed
+            | FiservemeaPaymentStatus::Declined => Ok(common_enums::AttemptStatus::Failure),
+        },
+        None => match fiservemea_result {
+            Some(result) => match result {
+                FiservemeaPaymentResult::Approved => {
+                    if transaction_type == FiservemeaTransactionType::Preauth {
+                        Ok(common_enums::AttemptStatus::Authorized)
+                    } else if transaction_type == FiservemeaTransactionType::Void {
+                        Ok(common_enums::AttemptStatus::Voided)
+                    } else if matches!(
+                        transaction_type,
+                        FiservemeaTransactionType::Sale | FiservemeaTransactionType::Postauth
+                    ) {
+                        Ok(common_enums::AttemptStatus::Charged)
+                    } else {
+                        Ok(common_enums::AttemptStatus::Failure)
+                    }
+                }
+                FiservemeaPaymentResult::Waiting => Ok(common_enums::AttemptStatus::Pending),
+                FiservemeaPaymentResult::Partial => Ok(common_enums::AttemptStatus::PartialCharged),
+                FiservemeaPaymentResult::Declined
+                | FiservemeaPaymentResult::Failed
+                | FiservemeaPaymentResult::Fraud => Ok(common_enums::AttemptStatus::Failure),
+            },
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "transactionResult",
+            }),
+        },
     }
 }
 
@@ -299,7 +339,7 @@ pub struct FiservemeaPaymentsResponse {
     transaction_time: Option<i64>,
     approved_amount: Option<AmountDetails>,
     transaction_amount: Option<AmountDetails>,
-    transaction_status: FiservemeaPaymentStatus, // FiservEMEA Docs mention that this field is deprecated. We are using it for now because transaction_result is not present in the response.
+    transaction_status: Option<FiservemeaPaymentStatus>, // FiservEMEA Docs mention that this field is deprecated. We are using it for now because transaction_result is not present in the response.
     transaction_result: Option<FiservemeaPaymentResult>,
     approval_code: Option<String>,
     error_message: Option<String>,
@@ -318,8 +358,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
         Ok(Self {
             status: map_status(
                 item.response.transaction_status,
+                item.response.transaction_result,
                 item.response.transaction_type,
-            ),
+            )?,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
                 redirection_data: None,
@@ -372,76 +413,92 @@ impl TryFrom<&PaymentsCancelRouterData> for FiservemeaVoidRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FiservemeaRefundRequest {
-    pub amount: StringMajorUnit,
+    request_type: FiservemeaRequestType,
+    transaction_amount: FiservemeaTransactionAmount,
 }
 
 impl<F> TryFrom<&FiservemeaRouterData<&RefundsRouterData<F>>> for FiservemeaRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &FiservemeaRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            request_type: FiservemeaRequestType::ReturnTransaction,
+            transaction_amount: FiservemeaTransactionAmount {
+                total: item.amount.clone(),
+                currency: item.router_data.request.currency,
+            },
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
+fn map_refund_status(
+    fiservemea_status: Option<FiservemeaPaymentStatus>,
+    fiservemea_result: Option<FiservemeaPaymentResult>,
+) -> Result<enums::RefundStatus, errors::ConnectorError> {
+    match fiservemea_status {
+        Some(status) => match status {
+            FiservemeaPaymentStatus::Approved => Ok(enums::RefundStatus::Success),
+            FiservemeaPaymentStatus::Partial | FiservemeaPaymentStatus::Waiting => {
+                Ok(enums::RefundStatus::Pending)
+            }
+            FiservemeaPaymentStatus::ValidationFailed
+            | FiservemeaPaymentStatus::ProcessingFailed
+            | FiservemeaPaymentStatus::Declined => Ok(enums::RefundStatus::Failure),
+        },
+        None => match fiservemea_result {
+            Some(result) => match result {
+                FiservemeaPaymentResult::Approved => Ok(enums::RefundStatus::Success),
+                FiservemeaPaymentResult::Partial | FiservemeaPaymentResult::Waiting => {
+                    Ok(enums::RefundStatus::Pending)
+                }
+                FiservemeaPaymentResult::Declined
+                | FiservemeaPaymentResult::Failed
+                | FiservemeaPaymentResult::Fraud => Ok(enums::RefundStatus::Failure),
+            },
+            None => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "transactionResult",
+            }),
+        },
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+impl TryFrom<RefundsResponseRouterData<Execute, FiservemeaPaymentsResponse>>
+    for RefundsRouterData<Execute>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, FiservemeaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.ipg_transaction_id,
+                refund_status: map_refund_status(
+                    item.response.transaction_status,
+                    item.response.transaction_result,
+                )?,
             }),
             ..item.data
         })
     }
 }
 
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
+impl TryFrom<RefundsResponseRouterData<RSync, FiservemeaPaymentsResponse>>
+    for RefundsRouterData<RSync>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, FiservemeaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.ipg_transaction_id,
+                refund_status: map_refund_status(
+                    item.response.transaction_status,
+                    item.response.transaction_result,
+                )?,
             }),
             ..item.data
         })
