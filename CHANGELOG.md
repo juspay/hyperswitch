@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.15.0-hotfix2
+
+### Refactors
+
+- **euclid:** Make the disabled node's relation as negative ([#5703](https://github.com/juspay/hyperswitch/pull/5703)) ([`4dd5618`](https://github.com/juspay/hyperswitch/commit/4dd56185f17db1f3e241f3e63a41596927e0e261))
+
+- - -
+
 ## 2024.08.15.0-hotfix1
 
 ### Features
