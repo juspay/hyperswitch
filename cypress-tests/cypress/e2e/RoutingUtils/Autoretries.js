@@ -41,6 +41,21 @@ export const connectorDetails = {
         },
       },
     },
+    AdyenConfirmFail: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: card_4242,
+        },
+      },
+      Response: {
+        body: {
+          status: "failed",
+          connector: "adyen",
+        },
+      },
+    },
     BluesnapConfirm: {
       Request: {
         payment_method: "card",
