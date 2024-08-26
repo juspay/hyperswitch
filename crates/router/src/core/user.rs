@@ -2811,6 +2811,7 @@ pub async fn switch_org_for_user(
         .ok_or(UserErrors::OrgIdNotFound)?
         .to_owned();
 
+    let org_id = user_role.org_id.ok_or(UserErrors::InternalServerError)?;
     let merchant_id = if let Some(merchant_id) = &user_role.merchant_id {
         merchant_id.clone()
     } else {
@@ -2818,7 +2819,7 @@ pub async fn switch_org_for_user(
             .store
             .list_merchant_accounts_by_organization_id(
                 key_manager_state,
-                request.org_id.get_string_repr(),
+                org_id.get_string_repr(),
             )
             .await
             .change_context(UserErrors::InternalServerError)?
@@ -2867,8 +2868,8 @@ pub async fn switch_org_for_user(
         &state,
         &user,
         merchant_id.clone(),
-        user_from_token.org_id.clone(),
-        user_from_token.role_id.clone(),
+        org_id.clone(),
+        user_role.role_id.clone(),
         Some(profile_id.clone()),
     )
     .await?;
@@ -2878,7 +2879,7 @@ pub async fn switch_org_for_user(
         &state,
         &user_from_token.role_id.as_str(),
         &merchant_id,
-        &user_from_token.org_id,
+        &org_id,
     )
     .await;
 
