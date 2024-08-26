@@ -42,12 +42,7 @@ use crate::{
     logger,
     routes::SessionState,
     services::{pm_auth as pm_auth_services, ApplicationResponse},
-    types::{
-        self,
-        domain,
-        storage,
-        transformers::ForeignTryFrom,
-    },
+    types::{self, domain, storage, transformers::ForeignTryFrom},
 };
 
 pub async fn create_link_token(
@@ -309,7 +304,6 @@ async fn store_bank_details_in_payment_methods(
     connector_details: (&str, Secret<String>),
     mca_id: String,
 ) -> RouterResult<()> {
-
     let db = &*state.clone().store;
     let (connector_name, access_token) = connector_details;
 

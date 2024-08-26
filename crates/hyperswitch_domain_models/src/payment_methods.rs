@@ -14,7 +14,6 @@ use time::PrimitiveDateTime;
 
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")

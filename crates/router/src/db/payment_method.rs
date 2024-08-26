@@ -1,4 +1,4 @@
-use common_utils::{ id_type, types::keymanager::KeyManagerState};
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
@@ -86,8 +86,7 @@ pub trait PaymentMethodInterface {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::{
-       fallback_reverse_lookup_not_found, id_type,
-        types::keymanager::KeyManagerState,
+        fallback_reverse_lookup_not_found, id_type, types::keymanager::KeyManagerState,
     };
     use diesel_models::{kv, PaymentMethodUpdateInternal};
     use error_stack::{report, ResultExt};
@@ -531,8 +530,7 @@ mod storage {
             payment_method_update: storage_types::PaymentMethodUpdate,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-            let payment_method = 
-                Conversion::convert(payment_method)
+            let payment_method = Conversion::convert(payment_method)
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
 

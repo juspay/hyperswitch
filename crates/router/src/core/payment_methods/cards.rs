@@ -4942,13 +4942,14 @@ async fn generate_saved_pm_response(
         None
     };
 
-    let payment_method_billing =   pm.payment_method_billing_address
-    .clone()
-    .map(|decrypted_data| decrypted_data.into_inner().expose())
-    .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
-    .transpose()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to parse payment method billing address details")?;
+    let payment_method_billing = pm
+        .payment_method_billing_address
+        .clone()
+        .map(|decrypted_data| decrypted_data.into_inner().expose())
+        .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse payment method billing address details")?;
 
     let connector_mandate_details = pm
         .connector_mandate_details
@@ -5116,7 +5117,6 @@ pub async fn get_card_details_with_locker_fallback(
     state: &routes::SessionState,
     _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-
     let card_decrypted = pm
         .payment_method_data
         .clone()
@@ -5173,7 +5173,6 @@ pub async fn get_card_details_without_locker_fallback(
     state: &routes::SessionState,
     _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-
     let card_decrypted = pm
         .payment_method_data
         .clone()
@@ -5266,7 +5265,6 @@ async fn get_masked_bank_details(
     pm: &domain::PaymentMethod,
     _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<MaskedBankDetails>> {
- 
     let payment_method_data = pm
         .payment_method_data
         .clone()
@@ -5298,7 +5296,6 @@ async fn get_bank_account_connector_details(
     pm: &domain::PaymentMethod,
     _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<BankAccountTokenData>> {
-
     let payment_method_data = pm
         .payment_method_data
         .clone()

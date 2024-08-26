@@ -1157,7 +1157,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .attach_printable("Failed to encode additional pm data")?;
 
         let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
-
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data
                 .clone()

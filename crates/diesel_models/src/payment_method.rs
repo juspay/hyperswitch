@@ -10,7 +10,6 @@ use time::PrimitiveDateTime;
     not(feature = "payment_methods_v2")
 ))]
 use crate::{enums as storage_enums, schema::payment_methods};
-
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{enums as storage_enums, schema_v2::payment_methods};
 
