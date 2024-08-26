@@ -6,7 +6,10 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -39,6 +42,9 @@ pub struct FiservemeaTransactionAmount {
 #[derive(Debug, Serialize)]
 pub enum FiservemeaRequestType {
     PaymentCardSaleTransaction,
+    PaymentCardPreAuthTransaction,
+    PostAuthTransaction,
+    VoidPreAuthTransactions,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -86,8 +92,15 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
                     },
                     security_code: req_card.card_cvc,
                 };
+                let request_type = if item.router_data.request.capture_method
+                    == Some(enums::CaptureMethod::Automatic)
+                {
+                    FiservemeaRequestType::PaymentCardSaleTransaction
+                } else {
+                    FiservemeaRequestType::PaymentCardPreAuthTransaction
+                };
                 Ok(Self {
-                    request_type: FiservemeaRequestType::PaymentCardSaleTransaction,
+                    request_type,
                     merchant_transaction_id: item
                         .router_data
                         .connector_request_reference_id
@@ -144,7 +157,7 @@ pub enum FiservemeaResponseType {
     TransactionResponse,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservemeaTransactionType {
     Sale,
@@ -239,16 +252,30 @@ pub struct Processor {
     security_code_response: Option<String>,
 }
 
-impl From<FiservemeaPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: FiservemeaPaymentStatus) -> Self {
-        match item {
-            FiservemeaPaymentStatus::Approved => Self::Charged,
-            FiservemeaPaymentStatus::Waiting => Self::Pending,
-            FiservemeaPaymentStatus::Partial => Self::PartialCharged,
-            FiservemeaPaymentStatus::ValidationFailed
-            | FiservemeaPaymentStatus::ProcessingFailed
-            | FiservemeaPaymentStatus::Declined => Self::Failure,
+fn map_status(
+    status: FiservemeaPaymentStatus,
+    transaction_type: FiservemeaTransactionType,
+) -> common_enums::AttemptStatus {
+    match status {
+        FiservemeaPaymentStatus::Approved => {
+            if transaction_type == FiservemeaTransactionType::Preauth {
+                common_enums::AttemptStatus::Authorized
+            } else if transaction_type == FiservemeaTransactionType::Void {
+                common_enums::AttemptStatus::Voided
+            } else if matches!(
+                transaction_type,
+                FiservemeaTransactionType::Sale | FiservemeaTransactionType::Postauth
+            ) {
+                common_enums::AttemptStatus::Charged
+            } else {
+                common_enums::AttemptStatus::Failure
+            }
         }
+        FiservemeaPaymentStatus::Waiting => common_enums::AttemptStatus::Pending,
+        FiservemeaPaymentStatus::Partial => common_enums::AttemptStatus::PartialCharged,
+        FiservemeaPaymentStatus::ValidationFailed
+        | FiservemeaPaymentStatus::ProcessingFailed
+        | FiservemeaPaymentStatus::Declined => common_enums::AttemptStatus::Failure,
     }
 }
 
@@ -262,7 +289,7 @@ pub struct FiservemeaPaymentsResponse {
     api_trace_id: Option<String>,
     ipg_transaction_id: String,
     order_id: Option<String>,
-    transaction_type: Option<FiservemeaTransactionType>,
+    transaction_type: FiservemeaTransactionType,
     transaction_origin: Option<FiservemeaTransactionOrigin>,
     payment_method_details: Option<FiservemeaPaymentMethodDetails>,
     country: Option<Secret<String>>,
@@ -289,7 +316,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
         item: ResponseRouterData<F, FiservemeaPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.transaction_status),
+            status: map_status(
+                item.response.transaction_status,
+                item.response.transaction_type,
+            ),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
                 redirection_data: None,
@@ -301,6 +331,43 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
                 charge_id: None,
             }),
             ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaCaptureRequest {
+    request_type: FiservemeaRequestType,
+    transaction_amount: FiservemeaTransactionAmount,
+}
+
+impl TryFrom<&FiservemeaRouterData<&PaymentsCaptureRouterData>> for FiservemeaCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &FiservemeaRouterData<&PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_type: FiservemeaRequestType::PostAuthTransaction,
+            transaction_amount: FiservemeaTransactionAmount {
+                total: item.amount.clone(),
+                currency: item.router_data.request.currency,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaVoidRequest {
+    request_type: FiservemeaRequestType,
+}
+
+impl TryFrom<&PaymentsCancelRouterData> for FiservemeaVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(_item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_type: FiservemeaRequestType::VoidPreAuthTransactions,
         })
     }
 }
