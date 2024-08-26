@@ -1412,6 +1412,17 @@ Cypress.Commands.add(
         expect(response.body.attempts[0].attempt_id).to.include(
           `${payment_id}_`
         );
+        for (const key in response.body.attempts) {
+          if (
+            response.body.attempts[key].attempt_id ===
+              `${payment_id}_${attempt}` &&
+            response.body.status === "succeeded"
+          ) {
+            expect(response.body.attempts[key].status).to.equal("charged");
+          } else {
+            expect(response.body.attempts[key].status).to.equal("failure");
+          }
+        }
       }
     });
   }
