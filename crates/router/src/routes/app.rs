@@ -1618,6 +1618,7 @@ impl User {
                 web::resource("/merchants_select/list")
                     .route(web::get().to(list_merchants_for_user)),
             )
+            // TODO: remove premission info api
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
             .service(web::resource("/module/list").route(web::get().to(get_role_information)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))

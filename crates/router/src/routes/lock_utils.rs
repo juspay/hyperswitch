@@ -260,7 +260,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AcceptInvitation
             | Flow::MerchantSelect
             | Flow::DeleteUserRole
-            | Flow::TransferOrgOwnership
             | Flow::CreateRole
             | Flow::UpdateRole
             | Flow::UserFromEmail => Self::UserRole,

@@ -2134,7 +2134,7 @@ pub async fn verify_recovery_code(
     state: SessionState,
     user_token: auth::UserIdFromAuth,
     req: user_api::VerifyRecoveryCodeRequest,
-) -> UserResponse<user_api::TokenResponse> {
+) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
         .find_user_by_id(&user_token.user_id)
@@ -2765,7 +2765,7 @@ pub async fn switch_org_for_user(
     state: SessionState,
     request: user_api::SwitchOrganizationRequest,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::DashboardEntryResponse> {
+) -> UserResponse<user_api::TokenResponse> {
     if user_from_token.org_id == request.org_id {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
             "User switching to same org".to_string(),
@@ -2782,7 +2782,7 @@ pub async fn switch_org_for_user(
         &user_from_token.org_id,
     )
     .await
-    .to_not_found_response(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)?;
 
     if role_info.get_entity_type() == EntityType::Internal {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
@@ -2791,7 +2791,6 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    // list by user_id and org_id
     let user_role = state
         .store
         .list_user_roles(
@@ -2806,22 +2805,25 @@ pub async fn switch_org_for_user(
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
         .filter(|role| role.status == UserStatus::Active)
-        .collect::<Vec<_>>()
-        .first()
-        .ok_or(UserErrors::OrgIdNotFound)?
+        .next()
+        .ok_or(UserErrors::InvalidRoleOperationWithMessage(
+            "No user role found for the requested org id".to_string(),
+        ))?
         .to_owned();
 
-    let org_id = user_role.org_id.ok_or(UserErrors::InternalServerError)?;
     let merchant_id = if let Some(merchant_id) = &user_role.merchant_id {
         merchant_id.clone()
     } else {
         state
             .store
-            .list_merchant_accounts_by_organization_id(key_manager_state, org_id.get_string_repr())
+            .list_merchant_accounts_by_organization_id(
+                key_manager_state,
+                request.org_id.get_string_repr(),
+            )
             .await
             .change_context(UserErrors::InternalServerError)?
             .first()
-            .ok_or(UserErrors::MerchantIdNotFound)?
+            .ok_or(UserErrors::InternalServerError)?
             .get_id()
             .clone()
     };
@@ -2837,14 +2839,7 @@ pub async fn switch_org_for_user(
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(UserErrors::MerchantIdNotFound)
-                        .attach_printable("Merchant key store not found for given merchant_id")
-                } else {
-                    e.change_context(UserErrors::InternalServerError)
-                }
-            })?;
+            .change_context(UserErrors::InternalServerError)?;
 
         state
             .store
@@ -2856,7 +2851,7 @@ pub async fn switch_org_for_user(
             .await
             .change_context(UserErrors::InternalServerError)?
             .first()
-            .ok_or(UserErrors::ProfileIdNotFound)?
+            .ok_or(UserErrors::InternalServerError)?
             .profile_id
             .clone()
     };
@@ -2865,29 +2860,23 @@ pub async fn switch_org_for_user(
         &state,
         &user,
         merchant_id.clone(),
-        org_id.clone(),
+        request.org_id.clone(),
         user_role.role_id.clone(),
         Some(profile_id.clone()),
     )
     .await?;
 
-    // For cache not throwing error
     let _ = utils::user_role::set_role_permissions_in_cache_if_required(
         &state,
         &user_from_token.role_id,
         &merchant_id,
-        &org_id,
+        &request.org_id,
     )
     .await;
 
-    let response = user_api::DashboardEntryResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
-        name: user.get_name(),
-        email: user.get_email(),
-        user_id: user.get_user_id().to_string(),
-        verification_days_left: None,
-        user_role: user_role.role_id.clone(),
-        merchant_id: merchant_id.clone(),
+        token_type: common_enums::TokenPurpose::UserInfo,
     };
 
     auth::cookies::set_cookie_response(response, token)
@@ -2897,7 +2886,7 @@ pub async fn switch_merchant_for_user_in_org(
     state: SessionState,
     request: user_api::SwitchMerchantRequest,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::DashboardEntryResponse> {
+) -> UserResponse<user_api::TokenResponse> {
     if user_from_token.merchant_id == request.merchant_id {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
             "User switching to same merchant".to_string(),
@@ -2914,143 +2903,33 @@ pub async fn switch_merchant_for_user_in_org(
         &user_from_token.org_id,
     )
     .await
-    .to_not_found_response(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)?;
 
-    let user_role_level = role_info.get_entity_type();
-    let (org_id, merchant_id, profile_id, role_id) = if user_role_level == EntityType::Internal {
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &request.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
-
-        let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(
-                key_manager_state,
-                &request.merchant_id,
-                &merchant_key_store,
-            )
-            .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
-
-        let merchant_id = merchant_account.get_id().clone();
-
-        let profile_id = state
-            .store
-            .list_business_profile_by_merchant_id(
-                key_manager_state,
-                &merchant_key_store,
-                &merchant_id,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .first()
-            .ok_or(UserErrors::ProfileIdNotFound)?
-            .profile_id
-            .clone();
-
-        (
-            merchant_account.organization_id,
-            merchant_id,
-            profile_id,
-            user_from_token.role_id.clone(),
-        )
-    } else if user_role_level == EntityType::Organization {
-        let merchant_id = state
-            .store
-            .list_merchant_accounts_by_organization_id(
-                key_manager_state,
-                user_from_token.org_id.get_string_repr(),
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .find(|account| *account.get_id() == request.merchant_id)
-            .ok_or(UserErrors::MerchantIdNotFound)?
-            .get_id()
-            .clone();
-
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
-                &merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
-
-        let profile_id = state
-            .store
-            .list_business_profile_by_merchant_id(
-                key_manager_state,
-                &merchant_key_store,
-                &merchant_id,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .first()
-            .ok_or(UserErrors::ProfileIdNotFound)?
-            .profile_id
-            .clone();
-
-        (
-            user_from_token.org_id.clone(),
-            merchant_id,
-            profile_id,
-            user_from_token.role_id.clone(),
-        )
-    } else {
-        let user_role = state
-            .store
-            .list_user_roles(
-                &user_from_token.user_id,
-                Some(&user_from_token.org_id),
-                Some(&request.merchant_id),
-                None,
-                None,
-                None,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .filter(|role| role.status == UserStatus::Active)
-            .collect::<Vec<_>>()
-            .first()
-            .ok_or(UserErrors::OrgIdNotFound)? // can change this error
-            .to_owned();
-
-        let org_id = user_role.org_id.ok_or(UserErrors::InternalServerError)?;
-
-        let merchant_id = user_role
-            .merchant_id
-            .ok_or(UserErrors::InternalServerError)?;
-
-        let profile_id = if let Some(profile_id) = &user_role.profile_id {
-            profile_id.clone()
-        } else {
+    let (org_id, merchant_id, profile_id, role_id) = match role_info.get_entity_type() {
+        EntityType::Internal => {
             let merchant_key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
                     key_manager_state,
-                    &merchant_id,
+                    &request.merchant_id,
                     &state.store.get_master_key().to_vec().into(),
                 )
                 .await
-                .map_err(|e| {
-                    if e.current_context().is_db_not_found() {
-                        e.change_context(UserErrors::MerchantIdNotFound)
-                    } else {
-                        e.change_context(UserErrors::InternalServerError)
-                    }
-                })?;
+                .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-            state
+            let merchant_account = state
+                .store
+                .find_merchant_account_by_merchant_id(
+                    key_manager_state,
+                    &request.merchant_id,
+                    &merchant_key_store,
+                )
+                .await
+                .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+            let merchant_id = merchant_account.get_id().clone();
+
+            let profile_id = state
                 .store
                 .list_business_profile_by_merchant_id(
                     key_manager_state,
@@ -3060,11 +2939,120 @@ pub async fn switch_merchant_for_user_in_org(
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .first()
-                .ok_or(UserErrors::ProfileIdNotFound)?
+                .ok_or(UserErrors::InternalServerError)?
                 .profile_id
-                .clone()
-        };
-        (org_id, merchant_id, profile_id, user_role.role_id)
+                .clone();
+
+            (
+                merchant_account.organization_id,
+                merchant_id,
+                profile_id,
+                user_from_token.role_id.clone(),
+            )
+        }
+        EntityType::Organization => {
+            let merchant_id = state
+                .store
+                .list_merchant_accounts_by_organization_id(
+                    key_manager_state,
+                    user_from_token.org_id.get_string_repr(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .find(|account| *account.get_id() == request.merchant_id)
+                .ok_or(UserErrors::InvalidRoleOperationWithMessage(
+                    "No such merchant id found for the user in the org".to_string(),
+                ))?
+                .get_id()
+                .clone();
+
+            let merchant_key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    key_manager_state,
+                    &merchant_id,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            let profile_id = state
+                .store
+                .list_business_profile_by_merchant_id(
+                    key_manager_state,
+                    &merchant_key_store,
+                    &merchant_id,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .first()
+                .ok_or(UserErrors::InternalServerError)?
+                .profile_id
+                .clone();
+
+            (
+                user_from_token.org_id.clone(),
+                merchant_id,
+                profile_id,
+                user_from_token.role_id.clone(),
+            )
+        }
+        EntityType::Merchant | EntityType::Profile => {
+            let user_role = state
+                .store
+                .list_user_roles(
+                    &user_from_token.user_id,
+                    Some(&user_from_token.org_id),
+                    Some(&request.merchant_id),
+                    None,
+                    None,
+                    None,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .filter(|role| role.status == UserStatus::Active)
+                .next()
+                .ok_or(UserErrors::InvalidRoleOperationWithMessage(
+                    "No user role associated for the requested merchant id".to_string(),
+                ))?
+                .to_owned();
+
+            let profile_id = if let Some(profile_id) = &user_role.profile_id {
+                profile_id.clone()
+            } else {
+                let merchant_key_store = state
+                    .store
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        &request.merchant_id,
+                        &state.store.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)?;
+
+                state
+                    .store
+                    .list_business_profile_by_merchant_id(
+                        key_manager_state,
+                        &merchant_key_store,
+                        &request.merchant_id,
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .first()
+                    .ok_or(UserErrors::InternalServerError)?
+                    .profile_id
+                    .clone()
+            };
+            (
+                user_from_token.org_id,
+                request.merchant_id,
+                profile_id,
+                user_role.role_id,
+            )
+        }
     };
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
@@ -3085,14 +3073,9 @@ pub async fn switch_merchant_for_user_in_org(
     )
     .await;
 
-    let response = user_api::DashboardEntryResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
-        name: user.get_name(),
-        email: user.get_email(),
-        user_id: user.get_user_id().to_string(),
-        verification_days_left: None,
-        user_role: role_id,
-        merchant_id: merchant_id.clone(),
+        token_type: common_enums::TokenPurpose::UserInfo,
     };
 
     auth::cookies::set_cookie_response(response, token)
@@ -3102,7 +3085,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     state: SessionState,
     request: user_api::SwitchProfileRequest,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<user_api::DashboardEntryResponse> {
+) -> UserResponse<user_api::TokenResponse> {
     if user_from_token.profile_id == Some(request.profile_id.clone()) {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
             "User switching to same profile".to_string(),
@@ -3122,9 +3105,8 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     .await
     .to_not_found_response(UserErrors::InternalServerError)?;
 
-    let user_role_level = role_info.get_entity_type();
-    let (profile_id, role_id) =
-        if user_role_level == EntityType::Organization || user_role_level == EntityType::Merchant {
+    let (profile_id, role_id) = match role_info.get_entity_type() {
+        EntityType::Internal | EntityType::Organization | EntityType::Merchant => {
             let merchant_key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
@@ -3133,13 +3115,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                     &state.store.get_master_key().to_vec().into(),
                 )
                 .await
-                .map_err(|e| {
-                    if e.current_context().is_db_not_found() {
-                        e.change_context(UserErrors::MerchantIdNotFound)
-                    } else {
-                        e.change_context(UserErrors::InternalServerError)
-                    }
-                })?;
+                .change_context(UserErrors::InternalServerError)?;
 
             let profile_id = state
                 .store
@@ -3152,10 +3128,13 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
                 .find(|business_profile| business_profile.profile_id == request.profile_id)
-                .ok_or(UserErrors::ProfileIdNotFound)?
+                .ok_or(UserErrors::InvalidRoleOperationWithMessage(
+                    "No such profile found for the merchant".to_string(),
+                ))?
                 .profile_id;
             (profile_id, user_from_token.role_id)
-        } else {
+        }
+        EntityType::Profile => {
             let user_role = state
                 .store
                 .list_user_roles(
@@ -3170,22 +3149,15 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
                 .filter(|role| role.status == UserStatus::Active)
-                .collect::<Vec<_>>()
-                .first()
-                .ok_or(UserErrors::ProfileIdNotFound)? // can change this error
+                .next()
+                .ok_or(UserErrors::InvalidRoleOperationWithMessage(
+                    "No such profile found for the merchant".to_string(),
+                ))?
                 .to_owned();
 
-            let profile_id = user_role
-                .profile_id
-                .ok_or(UserErrors::InternalServerError)?;
-
-            let role_id = if user_role_level == EntityType::Internal {
-                user_from_token.role_id
-            } else {
-                user_role.role_id
-            };
-            (profile_id, role_id)
-        };
+            (request.profile_id, user_role.role_id)
+        }
+    };
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
@@ -3205,14 +3177,9 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     )
     .await;
 
-    let response = user_api::DashboardEntryResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
-        name: user.get_name(),
-        email: user.get_email(),
-        user_id: user.get_user_id().to_string(),
-        verification_days_left: None,
-        user_role: role_id,
-        merchant_id: user_from_token.merchant_id.clone(),
+        token_type: common_enums::TokenPurpose::UserInfo,
     };
 
     auth::cookies::set_cookie_response(response, token)
