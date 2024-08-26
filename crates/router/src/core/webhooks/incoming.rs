@@ -46,7 +46,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
-    utils::{self as helper_utils, generate_id, OptionExt},
+    utils::{self as helper_utils, generate_id},
 };
 #[cfg(feature = "payouts")]
 use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
@@ -596,12 +596,7 @@ async fn payments_incoming_webhook_flow(
 
     match payments_response {
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-            let payment_id = payments_response
-                .payment_id
-                .clone()
-                .get_required_value("payment_id")
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("payment id not received from payments core")?;
+            let payment_id = payments_response.payment_id.clone();
 
             let status = payments_response.status;
 
@@ -1087,12 +1082,8 @@ async fn external_authentication_incoming_webhook_flow(
                 .await?;
                 match payments_response {
                     services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                        let payment_id = payments_response
-                            .payment_id
-                            .clone()
-                            .get_required_value("payment_id")
-                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("payment id not received from payments core")?;
+                        let payment_id = payments_response.payment_id.clone();
+
                         let status = payments_response.status;
                         let event_type: Option<enums::EventType> =
                             payments_response.status.foreign_into();
@@ -1316,12 +1307,7 @@ async fn frm_incoming_webhook_flow(
         };
         match payment_response {
             services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                let payment_id = payments_response
-                    .payment_id
-                    .clone()
-                    .get_required_value("payment_id")
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("payment id not received from payments core")?;
+                let payment_id = payments_response.payment_id.clone();
                 let status = payments_response.status;
                 let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
                 if let Some(outgoing_event_type) = event_type {
@@ -1480,12 +1466,7 @@ async fn bank_transfer_webhook_flow(
 
     match response? {
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-            let payment_id = payments_response
-                .payment_id
-                .clone()
-                .get_required_value("payment_id")
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("did not receive payment id from payments core response")?;
+            let payment_id = payments_response.payment_id.clone();
 
             let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
             let status = payments_response.status;
