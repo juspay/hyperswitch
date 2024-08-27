@@ -3693,6 +3693,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to find the merchant connector id")?;
                 if is_network_token_with_transaction_id_flow(
+                    state,
+                    connector_data.connector_name,
                     is_connector_agnostic_mit_enabled,
                     is_network_tokenization_enabled,
                     payment_method_info,
@@ -3867,10 +3869,17 @@ pub fn is_network_transaction_id_flow(
 }
 
 pub fn is_network_token_with_transaction_id_flow(
+    state: &SessionState,
+    connector: enums::Connector,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &storage::PaymentMethod,
 ) -> bool {
+    let ntid_supported_connectors = &state
+        .conf
+        .network_transaction_id_supported_connectors
+        .connector_list;
+
     is_connector_agnostic_mit_enabled == Some(true)
         && is_network_tokenization_enabled == true
         && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
@@ -3879,6 +3888,7 @@ pub fn is_network_token_with_transaction_id_flow(
         && payment_method_info
             .network_token_requestor_reference_id
             .is_some()
+        && ntid_supported_connectors.contains(&connector)
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {

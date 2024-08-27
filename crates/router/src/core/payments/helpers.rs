@@ -1914,12 +1914,12 @@ pub async fn retrieve_card_with_permanent_token(
                     state,
                     customer_id,
                     &payment_intent.merchant_id,
-                    pm_data.network_token_locker_id.as_ref().unwrap(),
+                    pm_data.network_token_locker_id.as_ref().unwrap(), //
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("failed to fetch card information from the permanent locker")?;
-                let x = nt_data.token_exp_month.zip(nt_data.token_exp_year);
+                let x = nt_data.token_exp_month.zip(nt_data.token_exp_year); //
                 if let Some((exp_month, exp_year)) = x {
                     token_data.card_exp_month = exp_month;
                     token_data.card_exp_year = exp_year;
@@ -1948,8 +1948,10 @@ pub async fn retrieve_card_with_permanent_token(
                 &pm_data,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
+            .change_context(errors::ApiErrorResponse::InternalServerError);
+            if let Ok(network_token_data) = network_token_data {
+                return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
+            }
         }
     }
 

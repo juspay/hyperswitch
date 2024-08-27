@@ -351,7 +351,7 @@ pub struct NetworkTokenizedCard {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
-    cryptogram: Secret<String>,
+    cryptogram: Option<Secret<String>>,
     transaction_type: String,
 }
 
@@ -1167,7 +1167,7 @@ impl
                     number: token_data.token_number,
                     expiration_month: token_data.token_exp_month,
                     expiration_year: token_data.token_exp_year,
-                    cryptogram: token_data.token_cryptogram.clone().unwrap_or_default(),
+                    cryptogram: token_data.token_cryptogram.clone(),
                     transaction_type: "1".to_string(),
                 },
             }));
