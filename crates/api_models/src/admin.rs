@@ -759,10 +759,6 @@ pub struct MerchantConnectorCreate {
     #[schema(example = json!(consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
-    /// Unique ID of the connector
-    #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = Option<String>)]
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-
     /// pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt
     #[schema(value_type = Option<Object>)]
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
