@@ -124,7 +124,7 @@ impl SecretsHandler for settings::ApiKeys {
             .await?;
 
         #[cfg(feature = "partial-auth")]
-        let enable_partial_auth = api_keys.enable_partial_auth.clone();
+        let enable_partial_auth = api_keys.enable_partial_auth;
 
         Ok(value.transition_state(|_| Self {
             hash_key,
