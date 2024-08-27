@@ -2822,10 +2822,10 @@ pub async fn switch_org_for_user(
             )
             .await
             .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to list merchant accounts by organization id")?
+            .attach_printable("Failed to list merchant accounts by organization_id")?
             .first()
             .ok_or(UserErrors::InternalServerError)
-            .attach_printable("No merchant account found for the given organization id")?
+            .attach_printable("No merchant account found for the given organization_id")?
             .get_id()
             .clone()
     };
