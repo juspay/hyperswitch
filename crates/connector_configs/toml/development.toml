@@ -1495,8 +1495,6 @@ merchant_secret="Source verification key"
 [fiservemea.connector_auth.BodyKey]
 api_key="API Key"
 key1="Secret Key"
-[fiservemea.connector_webhook_details]
-merchant_secret="Source verification key"
 
 [forte]
 [[forte.credit]]

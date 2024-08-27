@@ -147,6 +147,18 @@ const successfulNo3DSCardDetails = {
           },
         },
       },
+      ZeroAuthMandate: {
+        Response: {
+          status: 501,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "Setup Mandate flow for Fiservemea is not implemented",
+              code: "IR_00",
+            },
+          },
+        },
+      },
     },
   };
   
