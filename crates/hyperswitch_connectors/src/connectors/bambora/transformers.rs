@@ -314,6 +314,7 @@ pub struct BamboraPaymentsResponse {
     total_completions: Option<f32>,
     payment_method: String,
     card: CardData,
+    billing: Option<AddressData>,
     shipping: Option<AddressData>,
     custom: CustomData,
     adjusted_by: Option<Vec<AdjustedBy>>,
