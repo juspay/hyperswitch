@@ -156,7 +156,8 @@ pub struct RefundResponse {
     #[schema(example = "stripe")]
     pub connector: String,
     /// The id of business profile for this refund
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The merchant_connector_id of the processor through which this payment went through
     pub merchant_connector_id: Option<String>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
@@ -171,7 +172,8 @@ pub struct RefundListRequest {
     /// The identifier for the refund
     pub refund_id: Option<String>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
     /// The starting point within a list of objects

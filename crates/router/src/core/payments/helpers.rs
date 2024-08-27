@@ -4,7 +4,10 @@ use std::{borrow::Cow, str::FromStr};
 use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
-    payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
+    payments::{
+        additional_info as payment_additional_types, AddressDetailsWithPhone,
+        RequestSurchargeDetails,
+    },
 };
 use base64::Engine;
 use common_enums::ConnectorType;
@@ -31,7 +34,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{
+    masked_string::{MaskedIban, MaskedSortCode},
+    ExposeInterface, PeekInterface,
+};
 use openssl::{
     derive::Deriver,
     pkey::PKey,
@@ -45,6 +51,12 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
+#[cfg(all(
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
@@ -87,52 +99,14 @@ use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
-pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: masking::Secret<String>,
-    encoded_certificate_key: masking::Secret<String>,
-) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
-    let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let decoded_certificate_key = BASE64_ENGINE
-        .decode(encoded_certificate_key.expose())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate = String::from_utf8(decoded_certificate)
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate_key = String::from_utf8(decoded_certificate_key)
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)
-}
-
-pub fn create_certificate(
-    encoded_certificate: masking::Secret<String>,
-) -> Result<Vec<reqwest::Certificate>, error_stack::Report<errors::ApiClientError>> {
-    let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate = String::from_utf8(decoded_certificate)
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)
-}
-
 pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<&String>,
+    profile_id: &id_type::ProfileId,
     connector_type: ConnectorType,
 ) -> Vec<domain::MerchantConnectorAccount> {
     merchant_connector_accounts
         .into_iter()
-        .filter(|mca| {
-            profile_id.map_or(true, |id| &mca.profile_id == id)
-                && mca.connector_type == connector_type
-        })
+        .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
         .collect()
 }
 
@@ -1351,89 +1325,19 @@ where
     Box::new(PaymentResponse)
 }
 
-#[instrument(skip_all)]
-pub(crate) async fn get_payment_method_create_request(
-    payment_method_data: Option<&domain::PaymentMethodData>,
-    payment_method: Option<storage_enums::PaymentMethod>,
-    payment_method_type: Option<storage_enums::PaymentMethodType>,
-    customer_id: &Option<id_type::CustomerId>,
-    billing_name: Option<masking::Secret<String>>,
-) -> RouterResult<api::PaymentMethodCreate> {
-    match payment_method_data {
-        Some(pm_data) => match payment_method {
-            Some(payment_method) => match pm_data {
-                domain::PaymentMethodData::Card(card) => {
-                    let card_detail = api::CardDetail {
-                        card_number: card.card_number.clone(),
-                        card_exp_month: card.card_exp_month.clone(),
-                        card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: billing_name,
-                        nick_name: card.nick_name.clone(),
-                        card_issuing_country: card.card_issuing_country.clone(),
-                        card_network: card.card_network.clone(),
-                        card_issuer: card.card_issuer.clone(),
-                        card_type: card.card_type.clone(),
-                    };
-                    let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        payment_method_issuer: card.card_issuer.clone(),
-                        payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: Some(card_detail),
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        card_network: card
-                            .card_network
-                            .as_ref()
-                            .map(|card_network| card_network.to_string()),
-                        client_secret: None,
-                        payment_method_data: None,
-                        billing: None,
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
-                    };
-                    Ok(payment_method_request)
-                }
-                _ => {
-                    let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        payment_method_issuer: None,
-                        payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: None,
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        card_network: None,
-                        client_secret: None,
-                        payment_method_data: None,
-                        billing: None,
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
-                    };
-
-                    Ok(payment_method_request)
-                }
-            },
-            None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type"
-            })
-            .attach_printable("PaymentMethodType Required")),
-        },
-        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_method_data"
-        })
-        .attach_printable("PaymentMethodData required Or Card is already saved")),
-    }
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn get_customer_from_details<F: Clone>(
+    _state: &SessionState,
+    _customer_id: Option<id_type::CustomerId>,
+    _merchant_id: &id_type::MerchantId,
+    _payment_data: &mut PaymentData<F>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+    todo!()
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_customer_from_details<F: Clone>(
     state: &SessionState,
     customer_id: Option<id_type::CustomerId>,
@@ -1446,20 +1350,8 @@ pub async fn get_customer_from_details<F: Clone>(
         None => Ok(None),
         Some(customer_id) => {
             let db = &*state.store;
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
-                    &customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-
-            #[cfg(all(feature = "v2", feature = "customer_v2"))]
-            let customer = db
-                .find_optional_by_merchant_id_merchant_reference_id(
                     &state.into(),
                     &customer_id,
                     merchant_id,
@@ -2146,7 +2038,7 @@ pub async fn store_in_vault_and_generate_ppmt(
     });
 
     let intent_fulfillment_time = business_profile
-        .and_then(|b_profile| b_profile.intent_fulfillment_time)
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
         .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
 
     if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
@@ -3360,7 +3252,7 @@ pub async fn get_merchant_connector_account(
     merchant_id: &id_type::MerchantId,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
-    profile_id: &String,
+    profile_id: &id_type::ProfileId,
     connector_name: &str,
     merchant_connector_id: Option<&String>,
 ) -> RouterResult<MerchantConnectorAccountType> {
@@ -3485,7 +3377,8 @@ pub async fn get_merchant_connector_account(
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                 id: format!(
-                                    "profile id {profile_id} and connector name {connector_name}"
+                                    "profile id {} and connector name {connector_name}",
+                                    profile_id.get_string_repr()
                                 ),
                             },
                         )
@@ -3925,7 +3818,7 @@ mod test {
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
-    profile_id: &str,
+    profile_id: &id_type::ProfileId,
 ) -> Option<api_models::payments::AdditionalPaymentData> {
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
@@ -3933,7 +3826,7 @@ pub async fn get_additional_payment_data(
             let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id).as_str(),
+                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
              Some("false".to_string()))
             .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
@@ -4025,16 +3918,67 @@ pub async fn get_additional_payment_data(
             domain::BankRedirectData::Eps { bank_name, .. } => {
                 Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    additional_details: None,
                 })
             }
             domain::BankRedirectData::Ideal { bank_name, .. } => {
                 Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                     bank_name: bank_name.to_owned(),
+                    additional_details: None,
                 })
             }
-            _ => {
-                Some(api_models::payments::AdditionalPaymentData::BankRedirect { bank_name: None })
+            domain::BankRedirectData::BancontactCard {
+                card_number,
+                card_exp_month,
+                card_exp_year,
+            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                additional_details: Some(
+                    payment_additional_types::BankRedirectDetails::BancontactCard(Box::new(
+                        payment_additional_types::BancontactBankRedirectAdditionalData {
+                            last4: card_number.as_ref().map(|c| c.get_last4()),
+                            card_exp_month: card_exp_month.clone(),
+                            card_exp_year: card_exp_year.clone(),
+                            card_holder_name: None,
+                        },
+                    )),
+                ),
+            }),
+            domain::BankRedirectData::Blik { blik_code } => {
+                Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                    bank_name: None,
+                    additional_details: blik_code.as_ref().map(|blik_code| {
+                        payment_additional_types::BankRedirectDetails::Blik(Box::new(
+                            payment_additional_types::BlikBankRedirectAdditionalData {
+                                blik_code: Some(blik_code.to_owned()),
+                            },
+                        ))
+                    }),
+                })
             }
+            domain::BankRedirectData::Giropay {
+                bank_account_bic,
+                bank_account_iban,
+            } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                additional_details: Some(payment_additional_types::BankRedirectDetails::Giropay(
+                    Box::new(
+                        payment_additional_types::GiropayBankRedirectAdditionalData {
+                            bic: bank_account_bic.as_ref().map(|bic| {
+                                masking::Secret::from(MaskedSortCode::from(bic.peek().to_owned()))
+                            }),
+                            iban: bank_account_iban.as_ref().map(|iban| {
+                                masking::Secret::from(MaskedIban::from(iban.peek().to_owned()))
+                            }),
+                            country: None,
+                        },
+                    ),
+                )),
+            }),
+            _ => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
+                bank_name: None,
+                additional_details: None,
+            }),
         },
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::ApplePay(apple_pay_wallet_data) => {
@@ -4051,46 +3995,58 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::PayLater(_) => {
             Some(api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None })
         }
-        domain::PaymentMethodData::BankTransfer(_) => {
-            Some(api_models::payments::AdditionalPaymentData::BankTransfer {})
+        domain::PaymentMethodData::BankTransfer(bank_transfer) => {
+            Some(api_models::payments::AdditionalPaymentData::BankTransfer(
+                (*(bank_transfer.to_owned())).into(),
+            ))
         }
-        domain::PaymentMethodData::Crypto(_) => {
-            Some(api_models::payments::AdditionalPaymentData::Crypto {})
-        }
-        domain::PaymentMethodData::BankDebit(_) => {
-            Some(api_models::payments::AdditionalPaymentData::BankDebit {})
-        }
+        domain::PaymentMethodData::Crypto(crypto) => Some(
+            api_models::payments::AdditionalPaymentData::Crypto(crypto.to_owned().into()),
+        ),
+        domain::PaymentMethodData::BankDebit(bank_debit) => Some(
+            api_models::payments::AdditionalPaymentData::BankDebit(bank_debit.to_owned().into()),
+        ),
         domain::PaymentMethodData::MandatePayment => {
             Some(api_models::payments::AdditionalPaymentData::MandatePayment {})
         }
         domain::PaymentMethodData::Reward => {
             Some(api_models::payments::AdditionalPaymentData::Reward {})
         }
-        domain::PaymentMethodData::RealTimePayment(_) => {
-            Some(api_models::payments::AdditionalPaymentData::RealTimePayment {})
+        domain::PaymentMethodData::RealTimePayment(realtime_payment) => Some(
+            api_models::payments::AdditionalPaymentData::RealTimePayment(
+                (*(realtime_payment.to_owned())).into(),
+            ),
+        ),
+        domain::PaymentMethodData::Upi(upi) => Some(
+            api_models::payments::AdditionalPaymentData::Upi(upi.to_owned().into()),
+        ),
+        domain::PaymentMethodData::CardRedirect(card_redirect) => {
+            Some(api_models::payments::AdditionalPaymentData::CardRedirect(
+                card_redirect.to_owned().into(),
+            ))
         }
-        domain::PaymentMethodData::Upi(_) => {
-            Some(api_models::payments::AdditionalPaymentData::Upi {})
-        }
-        domain::PaymentMethodData::CardRedirect(_) => {
-            Some(api_models::payments::AdditionalPaymentData::CardRedirect {})
-        }
-        domain::PaymentMethodData::Voucher(_) => {
-            Some(api_models::payments::AdditionalPaymentData::Voucher {})
-        }
-        domain::PaymentMethodData::GiftCard(_) => {
-            Some(api_models::payments::AdditionalPaymentData::GiftCard {})
-        }
-        domain::PaymentMethodData::CardToken(_) => {
-            Some(api_models::payments::AdditionalPaymentData::CardToken {})
-        }
-        domain::PaymentMethodData::OpenBanking(_) => {
-            Some(api_models::payments::AdditionalPaymentData::OpenBanking {})
+        domain::PaymentMethodData::Voucher(voucher) => Some(
+            api_models::payments::AdditionalPaymentData::Voucher(voucher.to_owned().into()),
+        ),
+        domain::PaymentMethodData::GiftCard(gift_card) => Some(
+            api_models::payments::AdditionalPaymentData::GiftCard((*(gift_card.to_owned())).into()),
+        ),
+        domain::PaymentMethodData::CardToken(card_token) => Some(
+            api_models::payments::AdditionalPaymentData::CardToken(card_token.to_owned().into()),
+        ),
+        domain::PaymentMethodData::OpenBanking(open_banking) => {
+            Some(api_models::payments::AdditionalPaymentData::OpenBanking(
+                open_banking.to_owned().into(),
+            ))
         }
         domain::PaymentMethodData::NetworkToken(_) => None,
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn populate_bin_details_for_payment_method_create(
     card_details: api_models::payment_methods::CardDetail,
     db: &dyn StorageInterface,
@@ -4146,6 +4102,14 @@ pub async fn populate_bin_details_for_payment_method_create(
             nick_name: card_details.nick_name.clone(),
         })
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn populate_bin_details_for_payment_method_create(
+    _card_details: api_models::payment_methods::CardDetail,
+    _db: &dyn StorageInterface,
+) -> api_models::payment_methods::CardDetail {
+    todo!()
 }
 
 pub fn validate_customer_access(
@@ -4283,18 +4247,12 @@ pub async fn get_apple_pay_retryable_connectors<F>(
     key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&String>,
+    business_profile: domain::BusinessProfile,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
 {
-    let profile_id = &payment_data
-        .payment_intent
-        .profile_id
-        .clone()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })?;
+    let profile_id = &business_profile.profile_id;
 
     let pre_decided_connector_data_first = pre_routing_connector_data_list
         .first()
@@ -4332,7 +4290,7 @@ where
         let profile_specific_merchant_connector_account_list =
             filter_mca_based_on_profile_and_connector_type(
                 merchant_connector_account_list,
-                Some(profile_id),
+                profile_id,
                 ConnectorType::PaymentProcessor,
             );
 
@@ -4363,15 +4321,28 @@ where
                 }
             }
         }
-
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(any(feature = "routing_v2", feature = "business_profile_v2"))
+        ))]
         let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
             &*state.clone().store,
-            profile_id,
+            profile_id.get_string_repr(),
             &api_enums::TransactionType::Payment,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
+
+        #[cfg(all(
+            feature = "v2",
+            feature = "routing_v2",
+            feature = "business_profile_v2"
+        ))]
+        let fallback_connetors_list = core_admin::BusinessProfileWrapper::new(business_profile)
+            .get_default_fallback_list_of_connector_under_profile()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get merchant default fallback connectors config")?;
 
         let mut routing_connector_data_list = Vec::new();
 
@@ -4715,6 +4686,40 @@ pub async fn get_gsm_record(
         .ok()
 }
 
+pub async fn get_unified_translation(
+    state: &SessionState,
+    unified_code: String,
+    unified_message: String,
+    locale: String,
+) -> Option<String> {
+    let get_unified_translation = || async {
+        state.store.find_translation(
+                unified_code.clone(),
+                unified_message.clone(),
+                locale.clone(),
+            )
+            .await
+            .map_err(|err| {
+                if err.current_context().is_db_not_found() {
+                    logger::warn!(
+                        "Translation missing for unified_code - {:?}, unified_message - {:?}, locale - {:?}",
+                        unified_code,
+                        unified_message,
+                        locale
+                    );
+                }
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to fetch translation from unified_translations")
+            })
+    };
+    get_unified_translation()
+        .await
+        .inspect_err(|err| {
+            // warn log should suffice here because we are not propagating this error
+            logger::warn!(get_translation_error=?err, "error fetching unified translations");
+        })
+        .ok()
+}
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
     amount: i64,

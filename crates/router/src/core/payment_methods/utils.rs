@@ -590,7 +590,7 @@ fn compile_accepted_countries_for_mca(
                     .map_err(KgraphError::GraphConstructionError)?;
                 agg_nodes.push((
                     pm_object_country_value_node,
-                    cgraph::Relation::Positive,
+                    cgraph::Relation::Negative,
                     cgraph::Strength::Weak,
                 ));
             }
@@ -712,7 +712,7 @@ fn compile_accepted_currency_for_mca(
                     .map_err(KgraphError::GraphConstructionError)?;
                 agg_nodes.push((
                     pm_object_currency_value_node,
-                    cgraph::Relation::Positive,
+                    cgraph::Relation::Negative,
                     cgraph::Strength::Weak,
                 ));
             }

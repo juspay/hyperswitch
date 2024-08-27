@@ -3,9 +3,13 @@ use std::collections::HashSet;
 use api_models::user_role as user_role_api;
 use common_enums::PermissionGroup;
 use common_utils::id_type;
-use diesel_models::user_role::UserRole;
-use error_stack::{report, ResultExt};
+use diesel_models::{
+    enums::UserRoleVersion,
+    user_role::{UserRole, UserRoleUpdate},
+};
+use error_stack::{report, Report, ResultExt};
 use router_env::logger;
+use storage_impl::errors::StorageError;
 
 use crate::{
     consts,
@@ -168,7 +172,53 @@ pub async fn get_multiple_role_info_for_user_roles(
             .await
             .to_not_found_response(UserErrors::InternalServerError)
             .attach_printable("Role for user role doesn't exist")?;
-        Ok::<_, error_stack::Report<UserErrors>>(role)
+        Ok::<_, Report<UserErrors>>(role)
     }))
     .await
+}
+
+pub async fn update_v1_and_v2_user_roles_in_db(
+    state: &SessionState,
+    user_id: &str,
+    org_id: &id_type::OrganizationId,
+    merchant_id: &id_type::MerchantId,
+    profile_id: Option<&id_type::ProfileId>,
+    update: UserRoleUpdate,
+) -> (
+    Result<UserRole, Report<StorageError>>,
+    Result<UserRole, Report<StorageError>>,
+) {
+    let updated_v1_role = state
+        .store
+        .update_user_role_by_user_id_and_lineage(
+            user_id,
+            org_id,
+            merchant_id,
+            profile_id,
+            update.clone(),
+            UserRoleVersion::V1,
+        )
+        .await
+        .map_err(|e| {
+            logger::error!("Error updating user_role {e:?}");
+            e
+        });
+
+    let updated_v2_role = state
+        .store
+        .update_user_role_by_user_id_and_lineage(
+            user_id,
+            org_id,
+            merchant_id,
+            profile_id,
+            update,
+            UserRoleVersion::V2,
+        )
+        .await
+        .map_err(|e| {
+            logger::error!("Error updating user_role {e:?}");
+            e
+        });
+
+    (updated_v1_role, updated_v2_role)
 }

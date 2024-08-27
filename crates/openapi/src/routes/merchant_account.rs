@@ -185,7 +185,7 @@ pub async fn update_merchant_account() {}
 ///
 /// Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
 #[utoipa::path(
-    post,
+    put,
     path = "/v2/accounts/{id}",
     request_body (
         content = MerchantAccountUpdate,

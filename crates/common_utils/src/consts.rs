@@ -77,6 +77,9 @@ pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 /// Payment intent fulfillment time (in seconds)
 pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
 
+/// Payment order fulfillment time (in seconds)
+pub const DEFAULT_ORDER_FULFILLMENT_TIME: i64 = 15 * 60;
+
 /// Default bool for Display sdk only
 pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
@@ -104,8 +107,17 @@ pub const TENANT_HEADER: &str = "x-tenant-id";
 /// Max Length for MerchantReferenceId
 pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
 
+/// Maximum length allowed for a global id
+pub const MIN_GLOBAL_ID_LENGTH: u8 = 32;
+
+/// Minimum length required for a global id
+pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
+
 /// Minimum allowed length for MerchantReferenceId
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
+
+/// Length of a cell identifier in a distributed system
+pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;

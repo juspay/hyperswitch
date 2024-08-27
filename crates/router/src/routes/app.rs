@@ -30,6 +30,12 @@ use super::blocklist;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    feature = "oltp"
+))]
+use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods::*;
 #[cfg(feature = "payouts")]
@@ -48,6 +54,8 @@ use super::poll::retrieve_poll_status;
 use super::routing;
 #[cfg(feature = "olap")]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
+#[cfg(feature = "oltp")]
+use super::webhooks::*;
 #[cfg(feature = "olap")]
 use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
@@ -56,8 +64,6 @@ use super::{
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
-#[cfg(feature = "oltp")]
-use super::{ephemeral_key::*, webhooks::*};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
@@ -537,8 +543,18 @@ impl Payments {
                         .route(web::get().to(payments_list))
                         .route(web::post().to(payments_list_by_filter)),
                 )
+                .service(
+                    web::resource("/profile/list")
+                        .route(web::get().to(profile_payments_list))
+                        .route(web::post().to(profile_payments_list_by_filter)),
+                )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_payment_filters)))
+                .service(web::resource("/aggregate").route(web::get().to(get_payments_aggregates)))
+                .service(
+                    web::resource("/v2/profile/filter")
+                        .route(web::get().to(get_payment_filters_profile)),
+                )
                 .service(
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments_manual_update)),
@@ -876,7 +892,15 @@ impl Customers {
         {
             route = route
                 .service(web::resource("").route(web::post().to(customers_create)))
-                .service(web::resource("/{id}").route(web::put().to(customers_update)))
+                .service(
+                    web::resource("/{id}")
+                        .route(web::post().to(customers_update))
+                        .route(web::post().to(customers_retrieve)),
+                )
+        }
+        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
@@ -947,8 +971,13 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
+                .service(
+                    web::resource("/v2/profile/filter")
+                        .route(web::get().to(get_refunds_filters_profile)),
+                )
                 .service(
                     web::resource("/{id}/manual-update")
                         .route(web::put().to(refunds_manual_update)),
@@ -985,6 +1014,11 @@ impl Payouts {
                     web::resource("/list")
                         .route(web::get().to(payouts_list))
                         .route(web::post().to(payouts_list_by_filter)),
+                )
+                .service(
+                    web::resource("/profile/list")
+                        .route(web::get().to(payouts_list_profile))
+                        .route(web::post().to(payouts_list_by_filter_profile)),
                 )
                 .service(
                     web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
@@ -1107,10 +1141,29 @@ impl Blocklist {
 
 #[cfg(feature = "olap")]
 pub struct Organization;
-#[cfg(feature = "olap")]
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl Organization {
     pub fn server(state: AppState) -> Scope {
         web::scope("/organization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(organization_retrieve))
+                    .route(web::put().to(organization_update)),
+            )
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
+impl Organization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/organization")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(organization_create)))
             .service(
@@ -1132,7 +1185,7 @@ impl MerchantAccount {
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
-                    .route(web::post().to(update_merchant_account)),
+                    .route(web::put().to(update_merchant_account)),
             )
     }
 }
@@ -1183,9 +1236,12 @@ impl MerchantConnectorAccount {
 
             route = route
                 .service(web::resource("").route(web::post().to(connector_create)))
-                .service(web::resource("/{id}").route(web::post().to(connector_update)))
-                .service(web::resource("/{id}").route(web::get().to(connector_retrieve)))
-                .service(web::resource("/{id}").route(web::delete().to(connector_delete)));
+                .service(
+                    web::resource("/{id}")
+                        .route(web::put().to(connector_update))
+                        .route(web::get().to(connector_retrieve))
+                        .route(web::delete().to(connector_delete)),
+                );
         }
         route
     }
@@ -1215,6 +1271,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(payment_connector_list)),
                 )
                 .service(
+                    web::resource("/{merchant_id}/profile/connectors")
+                        .route(web::get().to(payment_connector_list_profile)),
+                )
+                .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
@@ -1233,7 +1293,11 @@ impl MerchantConnectorAccount {
 
 pub struct EphemeralKey;
 
-#[cfg(feature = "oltp")]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    feature = "oltp"
+))]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
         web::scope("/ephemeral_keys")
@@ -1365,6 +1429,9 @@ impl Disputes {
         web::scope("/disputes")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(
+                web::resource("/profile/list").route(web::get().to(retrieve_disputes_list_profile)),
+            )
             .service(web::resource("/accept/{dispute_id}").route(web::post().to(accept_dispute)))
             .service(
                 web::resource("/evidence")
@@ -1466,8 +1533,14 @@ impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(business_profile_create)))
             .service(
                 web::scope("/{profile_id}")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(business_profile_retrieve))
+                            .route(web::put().to(business_profile_update)),
+                    )
                     .service(
                         web::resource("/fallback_routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
@@ -1609,6 +1682,7 @@ impl User {
                     .route(web::get().to(list_merchants_for_user)),
             )
             .service(web::resource("/permission_info").route(web::get().to(get_authorization_info)))
+            .service(web::resource("/module/list").route(web::get().to(get_role_information)))
             .service(web::resource("/update").route(web::post().to(update_user_account_details)))
             .service(
                 web::resource("/data")
@@ -1619,6 +1693,18 @@ impl User {
         route = route.service(
             web::scope("/key")
                 .service(web::resource("/transfer").route(web::post().to(transfer_user_key))),
+        );
+
+        route = route.service(
+            web::scope("/list")
+                .service(web::resource("/org").route(web::get().to(list_orgs_for_user)))
+                .service(
+                    web::resource("/merchant").route(web::get().to(list_merchants_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
+                ),
         );
 
         // Two factor auth routes
@@ -1709,10 +1795,6 @@ impl User {
                         .route(web::put().to(accept_invitation)),
                 )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
-                .service(
-                    web::resource("/transfer_ownership")
-                        .route(web::post().to(transfer_org_ownership)),
-                )
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
         );
 

@@ -18,7 +18,7 @@ pub struct UserRole {
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
@@ -36,7 +36,7 @@ pub struct UserRoleNew {
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
@@ -51,6 +51,7 @@ pub struct UserRoleUpdateInternal {
     last_modified: PrimitiveDateTime,
 }
 
+#[derive(Clone)]
 pub enum UserRoleUpdate {
     UpdateStatus {
         status: enums::UserStatus,

@@ -47,7 +47,7 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    _profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -374,7 +374,7 @@ where
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
@@ -383,7 +383,7 @@ where
     F: Fn(
         SessionState,
         domain::MerchantAccount,
-        Option<String>,
+        Option<common_utils::id_type::ProfileId>,
         domain::MerchantKeyStore,
         Req,
     ) -> Fut,
@@ -401,7 +401,7 @@ where
 pub async fn refund_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
@@ -865,7 +865,7 @@ pub async fn validate_and_create_refund(
 pub async fn refund_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
@@ -987,7 +987,7 @@ pub async fn refund_manual_update(
 pub async fn get_filters_for_refunds(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(

@@ -47,50 +47,16 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
-pub async fn get_mca_for_payout<'a>(
-    state: &'a SessionState,
-    connector_data: &api::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    payout_data: &PayoutData,
-) -> RouterResult<helpers::MerchantConnectorAccountType> {
-    match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok(mca),
-        None => {
-            let merchant_connector_account = helpers::get_merchant_connector_account(
-                state,
-                merchant_account.get_id(),
-                None,
-                key_store,
-                &payout_data.profile_id,
-                &connector_data.connector_name.to_string(),
-                connector_data.merchant_connector_id.as_ref(),
-            )
-            .await?;
-            Ok(merchant_connector_account)
-        }
-    }
-}
-
-#[cfg(feature = "payouts")]
-#[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
-    state: &'a SessionState,
     connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let merchant_connector_account = get_mca_for_payout(
-        state,
-        connector_data,
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
+    let merchant_connector_account = payout_data
+        .merchant_connector_account
+        .clone()
+        .get_required_value("merchant_connector_account")?;
     let connector_name = connector_data.connector_name;
-    payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -128,7 +94,11 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
+    let connector_label = format!(
+        "{}_{}",
+        payout_data.profile_id.get_string_repr(),
+        connector_name
+    );
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
@@ -428,6 +398,7 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
@@ -459,21 +430,31 @@ mod tests {
     fn test_filter_objects_based_on_profile_id_list() {
         #[derive(PartialEq, Debug, Clone)]
         struct Object {
-            profile_id: Option<String>,
+            profile_id: Option<common_utils::id_type::ProfileId>,
         }
 
         impl Object {
-            pub fn new(profile_id: &str) -> Self {
+            pub fn new(profile_id: &'static str) -> Self {
                 Self {
-                    profile_id: Some(profile_id.to_string()),
+                    profile_id: Some(
+                        common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(
+                            profile_id,
+                        ))
+                        .expect("invalid profile ID"),
+                    ),
                 }
             }
         }
 
         impl GetProfileId for Object {
-            fn get_profile_id(&self) -> Option<&String> {
+            fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
                 self.profile_id.as_ref()
             }
+        }
+
+        fn new_profile_id(profile_id: &'static str) -> common_utils::id_type::ProfileId {
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id))
+                .expect("invalid profile ID")
         }
 
         // non empty object_list and profile_id_list
@@ -484,7 +465,11 @@ mod tests {
             Object::new("p4"),
             Object::new("p5"),
         ];
-        let profile_id_list = vec!["p1".to_string(), "p2".to_string(), "p3".to_string()];
+        let profile_id_list = vec![
+            new_profile_id("p1"),
+            new_profile_id("p2"),
+            new_profile_id("p3"),
+        ];
         let filtered_list =
             filter_objects_based_on_profile_id_list(Some(profile_id_list), object_list.clone());
         let expected_result = vec![Object::new("p1"), Object::new("p2"), Object::new("p2")];
@@ -1074,7 +1059,7 @@ pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
     key_manager_state: &common_utils::types::keymanager::KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
-    profile_id: Option<&String>,
+    profile_id: Option<&common_utils::id_type::ProfileId>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<Option<domain::BusinessProfile>> {
     profile_id
@@ -1086,7 +1071,7 @@ pub async fn validate_and_get_business_profile(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_owned(),
+                id: profile_id.get_string_repr().to_owned(),
             })
         })
         .await
@@ -1095,7 +1080,7 @@ pub async fn validate_and_get_business_profile(
             // Check if the merchant_id of business profile is same as the current merchant_id
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
-                    resource: business_profile.profile_id,
+                    resource: business_profile.profile_id.get_string_repr().to_owned(),
                 }
                 .into())
             } else {
@@ -1157,10 +1142,10 @@ pub async fn get_profile_id_from_business_details(
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
     merchant_account: &domain::MerchantAccount,
-    request_profile_id: Option<&String>,
+    request_profile_id: Option<&common_utils::id_type::ProfileId>,
     db: &dyn StorageInterface,
     should_validate: bool,
-) -> RouterResult<String> {
+) -> RouterResult<common_utils::id_type::ProfileId> {
     match request_profile_id.or(merchant_account.default_profile.as_ref()) {
         Some(profile_id) => {
             // Check whether this business profile belongs to the merchant
@@ -1333,55 +1318,55 @@ pub fn get_incremental_authorization_allowed_value(
 }
 
 pub(super) trait GetProfileId {
-    fn get_profile_id(&self) -> Option<&String>;
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId>;
 }
 
 impl GetProfileId for MerchantConnectorAccount {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)
     }
 }
 
 impl GetProfileId for storage::PaymentIntent {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
     }
 }
 
 impl<A> GetProfileId for (storage::PaymentIntent, A) {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.0.get_profile_id()
     }
 }
 
 impl GetProfileId for diesel_models::Dispute {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
     }
 }
 
 impl GetProfileId for diesel_models::Refund {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
     }
 }
 
 #[cfg(feature = "payouts")]
 impl GetProfileId for storage::Payouts {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)
     }
 }
 #[cfg(feature = "payouts")]
 impl<T, F> GetProfileId for (storage::Payouts, T, F) {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.0.get_profile_id()
     }
 }
 
 /// Filter Objects based on profile ids
 pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
-    profile_id_list_auth_layer: Option<Vec<String>>,
+    profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
     object_list: Vec<T>,
 ) -> Vec<T> {
     if let Some(profile_id_list) = profile_id_list_auth_layer {
@@ -1405,7 +1390,7 @@ pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
 }
 
 pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
-    profile_id_auth_layer: Option<String>,
+    profile_id_auth_layer: Option<common_utils::id_type::ProfileId>,
     object: &T,
 ) -> RouterResult<()> {
     match (profile_id_auth_layer, object.get_profile_id()) {

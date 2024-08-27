@@ -27,7 +27,7 @@ pub struct DisputeNew {
     pub connector_updated_at: Option<PrimitiveDateTime>,
     pub connector: String,
     pub evidence: Option<Secret<serde_json::Value>>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<String>,
     pub dispute_amount: i64,
 }
@@ -56,7 +56,7 @@ pub struct Dispute {
     pub modified_at: PrimitiveDateTime,
     pub connector: String,
     pub evidence: Secret<serde_json::Value>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<String>,
     pub dispute_amount: i64,
 }

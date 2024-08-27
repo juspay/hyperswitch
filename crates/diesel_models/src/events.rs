@@ -22,7 +22,7 @@ pub struct EventNew {
     pub primary_object_type: storage_enums::EventObjectType,
     pub created_at: PrimitiveDateTime,
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub business_profile_id: Option<String>,
+    pub business_profile_id: Option<common_utils::id_type::ProfileId>,
     pub primary_object_created_at: Option<PrimitiveDateTime>,
     pub idempotent_event_id: Option<String>,
     pub initial_attempt_id: Option<String>,
@@ -51,7 +51,7 @@ pub struct Event {
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub business_profile_id: Option<String>,
+    pub business_profile_id: Option<common_utils::id_type::ProfileId>,
     // This column can be used to partition the database table, so that all events related to a
     // single object would reside in the same partition
     pub primary_object_created_at: Option<PrimitiveDateTime>,
