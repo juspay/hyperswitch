@@ -478,7 +478,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             cy.updateGsmConfig(fixtures.gsmBody.gsm_update, globalState, true);
           });
 
-          it("[Config: enable] Setup up for Stripe", () => {
+          it("[Config: enable] Step up for Stripe", () => {
             cy.stepUp(fixtures.configs.step_up, globalState, '["stripe"]');
           });
         });
