@@ -2450,7 +2450,6 @@ pub async fn make_payout_data(
         .await
         .transpose()?
         .and_then(|c| c);
-
     let profile_id = payout_attempt.profile_id.clone();
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
