@@ -783,11 +783,11 @@ impl<'a> HeaderMapStruct<'a> {
 
     pub fn get_merchant_id_from_header(
         &self,
-    ) -> crate::errors::RouterResult<common_utils::id_type::MerchantId> {
+    ) -> RouterResult<id_type::MerchantId> {
         self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
             .map(|val| val.to_owned())
             .and_then(|merchant_id| {
-                common_utils::id_type::MerchantId::wrap(merchant_id).change_context(
+                id_type::MerchantId::wrap(merchant_id).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
                     },
