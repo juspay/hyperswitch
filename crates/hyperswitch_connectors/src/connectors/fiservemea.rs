@@ -69,7 +69,6 @@ impl Fiservemea {
         let fiservemea::FiservemeaAuthType {
             api_key,
             secret_key,
-            ..
         } = auth;
         let raw_signature = format!("{}{request_id}{timestamp}{payload}", api_key.peek());
 
