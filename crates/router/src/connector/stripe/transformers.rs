@@ -1825,7 +1825,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                 )
             })
             .transpose()?
-            .or_else(|| {
+            .or({
                 //stripe requires us to send mandate_data while making recurring payment through saved bank debit
                 //check if payment is done through saved payment method
                 match &payment_method_types {

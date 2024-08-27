@@ -250,7 +250,7 @@ pub struct PaypalPaymentsRequest {
 
 fn get_address_info(payment_address: Option<&api_models::payments::Address>) -> Option<Address> {
     let address = payment_address.and_then(|payment_address| payment_address.address.as_ref());
-    let address = match address {
+    match address {
         Some(address) => address.get_optional_country().map(|country| Address {
             country_code: country.to_owned(),
             address_line_1: address.line1.clone(),
@@ -258,8 +258,7 @@ fn get_address_info(payment_address: Option<&api_models::payments::Address>) -> 
             admin_area_2: address.city.clone(),
         }),
         None => None,
-    };
-    address
+    }
 }
 fn get_payment_source(
     item: &types::PaymentsAuthorizeRouterData,

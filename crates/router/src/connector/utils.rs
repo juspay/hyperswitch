@@ -1750,7 +1750,7 @@ impl AddressDetailsData for api::AddressDetails {
         self.line2.clone()
     }
     fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
-        self.country.clone()
+        self.country
     }
 }
 
