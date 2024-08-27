@@ -17,8 +17,8 @@ use crate::connector::utils::PayoutsData;
 use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData,
-        PaymentsSyncRequestData, RecurringMandateData, RouterData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, PaymentsSyncRequestData,
+        RecurringMandateData, RouterData,
     },
     consts,
     core::errors,
@@ -1479,10 +1479,10 @@ impl
         let payment_instrument = CybersoucrePaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let bill_to =
-            item.router_data.get_optional_billing_email().and_then(|email| {
-                build_bill_to(item.router_data.get_optional_billing(), email).ok()
-            });
+        let bill_to = item
+            .router_data
+            .get_optional_billing_email()
+            .and_then(|email| build_bill_to(item.router_data.get_optional_billing(), email).ok());
         let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
