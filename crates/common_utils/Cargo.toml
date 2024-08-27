@@ -26,7 +26,7 @@ async-trait = { version = "0.1.79", optional = true }
 base64 = "0.22.0"
 blake3 = { version = "1.5.1", features = ["serde"] }
 bytes = "1.6.0"
-diesel = "2.1.5"
+diesel = "2.2.3"
 error-stack = "0.4.1"
 futures = { version = "0.3.30", optional = true }
 globset = "0.4.14"

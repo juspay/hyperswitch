@@ -5,10 +5,14 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
 use common_utils::errors::ReportSwitchExt;
 use common_utils::ext_traits::Encode;
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel::JoinOnDsl;
 #[cfg(feature = "olap")]
-use diesel::{
-    associations::HasTable, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl,
-};
+use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethods, QueryDsl};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
