@@ -2949,31 +2949,33 @@ pub async fn switch_merchant_for_user_in_org(
         }
 
         EntityType::Organization => {
-            let merchant_id = state
-                .store
-                .list_merchant_accounts_by_organization_id(
-                    key_manager_state,
-                    user_from_token.org_id.get_string_repr(),
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)?
-                .into_iter()
-                .find(|account| *account.get_id() == request.merchant_id)
-                .ok_or(UserErrors::InvalidRoleOperationWithMessage(
-                    "No such merchant id found for the user in the org".to_string(),
-                ))?
-                .get_id()
-                .clone();
-
             let merchant_key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
                     key_manager_state,
-                    &merchant_id,
+                    &request.merchant_id,
                     &state.store.get_master_key().to_vec().into(),
                 )
                 .await
-                .change_context(UserErrors::InternalServerError)?;
+                .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+            let merchant_id = state
+                .store
+                .find_merchant_account_by_merchant_id(
+                    key_manager_state,
+                    &request.merchant_id,
+                    &merchant_key_store,
+                )
+                .await
+                .change_context(UserErrors::MerchantIdNotFound)?
+                .organization_id
+                .eq(&user_from_token.org_id)
+                .then(|| request.merchant_id.clone())
+                .ok_or_else(|| {
+                    UserErrors::InvalidRoleOperationWithMessage(
+                        "No such merchant id found for the user in the org".to_string(),
+                    )
+                })?;
 
             let profile_id = state
                 .store
@@ -3117,21 +3119,20 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 
             let profile_id = state
                 .store
-                .list_business_profile_by_merchant_id(
+                .find_business_profile_by_merchant_id_profile_id(
                     key_manager_state,
                     &merchant_key_store,
                     &user_from_token.merchant_id,
+                    &request.profile_id,
                 )
                 .await
-                .change_context(UserErrors::InternalServerError)?
-                .into_iter()
-                .find(|business_profile| business_profile.profile_id == request.profile_id)
-                .ok_or(UserErrors::InvalidRoleOperationWithMessage(
+                .change_context(UserErrors::InvalidRoleOperationWithMessage(
                     "No such profile found for the merchant".to_string(),
                 ))?
                 .profile_id;
             (profile_id, user_from_token.role_id)
         }
+
         EntityType::Profile => {
             let user_role = state
                 .store
