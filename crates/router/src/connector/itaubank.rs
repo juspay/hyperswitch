@@ -4,8 +4,8 @@ use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForCo
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::consts;
 use masking::PeekInterface;
-use transformers as itaubank;
 use std::fmt::Write;
+use transformers as itaubank;
 
 use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
