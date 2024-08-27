@@ -181,8 +181,8 @@ pub struct PaymentAttempt {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub profile_id: String,
-    pub organization_id: String,
+    pub profile_id: id_type::ProfileId,
+    pub organization_id: id_type::OrganizationId,
 }
 
 impl PaymentAttempt {
@@ -273,8 +273,8 @@ pub struct PaymentAttemptNew {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
-    pub profile_id: String,
-    pub organization_id: String,
+    pub profile_id: id_type::ProfileId,
+    pub organization_id: id_type::OrganizationId,
 }
 
 impl PaymentAttemptNew {
@@ -554,7 +554,7 @@ impl behaviour::Conversion for PaymentIntent {
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
         key_manager_identifier: keymanager::Identifier,
-    ) -> CustomResult<Self, ValidationError>
+    ) -> CustomResult<Self, ValidationError> 
     where
         Self: Sized,
     {

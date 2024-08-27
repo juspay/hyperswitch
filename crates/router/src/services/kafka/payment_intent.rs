@@ -40,7 +40,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
-    pub organization_id: &'a String,
+    pub organization_id: &'a id_type::OrganizationId,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {

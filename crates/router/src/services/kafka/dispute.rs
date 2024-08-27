@@ -1,6 +1,7 @@
 use diesel_models::enums as storage_enums;
 use masking::Secret;
 use time::OffsetDateTime;
+use common_utils::id_type;
 
 use crate::types::storage::dispute::Dispute;
 
@@ -13,7 +14,7 @@ pub struct KafkaDispute<'a> {
     pub dispute_status: &'a storage_enums::DisputeStatus,
     pub payment_id: &'a String,
     pub attempt_id: &'a String,
-    pub merchant_id: &'a common_utils::id_type::MerchantId,
+    pub merchant_id: &'a id_type::MerchantId,
     pub connector_status: &'a String,
     pub connector_dispute_id: &'a String,
     pub connector_reason: Option<&'a String>,
@@ -30,9 +31,9 @@ pub struct KafkaDispute<'a> {
     pub modified_at: OffsetDateTime,
     pub connector: &'a String,
     pub evidence: &'a Secret<serde_json::Value>,
-    pub profile_id: Option<&'a common_utils::id_type::ProfileId>,
+    pub profile_id: Option<&'a id_type::ProfileId>,
     pub merchant_connector_id: Option<&'a String>,
-    pub organization_id: &'a String,
+    pub organization_id: &'a id_type::OrganizationId,
 }
 
 impl<'a> KafkaDispute<'a> {

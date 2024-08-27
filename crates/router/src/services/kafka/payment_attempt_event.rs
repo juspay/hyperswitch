@@ -1,5 +1,5 @@
 // use diesel_models::enums::MandateDetails;
-use common_utils::types::MinorUnit;
+use common_utils::{types::MinorUnit, id_type};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::{
     mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,
@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPaymentAttemptEvent<'a> {
     pub payment_id: &'a String,
-    pub merchant_id: &'a common_utils::id_type::MerchantId,
+    pub merchant_id: &'a id_type::MerchantId,
     pub attempt_id: &'a String,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
@@ -55,8 +55,9 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub mandate_data: Option<&'a MandateDetails>,
     pub client_source: Option<&'a String>,
     pub client_version: Option<&'a String>,
-    pub profile_id: &'a String,
-    pub organization_id: &'a String,
+    pub profile_id: &'a id_type::ProfileId,
+    pub organization_id: &'a id_type::OrganizationId,
+    pub card_network: Option<String>,
 }
 
 impl<'a> KafkaPaymentAttemptEvent<'a> {
@@ -105,9 +106,18 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             client_version: attempt.client_version.as_ref(),
             profile_id: &attempt.profile_id,
             organization_id: &attempt.organization_id,
+            card_network: attempt
+                .payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|pm| pm.get("card"))
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
         }
     }
-}
+} 
 
 impl<'a> super::KafkaMessage for KafkaPaymentAttemptEvent<'a> {
     fn key(&self) -> String {

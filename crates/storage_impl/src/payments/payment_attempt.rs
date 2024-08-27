@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
-use crate::{
+use crate::{ 
     diesel_error_to_data_error,
     errors::RedisErrorExt,
     lookup::ReverseLookupInterface,
@@ -1332,6 +1332,14 @@ impl DataModelExt for PaymentAttempt {
             connector_metadata: self.connector_metadata,
             payment_experience: self.payment_experience,
             payment_method_type: self.payment_method_type,
+            card_network: self.payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card"))
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
             payment_method_data: self.payment_method_data,
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
@@ -1477,6 +1485,14 @@ impl DataModelExt for PaymentAttemptNew {
             connector_metadata: self.connector_metadata,
             payment_experience: self.payment_experience,
             payment_method_type: self.payment_method_type,
+            card_network: self.payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card"))
+                .and_then(|value| value.as_object())
+                .and_then(|map| map.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
             payment_method_data: self.payment_method_data,
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
@@ -2293,7 +2309,7 @@ impl DataModelExt for PaymentAttemptUpdate {
         }
     }
 }
-
+ 
 #[inline]
 #[instrument(skip_all)]
 async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(

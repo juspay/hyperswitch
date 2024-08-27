@@ -936,7 +936,7 @@ async fn get_or_update_dispute_object(
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
-                organization_id: organization_id.get_string_repr().to_owned(),
+                organization_id: organization_id.clone(),
             };
             state
                 .store

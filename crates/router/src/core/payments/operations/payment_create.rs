@@ -1067,7 +1067,7 @@ impl PaymentCreate {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize customer_acceptance")?
                     .map(Secret::new),
-                organization_id: organization_id.get_string_repr().to_string(),
+                organization_id: organization_id.clone(),
                 profile_id,
             },
             additional_pm_data,
@@ -1251,9 +1251,7 @@ impl PaymentCreate {
             shipping_details,
             is_payment_processor_token_flow,
             organization_id: merchant_account
-                .organization_id
-                .get_string_repr()
-                .to_string(),
+                .organization_id.clone(),
         })
     }
 

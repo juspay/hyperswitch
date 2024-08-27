@@ -837,6 +837,8 @@ diesel::table! {
         profile_id -> Varchar,
         #[max_length = 32]
         organization_id -> Varchar,
+        #[max_length = 32]
+        card_network -> Nullable<Varchar>,
     }
 }
 

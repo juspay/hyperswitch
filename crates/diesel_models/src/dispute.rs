@@ -30,7 +30,7 @@ pub struct DisputeNew {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<String>,
     pub dispute_amount: i64,
-    pub organization_id: String,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
@@ -60,7 +60,7 @@ pub struct Dispute {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<String>,
     pub dispute_amount: i64,
-    pub organization_id: String,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Debug)]
