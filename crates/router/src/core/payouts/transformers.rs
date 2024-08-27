@@ -1,7 +1,10 @@
-use crate::types::{
-    api, domain, storage,
-    transformers::{ForeignFrom, ForeignInto},
-};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    feature = "olap"
+))]
+use crate::types::transformers::ForeignInto;
+use crate::types::{api, domain, storage, transformers::ForeignFrom};
 
 #[cfg(all(feature = "v2", feature = "customer_v2", feature = "olap"))]
 impl
