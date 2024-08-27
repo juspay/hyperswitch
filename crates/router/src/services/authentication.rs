@@ -785,9 +785,7 @@ impl<'a> HeaderMapStruct<'a> {
             ))
     }
 
-    pub fn get_merchant_id_from_header(
-        &self,
-    ) -> RouterResult<id_type::MerchantId> {
+    pub fn get_merchant_id_from_header(&self) -> RouterResult<id_type::MerchantId> {
         self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
             .map(|val| val.to_owned())
             .and_then(|merchant_id| {
