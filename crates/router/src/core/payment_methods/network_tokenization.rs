@@ -31,7 +31,7 @@ use crate::{
         api::{self},
         domain,
         storage::{self, enums as storage_enums},
-    }
+    },
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -115,7 +115,6 @@ pub struct AuthenticationDetails {
 pub struct TokenResponse {
     authentication_details: AuthenticationDetails,
     network: api_enums::CardNetwork,
-
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -342,7 +341,7 @@ pub async fn get_network_token(
     );
     let payload = GetCardToken {
         card_reference: network_token_requestor_ref_id,
-        customer_id, 
+        customer_id,
     };
 
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
@@ -394,7 +393,7 @@ pub async fn get_network_token(
         .response
         .parse_struct("Get Network Token Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
-    
+
     Ok(token_response)
 }
 
@@ -404,9 +403,13 @@ pub async fn get_token_from_tokenization_service(
     network_token_requestor_ref_id: String,
     pm_data: &storage::PaymentMethod,
 ) -> errors::RouterResult<NetworkTokenData> {
-    let token_response = get_network_token(state, pm_data.customer_id.clone(), network_token_requestor_ref_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let token_response = get_network_token(
+        state,
+        pm_data.customer_id.clone(),
+        network_token_requestor_ref_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let token_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),

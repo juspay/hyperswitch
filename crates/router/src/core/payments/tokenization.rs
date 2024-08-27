@@ -216,21 +216,25 @@ where
                         .await?;
 
                         if is_network_tokenization_enabled {
-                            let (network_token_resp, _network_token_duplication_check, network_token_requestor_ref_id) =
-                                Box::pin(save_in_locker(
-                                    state,
-                                    merchant_account,
-                                    Some(
-                                        &save_payment_method_data.request.get_payment_method_data(),
-                                    ),
-                                    payment_method_create_request.to_owned(),
-                                    true,
-                                    amount,
-                                    currency,
-                                ))
-                                .await?;
+                            let (
+                                network_token_resp,
+                                _network_token_duplication_check,
+                                network_token_requestor_ref_id,
+                            ) = Box::pin(save_in_locker(
+                                state,
+                                merchant_account,
+                                Some(&save_payment_method_data.request.get_payment_method_data()),
+                                payment_method_create_request.to_owned(),
+                                true,
+                                amount,
+                                currency,
+                            ))
+                            .await?;
 
-                            ((res, dc, network_token_requestor_ref_id), Some(network_token_resp))
+                            (
+                                (res, dc, network_token_requestor_ref_id),
+                                Some(network_token_resp),
+                            )
                         } else {
                             ((res, dc, None), None)
                         }
@@ -690,9 +694,9 @@ where
                                     card.card_network
                                         .map(|card_network| card_network.to_string())
                                 }),
-                                network_token_requestor_ref_id, 
-                                network_token_locker_id,        
-                                pm_token_data_encrypted.map(Into::into), 
+                                network_token_requestor_ref_id,
+                                network_token_locker_id,
+                                pm_token_data_encrypted.map(Into::into),
                             )
                             .await?;
                         };

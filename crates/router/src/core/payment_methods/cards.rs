@@ -302,8 +302,8 @@ pub async fn get_or_insert_payment_method(
                     merchant_account.storage_scheme,
                     None,
                     None,
-                    None, 
-                    None, 
+                    None,
+                    None,
                 )
                 .await
             } else {
@@ -901,8 +901,8 @@ pub async fn add_payment_method_data(
                             payment_method: req.payment_method,
                             payment_method_issuer: req.payment_method_issuer,
                             payment_method_type: req.payment_method_type,
-                            network_token_locker_id: None, 
-                            network_token_payment_method_data: None, 
+                            network_token_locker_id: None,
+                            network_token_payment_method_data: None,
                         };
 
                         db.update_payment_method(
@@ -1193,8 +1193,8 @@ pub async fn add_payment_method(
                 req.network_transaction_id.clone(),
                 merchant_account.storage_scheme,
                 payment_method_billing_address.map(Into::into),
-                None, 
-                None, 
+                None,
+                None,
                 None,
             )
             .await?;
