@@ -879,11 +879,14 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-
     let add = payment_data.address.clone();
     // println!("$$$$$$ {:?}", add);
 
-    let shipping_address  = payment_data.shipping_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("Missing shipping_details")?;
+    let shipping_address = payment_data
+        .shipping_details
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Missing shipping_details")?;
 
     println!("$$$$$$shipping_address {:?}", shipping_address);
 

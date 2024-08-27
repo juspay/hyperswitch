@@ -120,7 +120,7 @@ where
             payment_data.address
         };
 
-        println!("unified_address {:?}", unified_address);
+    println!("unified_address {:?}", unified_address);
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -1792,7 +1792,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SessionUpdateDat
             .unwrap_or(0);
         let amount = MinorUnit::from(payment_data.amount);
 
-         println!("additional_data_order_tax_amount: {:?}", order_tax_amount);
+        println!("additional_data_order_tax_amount: {:?}", order_tax_amount);
 
         println!("additional_data_amount: {:?}", amount.get_amount_as_i64());
 

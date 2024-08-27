@@ -4,8 +4,8 @@ use error_stack::report;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_response_types::{RefundsResponseData, TaxCalculationResponseData},
     router_request_types::PaymentsTaxCalculationData,
+    router_response_types::{RefundsResponseData, TaxCalculationResponseData},
     types,
     types::RefundsRouterData,
 };
@@ -83,11 +83,17 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
         // println!("$$swangi{:?}", shipping);
         let currency = item.router_data.request.currency;
         let currency_unit = &api::CurrencyUnit::Base;
-        let shipping = &item.router_data.request.shipping_address.address.clone().ok_or(errors::ConnectorError::MissingRequiredField { field_name: "address" })?;
-        
+        let shipping = &item
+            .router_data
+            .request
+            .shipping_address
+            .address
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "address",
+            })?;
 
         println!("$$shipping123{:?}", shipping);
-
 
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
@@ -109,7 +115,10 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
                         id: line_item.product_id.clone(),
                         quantity: Some(line_item.quantity),
                         product_tax_code: line_item.product_tax_code.clone(),
-                        unit_price: Some(FloatMajorUnit::new(utils::get_amount_as_f64(currency_unit, line_item.amount, currency).unwrap())),
+                        unit_price: Some(FloatMajorUnit::new(
+                            utils::get_amount_as_f64(currency_unit, line_item.amount, currency)
+                                .unwrap(),
+                        )),
                     })
                     .collect(),
             }),
@@ -184,7 +193,7 @@ impl<F>
         Ok(Self {
             response: Ok(TaxCalculationResponseData {
                 order_tax_amount: calculated_tax,
-                net_amount: (total_amount + calculated_tax), 
+                net_amount: (total_amount + calculated_tax),
                 shipping_address: None,
             }),
             ..item.data

@@ -557,7 +557,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SessionUpdateData> fo
                         .attach_printable("missing tax_details in payment_intent")
                 })?;
 
-                println!("session_update_details: {:?}", session_update_details);
+        println!("session_update_details: {:?}", session_update_details);
 
         let pmt_amount = session_update_details
             .pmt

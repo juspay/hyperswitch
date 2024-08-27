@@ -112,9 +112,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         // )
         // .await?;
 
-   
-
-    let shipping_address = helpers::get_address_by_id(
+        let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
             key_store,
@@ -123,23 +121,23 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             merchant_account.storage_scheme,
         )
         .await?;
-     println!("shipping_address: {:?}", shipping_address);
+        println!("shipping_address: {:?}", shipping_address);
 
-    //     let billing_address = helpers::create_or_find_address_for_payment_by_request(
-    //         &state,
-    //         None,
-    //         payment_intent.billing_address_id.as_deref(),
-    //         merchant_id,
-    //         payment_intent.customer_id.as_ref(),
-    //         &key_store,
-    //         &payment_intent.payment_id,
-    //         storage_scheme,
-    //     )
-    //     .await?;
+        //     let billing_address = helpers::create_or_find_address_for_payment_by_request(
+        //         &state,
+        //         None,
+        //         payment_intent.billing_address_id.as_deref(),
+        //         merchant_id,
+        //         payment_intent.customer_id.as_ref(),
+        //         &key_store,
+        //         &payment_intent.payment_id,
+        //         storage_scheme,
+        //     )
+        //     .await?;
 
-    // println!("billing_address: {:?}", billing_address);
+        // println!("billing_address: {:?}", billing_address);
 
-    let billing_address = helpers::get_address_by_id(
+        let billing_address = helpers::get_address_by_id(
             state,
             payment_intent.billing_address_id.clone(),
             key_store,
@@ -149,7 +147,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         )
         .await?;
 
-    // println!("billing: {:?}", billing);
+        // println!("billing: {:?}", billing);
 
         let profile_id = payment_intent
             .profile_id
@@ -291,7 +289,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-     println!("response_core: {:?}", response);
+        println!("response_core: {:?}", response);
 
         let tax_response =
             response
@@ -304,7 +302,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
                     reason: err.reason,
                 })?;
 
-                println!("tax_response: {:?}", tax_response);
+        println!("tax_response: {:?}", tax_response);
 
         // payment_data
         //     .payment_intent
@@ -400,7 +398,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
             tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?
         };
 
-        let tax_details = payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        let tax_details = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         println!("update_trackers tax_details : {:?}", tax_details);
 
