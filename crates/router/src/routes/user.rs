@@ -993,7 +993,7 @@ pub async fn switch_merchant_for_user_in_org(
     http_req: HttpRequest,
     json_payload: web::Json<user_api::SwitchMerchantRequest>,
 ) -> HttpResponse {
-    let flow = Flow::SwitchMerchant;
+    let flow = Flow::SwitchMerchantV2;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),

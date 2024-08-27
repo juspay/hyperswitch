@@ -214,6 +214,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::InternalUserSignup
             | Flow::SwitchOrg
             | Flow::SwitchMerchant
+            | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData

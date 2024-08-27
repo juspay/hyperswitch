@@ -135,7 +135,7 @@ pub struct SwitchMerchantRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SwitchProfileRequest {
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]

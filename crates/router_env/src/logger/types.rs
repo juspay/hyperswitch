@@ -356,6 +356,8 @@ pub enum Flow {
     SwitchOrg,
     /// Switch merchant
     SwitchMerchant,
+    /// Switch merchant v2
+    SwitchMerchantV2,
     /// Switch profile
     SwitchProfile,
     /// Get permission info

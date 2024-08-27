@@ -1377,7 +1377,7 @@ pub async fn switch_merchant_id(
 
         let token = utils::user::generate_jwt_auth_token_with_attributes(
             &state,
-            &user,
+            user_from_token.user_id,
             request.merchant_id.clone(),
             org_id.clone(),
             user_from_token.role_id.clone(),
@@ -2773,7 +2773,6 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let user = user_from_token.get_user_from_db(&state).await?;
     let key_manager_state = &(&state).into();
     let role_info = roles::RoleInfo::from_role_id(
         &state,
@@ -2857,7 +2856,7 @@ pub async fn switch_org_for_user(
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
-        &user,
+        user_from_token.user_id,
         merchant_id.clone(),
         request.org_id.clone(),
         user_role.role_id.clone(),
@@ -2893,7 +2892,6 @@ pub async fn switch_merchant_for_user_in_org(
         .into());
     }
 
-    let user = user_from_token.get_user_from_db(&state).await?;
     let key_manager_state = &(&state).into();
     let role_info = roles::RoleInfo::from_role_id(
         &state,
@@ -3057,7 +3055,7 @@ pub async fn switch_merchant_for_user_in_org(
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
-        &user,
+        user_from_token.user_id,
         merchant_id.clone(),
         org_id.clone(),
         role_id.clone(),
@@ -3093,8 +3091,6 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         .into());
     }
 
-    let user = user_from_token.get_user_from_db(&state).await?;
-
     let key_manager_state = &(&state).into();
     let role_info = roles::RoleInfo::from_role_id(
         &state,
@@ -3103,7 +3099,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         &user_from_token.org_id,
     )
     .await
-    .to_not_found_response(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)?;
 
     let (profile_id, role_id) = match role_info.get_entity_type() {
         EntityType::Internal | EntityType::Organization | EntityType::Merchant => {
@@ -3149,7 +3145,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
-                    "No such profile found for the merchant".to_string(),
+                    "No user role associated with the profile".to_string(),
                 ))?
                 .to_owned();
 
@@ -3159,7 +3155,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
         &state,
-        &user,
+        user_from_token.user_id,
         user_from_token.merchant_id.clone(),
         user_from_token.org_id.clone(),
         role_id.clone(),

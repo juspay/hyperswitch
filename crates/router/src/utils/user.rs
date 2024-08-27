@@ -110,14 +110,14 @@ pub async fn generate_jwt_auth_token_without_profile(
 
 pub async fn generate_jwt_auth_token_with_attributes(
     state: &SessionState,
-    user: &UserFromStorage,
+    user_id: String,
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
     profile_id: Option<id_type::ProfileId>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
-        user.get_user_id().to_string(),
+        user_id,
         merchant_id,
         role_id,
         &state.conf,
