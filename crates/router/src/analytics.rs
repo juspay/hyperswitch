@@ -6,9 +6,8 @@ pub mod routes {
         api_event::api_events_core, connector_events::connector_events_core, enums::UserLevel,
         errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
-        AnalyticsFlow, 
+        AnalyticsFlow,
     };
-    use common_utils::id_type::OrganizationId;
     use api_models::analytics::{
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
@@ -20,6 +19,7 @@ pub mod routes {
         GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
         GetSdkEventMetricRequest, ReportRequest,
     };
+    use common_utils::id_type::OrganizationId;
     use error_stack::ResultExt;
 
     use crate::{
@@ -829,7 +829,9 @@ pub mod routes {
                     .map(|(i, _)| *i)
                     .collect();
                 let profile_id: String = "pro_ZTGBrEwlRmTyzKFpnV9Z".to_string();
-                let org_id: OrganizationId = OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk")).unwrap();
+                let org_id: OrganizationId =
+                    OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
+                        .unwrap();
                 let search_params: Vec<UserLevel> = vec![
                     UserLevel::OrgLevel {
                         org_id: org_id.clone(),
@@ -893,7 +895,9 @@ pub mod routes {
                     .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
 
                 let profile_id: String = "pro_ZTGBrEwlRmTyzKFpnV9Z".to_string();
-                let org_id: OrganizationId = OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk")).unwrap();
+                let org_id: OrganizationId =
+                    OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
+                        .unwrap();
                 let search_params: Vec<UserLevel> = vec![
                     UserLevel::OrgLevel {
                         org_id: org_id.clone(),
@@ -909,9 +913,14 @@ pub mod routes {
                     },
                 ];
 
-                analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id, search_params)
-                    .await
-                    .map(ApplicationResponse::Json)
+                analytics::search::search_results(
+                    &state.opensearch_client,
+                    req,
+                    &auth.merchant_id,
+                    search_params,
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

@@ -162,8 +162,11 @@ pub async fn search_results(
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
 
-    let mut query_builder =
-        OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query, search_params);
+    let mut query_builder = OpenSearchQueryBuilder::new(
+        OpenSearchQuery::Search(req.index),
+        search_req.query,
+        search_params,
+    );
 
     // query_builder
     //     .add_filter_clause(
