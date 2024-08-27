@@ -26,7 +26,7 @@ pub struct Event {
     pub primary_object_type: EventObjectType,
     pub created_at: time::PrimitiveDateTime,
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub business_profile_id: Option<String>,
+    pub business_profile_id: Option<common_utils::id_type::ProfileId>,
     pub primary_object_created_at: Option<time::PrimitiveDateTime>,
     pub idempotent_event_id: Option<String>,
     pub initial_attempt_id: Option<String>,

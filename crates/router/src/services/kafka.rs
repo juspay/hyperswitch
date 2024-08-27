@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
-use bigdecimal::ToPrimitive;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use events::{EventsError, Message, MessagingInterface};
+use num_traits::ToPrimitive;
 use rdkafka::{
     config::FromClientConfig,
     message::{Header, OwnedHeaders},
