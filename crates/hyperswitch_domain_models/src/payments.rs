@@ -44,7 +44,7 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub payment_link_id: Option<String>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment

@@ -480,7 +480,8 @@ pub struct PaymentsRequest {
 
     /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<RequestSurchargeDetails>)]
@@ -3815,7 +3816,8 @@ pub struct PaymentsResponse {
     /// Details for Payment link
     pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     /// Details of surcharge applied on this payment
     pub surcharge_details: Option<RequestSurchargeDetails>,
@@ -4031,7 +4033,7 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     /// The identifier for customer
     pub customer_id: Option<id_type::CustomerId>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20

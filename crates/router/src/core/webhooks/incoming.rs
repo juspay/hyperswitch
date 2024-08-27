@@ -347,14 +347,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 )?,
         };
 
-        let profile_id = merchant_connector_account.profile_id.as_ref();
+        let profile_id = &merchant_connector_account.profile_id;
 
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         match flow_type {

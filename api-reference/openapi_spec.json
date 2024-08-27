@@ -3487,7 +3487,7 @@
         ]
       }
     },
-    "/routing/{algorithm_id}/activate": {
+    "/routing/{routing_algorithm_id}/activate": {
       "post": {
         "tags": [
           "Routing"
@@ -3497,7 +3497,7 @@
         "operationId": "Activate a routing config",
         "parameters": [
           {
-            "name": "algorithm_id",
+            "name": "routing_algorithm_id",
             "in": "path",
             "description": "The unique identifier for a config",
             "required": true,
@@ -3537,7 +3537,7 @@
         ]
       }
     },
-    "/routing/{algorithm_id}": {
+    "/routing/{routing_algorithm_id}": {
       "get": {
         "tags": [
           "Routing"
@@ -3547,7 +3547,7 @@
         "operationId": "Retrieve a routing config",
         "parameters": [
           {
-            "name": "algorithm_id",
+            "name": "routing_algorithm_id",
             "in": "path",
             "description": "The unique identifier for a config",
             "required": true,
@@ -7594,7 +7594,15 @@
             "$ref": "#/components/schemas/BusinessGenericLinkConfig"
           },
           {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "payout_test_mode": {
+                "type": "boolean",
+                "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
+                "default": false,
+                "nullable": true
+              }
+            }
           }
         ]
       },
@@ -7786,7 +7794,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "description": "The identifier for business profile. This must be used for creating merchant accounts, payments and payouts",
             "example": "pro_abcdefghijklmnopqrstuvwxyz",
             "maxLength": 64
           },
@@ -12510,7 +12518,7 @@
           },
           "default_profile": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
             "nullable": true,
             "maxLength": 64
           },
@@ -12548,7 +12556,8 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 64
           },
           "connector_account_details": {
             "allOf": [
@@ -13192,6 +13201,14 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19239,6 +19256,12 @@
                 },
                 "description": "List of payout methods shown on collect UI",
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              },
+              "test_mode": {
+                "type": "boolean",
+                "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
+                "example": false,
                 "nullable": true
               }
             }
