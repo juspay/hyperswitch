@@ -6,6 +6,7 @@ use std::{borrow::Cow, fmt::Debug};
 mod customer;
 mod merchant;
 mod organization;
+mod routing;
 
 mod global_id;
 
