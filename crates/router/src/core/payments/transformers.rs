@@ -6,7 +6,7 @@ use api_models::payments::{
 };
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
-use diesel_models::ephemeral_key;
+use diesel_models::{ephemeral_key, schema::payment_intent::tax_details};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
@@ -489,6 +489,9 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
+        // let amount =  MinorUnit::from(payment_data.amount);
+        // let shipping_cost = payment_data.payment_intent.shipping_cost;
+        // let order_tax_amount =  MinorUnit::from(payment_data.payment_intent.tax_details.clone().and_then(|tax|tax.pmt.map(|a|a.order_tax_amount)));
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 // order_tax_amount: payment_data.amount,
@@ -1788,7 +1791,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SessionUpdateDat
             .payment_intent
             .tax_details
             .clone()
-            .and_then(|tax_details| tax_details.pmt.map(|pmt| pmt.order_tax_amount))
+            .and_then(|tax| tax.pmt.map(|pmt| pmt.order_tax_amount))
             .unwrap_or(0);
         let amount = MinorUnit::from(payment_data.amount);
 

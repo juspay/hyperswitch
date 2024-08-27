@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::types::{keymanager::KeyManagerState, MinorUnit};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -394,17 +394,37 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::TaxCalculationUpdate {
-            tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?
-        };
-
-        let tax_details = payment_data
+        let session_update_details = payment_data
             .payment_intent
             .tax_details
             .clone()
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
-        println!("update_trackers tax_details : {:?}", tax_details);
+        println!("update_trackers tax_details : {:?}", session_update_details);
+
+        let calculated_tax_amount = session_update_details
+            .pmt
+            .clone()
+            .map(|pmt| pmt.order_tax_amount)
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing tax_details.order_tax_amount")?;
+
+        println!("calculated_tax_amount: {:?}", calculated_tax_amount);
+
+        // let shipping_cost = (payment_data.payment_intent.shipping_cost.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("missing"))?;
+
+        // let net_amount =  payment_data.amount.into() + MinorUnit::new(calculated_tax_amount) + payment_data.payment_intent.shipping_cost;
+        // println!("net_amount: {:?}", net_amount);
+
+        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::TaxCalculationUpdate {
+            tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?,
+            shipping_address_id: payment_data.payment_intent.shipping_address_id.clone()
+        };
+
+        print!(
+            "update_trackers payment_intent_update : {:?}",
+            payment_intent_update
+        );
 
         let db = &*state.store;
         let payment_intent = payment_data.payment_intent.clone();
