@@ -6,9 +6,13 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::errors::ReportSwitchExt;
 use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
-use diesel::{
-    associations::HasTable, ExpressionMethods, JoinOnDsl, NullableExpressionMethods, QueryDsl,
-};
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel::{JoinOnDsl, NullableExpressionMethods};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
@@ -20,14 +24,13 @@ use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2")
 ))]
-use diesel_models::schema::address::dsl as add_dsl;
+use diesel_models::schema::{
+    address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl,
+};
 #[cfg(feature = "olap")]
 use diesel_models::{
-    address::Address as DieselAddress,
-    customers::Customer as DieselCustomer,
-    enums as storage_enums,
-    query::generics::db_metrics,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
+    address::Address as DieselAddress, customers::Customer as DieselCustomer,
+    enums as storage_enums, query::generics::db_metrics, schema::payouts::dsl as po_dsl,
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -740,8 +743,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
-    {
+    ) -> error_stack::Result<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            Option<DieselCustomer>,
+            Option<DieselAddress>,
+        )>,
+        StorageError,
+    > {
         todo!()
     }
 
