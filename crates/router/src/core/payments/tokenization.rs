@@ -210,7 +210,7 @@ where
                             Some(&save_payment_method_data.request.get_payment_method_data()),
                             payment_method_create_request.to_owned(),
                             false,
-                            amount.clone(),
+                            amount,
                             currency,
                         ))
                         .await?;
@@ -906,47 +906,47 @@ pub async fn save_token_in_locker(
         .card_networks;
 
     if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data {
-        // if let Some(card_network) = &card.card_network {
-        //     if network_tokenization_supported_card_networks.contains(card_network) {
-        if let Ok((token_response, network_token_requestor_ref_id)) =
-            network_tokenization::make_card_network_tokenization_request(
-                state,
-                &card,
-                &customer_id,
-                amount,
-                currency,
-            )
-            .await
-        {
-            // Only proceed if the tokenization was successful
-            let card_data = api::CardDetail {
-                card_number: token_response.token.clone(),
-                card_exp_month: token_response.token_expiry_month.clone(),
-                card_exp_year: token_response.token_expiry_year.clone(),
-                card_holder_name: None,
-                nick_name: None,
-                card_issuing_country: None,
-                card_network: Some(token_response.card_brand.clone()),
-                card_issuer: None,
-                card_type: None,
-            };
+        if let Some(card_network) = &card.card_network {
+            if network_tokenization_supported_card_networks.contains(card_network) {
+                if let Ok((token_response, network_token_requestor_ref_id)) =
+                    network_tokenization::make_card_network_tokenization_request(
+                        state,
+                        card,
+                        &customer_id,
+                        amount,
+                        currency,
+                    )
+                    .await
+                {
+                    // Only proceed if the tokenization was successful
+                    let card_data = api::CardDetail {
+                        card_number: token_response.token.clone(),
+                        card_exp_month: token_response.token_expiry_month.clone(),
+                        card_exp_year: token_response.token_expiry_year.clone(),
+                        card_holder_name: None,
+                        nick_name: None,
+                        card_issuing_country: None,
+                        card_network: Some(token_response.card_brand.clone()),
+                        card_issuer: None,
+                        card_type: None,
+                    };
 
-            let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
-                state,
-                payment_method_request,
-                &card_data,
-                &customer_id,
-                merchant_account,
-                None,
-            ))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed")?;
+                    let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
+                        state,
+                        payment_method_request,
+                        &card_data,
+                        &customer_id,
+                        merchant_account,
+                        None,
+                    ))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Add Network Token Failed")?;
 
-            return Ok((res, dc, network_token_requestor_ref_id));
+                    return Ok((res, dc, network_token_requestor_ref_id));
+                }
+            }
         }
-        //     }
-        // }
     }
 
     let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");

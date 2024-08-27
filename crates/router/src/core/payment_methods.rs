@@ -443,6 +443,7 @@ pub async fn add_payment_method_status_update_task(
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn retrieve_payment_method_with_token(
     state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,

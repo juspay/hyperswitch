@@ -440,7 +440,7 @@ pub async fn get_token_from_tokenization_service(
         _ => None,
     })
     .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to obtain decrypted card object from db")?;
+    .attach_printable("Failed to obtain decrypted token object from db")?;
 
     let network_token_data = NetworkTokenData {
         token_number: token_response.authentication_details.token,
@@ -485,7 +485,7 @@ pub async fn do_status_check_for_network_token(
         .map(|x| x.into_inner().expose())
         .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
         .and_then(|pmd| match pmd {
-            PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+            PaymentMethodsData::Card(token) => Some(api::CardDetailFromLocker::from(token)),
             _ => None,
         });
     let network_token_requestor_reference_id = payment_method_info
@@ -694,6 +694,6 @@ pub async fn delete_network_token_from_tokenization_service(
         Ok(true)
     } else {
         Err(errors::NetworkTokenizationError::DeleteNetworkTokenFailed)
-            .attach_printable(format!("Delete Token at Token service failed"))
+            .attach_printable("Delete Token at Token service failed")
     }
 }

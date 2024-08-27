@@ -1869,6 +1869,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn retrieve_card_with_permanent_token(
     state: &SessionState,
     locker_id: &str,
@@ -1900,43 +1901,44 @@ pub async fn retrieve_card_with_permanent_token(
 
     if merchant_account.is_network_tokenization_enabled {
         let pm_data = db
-            .find_payment_method(
-                &payment_method_id.to_string(),
-                merchant_account.storage_scheme,
-            )
+            .find_payment_method(payment_method_id, merchant_account.storage_scheme)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         if let Some(mandate_ids) = mandate_id {
             if let Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(nt_data)) =
                 mandate_ids.mandate_reference_id
             {
-                let mut token_data = cards::get_card_from_locker(
-                    state,
-                    customer_id,
-                    &payment_intent.merchant_id,
-                    pm_data.network_token_locker_id.as_ref().unwrap(), //
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to fetch card information from the permanent locker")?;
-                let x = nt_data.token_exp_month.zip(nt_data.token_exp_year); //
-                if let Some((exp_month, exp_year)) = x {
-                    token_data.card_exp_month = exp_month;
-                    token_data.card_exp_year = exp_year;
+                if let Some(network_token_locker_id) = pm_data.network_token_locker_id {
+                    let mut token_data = cards::get_card_from_locker(
+                        state,
+                        customer_id,
+                        &payment_intent.merchant_id,
+                        network_token_locker_id.as_ref(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "failed to fetch card information from the permanent locker",
+                    )?;
+                    let expiry = nt_data.token_exp_month.zip(nt_data.token_exp_year);
+                    if let Some((exp_month, exp_year)) = expiry {
+                        token_data.card_exp_month = exp_month;
+                        token_data.card_exp_year = exp_year;
+                    }
+                    let network_token_data = domain::NetworkTokenData {
+                        token_number: token_data.card_number,
+                        token_cryptogram: None,
+                        token_exp_month: token_data.card_exp_month,
+                        token_exp_year: token_data.card_exp_year,
+                        nick_name: token_data.nick_name.map(masking::Secret::new),
+                        card_issuer: None,
+                        card_network: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        bank_code: None,
+                    };
+                    return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
                 }
-                let network_token_data = domain::NetworkTokenData {
-                    token_number: token_data.card_number,
-                    token_cryptogram: None,
-                    token_exp_month: token_data.card_exp_month,
-                    token_exp_year: token_data.card_exp_year,
-                    nick_name: token_data.nick_name.map(masking::Secret::new),
-                    card_issuer: None,
-                    card_network: None,
-                    card_type: None,
-                    card_issuing_country: None,
-                    bank_code: None,
-                };
-                return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
             }
         }
 

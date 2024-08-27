@@ -3633,6 +3633,7 @@ where
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone>(
     state: &SessionState,
     payment_data: &mut PaymentData<F>,
@@ -3881,7 +3882,7 @@ pub fn is_network_token_with_transaction_id_flow(
         .connector_list;
 
     is_connector_agnostic_mit_enabled == Some(true)
-        && is_network_tokenization_enabled == true
+        && is_network_tokenization_enabled
         && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
         && payment_method_info.network_transaction_id.is_some()
         && payment_method_info.network_token_locker_id.is_some()
