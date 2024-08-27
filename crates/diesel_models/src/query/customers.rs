@@ -23,6 +23,7 @@ impl CustomerNew {
     }
 }
 
+// #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn update_by_id(
@@ -52,7 +53,6 @@ impl Customer {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
