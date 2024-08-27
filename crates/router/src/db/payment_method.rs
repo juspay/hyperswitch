@@ -39,6 +39,7 @@ pub trait PaymentMethodInterface {
         limit: Option<i64>,
     ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
@@ -777,8 +778,8 @@ mod storage {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use common_utils::id_type;
-    use error_stack::report;
+    use common_utils::{id_type, types::keymanager::KeyManagerState};
+    use error_stack::{report, FutureExt, ResultExt};
     use router_env::{instrument, tracing};
 
     use super::PaymentMethodInterface;
@@ -786,8 +787,12 @@ mod storage {
         connection,
         core::errors::{self, CustomResult},
         services::Store,
-        types::storage::{self as storage_types, enums::MerchantStorageScheme},
+        types::{
+            domain,
+            storage::{self as storage_types, enums::MerchantStorageScheme},
+        },
     };
+    use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 
     #[async_trait::async_trait]
     impl PaymentMethodInterface for Store {
@@ -806,7 +811,7 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| report!(errors::StorageError::from(error)))?
                 .convert(
                     state,
                     key_store.key.get_inner(),
@@ -827,7 +832,7 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::PaymentMethod::find_by_id(&conn, payment_method_id)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| report!(errors::StorageError::from(error)))?
                 .convert(
                     state,
                     key_store.key.get_inner(),
@@ -848,7 +853,7 @@ mod storage {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::PaymentMethod::find_by_locker_id(&conn, locker_id)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| report!(errors::StorageError::from(error)))?
                 .convert(
                     state,
                     key_store.key.get_inner(),
@@ -886,13 +891,14 @@ mod storage {
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
             let mut payment_method_new = payment_method
                 .construct_new()
+                .await
                 .change_context(errors::StorageError::DecryptionError)?;
 
             let conn = connection::pg_connection_write(self).await?;
             payment_method_new
                 .insert(&conn)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| report!(errors::StorageError::from(error)))?
                 .convert(
                     state,
                     key_store.key.get_inner(),
@@ -915,8 +921,7 @@ mod storage {
             payment_method_update: storage_types::PaymentMethodUpdate,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-            let payment_method = payment_method
-                .convert()
+            let payment_method = Conversion::convert(payment_method)
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
 
@@ -924,7 +929,7 @@ mod storage {
             payment_method
                 .update_with_payment_method_id(&conn, payment_method_update.into())
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| report!(errors::StorageError::from(error)))?
                 .convert(
                     state,
                     key_store.key.get_inner(),
@@ -945,7 +950,11 @@ mod storage {
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
             let payment_method = payment_method
-                .convert()
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?;
 
@@ -953,7 +962,7 @@ mod storage {
             payment_method
                 .update_with_id(&conn, payment_method_update.into())
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| report!(errors::StorageError::from(error)))?
                 .convert(
                     state,
                     key_store.key.get_inner(),
@@ -1059,7 +1068,7 @@ mod storage {
                 payment_method_id,
             )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
                 state,
                 key_store.key.get_inner(),
@@ -1084,7 +1093,7 @@ mod storage {
                 payment_method_id,
             )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
                 state,
                 key_store.key.get_inner(),
