@@ -184,6 +184,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     country_code: "".to_string(),
                     state: "".to_string(),
                 };
+                
 
                 let customer = Customer {
                     first_name: "".to_string(),
