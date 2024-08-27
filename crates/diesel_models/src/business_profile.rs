@@ -552,6 +552,7 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+    pub payout_test_mode: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

@@ -203,6 +203,12 @@ pub struct PayoutCreatePayoutLinkConfig {
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+
+    /// `test_mode` allows for opening payout links without any restrictions. This removes
+    /// - domain name validations
+    /// - check for making sure link is accessed within an iframe
+    #[schema(value_type = Option<bool>, example = false)]
+    pub test_mode: Option<bool>,
 }
 
 /// The payout method information required for carrying out a payout
@@ -775,6 +781,7 @@ pub struct PayoutLinkDetails {
     pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
     pub locale: String,
+    pub test_mode: bool,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -790,4 +797,5 @@ pub struct PayoutLinkStatusDetails {
     pub error_message: Option<String>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
+    pub test_mode: bool,
 }
