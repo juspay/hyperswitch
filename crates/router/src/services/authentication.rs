@@ -88,6 +88,11 @@ pub enum AuthenticationType {
         merchant_id: id_type::MerchantId,
         user_id: Option<String>,
     },
+    MerchantJwtWithProfileId {
+        merchant_id: id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+        user_id: Option<String>,
+    },
     UserJwt {
         user_id: String,
     },
@@ -137,6 +142,7 @@ impl AuthenticationType {
                 merchant_id,
                 user_id: _,
             }
+            | Self::MerchantJwtWithProfileId { merchant_id, .. }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id),
             Self::AdminApiKey
             | Self::UserJwt { .. }
@@ -1142,11 +1148,13 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        crate::core::utils::validate_profile_id_from_auth_layer(
-            payload.profile_id.clone(),
-            &crate::core::utils::ProfileIdWrapper(self.profile_id.clone()),
-        )
-        .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+        if payload
+            .profile_id
+            .as_ref()
+            .is_some_and(|profile_id| *profile_id != self.profile_id)
+        {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
 
         let permissions = authorization::get_permissions(state, &payload).await?;
         authorization::check_authorization(&self.required_permission, &permissions)?;
@@ -1180,8 +1188,9 @@ where
         };
         Ok((
             auth.clone(),
-            AuthenticationType::MerchantJwt {
+            AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
+                profile_id: auth.profile_id.clone(),
                 user_id: Some(payload.user_id),
             },
         ))
