@@ -478,10 +478,10 @@ pub enum RoutingKind {
     RoutingAlgorithm(Vec<RoutingDictionaryRecord>),
 }
 
-#[repr(transparent)]
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(transparent)]
-pub struct RoutingAlgorithmId(pub String);
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct RoutingAlgorithmId {
+    pub routing_algorithm_id: String,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingLinkWrapper {

@@ -3487,7 +3487,7 @@
         ]
       }
     },
-    "/routing/{algorithm_id}/activate": {
+    "/routing/{routing_algorithm_id}/activate": {
       "post": {
         "tags": [
           "Routing"
@@ -3497,7 +3497,7 @@
         "operationId": "Activate a routing config",
         "parameters": [
           {
-            "name": "algorithm_id",
+            "name": "routing_algorithm_id",
             "in": "path",
             "description": "The unique identifier for a config",
             "required": true,
@@ -3537,7 +3537,7 @@
         ]
       }
     },
-    "/routing/{algorithm_id}": {
+    "/routing/{routing_algorithm_id}": {
       "get": {
         "tags": [
           "Routing"
@@ -3547,7 +3547,7 @@
         "operationId": "Retrieve a routing config",
         "parameters": [
           {
-            "name": "algorithm_id",
+            "name": "routing_algorithm_id",
             "in": "path",
             "description": "The unique identifier for a config",
             "required": true,
