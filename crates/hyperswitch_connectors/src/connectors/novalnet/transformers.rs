@@ -13,11 +13,12 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::RouterData as OtherRouterData;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
-    utils::{self, missing_field_err, CardData as CardDataUtil},
+    utils::{
+        self, missing_field_err, CardData as CardDataUtil, PaymentsAuthorizeRequestData,
+        RouterData as OtherRouterData,
+    },
 };
 
 //TODO: Fill the struct with respective fields
@@ -184,7 +185,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     country_code: "".to_string(),
                     state: "".to_string(),
                 };
-                
 
                 let customer = Customer {
                     first_name: "".to_string(),

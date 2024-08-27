@@ -2,11 +2,11 @@ pub mod transformers;
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{BytesExt, ValueExt},
+    pii::IpAddress,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use common_utils::{ext_traits::ValueExt, pii::IpAddress};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},

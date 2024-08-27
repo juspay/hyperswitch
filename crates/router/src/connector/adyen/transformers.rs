@@ -1509,7 +1509,8 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
     for AdyenPaymentRequest<'a>
 {
     type Error = Error;
-    fn try_from(//
+    fn try_from(
+        //
         item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item
@@ -2985,7 +2986,7 @@ impl<'a>
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::WalletData,
-    )> for AdyenPaymentRequest<'a>//
+    )> for AdyenPaymentRequest<'a> //
 {
     type Error = Error;
     fn try_from(
