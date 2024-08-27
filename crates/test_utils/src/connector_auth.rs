@@ -51,6 +51,7 @@ pub struct ConnectorAuthentication {
     pub netcetera: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
     pub noon: Option<SignatureKey>,
+    pub novalnet: Option<HeaderKey>,
     pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
     pub opayo: Option<HeaderKey>,
