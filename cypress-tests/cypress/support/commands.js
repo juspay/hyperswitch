@@ -1419,6 +1419,14 @@ Cypress.Commands.add(
             response.body.status === "succeeded"
           ) {
             expect(response.body.attempts[key].status).to.equal("charged");
+          } else if (
+            response.body.attempts[key].attempt_id ===
+              `${payment_id}_${attempt}` &&
+            response.body.status === "requires_customer_action"
+          ) {
+            expect(response.body.attempts[key].status).to.equal(
+              "authentication_pending"
+            );
           } else {
             expect(response.body.attempts[key].status).to.equal("failure");
           }
