@@ -1,8 +1,8 @@
-use bigdecimal::ToPrimitive;
 use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::{self, ResultExt};
 pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
 use masking::Secret;
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
