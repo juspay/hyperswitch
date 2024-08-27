@@ -8445,7 +8445,8 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account"
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "maxLength": 64
           },
           "connector_account_details": {
             "allOf": [

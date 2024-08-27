@@ -7786,7 +7786,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "description": "The identifier for business profile. This must be used for creating merchant accounts, payments and payouts",
             "example": "pro_abcdefghijklmnopqrstuvwxyz",
             "maxLength": 64
           },
@@ -12510,7 +12510,7 @@
           },
           "default_profile": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
             "nullable": true,
             "maxLength": 64
           },
@@ -12548,7 +12548,8 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 64
           },
           "connector_account_details": {
             "allOf": [

@@ -56,7 +56,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    String,
+    common_utils::id_type::ProfileId,
     Option<domain::Customer>,
 )> {
     let merchant_id = merchant_account.get_id();
