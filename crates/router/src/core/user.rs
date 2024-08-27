@@ -1325,7 +1325,7 @@ pub async fn switch_merchant_id(
 ) -> UserResponse<user_api::DashboardEntryResponse> {
     if user_from_token.merchant_id == request.merchant_id {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
-            "User switching to same merchant id".to_string(),
+            "User switching to same merchant_id".to_string(),
         )
         .into());
     }
@@ -1557,7 +1557,7 @@ pub async fn list_users_for_merchant_account(
         .list_user_roles_by_merchant_id(&user_from_token.merchant_id, UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("No user roles for given merchant id")?
+        .attach_printable("No user roles for given merchant_id")?
         .into_iter()
         .map(|role| (role.user_id.clone(), role))
         .collect();
@@ -1569,7 +1569,7 @@ pub async fn list_users_for_merchant_account(
         .find_users_by_user_ids(user_ids)
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("No users for given merchant id")?;
+        .attach_printable("No users for given merchant_id")?;
 
     let users_and_user_roles: Vec<_> = users
         .into_iter()
@@ -2781,7 +2781,8 @@ pub async fn switch_org_for_user(
         &user_from_token.org_id,
     )
     .await
-    .change_context(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to retrieve role information")?;
 
     if role_info.get_entity_type() == EntityType::Internal {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
@@ -2801,11 +2802,12 @@ pub async fn switch_org_for_user(
             None,
         )
         .await
-        .change_context(UserErrors::InternalServerError)?
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to list user roles by user_id and org_id")?
         .into_iter()
         .find(|role| role.status == UserStatus::Active)
         .ok_or(UserErrors::InvalidRoleOperationWithMessage(
-            "No user role found for the requested org id".to_string(),
+            "No user role found for the requested org_id".to_string(),
         ))?
         .to_owned();
 
@@ -2819,9 +2821,11 @@ pub async fn switch_org_for_user(
                 request.org_id.get_string_repr(),
             )
             .await
-            .change_context(UserErrors::InternalServerError)?
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to list merchant accounts by organization id")?
             .first()
-            .ok_or(UserErrors::InternalServerError)?
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("No merchant account found for the given organization id")?
             .get_id()
             .clone()
     };
@@ -2837,7 +2841,8 @@ pub async fn switch_org_for_user(
                 &state.store.get_master_key().to_vec().into(),
             )
             .await
-            .change_context(UserErrors::InternalServerError)?;
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         state
             .store
@@ -2847,9 +2852,11 @@ pub async fn switch_org_for_user(
                 &merchant_id,
             )
             .await
-            .change_context(UserErrors::InternalServerError)?
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to list business profiles by merchant_id")?
             .first()
-            .ok_or(UserErrors::InternalServerError)?
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("No business profile found for the merchant_id")?
             .profile_id
             .clone()
     };
@@ -2864,7 +2871,7 @@ pub async fn switch_org_for_user(
     )
     .await?;
 
-    let _ = utils::user_role::set_role_permissions_in_cache_if_required(
+    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
         &state,
         &user_role.role_id,
         &merchant_id,
@@ -2900,7 +2907,8 @@ pub async fn switch_merchant_for_user_in_org(
         &user_from_token.org_id,
     )
     .await
-    .change_context(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to retrieve role information")?;
 
     let (org_id, merchant_id, profile_id, role_id) = match role_info.get_entity_type() {
         EntityType::Internal => {
@@ -2932,9 +2940,11 @@ pub async fn switch_merchant_for_user_in_org(
                     &request.merchant_id,
                 )
                 .await
-                .change_context(UserErrors::InternalServerError)?
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to list business profiles by merchant_id")?
                 .first()
-                .ok_or(UserErrors::InternalServerError)?
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("No business profile found for the given merchant_id")?
                 .profile_id
                 .clone();
 
@@ -2971,7 +2981,7 @@ pub async fn switch_merchant_for_user_in_org(
                 .then(|| request.merchant_id.clone())
                 .ok_or_else(|| {
                     UserErrors::InvalidRoleOperationWithMessage(
-                        "No such merchant id found for the user in the org".to_string(),
+                        "No such merchant_id found for the user in the org".to_string(),
                     )
                 })?;
 
@@ -2983,9 +2993,11 @@ pub async fn switch_merchant_for_user_in_org(
                     &merchant_id,
                 )
                 .await
-                .change_context(UserErrors::InternalServerError)?
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to list business profiles by merchant_id")?
                 .first()
-                .ok_or(UserErrors::InternalServerError)?
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("No business profile found for the merchant_id")?
                 .profile_id
                 .clone();
 
@@ -3009,11 +3021,14 @@ pub async fn switch_merchant_for_user_in_org(
                     None,
                 )
                 .await
-                .change_context(UserErrors::InternalServerError)?
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable(
+                    "Failed to list user roles for the given user_id, org_id and merchant_id",
+                )?
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
-                    "No user role associated with the requested merchant id".to_string(),
+                    "No user role associated with the requested merchant_id".to_string(),
                 ))?
                 .to_owned();
 
@@ -3028,7 +3043,8 @@ pub async fn switch_merchant_for_user_in_org(
                         &state.store.get_master_key().to_vec().into(),
                     )
                     .await
-                    .change_context(UserErrors::InternalServerError)?;
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
                 state
                     .store
@@ -3038,9 +3054,11 @@ pub async fn switch_merchant_for_user_in_org(
                         &request.merchant_id,
                     )
                     .await
-                    .change_context(UserErrors::InternalServerError)?
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to list business profiles for the given merchant_id")?
                     .first()
-                    .ok_or(UserErrors::InternalServerError)?
+                    .ok_or(UserErrors::InternalServerError)
+                    .attach_printable("No business profile found for the given merchant_id")?
                     .profile_id
                     .clone()
             };
@@ -3063,7 +3081,7 @@ pub async fn switch_merchant_for_user_in_org(
     )
     .await?;
 
-    let _ = utils::user_role::set_role_permissions_in_cache_if_required(
+    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
         &state,
         &role_id,
         &merchant_id,
@@ -3099,7 +3117,8 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         &user_from_token.org_id,
     )
     .await
-    .change_context(UserErrors::InternalServerError)?;
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to retrieve role information")?;
 
     let (profile_id, role_id) = match role_info.get_entity_type() {
         EntityType::Internal | EntityType::Organization | EntityType::Merchant => {
@@ -3111,7 +3130,8 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                     &state.store.get_master_key().to_vec().into(),
                 )
                 .await
-                .change_context(UserErrors::InternalServerError)?;
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
             let profile_id = state
                 .store
@@ -3141,7 +3161,8 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                     None,
                 )
                 .await
-                .change_context(UserErrors::InternalServerError)?
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to list user roles for the given user_id, org_id, merchant_id and profile_id")?
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
@@ -3163,7 +3184,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     )
     .await?;
 
-    let _ = utils::user_role::set_role_permissions_in_cache_if_required(
+    utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
         &state,
         &role_id,
         &user_from_token.merchant_id,
