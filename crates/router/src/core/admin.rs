@@ -4204,16 +4204,19 @@ impl BusinessProfileWrapper {
     pub fn get_default_fallback_list_of_connector_under_profile(
         &self,
     ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
-        use masking::ExposeOptionInterface;
-        self.profile
-            .default_fallback_routing
-            .clone()
-            .expose_option()
-            .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
-                "Vec<RoutableConnectorChoice>",
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant default config has invalid structure")
+        let fallback_connectors =
+            if let Some(default_fallback_routing) = self.profile.default_fallback_routing.clone() {
+                default_fallback_routing
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Merchant default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+        Ok(fallback_connectors)
     }
     pub fn get_default_routing_configs_from_profile(
         &self,
