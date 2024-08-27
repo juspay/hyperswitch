@@ -2711,6 +2711,7 @@ dependencies = [
 name = "diesel_models"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-bb8-diesel",
  "common_enums",
  "common_utils",

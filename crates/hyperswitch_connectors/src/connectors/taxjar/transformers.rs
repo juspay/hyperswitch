@@ -1,20 +1,18 @@
 use common_enums::enums;
-use common_utils::types::{FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, StringMinorUnit};
+use common_utils::types::{FloatMajorUnit, FloatMajorUnitForConnector};
 use error_stack::report;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::refunds::{Execute, RSync},
     router_request_types::PaymentsTaxCalculationData,
-    router_response_types::{RefundsResponseData, TaxCalculationResponseData},
+    router_response_types::TaxCalculationResponseData,
     types,
-    types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{api, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::ResponseRouterData,
     utils::{self, AddressDetailsData, RouterData as _},
 };
 

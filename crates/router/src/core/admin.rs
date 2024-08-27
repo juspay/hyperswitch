@@ -1827,7 +1827,7 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
                 .into());
             }
         } else if tax_connector.is_some() {
-            if self.connector_type != &api_enums::ConnectorType::FinOperations {
+            if self.connector_type != &api_enums::ConnectorType::TaxProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }

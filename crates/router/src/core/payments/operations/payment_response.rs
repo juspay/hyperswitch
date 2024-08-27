@@ -568,7 +568,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SessionUpdateData> fo
 
         println!("pmt_amount: {:?}", pmt_amount);
 
-        let total_amount = MinorUnit::from(payment_data.amount) + MinorUnit::new(pmt_amount);
+        let total_amount = MinorUnit::from(payment_data.amount) + pmt_amount;
 
         println!("total_amount: {:?}", total_amount);
 
@@ -587,7 +587,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SessionUpdateData> fo
                         ),
                         Some(
                             storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-                                amount: MinorUnit::new(pmt_amount),
+                                amount: pmt_amount,
                             },
                         ),
                     )

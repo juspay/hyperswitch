@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
     pii::Email,
+    types::keymanager::KeyManagerState,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::{
@@ -473,7 +474,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
-            shipping_details: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -524,26 +525,47 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        // _merchant_account: &storage::BusinessProfile,
+        business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
         // storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        // let db = state.store.as_ref();
-        let payment_intent = payment_data.payment_intent.clone();
+        let db = state.store.as_ref();
+        // let payment_intent = payment_data.payment_intent.clone();
+        let key_manager_state: &KeyManagerState = &state.into();
 
         // let attempt_id = payment_intent.active_attempt.get_id().clone();
 
-        let payment_attempt = payment_data.payment_attempt.clone();
+        // let payment_attempt = payment_data.payment_attempt.clone();
+
+        let merchant_connector_id = business_profile
+            .tax_connector_id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing business_profile.tax_connector_id")?;
+
+        let mca = db
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                key_manager_state,
+                &business_profile.merchant_id,
+                merchant_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.to_string(),
+            })?;
 
         // Derive this connector from business profile
-        let connector_data = api::TaxCalculateConnectorData::get_connector_by_name("klarna")?;
+        let connector_data =
+            api::TaxCalculateConnectorData::get_connector_by_name(&mca.connector_name)?;
 
         let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
             state,
             merchant_account,
             key_store,
             payment_data,
+            &mca,
             // &customer,
         )
         .await?;
@@ -576,7 +598,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
 
         payment_data.payment_intent.tax_details = Some(diesel_models::TaxDetails {
             default: Some(diesel_models::DefaultTax {
-                order_tax_amount: tax_response.order_tax_amount.get_amount_as_i64(),
+                order_tax_amount: tax_response.order_tax_amount,
             }),
             pmt: None,
         });

@@ -509,6 +509,8 @@ pub enum ConnectorType {
     PaymentMethodAuth,
     /// 3DS Authentication Service Providers
     AuthenticationProcessor,
+    /// Tax Calculation Processor
+    TaxProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]

@@ -857,6 +857,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
+    mca: &MerchantConnectorAccount,
     // customer: &'a Option<domain::Customer>,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
     let payment_intent = &payment_data.payment_intent.clone();
@@ -884,7 +885,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         key_store,
         &profile_id,
         // How do we derive the connector name?
-        "taxjar",
+        &mca.connector_name,
         // Take this from business profile
         payment_attempt.merchant_connector_id.as_ref(),
     )
@@ -902,7 +903,9 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
     // println!("$$$$$$ {:?}", add);
 
     let shipping_address = payment_data
-        .shipping_details
+        .tax_data
+        .clone()
+        .map(|tax_data| tax_data.shipping_details)
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing shipping_details")?;
@@ -934,7 +937,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         merchant_id: merchant_account.get_id().to_owned(),
         customer_id: payment_intent.customer_id.to_owned(),
         connector_customer: None,
-        connector: "taxjar".to_string(),
+        connector: mca.connector_name.clone(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,

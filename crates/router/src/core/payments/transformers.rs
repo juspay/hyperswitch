@@ -6,7 +6,7 @@ use api_models::payments::{
 };
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{consts::X_HS_LATENCY, fp_utils, pii::Email, types::MinorUnit};
-use diesel_models::{ephemeral_key, schema::payment_intent::tax_details};
+use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
@@ -105,14 +105,13 @@ where
 
     let unified_address =
         if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
-            let payment_method_billing =
-                crate::core::payment_methods::cards::decrypt_generic_data::<Address>(
-                    state,
-                    payment_method_info.payment_method_billing_address,
-                    key_store,
-                )
-                .await
-                .attach_printable("unable to decrypt payment method billing address details")?;
+            let payment_method_billing = decrypt_generic_data::<Address>(
+                state,
+                payment_method_info.payment_method_billing_address,
+                key_store,
+            )
+            .await
+            .attach_printable("unable to decrypt payment method billing address details")?;
             payment_data
                 .address
                 .clone()
@@ -489,13 +488,23 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
-        // let amount =  MinorUnit::from(payment_data.amount);
-        // let shipping_cost = payment_data.payment_intent.shipping_cost;
-        // let order_tax_amount =  MinorUnit::from(payment_data.payment_intent.tax_details.clone().and_then(|tax|tax.pmt.map(|a|a.order_tax_amount)));
+        let mut amount = MinorUnit::from(payment_data.amount);
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.pmt.map(|a| a.order_tax_amount));
+        if let Some(shipping_cost) = shipping_cost {
+            amount = amount + shipping_cost;
+        }
+        if let Some(order_tax_amount) = order_tax_amount {
+            amount = amount + order_tax_amount;
+        }
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 // order_tax_amount: payment_data.amount,
-                net_amount: MinorUnit::from(payment_data.amount),
+                net_amount: amount,
             },
             vec![],
         )))
@@ -1818,7 +1827,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SessionUpdateDat
             .tax_details
             .clone()
             .and_then(|tax| tax.pmt.map(|pmt| pmt.order_tax_amount))
-            .unwrap_or(0);
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing order_tax_amount")?;
         let amount = MinorUnit::from(payment_data.amount);
 
         println!("additional_data_order_tax_amount: {:?}", order_tax_amount);
@@ -1826,7 +1836,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SessionUpdateDat
         println!("additional_data_amount: {:?}", amount.get_amount_as_i64());
 
         Ok(Self {
-            net_amount: (amount.get_amount_as_i64()) + order_tax_amount, //need to change after we move to connector module
+            net_amount: amount + order_tax_amount, //need to change after we move to connector module
             order_tax_amount,
         })
     }

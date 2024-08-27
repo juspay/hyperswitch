@@ -1,3 +1,4 @@
+use api_models::enums;
 use common_enums::RequestIncrementalAuthorization;
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -145,14 +146,14 @@ common_utils::impl_to_sql_from_sql_json!(TaxDetails);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PmtTax {
-    pub order_tax_amount: i64,
-    pub pmt: String,
+    pub order_tax_amount: MinorUnit,
+    pub pmt: enums::PaymentMethodType,
     // pub shipping_details: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DefaultTax {
-    pub order_tax_amount: i64,
+    pub order_tax_amount: MinorUnit,
     // pub shipping_details: String,
 }
 

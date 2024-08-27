@@ -285,6 +285,7 @@ where
                 &mut payment_data,
                 &mut should_continue_transaction,
                 &connector_details,
+                &business_profile,
                 &key_store,
                 &merchant_account,
             )
@@ -2781,7 +2782,13 @@ where
     pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
-    pub shipping_details: Option<api_models::payments::Address>,
+    pub tax_data: Option<TaxData>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct TaxData {
+    pub shipping_details: api_models::payments::Address,
+    pub payment_method_type: enums::PaymentMethodType,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
