@@ -542,7 +542,7 @@ pub async fn delete_customer(
                     .switch()?;
 
                     if let Some(network_token_ref_id) = pm.network_token_requestor_reference_id {
-                        let resp = network_tokenization::delete_network_token_from_locker_and_token_service(
+                        let _resp = network_tokenization::delete_network_token_from_locker_and_token_service(
                             &state,
                             &req.customer_id,
                         merchant_account.get_id(),

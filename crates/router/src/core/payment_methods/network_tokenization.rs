@@ -204,7 +204,7 @@ pub async fn mk_tokenization_req(
     .attach_printable("Error on jwe encrypt")?;
 
     let order_data = OrderData {
-        consent_id: "test12324".to_string(), // ??
+        consent_id: uuid::Uuid::new_v4().to_string(),
         customer_id,
         amount,
         currency,

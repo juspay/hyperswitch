@@ -2556,8 +2556,8 @@ where
         .and_then(|inner| inner.mandate_reference_id.as_ref())
         .map(|mandate_reference| match mandate_reference {
             api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
-            api_models::payments::MandateReferenceId::NetworkMandateId(_) => false,
-            api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+            api_models::payments::MandateReferenceId::NetworkMandateId(_)
+            | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
         })
         .unwrap_or(false);
 
