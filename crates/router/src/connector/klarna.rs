@@ -60,6 +60,7 @@ impl ConnectorCommon for Klarna {
             auth.username.peek(),
             auth.password.peek()
         ));
+        logger::info!("<<>>encoded_api_key {:?}", encoded_api_key);
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}").into_masked(),
@@ -206,7 +207,8 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-
+        let x = format!("{endpoint}payments/v1/sessions");
+        logger::info!("<<>>endpoint {:?}", x);
         Ok(format!("{endpoint}payments/v1/sessions"))
     }
 
@@ -223,6 +225,7 @@ impl
         ))?;
 
         let connector_req = klarna::KlarnaSessionRequest::try_from(&connector_router_data)?;
+        logger::info!("<<>>connector_req {:?}", connector_req);
         // encode only for for urlencoded things.
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

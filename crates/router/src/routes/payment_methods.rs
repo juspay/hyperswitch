@@ -1,15 +1,3 @@
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
-    not(feature = "customer_v2")
-))]
-use actix_multipart::form::MultipartForm;
-use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{errors::CustomResult, id_type};
-use diesel_models::enums::IntentStatus;
-use error_stack::ResultExt;
-use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use router_env::{instrument, logger, tracing, Flow};
-
 use super::app::{AppState, SessionState};
 use crate::{
     core::{
@@ -33,6 +21,18 @@ use crate::{
     core::{customers, payment_methods::migration},
     types::api::customers::CustomerRequest,
 };
+#[cfg(all(
+    any(feature = "v1", feature = "v2", feature = "olap", feature = "oltp"),
+    not(feature = "customer_v2")
+))]
+use actix_multipart::form::MultipartForm;
+use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::payment_methods::PaymentMethodListRequestV2;
+use common_utils::{errors::CustomResult, id_type};
+use diesel_models::enums::IntentStatus;
+use error_stack::ResultExt;
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+use router_env::{instrument, logger, tracing, Flow};
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
@@ -229,6 +229,29 @@ pub async fn list_payment_method_api(
             cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_method_api_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Query<PaymentMethodListRequestV2>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            cards::list_payment_methods_v2(state, auth.merchant_account, auth.key_store, req)
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -468,7 +491,7 @@ pub async fn list_customer_payment_method_api_client(
             Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
             Err(e) => return api::log_and_return_error_response(e),
         };
-
+    logger::info!("<<>>list_customer_payment_method_api_client");
     Box::pin(api::server_wrap(
         flow,
         state,

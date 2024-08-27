@@ -225,7 +225,13 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
+<<<<<<< Updated upstream
     // Novalnet,
+=======
+
+    Novalnet,
+
+>>>>>>> Stashed changes
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,

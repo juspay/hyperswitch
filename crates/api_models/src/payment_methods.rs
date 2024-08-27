@@ -1,7 +1,10 @@
+<<<<<<< Updated upstream
 use std::collections::{HashMap, HashSet};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use std::str::FromStr;
 
+=======
+>>>>>>> Stashed changes
 use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
@@ -11,6 +14,7 @@ use common_utils::{
 };
 use masking::PeekInterface;
 use serde::de;
+use std::collections::{HashMap, HashSet};
 use utoipa::{schema, ToSchema};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -1309,6 +1313,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     }
 }
 
+<<<<<<< Updated upstream
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 //List Payment Method
 #[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
@@ -1318,26 +1323,49 @@ pub struct PaymentMethodListRequest {
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893eiu2d")]
     pub client_secret: Option<String>,
 
+=======
+//List Payment Method
+#[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentMethodListRequestV2 {
+>>>>>>> Stashed changes
     /// The two-letter ISO currency code
     #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
     pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
+<<<<<<< Updated upstream
     /// Filter by amount
     #[schema(example = 60)]
     pub amount: Option<MinorUnit>,
 
+=======
+>>>>>>> Stashed changes
     /// The three-letter ISO currency code
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
 
+<<<<<<< Updated upstream
+=======
+    /// Filter by amount
+    pub amount: Option<payments::Amount>,
+
+>>>>>>> Stashed changes
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
     pub recurring_enabled: Option<bool>,
 
+<<<<<<< Updated upstream
+=======
+    /// Indicates whether the payment method is eligible for installment payments
+    #[schema(example = true)]
+    pub installment_payment_enabled: Option<bool>,
+
+>>>>>>> Stashed changes
     /// Indicates whether the payment method is eligible for card netwotks
     #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 
+<<<<<<< Updated upstream
     /// Indicates the limit of last used payment methods
     #[schema(example = 1)]
     pub limit: Option<i64>,
@@ -1345,6 +1373,24 @@ pub struct PaymentMethodListRequest {
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
+=======
+    /// Indicates whether the payment method is eligible for recurring payments
+    /// Indicates whether the payment method is eligible for installment payments
+
+    /// Indicates the limit of last used payment methods
+    #[schema(example = 1)]
+    pub limit: Option<i64>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub mandate_id: Option<String>,
+    pub request_external_three_ds_authentication: Option<bool>,
+    pub currency: Option<api_enums::Currency>,
+    pub business_country: Option<api_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
+    pub profile_id: Option<String>,
+}
+
+impl<'de> serde::Deserialize<'de> for PaymentMethodListRequestV2 {
+>>>>>>> Stashed changes
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1352,7 +1398,11 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
         struct FieldVisitor;
 
         impl<'de> de::Visitor<'de> for FieldVisitor {
+<<<<<<< Updated upstream
             type Value = PaymentMethodListRequest;
+=======
+            type Value = PaymentMethodListRequestV2;
+>>>>>>> Stashed changes
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("Failed while deserializing as map")
@@ -1362,6 +1412,7 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
             where
                 A: de::MapAccess<'de>,
             {
+<<<<<<< Updated upstream
                 let mut output = PaymentMethodListRequest::default();
 
                 while let Some(key) = map.next_key()? {
@@ -1373,12 +1424,27 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
                                 map.next_value()?,
                             )?;
                         }
+=======
+                let mut output = PaymentMethodListRequestV2::default();
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+>>>>>>> Stashed changes
                         "accepted_countries" => match output.accepted_countries.as_mut() {
                             Some(inner) => inner.push(map.next_value()?),
                             None => {
                                 output.accepted_countries = Some(vec![map.next_value()?]);
                             }
                         },
+<<<<<<< Updated upstream
+=======
+                        "accepted_currencies" => match output.accepted_currencies.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => {
+                                output.accepted_currencies = Some(vec![map.next_value()?]);
+                            }
+                        },
+>>>>>>> Stashed changes
                         "amount" => {
                             set_or_reject_duplicate(
                                 &mut output.amount,
@@ -1386,12 +1452,15 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
                                 map.next_value()?,
                             )?;
                         }
+<<<<<<< Updated upstream
                         "accepted_currencies" => match output.accepted_currencies.as_mut() {
                             Some(inner) => inner.push(map.next_value()?),
                             None => {
                                 output.accepted_currencies = Some(vec![map.next_value()?]);
                             }
                         },
+=======
+>>>>>>> Stashed changes
                         "recurring_enabled" => {
                             set_or_reject_duplicate(
                                 &mut output.recurring_enabled,
@@ -1399,6 +1468,16 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
                                 map.next_value()?,
                             )?;
                         }
+<<<<<<< Updated upstream
+=======
+                        "installment_payment_enabled" => {
+                            set_or_reject_duplicate(
+                                &mut output.installment_payment_enabled,
+                                "installment_payment_enabled",
+                                map.next_value()?,
+                            )?;
+                        }
+>>>>>>> Stashed changes
                         "card_network" => match output.card_networks.as_mut() {
                             Some(inner) => inner.push(map.next_value()?),
                             None => output.card_networks = Some(vec![map.next_value()?]),
@@ -1406,6 +1485,58 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
                         "limit" => {
                             set_or_reject_duplicate(&mut output.limit, "limit", map.next_value()?)?;
                         }
+<<<<<<< Updated upstream
+=======
+                        "customer_id" => {
+                            set_or_reject_duplicate(
+                                &mut output.customer_id,
+                                "customer_id",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "mandate_id" => {
+                            set_or_reject_duplicate(
+                                &mut output.mandate_id,
+                                "mandate_id",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "request_external_three_ds_authentication" => {
+                            set_or_reject_duplicate(
+                                &mut output.request_external_three_ds_authentication,
+                                "request_external_three_ds_authentication",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "currency" => {
+                            set_or_reject_duplicate(
+                                &mut output.currency,
+                                "currency",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "business_country" => {
+                            set_or_reject_duplicate(
+                                &mut output.business_country,
+                                "business_country",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "business_label" => {
+                            set_or_reject_duplicate(
+                                &mut output.business_label,
+                                "business_label",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "profile_id" => {
+                            set_or_reject_duplicate(
+                                &mut output.profile_id,
+                                "profile_id",
+                                map.next_value()?,
+                            )?;
+                        }
+>>>>>>> Stashed changes
                         _ => {}
                     }
                 }

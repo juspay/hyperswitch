@@ -5,6 +5,7 @@ pub use api_models::payments::{
     OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
     PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
+<<<<<<< Updated upstream
     PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,
     PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
     PaymentsCompleteAuthorizeRequest, PaymentsExternalAuthenticationRequest,
@@ -13,6 +14,17 @@ pub use api_models::payments::{
     PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
     PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
     TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+=======
+    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+    PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+    PaymentsManualUpdateRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+    PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionRequestV2,
+    PaymentsSessionResponse, PaymentsSessionResponseV2, PaymentsStartRequest, PgRedirectResponse,
+    PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
+>>>>>>> Stashed changes
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{

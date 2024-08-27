@@ -34,10 +34,84 @@ impl<T> From<(StringMinorUnit, T)> for NovalnetRouterData<T> {
 }
 
 //TODO: Fill the struct with respective fields
+<<<<<<< Updated upstream
+=======
+//TODO: DG change optional types and correct types
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Address {
+    company: String,
+    house_no: String,
+    street: String,
+    city: String,
+    zip: String,
+    country_code: String,
+    state: String,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Merchant {
+    signature: String,
+    tariff: String,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Billing {
+    company: String,
+    house_no: String,
+    street: String,
+    city: String,
+    zip: String,
+    country_code: String,
+    state: String,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Customer {
+    first_name: String,
+    last_name: String,
+    email: String,
+    tel: String,
+    mobile: String,
+    billing: Billing,
+    customer_ip: String,
+    birth_date: String,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct PaymentData {
+    pan_hash: String,
+    unique_id: String,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Transaction {
+    test_mode: String,
+    payment_type: String,
+    amount: String,
+    currency: String,
+    order_no: String,
+    hook_url: String,
+    create_token: String,
+    payment_data: PaymentData,
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct Custom {
+    lang: String,
+}
+
+>>>>>>> Stashed changes
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct NovalnetPaymentsRequest {
     amount: StringMinorUnit,
     card: NovalnetCard,
+<<<<<<< Updated upstream
+=======
+    merchant: Option<Merchant>,
+    customer: Option<Customer>,
+    transaction: Option<Transaction>,
+    custom: Option<Custom>,
+>>>>>>> Stashed changes
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -49,14 +123,22 @@ pub struct NovalnetCard {
     complete: bool,
 }
 
+<<<<<<< Updated upstream
 impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaymentsRequest {
+=======
+impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaymentsRequest {//
+>>>>>>> Stashed changes
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &NovalnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
+<<<<<<< Updated upstream
                 let card = NovalnetCard {
+=======
+                let card = NovalnetCard {//
+>>>>>>> Stashed changes
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -66,6 +148,14 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 Ok(Self {
                     amount: item.amount.clone(),
                     card,
+<<<<<<< Updated upstream
+=======
+                    //TODO: get data from item
+                    merchant: None,
+                    customer: None,
+                    transaction: None,
+                    custom: None,
+>>>>>>> Stashed changes
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -79,7 +169,11 @@ pub struct NovalnetAuthType {
     pub(super) api_key: Secret<String>,
 }
 
+<<<<<<< Updated upstream
 impl TryFrom<&ConnectorAuthType> for NovalnetAuthType {
+=======
+impl TryFrom<&ConnectorAuthType> for NovalnetAuthType { //
+>>>>>>> Stashed changes
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -94,6 +188,7 @@ impl TryFrom<&ConnectorAuthType> for NovalnetAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+<<<<<<< Updated upstream
 pub enum NovalnetPaymentStatus {
     Succeeded,
     Failed,
@@ -107,14 +202,56 @@ impl From<NovalnetPaymentStatus> for common_enums::AttemptStatus {
             NovalnetPaymentStatus::Succeeded => Self::Charged,
             NovalnetPaymentStatus::Failed => Self::Failure,
             NovalnetPaymentStatus::Processing => Self::Authorizing,
+=======
+#[allow(non_camel_case_types)]
+pub enum NovalnetPaymentStatus {
+    SUCCESS,
+    FAILURE,
+    CONFIRMED,
+    ON_HOLD,
+    PENDING,
+    #[default]
+    DEACTIVATED,
+}
+
+
+impl From<NovalnetPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: NovalnetPaymentStatus) -> Self {
+        match item {
+            NovalnetPaymentStatus::SUCCESS => Self::Charged,
+            NovalnetPaymentStatus::CONFIRMED => Self::Authorizing,
+            _ => Self::Failure,
+>>>>>>> Stashed changes
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+<<<<<<< Updated upstream
 pub struct NovalnetPaymentsResponse {
     status: NovalnetPaymentStatus,
+=======
+pub struct ResultData {
+    redirect_url: String,
+    status: NovalnetPaymentStatus,
+    status_code: i32,
+    status_text: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TransactionData {
+    payment_type: String,
+    status_code: i32,
+    txn_secret: String,
+    tid: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NovalnetPaymentsResponse {
+    result: ResultData,
+    transaction: TransactionData,
+>>>>>>> Stashed changes
     id: String,
 }
 
@@ -126,8 +263,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
         item: ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
+<<<<<<< Updated upstream
             status: common_enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
+=======
+            status: common_enums::AttemptStatus::from(item.response.result.status),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                // resource_id: ResponseId::ConnectorTransactionId(item.response.transaction.tid),
+>>>>>>> Stashed changes
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,

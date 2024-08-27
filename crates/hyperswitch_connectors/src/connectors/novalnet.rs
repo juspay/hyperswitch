@@ -116,7 +116,11 @@ impl ConnectorCommon for Novalnet {
         let auth = novalnet::NovalnetAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
+<<<<<<< Updated upstream
             headers::AUTHORIZATION.to_string(),
+=======
+            headers::X_NN_ACCESS_KEY.to_string(),
+>>>>>>> Stashed changes
             auth.api_key.expose().into_masked(),
         )])
     }
@@ -164,9 +168,23 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
+<<<<<<< Updated upstream
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
+=======
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+>>>>>>> Stashed changes
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -176,9 +194,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
+<<<<<<< Updated upstream
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+=======
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/authorize", endpoint))
+>>>>>>> Stashed changes
     }
 
     fn get_request_body(
@@ -193,7 +218,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = novalnet::NovalnetRouterData::from((amount, req));
+<<<<<<< Updated upstream
         let connector_req = novalnet::NovalnetPaymentsRequest::try_from(&connector_router_data)?;
+=======
+        let connector_req = novalnet::NovalnetPaymentsRequest::try_from(&connector_router_data)?; //
+>>>>>>> Stashed changes
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -219,6 +248,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         ))
     }
 
+<<<<<<< Updated upstream
+=======
+    //what to do here?
+>>>>>>> Stashed changes
     fn handle_response(
         &self,
         data: &PaymentsAuthorizeRouterData,
@@ -310,14 +343,73 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
         self.build_error_response(res, event_builder)
     }
 }
+<<<<<<< Updated upstream
+=======
+use serde::Serialize;
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct NovalnetCapture {
+    pub type_: Option<String>, // Renamed to avoid conflict with the reserved keyword `type`
+    pub reference: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct NovalnetTransaction {
+    pub tid: String,
+    // pub amount: Option<String>,
+    // pub invoice_no: Option<String>,
+    // pub invoice_ref: Option<String>,
+    // pub order_no: Option<String>,
+    // pub capture: Option<Capture>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct Custom {
+    pub lang: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct NovalnetCaptureRequest {
+    pub transaction: NovalnetTransaction,
+    pub custom: Custom,
+}
+
+impl TryFrom<&novalnet::NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptureRequest {
+    //
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        _item: &novalnet::NovalnetRouterData<&PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            custom: Custom { lang: None },
+            transaction: NovalnetTransaction {
+                tid: "".to_string(),
+            },
+        })
+    }
+}
+>>>>>>> Stashed changes
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Novalnet {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
+<<<<<<< Updated upstream
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
+=======
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+>>>>>>> Stashed changes
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -327,17 +419,39 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
+<<<<<<< Updated upstream
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+=======
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/transaction/capture", endpoint))
+>>>>>>> Stashed changes
     }
 
     fn get_request_body(
         &self,
+<<<<<<< Updated upstream
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+=======
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = novalnet::NovalnetRouterData::from((amount, req));
+        let connector_req = NovalnetCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+>>>>>>> Stashed changes
     }
 
     fn build_request(

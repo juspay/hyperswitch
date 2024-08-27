@@ -113,6 +113,7 @@ pub enum Connector {
     Netcetera,
     Nexinets,
     Nmi,
+    Novalnet,
     Noon,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -244,6 +245,7 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
+            | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
 			| Self::Paybox
