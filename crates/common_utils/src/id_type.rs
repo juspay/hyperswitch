@@ -6,6 +6,7 @@ use std::{borrow::Cow, fmt::Debug};
 mod customer;
 mod merchant;
 mod organization;
+mod profile;
 
 mod global_id;
 
@@ -19,6 +20,7 @@ use diesel::{
 };
 pub use merchant::MerchantId;
 pub use organization::OrganizationId;
+pub use profile::ProfileId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -196,6 +198,12 @@ where
         let string_val = String::from_sql(value)?;
         Ok(Self(AlphaNumericId::new_unchecked(string_val)))
     }
+}
+
+/// An interface to generate object identifiers.
+pub trait GenerateId {
+    /// Generates a random object identifier.
+    fn generate() -> Self;
 }
 
 #[cfg(test)]

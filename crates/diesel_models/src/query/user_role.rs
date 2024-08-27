@@ -83,7 +83,7 @@ impl UserRole {
         user_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
-        profile_id: Option<String>,
+        profile_id: Option<id_type::ProfileId>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
@@ -116,7 +116,7 @@ impl UserRole {
         user_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
-        profile_id: Option<String>,
+        profile_id: Option<id_type::ProfileId>,
         update: UserRoleUpdate,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
@@ -156,7 +156,7 @@ impl UserRole {
         user_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
-        profile_id: Option<String>,
+        profile_id: Option<id_type::ProfileId>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
@@ -190,7 +190,7 @@ impl UserRole {
         user_id: String,
         org_id: Option<id_type::OrganizationId>,
         merchant_id: Option<id_type::MerchantId>,
-        profile_id: Option<String>,
+        profile_id: Option<id_type::ProfileId>,
         entity_id: Option<String>,
         version: Option<UserRoleVersion>,
     ) -> StorageResult<Vec<Self>> {
