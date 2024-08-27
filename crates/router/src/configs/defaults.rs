@@ -150,8 +150,7 @@ impl Default for Mandates {
                         enums::PaymentMethodType::Klarna,
                         SupportedConnectorsForMandate {
                             connector_list: HashSet::from([
-                                enums::Connector::Adyen,
-                                enums::Connector::Stripe,
+                                enums::Connector::Adyen
                             ]),
                         },
                     )])),
