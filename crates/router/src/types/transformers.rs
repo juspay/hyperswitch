@@ -296,7 +296,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
-            // api_enums::Connector::Taxjar => Self::Taxjar,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
@@ -321,7 +320,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::DummyConnector6 => Self::DummyConnector6,
             #[cfg(feature = "dummy_connector")]
             api_enums::Connector::DummyConnector7 => Self::DummyConnector7,
-            api_enums::Connector::Threedsecureio => {
+            api_enums::Connector::Threedsecureio | api_enums::Connector::Taxjar => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "threedsecureio is not a routable connector".to_string(),
                 })?

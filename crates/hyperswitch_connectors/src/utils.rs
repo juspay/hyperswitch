@@ -146,6 +146,16 @@ pub(crate) fn convert_amount<T>(
         .change_context(errors::ConnectorError::AmountConversionFailed)
 }
 
+pub(crate) fn convert_back_amount_to_minor_units<T>(
+    amount_convertor: &dyn AmountConvertor<Output = T>,
+    amount: T,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<errors::ConnectorError>> {
+    amount_convertor
+        .convert_back(amount, currency)
+        .change_context(errors::ConnectorError::AmountConversionFailed)
+}
+
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
 pub trait RouterData {
     fn get_billing(&self) -> Result<&Address, Error>;

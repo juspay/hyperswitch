@@ -4454,6 +4454,8 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     /// Client Secret
     #[schema(value_type = String)]
     pub client_secret: String,
+    /// Payment method type
+    pub payment_method_type: api_enums::PaymentMethodType,
 }
 /// Response for calling tax jar API
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

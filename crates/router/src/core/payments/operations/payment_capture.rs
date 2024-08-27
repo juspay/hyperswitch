@@ -242,6 +242,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            shipping_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

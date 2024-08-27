@@ -29,7 +29,10 @@ use crate::core::payments;
 use crate::{
     configs::Settings,
     consts,
-    core::errors::{self, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, RouterResult, StorageErrorExt},
+        payments::PaymentData,
+    },
     db::StorageInterface,
     routes::SessionState,
     types::{
@@ -830,14 +833,16 @@ pub async fn construct_upload_file_router_data<'a>(
     Ok(router_data)
 }
 
-pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
+pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
     state: &'a SessionState,
-    payment_intent: &'a storage::PaymentIntent,
-    payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
+    payment_data: &mut PaymentData<F>,
     // customer: &'a Option<domain::Customer>,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
+    let payment_intent = &payment_data.payment_intent.clone();
+    let payment_attempt = &payment_data.payment_attempt.clone();
+
     let key_manager_state = &state.into();
     let profile_id = get_profile_id_from_business_details(
         key_manager_state,
@@ -859,7 +864,9 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         None,
         key_store,
         &profile_id,
-        payment_attempt.connector.as_ref().unwrap(),
+        // How do we derive the connector name?
+        "taxjar",
+        // Take this from business profile
         payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
@@ -872,41 +879,40 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let shipping: Address = payment_intent
-        .shipping_details
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Missing payment_intent.shipping_details")?
-        .into_inner()
-        .expose()
-        .parse_value("Address")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while parsing value for shipping_details")?;
 
-    let order: Option<Result<Vec<OrderDetailsWithAmount>, _>> =
-        payment_intent.order_details.clone().map(|o| {
-            o.into_iter()
-                .map(|order| {
-                    order
-                        .expose()
+    let add = payment_data.address.clone();
+    // println!("$$$$$$ {:?}", add);
+
+    let shipping_address  = payment_data.shipping_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("Missing shipping_details")?;
+
+    println!("$$$$$$shipping_address {:?}", shipping_address);
+
+    let order_details: Option<Vec<OrderDetailsWithAmount>> = payment_intent
+        .order_details
+        .clone()
+        .map(|order_details| {
+            order_details
+                .iter()
+                .map(|data| {
+                    data.to_owned()
                         .parse_value("OrderDetailsWithAmount")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "OrderDetailsWithAmount",
+                        })
+                        .attach_printable("Unable to parse OrderDetailsWithAmount")
                 })
-                .collect()
-        });
-    let order_details = order.map_or(Ok(None), |r| r.map(Some))?;
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+
+    println!("$$$$$$order2 {:?}", order_details);
 
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
         customer_id: payment_intent.customer_id.to_owned(),
         connector_customer: None,
-        connector: payment_attempt
-            .connector
-            .clone()
-            .clone()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing connector")?,
+        connector: "taxjar".to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
@@ -914,7 +920,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         connector_auth_type,
         description: payment_intent.description.clone(),
         return_url: payment_intent.return_url.clone(),
-        address: PaymentAddress::default(),
+        address: add,
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: None,
         connector_wallets_details: None,
@@ -935,11 +941,11 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
                 .shipping_cost
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing shipping_cost")?,
-            shipping,
             order_details,
             currency: payment_intent
                 .currency
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?,
+            shipping_address,
         },
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(
@@ -963,6 +969,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a>(
         minor_amount_captured: payment_intent.amount_captured,
         integrity_check: Ok(()),
     };
+    println!("$$$$$$ {:?}", router_data);
     Ok(router_data)
 }
 

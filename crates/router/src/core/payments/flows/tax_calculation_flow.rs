@@ -30,6 +30,8 @@ impl
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::SessionUpdateRouterData> {
         // create a new function to construct router data to send the updated amount
+
+        println!("Constructing router data for session update");
         Box::pin(
             transformers::construct_router_date_to_update_calculated_tax::<
                 api::SessionUpdate,

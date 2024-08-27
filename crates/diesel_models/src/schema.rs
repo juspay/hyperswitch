@@ -900,8 +900,8 @@ diesel::table! {
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
         shipping_details -> Nullable<Bytea>,
-        shipping_cost -> Nullable<Int8>,
         is_payment_processor_token_flow -> Nullable<Bool>,
+        shipping_cost -> Nullable<Int8>,
         tax_details -> Nullable<Jsonb>,
     }
 }

@@ -507,7 +507,7 @@ pub struct FloatMajorUnit(f64);
 
 impl FloatMajorUnit {
     /// forms a new major unit from amount
-    fn new(value: f64) -> Self {
+    pub fn new(value: f64) -> Self {
         Self(value)
     }
 
@@ -517,7 +517,7 @@ impl FloatMajorUnit {
     }
 
     /// converts to minor unit as i64 from FloatMajorUnit
-    fn to_minor_unit_as_i64(
+    pub fn to_minor_unit_as_i64(
         self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {

@@ -452,7 +452,6 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                // enums::Connector::Taxjar => Ok(ConnectorEnum::Old(Box::new(connector::Taxjar))),
                 enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
@@ -494,7 +493,8 @@ impl ConnectorData {
                 enums::Connector::Signifyd
                 | enums::Connector::Riskified
                 | enums::Connector::Gpayments
-                | enums::Connector::Threedsecureio => {
+                | enums::Connector::Threedsecureio
+                | enums::Connector::Taxjar => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -607,7 +607,7 @@ impl TaxCalculateConnectorData {
         connector_name: enums::TaxCalculatorConnectors,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
-            enums::TaxCalculatorConnectors::TaxJar => {
+            enums::TaxCalculatorConnectors::Taxjar => {
                 Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
             }
         }

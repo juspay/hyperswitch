@@ -473,6 +473,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
+            shipping_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -536,16 +537,13 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         let payment_attempt = payment_data.payment_attempt.clone();
 
         // Derive this connector from business profile
-        let connector_data = api::TaxCalculateConnectorData::get_connector_by_name(
-            payment_attempt.connector.as_ref().unwrap(),
-        )?;
+        let connector_data = api::TaxCalculateConnectorData::get_connector_by_name("klarna")?;
 
         let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
             state,
-            &payment_intent,
-            &payment_attempt,
             merchant_account,
             key_store,
+            payment_data,
             // &customer,
         )
         .await?;
@@ -576,13 +574,12 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
                     reason: err.reason,
                 })?;
 
-        payment_data
-            .payment_intent
-            .tax_details
-            .clone()
-            .map(|mut tax_details| {
-                tax_details.default.order_tax_amount = tax_response.order_tax_amount;
-            });
+        payment_data.payment_intent.tax_details = Some(diesel_models::TaxDetails {
+            default: Some(diesel_models::DefaultTax {
+                order_tax_amount: tax_response.order_tax_amount.get_amount_as_i64(),
+            }),
+            pmt: None,
+        });
 
         Ok(())
     }

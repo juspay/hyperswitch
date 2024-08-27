@@ -129,15 +129,15 @@ pub struct PaymentIntent {
     pub billing_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
-    pub shipping_cost: Option<MinorUnit>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub shipping_cost: Option<MinorUnit>,
     pub tax_details: Option<TaxDetails>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct TaxDetails {
-    pub default: DefaultTax,
+    pub default: Option<DefaultTax>,
     pub pmt: Option<PmtTax>,
 }
 
@@ -146,14 +146,14 @@ common_utils::impl_to_sql_from_sql_json!(TaxDetails);
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PmtTax {
     pub order_tax_amount: i64,
-    pub shipping_details: String,
+    pub pmt: String,
+    // pub shipping_details: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DefaultTax {
     pub order_tax_amount: i64,
-    pub pmt: Option<String>,
-    pub shipping_details: String,
+    // pub shipping_details: String,
 }
 
 #[derive(

@@ -51,7 +51,7 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    let (payment_method, router_data);
+    // let (payment_method, router_data);
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -65,11 +65,11 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    payment_method = payment_data
-        .payment_attempt
-        .payment_method
-        .or(payment_data.payment_attempt.payment_method)
-        .get_required_value("payment_method_type")?;
+    // payment_method = payment_data
+    //     .payment_attempt
+    //     .payment_method
+    //     .or(payment_data.payment_attempt.payment_method)
+    //     .get_required_value("payment_method_type")?;
 
     let resource_id = match payment_data
         .payment_attempt
@@ -120,7 +120,9 @@ where
             payment_data.address
         };
 
-    router_data = types::RouterData {
+        println!("unified_address {:?}", unified_address);
+
+    let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
@@ -128,7 +130,7 @@ where
         payment_id: payment_data.payment_attempt.payment_id.clone(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
-        payment_method,
+        payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
@@ -1789,6 +1791,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SessionUpdateDat
             .and_then(|tax_details| tax_details.pmt.map(|pmt| pmt.order_tax_amount))
             .unwrap_or(0);
         let amount = MinorUnit::from(payment_data.amount);
+
+         println!("additional_data_order_tax_amount: {:?}", order_tax_amount);
+
+        println!("additional_data_amount: {:?}", amount.get_amount_as_i64());
+
         Ok(Self {
             net_amount: (amount.get_amount_as_i64()) + order_tax_amount, //need to change after we move to connector module
             order_tax_amount,

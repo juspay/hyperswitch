@@ -474,11 +474,6 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
     },
-    // SessionUpdate {
-    //     amount: MinorUnit,
-    // //     order_tax_amount: MinorUnit,
-    // //     payment_method_shipping_address_id: Option<String>,
-    // },
 }
 
 impl ForeignIDRef for PaymentAttempt {

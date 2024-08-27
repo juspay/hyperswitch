@@ -4,7 +4,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -39,16 +39,17 @@ use masking::{Mask, PeekInterface};
 use transformers as taxjar;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
+// use crate::utils::
 
 #[derive(Clone)]
 pub struct Taxjar {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Taxjar {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -136,9 +137,9 @@ impl ConnectorCommon for Taxjar {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.status.clone(),
+            message: response.detail.clone(),
+            reason: Some(response.detail),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -173,9 +174,9 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
     fn get_url(
         &self,
         _req: &PaymentsTaxCalculationRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}taxes", self.base_url(connectors)))
     }
     fn get_request_body(
         &self,
@@ -188,8 +189,18 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
             req.request.currency,
         )?;
 
-        let connector_router_data = taxjar::TaxjarRouterData::from((amount, req));
+        let shipping = utils::convert_amount(
+            self.amount_converter,
+            req.request.shipping_cost,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = taxjar::TaxjarRouterData::from((amount, shipping, req));
         let connector_req = taxjar::TaxjarPaymentsRequest::try_from(&connector_router_data)?;
+    let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
     fn build_request(
@@ -220,6 +231,7 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsTaxCalculationRouterData, errors::ConnectorError> {
+        print!("response123_connector{:?}", res.response);
         let response: taxjar::TaxjarPaymentsResponse = res
             .response
             .parse_struct("Taxjar PaymentsAuthorizeResponse")

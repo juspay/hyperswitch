@@ -192,18 +192,29 @@ where
     )
     .await?;
 
-    let connector = get_connector_choice(
-        &operation,
-        state,
-        &req,
-        &merchant_account,
-        &business_profile,
-        &key_store,
-        &mut payment_data,
-        eligible_connectors,
-        mandate_type,
-    )
-    .await?;
+    let connector = if format!("{operation:?}").as_str() == "PaymentSessionUpdate" {
+        Some(ConnectorCallType::PreDetermined(
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                "klarna",
+                api::GetToken::Connector,
+                None,
+            )?,
+        ))
+    } else {
+        get_connector_choice(
+            &operation,
+            state,
+            &req,
+            &merchant_account,
+            &business_profile,
+            &key_store,
+            &mut payment_data,
+            eligible_connectors,
+            mandate_type,
+        )
+        .await?
+    };
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
@@ -836,69 +847,6 @@ where
         })
     }
 }
-// pub async fn payments_dynamic_tax_calculation<F, Res, Req, Op, FData>(
-//     state: SessionState,
-//     req_state: ReqState,
-//     merchant_account: domain::MerchantAccount,
-//     key_store: domain::MerchantKeyStore,
-//     operation: Op,
-//     req: api_models::payments::PaymentsDynamicTaxCalculationRequest,
-//     auth_flow: services::AuthFlow,
-//     call_connector_action: CallConnectorAction,
-//     eligible_connectors: Option<Vec<enums::Connector>>,
-//     customer: &Option<domain::Customer>,
-//     // header_payload: HeaderPayload,
-// ) -> RouterResponse<api_models::payments::PaymentsDynamicTaxCalculationResponse> {
-
-//     let db = &state.store;
-//     let payment_intent = db
-//         .find_payment_intent_by_payment_id_merchant_id(
-//             &(&state).into(),
-//             &req.payment_id.clone(),
-//             &merchant_account.merchant_id,
-//             &key_store,
-//             merchant_account.storage_scheme,
-//         )
-//         .await
-//         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-//     let attempt_id = payment_intent.active_attempt.get_id().clone();
-//     let payment_attempt = db
-//         .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-//             &payment_intent.payment_id,
-//             &merchant_account.merchant_id,
-//             &attempt_id.clone(),
-//             merchant_account.storage_scheme,
-//         )
-//         .await
-//         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-//     let connector_data = api::TaxCalculateConnectorData::get_connector_by_name(
-//        payment_attempt.connector.as_ref().unwrap(),
-//     )?;
-//     let router_data = utils::construct_payments_dynamic_tax_calculation_router_data(
-//         &state,
-//         &payment_intent,
-//         &payment_attempt,
-//         &merchant_account,
-//         &key_store,
-//         &customer,
-//     )
-//     .await?;
-//     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<api::CalculateTax, router_types::PaymentsTaxCalculationData, router_types::PaymentsResponseData,> = connector_data.connector.get_connector_integration();
-//     let response = services::execute_connector_processing_step(
-//         &state,
-//         connector_integration,
-//         &router_data,
-//         CallConnectorAction::Trigger,
-//         None,
-//     )
-//     .await.change_context(errors::ApiErrorResponse::InternalServerError)?;
-// Ok(services::ApplicationResponse::Json(
-//     api_models::payments::PaymentsDynamicTaxCalculationResponse {
-//         order_tax_amount: response.amount_captured.unwrap_or_default(),
-//         net_amount: response.amount_captured.unwrap_or_default(),
-//     }
-// ))
-// }
 
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
@@ -2834,6 +2782,7 @@ where
     pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
+    pub shipping_details: Option<api_models::payments::Address>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -2969,7 +2918,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentApprove" => true,
         "PaymentReject" => true,
         "PaymentSession" => true,
-        "PaymentTaxCalculation" => true,
+        "PaymentSessionUpdate" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.payment_intent.status,
             storage_enums::IntentStatus::RequiresCapture

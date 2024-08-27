@@ -609,9 +609,14 @@ pub async fn payments_dynamic_tax_calculation(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsDynamicTaxCalculationRequest>,
+    path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::PaymentsDynamicTaxCalculation;
-    let payload = json_payload.into_inner();
+    let payment_id = path.into_inner();
+    let payload = payment_types::PaymentsDynamicTaxCalculationRequest {
+        payment_id,
+        ..json_payload.into_inner()
+    };
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(error) => {

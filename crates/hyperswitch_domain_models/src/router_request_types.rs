@@ -779,8 +779,8 @@ pub struct PaymentsTaxCalculationData {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub shipping_cost: MinorUnit,
-    pub shipping: Address,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub shipping_address: Address,
     // New amount for amount frame work
     // pub minor_amount: MinorUnit,
 }
