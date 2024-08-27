@@ -184,16 +184,44 @@ impl ConnectorCommon for Fiservemea {
         router_env::logger::info!(connector_response=?response);
 
         match response.error {
-            Some(error) => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error.code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                message: response
-                    .response_type
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                reason: error.message,
-                attempt_status: None,
-                connector_transaction_id: None,
-            }),
+            Some(error) => {
+                let details = error.details.map(|details| {
+                    details
+                        .iter()
+                        .map(|detail| {
+                            format!(
+                                "{}: {}",
+                                detail
+                                    .field
+                                    .clone()
+                                    .unwrap_or("No Field Provided".to_string()),
+                                detail
+                                    .message
+                                    .clone()
+                                    .unwrap_or("No Message Provided".to_string())
+                            )
+                        })
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                });
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: error.code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .response_type
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: match details {
+                        Some(details) => Some(format!(
+                            "{} {}",
+                            error.message.unwrap_or("".to_string()),
+                            details
+                        )),
+                        None => error.message,
+                    },
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                })
+            }
             None => Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),
