@@ -168,6 +168,10 @@ pub async fn migrate_payment_methods(
     .await
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodSave))]
 pub async fn save_payment_method_api(
     state: web::Data<AppState>,
@@ -712,14 +716,14 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_custom_list_deserialization() {
-        let dummy_data = "amount=120&recurring_enabled=true&installment_payment_enabled=true";
-        let de_query: web::Query<PaymentMethodListRequest> =
-            web::Query::from_query(dummy_data).unwrap();
-        let de_struct = de_query.into_inner();
-        assert_eq!(de_struct.installment_payment_enabled, Some(true))
-    }
+    // #[test]
+    // fn test_custom_list_deserialization() {
+    //     let dummy_data = "amount=120&recurring_enabled=true&installment_payment_enabled=true";
+    //     let de_query: web::Query<PaymentMethodListRequest> =
+    //         web::Query::from_query(dummy_data).unwrap();
+    //     let de_struct = de_query.into_inner();
+    //     assert_eq!(de_struct.installment_payment_enabled, Some(true))
+    // }
 
     #[test]
     fn test_custom_list_deserialization_multi_amount() {

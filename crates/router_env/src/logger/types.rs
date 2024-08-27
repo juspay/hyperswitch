@@ -456,6 +456,12 @@ pub enum Flow {
     SignInWithSso,
     /// Auth Select
     AuthSelect,
+    /// List Orgs for user
+    ListOrgForUser,
+    /// List Merchants for user in org
+    ListMerchantsForUserInOrg,
+    /// List Profile for user in org and merchant
+    ListProfileForUserInOrgAndMerchant,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

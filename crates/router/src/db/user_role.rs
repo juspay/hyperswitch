@@ -47,7 +47,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
@@ -56,7 +56,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
@@ -66,9 +66,19 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
+
+    async fn list_user_roles(
+        &self,
+        user_id: &str,
+        org_id: Option<&id_type::OrganizationId>,
+        merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&id_type::ProfileId>,
+        entity_id: Option<&String>,
+        version: Option<enums::UserRoleVersion>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -145,7 +155,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -167,7 +177,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
@@ -191,7 +201,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -201,6 +211,29 @@ impl UserRoleInterface for Store {
             org_id.to_owned(),
             merchant_id.to_owned(),
             profile_id.cloned(),
+            version,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_user_roles(
+        &self,
+        user_id: &str,
+        org_id: Option<&id_type::OrganizationId>,
+        merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&id_type::ProfileId>,
+        entity_id: Option<&String>,
+        version: Option<enums::UserRoleVersion>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::UserRole::generic_user_roles_list(
+            &conn,
+            user_id.to_owned(),
+            org_id.cloned(),
+            merchant_id.cloned(),
+            profile_id.cloned(),
+            entity_id.cloned(),
             version,
         )
         .await
@@ -344,7 +377,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
@@ -383,7 +416,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
@@ -437,7 +470,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
@@ -470,5 +503,52 @@ impl UserRoleInterface for MockDb {
             )
             .into()),
         }
+    }
+
+    async fn list_user_roles(
+        &self,
+        user_id: &str,
+        org_id: Option<&id_type::OrganizationId>,
+        merchant_id: Option<&id_type::MerchantId>,
+        profile_id: Option<&id_type::ProfileId>,
+        entity_id: Option<&String>,
+        version: Option<enums::UserRoleVersion>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let user_roles = self.user_roles.lock().await;
+
+        let filtered_roles: Vec<_> = user_roles
+            .iter()
+            .filter_map(|role| {
+                let mut filter_condition = role.user_id == user_id;
+
+                role.org_id
+                    .as_ref()
+                    .zip(org_id)
+                    .inspect(|(role_org_id, org_id)| {
+                        filter_condition = filter_condition && role_org_id == org_id
+                    });
+                role.merchant_id.as_ref().zip(merchant_id).inspect(
+                    |(role_merchant_id, merchant_id)| {
+                        filter_condition = filter_condition && role_merchant_id == merchant_id
+                    },
+                );
+                role.profile_id.as_ref().zip(profile_id).inspect(
+                    |(role_profile_id, profile_id)| {
+                        filter_condition = filter_condition && role_profile_id == profile_id
+                    },
+                );
+                role.entity_id
+                    .as_ref()
+                    .zip(entity_id)
+                    .inspect(|(role_entity_id, entity_id)| {
+                        filter_condition = filter_condition && role_entity_id == entity_id
+                    });
+                version.inspect(|ver| filter_condition = filter_condition && ver == &role.version);
+
+                filter_condition.then(|| role.to_owned())
+            })
+            .collect();
+
+        Ok(filtered_roles)
     }
 }

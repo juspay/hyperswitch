@@ -128,7 +128,7 @@ pub async fn should_call_frm<F: Send + Clone>(
 ) -> RouterResult<(
     bool,
     Option<FrmRoutingAlgorithm>,
-    Option<String>,
+    Option<common_utils::id_type::ProfileId>,
     Option<FrmConfigsObject>,
 )> {
     // Frm routing algorithm is not present in the merchant account
@@ -145,7 +145,7 @@ pub async fn should_call_frm<F: Send + Clone>(
 ) -> RouterResult<(
     bool,
     Option<FrmRoutingAlgorithm>,
-    Option<String>,
+    Option<common_utils::id_type::ProfileId>,
     Option<FrmConfigsObject>,
 )> {
     use common_utils::ext_traits::OptionExt;
@@ -327,7 +327,7 @@ pub async fn should_call_frm<F: Send + Clone>(
                             Ok((
                                 is_frm_enabled,
                                 Some(frm_routing_algorithm_struct),
-                                Some(profile_id.to_string()),
+                                Some(profile_id),
                                 Some(frm_configs_object),
                             ))
                         }
@@ -354,7 +354,7 @@ pub async fn make_frm_data_and_fraud_check_operation<'a, F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: payments::PaymentData<F>,
     frm_routing_algorithm: FrmRoutingAlgorithm,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     frm_configs: FrmConfigsObject,
     _customer: &Option<domain::Customer>,
 ) -> RouterResult<FrmInfo<F>>

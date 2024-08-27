@@ -141,7 +141,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(
                 errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.to_string(),
+                    id: profile_id.get_string_repr().to_owned(),
                 },
             )?
         };
@@ -952,7 +952,7 @@ impl PaymentCreate {
         payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
-        profile_id: String,
+        profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1152,7 +1152,7 @@ impl PaymentCreate {
         payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
-        profile_id: String,
+        profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
@@ -1364,7 +1364,7 @@ async fn create_payment_link(
     db: &dyn StorageInterface,
     amount: api::Amount,
     description: Option<String>,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     domain_name: String,
     session_expiry: PrimitiveDateTime,
     locale: Option<String>,
