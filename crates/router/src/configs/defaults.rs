@@ -1011,9 +1011,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "email".to_string(),
+                                                "billing.email".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "email".to_string(),
+                                                    required_field: "payment_method_data.billing.email".to_string(),
                                                     display_name: "email".to_string(),
                                                     field_type: enums::FieldType::UserEmailAddress,
                                                     value: None,
@@ -3836,9 +3836,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "email".to_string(),
+                                                "billing.email".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "email".to_string(),
+                                                    required_field: "payment_method_data.billing.email".to_string(),
                                                     display_name: "email".to_string(),
                                                     field_type: enums::FieldType::UserEmailAddress,
                                                     value: None,
@@ -7620,14 +7620,14 @@ impl Default for super::settings::RequiredFields {
                                         non_mandate: HashMap::from(
                                             [
                                                 (
-                                                    "email".to_string(),
+                                                    "billing.email".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "email".to_string(),
+                                                        required_field: "payment_method_data.billing.email".to_string(),
                                                         display_name: "email".to_string(),
                                                         field_type: enums::FieldType::UserEmailAddress,
                                                         value: None,
                                                     }
-                                                ),
+                                                )
                                                 (
                                                     "billing.address.first_name".to_string(),
                                                     RequiredFieldInfo {
@@ -8104,9 +8104,9 @@ impl Default for super::settings::RequiredFields {
                                         non_mandate: HashMap::from(
                                             [
                                                 (
-                                                    "email".to_string(),
+                                                    "billing.email".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "email".to_string(),
+                                                        required_field: "payment_method_data.billing.email".to_string(),
                                                         display_name: "email".to_string(),
                                                         field_type: enums::FieldType::UserEmailAddress,
                                                         value: None,
