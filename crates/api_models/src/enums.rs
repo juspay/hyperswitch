@@ -46,7 +46,6 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Novalnet,
     // Fiservemea,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -113,6 +112,7 @@ pub enum Connector {
     Netcetera,
     Nexinets,
     Nmi,
+    Novalnet,
     Noon,
     Nuvei,
     // Opayo, added as template code for future usage
@@ -210,7 +210,6 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			// | Self::Novalnet
 			// | Self::Taxjar
 			// | Self::Fiservemea
             | Self::Adyen
@@ -244,6 +243,7 @@ impl Connector {
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
+            | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
 			| Self::Paybox
