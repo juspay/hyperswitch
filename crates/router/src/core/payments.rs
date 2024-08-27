@@ -207,6 +207,8 @@ where
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
+    let locale = header_payload.locale.clone();
+
     payment_data = tokenize_in_router_when_confirm_false_or_external_authentication(
         state,
         &operation,
@@ -352,6 +354,7 @@ where
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
+                            &locale,
                         )
                         .await?;
 
@@ -475,6 +478,7 @@ where
                             router_data,
                             &key_store,
                             merchant_account.storage_scheme,
+                            &locale,
                         )
                         .await?;
 
@@ -3157,6 +3161,31 @@ pub async fn get_payment_filters(
     ))
 }
 
+#[cfg(feature = "olap")]
+pub async fn get_aggregates_for_payments(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::PaymentsAggregateResponse> {
+    let db = state.store.as_ref();
+    let intent_status_with_count = db
+        .get_intent_status_with_count(merchant.get_id(), &time_range)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let mut status_map: HashMap<enums::IntentStatus, i64> =
+        intent_status_with_count.into_iter().collect();
+    for status in enums::IntentStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentsAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
+}
+
 pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
@@ -3494,6 +3523,7 @@ where
                         .merchant_connector_id
                         .clone()
                         .as_ref(),
+                    business_profile.clone(),
                 )
                 .await?;
 
@@ -3526,15 +3556,13 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let profile_id = payment_data.payment_intent.profile_id.clone();
-
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
                 key_store,
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                profile_id,
+                business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3575,15 +3603,13 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-            let profile_id = payment_data.payment_intent.profile_id.clone();
-
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
                 key_store,
                 connectors,
                 &TransactionData::Payment(payment_data),
                 eligible_connectors,
-                profile_id,
+                business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3949,6 +3975,7 @@ where
     feature = "routing_v2",
     feature = "business_profile_v2"
 ))]
+#[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -3962,14 +3989,14 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let (profile_id, routing_algorithm_id) =
-        super::admin::BusinessProfileWrapper::new(business_profile.clone())
-            .get_profile_id_and_routing_algorithm_id(&transaction_data);
+    let profile_wrapper = super::admin::BusinessProfileWrapper::new(business_profile.clone());
+    let routing_algorithm_id = profile_wrapper.get_routing_algorithm_id(&transaction_data);
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
         routing_algorithm_id,
+        business_profile,
         &transaction_data,
     )
     .await
@@ -3981,7 +4008,7 @@ where
         connectors,
         &transaction_data,
         eligible_connectors,
-        profile_id,
+        business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4016,7 +4043,7 @@ where
                 routing_data,
                 connector_data,
                 mandate_type,
-                business_profile.is_connector_agnostic_mit_enabled.clone(),
+                business_profile.is_connector_agnostic_mit_enabled,
             )
             .await
         }
@@ -4050,17 +4077,12 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
-    let (profile_id, routing_algorithm_id) = {
-        let (profile_id, routing_algorithm) = match &transaction_data {
-            TransactionData::Payment(payment_data) => (
-                payment_data.payment_intent.profile_id.clone(),
-                business_profile.routing_algorithm.clone(),
-            ),
+    let routing_algorithm_id = {
+        let routing_algorithm = match &transaction_data {
+            TransactionData::Payment(_) => business_profile.routing_algorithm.clone(),
+
             #[cfg(feature = "payouts")]
-            TransactionData::Payout(payout_data) => (
-                Some(payout_data.payout_attempt.profile_id.clone()),
-                business_profile.payout_routing_algorithm.clone(),
-            ),
+            TransactionData::Payout(_) => business_profile.payout_routing_algorithm.clone(),
         };
 
         let algorithm_ref = routing_algorithm
@@ -4069,13 +4091,14 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not decode merchant routing algorithm ref")?
             .unwrap_or_default();
-        (profile_id, algorithm_ref.algorithm_id)
+        algorithm_ref.algorithm_id
     };
 
     let connectors = routing::perform_static_routing_v1(
         state,
         merchant_account.get_id(),
         routing_algorithm_id,
+        business_profile,
         &transaction_data,
     )
     .await
@@ -4086,7 +4109,7 @@ where
         connectors,
         &transaction_data,
         eligible_connectors,
-        profile_id,
+        business_profile,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4387,7 +4410,7 @@ pub async fn get_extended_card_info(
 pub async fn payments_manual_update(
     state: SessionState,
     req: api_models::payments::PaymentsManualUpdateRequest,
-) -> RouterResponse<serde_json::Value> {
+) -> RouterResponse<api_models::payments::PaymentsManualUpdateResponse> {
     let api_models::payments::PaymentsManualUpdateRequest {
         payment_id,
         attempt_id,
@@ -4396,6 +4419,7 @@ pub async fn payments_manual_update(
         error_code,
         error_message,
         error_reason,
+        connector_transaction_id,
     } = req;
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -4465,6 +4489,7 @@ pub async fn payments_manual_update(
         updated_by: merchant_account.storage_scheme.to_string(),
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
+        connector_transaction_id,
     };
     let updated_payment_attempt = state
         .store
@@ -4496,5 +4521,16 @@ pub async fn payments_manual_update(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             .attach_printable("Error while updating payment_intent")?;
     }
-    Ok(services::ApplicationResponse::StatusOk)
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsManualUpdateResponse {
+            payment_id: updated_payment_attempt.payment_id,
+            attempt_id: updated_payment_attempt.attempt_id,
+            merchant_id: updated_payment_attempt.merchant_id,
+            attempt_status: updated_payment_attempt.status,
+            error_code: updated_payment_attempt.error_code,
+            error_message: updated_payment_attempt.error_message,
+            error_reason: updated_payment_attempt.error_reason,
+            connector_transaction_id: updated_payment_attempt.connector_transaction_id,
+        },
+    ))
 }

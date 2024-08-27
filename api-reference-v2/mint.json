@@ -35,7 +35,15 @@
       ]
     },
     {
-      "group": "Merchant Connector Account",
+      "group": "Organization",
+      "pages": [
+        "api-reference/organization/organization--create",
+        "api-reference/organization/organization--retrieve",
+        "api-reference/organization/organization--update"
+      ]
+    },
+    {
+      "group": "Merchant Account",
       "pages": [
         "api-reference/merchant-account/merchant-account--create",
         "api-reference/merchant-account/merchant-account--retrieve",
@@ -48,6 +56,14 @@
         "api-reference/merchant-connector-account/merchant-connector--create",
         "api-reference/merchant-connector-account/merchant-connector--retrieve",
         "api-reference/merchant-connector-account/merchant-connector--update"
+      ]
+    },
+    {
+      "group": "Business Profile",
+      "pages": [
+        "api-reference/business-profile/business-profile--create",
+        "api-reference/business-profile/business-profile--update",
+        "api-reference/business-profile/business-profile--retrieve"
       ]
     }
   ],

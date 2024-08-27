@@ -300,7 +300,7 @@ pub async fn filter_payout_methods(
     // Filter MCAs based on profile_id and connector_type
     let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
         all_mcas,
-        Some(&payout.profile_id),
+        &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,
     );
     let address = payout

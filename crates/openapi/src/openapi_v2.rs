@@ -69,6 +69,11 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
+        // Routes for Organization
+        routes::organization::organization_create,
+        routes::organization::organization_retrieve,
+        routes::organization::organization_update,
+
         // Routes for merchant connector account
         routes::merchant_connector_account::connector_create,
         routes::merchant_connector_account::connector_retrieve,
@@ -79,6 +84,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_create,
         routes::merchant_account::merchant_account_retrieve,
         routes::merchant_account::merchant_account_update,
+
+        // Routes for business profile
+        routes::business_profile::business_profile_create,
+        routes::business_profile::business_profile_retrieve,
+        routes::business_profile::business_profile_update,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -140,6 +150,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MandateStatus,
         api_models::enums::PaymentExperience,
         api_models::enums::BankNames,
+        api_models::enums::BankType,
+        api_models::enums::BankHolderType,
         api_models::enums::CardNetwork,
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
@@ -154,6 +166,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ConnectorStatus,
         api_models::enums::AuthorizationStatus,
         api_models::enums::PaymentMethodStatus,
+        api_models::enums::OrderFulfillmentTimeOrigin,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::MerchantRecipientData,
@@ -459,6 +472,24 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetailsResponse,
         api_models::payments::OpenBankingData,
         api_models::payments::OpenBankingSessionToken,
+        api_models::payments::additional_info::CardTokenAdditionalData,
+        api_models::payments::additional_info::BankDebitAdditionalData,
+        api_models::payments::additional_info::AchBankDebitAdditionalData,
+        api_models::payments::additional_info::BacsBankDebitAdditionalData,
+        api_models::payments::additional_info::BecsBankDebitAdditionalData,
+        api_models::payments::additional_info::SepaBankDebitAdditionalData,
+        api_models::payments::additional_info::BankRedirectAdditionalData,
+        api_models::payments::additional_info::BankRedirectDetails,
+        api_models::payments::additional_info::BancontactBankRedirectAdditionalData,
+        api_models::payments::additional_info::BlikBankRedirectAdditionalData,
+        api_models::payments::additional_info::GiropayBankRedirectAdditionalData,
+        api_models::payments::additional_info::BankTransferAdditionalData,
+        api_models::payments::additional_info::PixBankTransferAdditionalData,
+        api_models::payments::additional_info::LocalBankTransferAdditionalData,
+        api_models::payments::additional_info::GiftCardAdditionalData,
+        api_models::payments::additional_info::GivexGiftCardAdditionalData,
+        api_models::payments::additional_info::UpiAdditionalData,
+        api_models::payments::additional_info::UpiCollectAdditionalData,
     )),
     modifiers(&SecurityAddon)
 )]

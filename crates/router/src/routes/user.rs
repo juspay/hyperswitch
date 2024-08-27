@@ -914,3 +914,58 @@ pub async fn transfer_user_key(
     ))
     .await
 }
+
+pub async fn list_orgs_for_user(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ListOrgForUser;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| user_core::list_orgs_for_user(state, user_from_token),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_merchants_for_user_in_org(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ListMerchantsForUserInOrg;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| {
+            user_core::list_merchants_for_user_in_org(state, user_from_token)
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_profiles_for_user_in_org_and_merchant(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ListProfileForUserInOrgAndMerchant;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| {
+            user_core::list_profiles_for_user_in_org_and_merchant_account(state, user_from_token)
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

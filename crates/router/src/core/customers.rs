@@ -439,6 +439,7 @@ pub async fn retrieve_customer(
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+
     let response = db
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
@@ -462,7 +463,33 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip(state))]
+pub async fn retrieve_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: customers::GlobalId,
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let response = db
+        .find_customer_by_global_id(
+            key_manager_state,
+            &req.id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::foreign_from(response),
+    ))
+}
+
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -471,15 +498,21 @@ pub async fn list_customers(
     key_store: domain::MerchantKeyStore,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
-
     let domain_customers = db
         .list_customers_by_merchant_id(&(&state).into(), &merchant_id, &key_store)
         .await
         .switch()?;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customers = domain_customers
         .into_iter()
         .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
+        .collect();
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customers = domain_customers
+        .into_iter()
+        .map(customers::CustomerResponse::foreign_from)
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))
@@ -861,7 +894,7 @@ impl<'a> VerifyIdForUpdateCustomer<'a> {
             .find_customer_by_global_id(
                 self.key_manager_state,
                 &id,
-                &self.merchant_account.get_id(),
+                self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )
@@ -1027,7 +1060,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                 },
-                &key_store,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
