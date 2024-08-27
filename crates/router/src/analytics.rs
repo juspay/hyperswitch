@@ -3,11 +3,12 @@ pub use analytics::*;
 pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, connector_events::connector_events_core,
+        api_event::api_events_core, connector_events::connector_events_core, enums::UserLevel,
         errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
-        AnalyticsFlow,
+        AnalyticsFlow, 
     };
+    use common_utils::id_type::OrganizationId;
     use api_models::analytics::{
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
@@ -827,11 +828,28 @@ pub mod routes {
                     .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
                     .map(|(i, _)| *i)
                     .collect();
+                let profile_id: String = "pro_ZTGBrEwlRmTyzKFpnV9Z".to_string();
+                let org_id: OrganizationId = OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk")).unwrap();
+                let search_params: Vec<UserLevel> = vec![
+                    UserLevel::OrgLevel {
+                        org_id: org_id.clone(),
+                    },
+                    UserLevel::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![auth.merchant_id.clone()],
+                    },
+                    UserLevel::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: auth.merchant_id.clone(),
+                        profile_ids: vec![profile_id.clone()],
+                    },
+                ];
 
                 analytics::search::msearch_results(
                     &state.opensearch_client,
                     req,
                     &auth.merchant_id,
+                    search_params,
                     accessible_indexes,
                 )
                 .await
@@ -873,7 +891,25 @@ pub mod routes {
                     .filter(|(ind, _)| *ind == index)
                     .find(|i| i.1.iter().any(|p| permissions.contains(p)))
                     .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
-                analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id)
+
+                let profile_id: String = "pro_ZTGBrEwlRmTyzKFpnV9Z".to_string();
+                let org_id: OrganizationId = OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk")).unwrap();
+                let search_params: Vec<UserLevel> = vec![
+                    UserLevel::OrgLevel {
+                        org_id: org_id.clone(),
+                    },
+                    UserLevel::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![auth.merchant_id.clone()],
+                    },
+                    UserLevel::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: auth.merchant_id.clone(),
+                        profile_ids: vec![profile_id.clone()],
+                    },
+                ];
+
+                analytics::search::search_results(&state.opensearch_client, req, &auth.merchant_id, search_params)
                     .await
                     .map(ApplicationResponse::Json)
             },

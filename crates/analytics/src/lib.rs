@@ -8,7 +8,7 @@ pub mod payment_intents;
 pub mod payments;
 mod query;
 pub mod refunds;
-
+pub mod enums;
 pub mod active_payments;
 pub mod api_event;
 pub mod auth_events;
