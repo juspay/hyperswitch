@@ -5,6 +5,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::consts;
 use masking::PeekInterface;
 use transformers as itaubank;
+use std::fmt::Write;
 
 use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
@@ -125,14 +126,34 @@ impl ConnectorCommon for Itaubank {
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let reason = response
+            .error
+            .violacoes
+            .map(|violacoes| {
+                violacoes.iter().try_fold(String::new(), |mut acc, error| {
+                    write!(
+                        acc,
+                        " razao - {}, propriedade - {}, valor - {};",
+                        error.razao, error.propriedade, error.valor
+                    )
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to concatenate error details")
+                    .map(|_| acc)
+                })
+            })
+            .transpose()?;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.status.to_string(),
-            message: response
+            code: response
                 .error
                 .title
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .detail
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error.detail,
+            reason,
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -248,11 +269,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.to_string(),
+            code: response.title.unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: response
-                .title
+                .detail
+                .to_owned()
+                .or(response.user_message.to_owned())
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.detail,
+            reason: response.detail.or(response.user_message),
             attempt_status: None,
             connector_transaction_id: None,
         })

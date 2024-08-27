@@ -181,10 +181,12 @@ pub struct ItaubankUpdateTokenResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ItaubankTokenErrorResponse {
     pub status: i64,
     pub title: Option<String>,
     pub detail: Option<String>,
+    pub user_message: Option<String>
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ItaubankUpdateTokenResponse, T, types::AccessToken>>
@@ -449,4 +451,12 @@ pub struct ItaubankErrorBody {
     pub status: u16,
     pub title: Option<String>,
     pub detail: Option<String>,
+    pub violacoes : Option<Vec<Violations>>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Violations{
+    pub razao: String,
+    pub propriedade : String,
+    pub valor : String
 }
