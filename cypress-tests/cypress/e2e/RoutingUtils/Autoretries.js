@@ -107,6 +107,25 @@ export const connectorDetails = {
         },
       },
     },
+    StripeConfirm3DS: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: card_1142,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          connector: "stripe",
+        },
+      },
+    },
     StripeConfirmSuccess: {
       Request: {
         payment_method: "card",
