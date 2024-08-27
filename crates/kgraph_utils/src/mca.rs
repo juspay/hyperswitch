@@ -704,6 +704,8 @@ mod tests {
 
     fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
+        let profile_id = common_utils::generate_profile_id_of_default_length();
+
         #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
@@ -752,7 +754,7 @@ mod tests {
             }]),
             frm_configs: None,
             connector_webhook_details: None,
-            profile_id: "profile_id".to_string(),
+            profile_id,
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
@@ -813,7 +815,7 @@ mod tests {
             }]),
             frm_configs: None,
             connector_webhook_details: None,
-            profile_id: "profile_id".to_string(),
+            profile_id,
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,

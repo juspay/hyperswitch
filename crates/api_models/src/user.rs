@@ -405,6 +405,6 @@ pub struct ListMerchantsForUserInOrgResponse {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
     pub profile_name: String,
 }

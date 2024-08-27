@@ -470,7 +470,10 @@ pub async fn get_mca_from_payment_intent(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+                        id: format!(
+                            "profile_id {} and connector_name {connector_name}",
+                            profile_id.get_string_repr()
+                        ),
                     },
                 )
             }
@@ -559,7 +562,8 @@ pub async fn get_mca_from_payout_attempt(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: format!(
                             "profile_id {} and connector_name {}",
-                            payout.profile_id, connector_name
+                            payout.profile_id.get_string_repr(),
+                            connector_name
                         ),
                     },
                 )
@@ -606,7 +610,10 @@ pub async fn get_mca_from_object_reference_id(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+                        id: format!(
+                            "profile_id {} and connector_name {connector_name}",
+                            profile_id.get_string_repr()
+                        ),
                     },
                 )
             }

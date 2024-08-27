@@ -164,6 +164,7 @@ pub async fn update_mca(
         connector_webhook_details: None,
         pm_auth_config: None,
         test_mode: None,
+        additional_merchant_data: None,
     };
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     let request = MerchantConnectorUpdate {
@@ -178,6 +179,7 @@ pub async fn update_mca(
         connector_webhook_details: None,
         pm_auth_config: None,
         merchant_id: merchant_id.clone(),
+        additional_merchant_data: None,
     };
     let mca_response =
         admin::update_connector(state.clone(), &merchant_id, None, &connector_id, request).await?;

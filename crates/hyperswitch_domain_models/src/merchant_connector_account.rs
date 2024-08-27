@@ -36,7 +36,7 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
@@ -71,7 +71,7 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
@@ -109,6 +109,7 @@ pub enum MerchantConnectorAccountUpdate {
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
         connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
+        additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
@@ -131,6 +132,7 @@ pub enum MerchantConnectorAccountUpdate {
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
         connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
+        additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
@@ -453,6 +455,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_label,
                 status,
                 connector_wallets_details,
+                additional_merchant_data,
             } => Self {
                 connector_type,
                 connector_name,
@@ -471,6 +474,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_label,
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
+                additional_merchant_data: additional_merchant_data.map(Encryption::from),
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -492,6 +496,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 applepay_verified_domains: None,
                 pm_auth_config: None,
                 status: None,
+                additional_merchant_data: None,
             },
         }
     }
@@ -514,6 +519,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_label,
                 status,
                 connector_wallets_details,
+                additional_merchant_data,
             } => Self {
                 connector_type,
                 connector_account_details: connector_account_details.map(Encryption::from),
@@ -528,6 +534,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 connector_label,
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
+                additional_merchant_data: additional_merchant_data.map(Encryption::from),
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -545,6 +552,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 applepay_verified_domains: None,
                 pm_auth_config: None,
                 status: None,
+                additional_merchant_data: None,
             },
         }
     }

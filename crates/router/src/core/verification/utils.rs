@@ -15,7 +15,7 @@ use crate::{
 pub async fn check_existence_and_add_domain_to_db(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    profile_id_from_auth_layer: Option<String>,
+    profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
@@ -87,6 +87,7 @@ pub async fn check_existence_and_add_domain_to_db(
         connector_label: None,
         status: None,
         connector_wallets_details: None,
+        additional_merchant_data: None,
     };
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
@@ -102,6 +103,7 @@ pub async fn check_existence_and_add_domain_to_db(
         connector_label: None,
         status: None,
         connector_wallets_details: None,
+        additional_merchant_data: None,
     };
     state
         .store

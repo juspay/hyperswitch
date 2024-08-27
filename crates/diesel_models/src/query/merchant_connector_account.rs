@@ -78,7 +78,7 @@ impl MerchantConnectorAccount {
 
     pub async fn find_by_profile_id_connector_name(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(

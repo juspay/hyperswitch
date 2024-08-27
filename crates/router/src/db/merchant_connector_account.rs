@@ -141,7 +141,7 @@ where
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
@@ -290,7 +290,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -322,7 +322,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             cache::get_or_populate_in_memory(
                 self,
-                &format!("{}_{}", profile_id, connector_name),
+                &format!("{}_{}", profile_id.get_string_repr(), connector_name),
                 find_call,
                 &cache::ACCOUNTS_CACHE,
             )
@@ -592,7 +592,7 @@ impl MerchantConnectorAccountInterface for Store {
                     self,
                     [
                         cache::CacheKind::Accounts(
-                            format!("{}_{}", _profile_id, _connector_name).into(),
+                            format!("{}_{}", _profile_id.get_string_repr(), _connector_name).into(),
                         ),
                         cache::CacheKind::Accounts(
                             format!(
@@ -603,8 +603,12 @@ impl MerchantConnectorAccountInterface for Store {
                             .into(),
                         ),
                         cache::CacheKind::CGraph(
-                            format!("cgraph_{}_{_profile_id}", _merchant_id.get_string_repr())
-                                .into(),
+                            format!(
+                                "cgraph_{}_{}",
+                                _merchant_id.get_string_repr(),
+                                _profile_id.get_string_repr()
+                            )
+                            .into(),
                         ),
                     ],
                     || update,
@@ -688,7 +692,7 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 [
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", _profile_id, _connector_name).into(),
+                        format!("{}_{}", _profile_id.get_string_repr(), _connector_name).into(),
                     ),
                     cache::CacheKind::Accounts(
                         format!(
@@ -699,12 +703,18 @@ impl MerchantConnectorAccountInterface for Store {
                         .into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", _merchant_id.get_string_repr()).into(),
+                        format!(
+                            "cgraph_{}_{}",
+                            _merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
                         format!(
-                            "pm_filters_cgraph_{}_{_profile_id}",
-                            _merchant_id.get_string_repr()
+                            "pm_filters_cgraph_{}_{}",
+                            _merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr(),
                         )
                         .into(),
                     ),
@@ -764,7 +774,7 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 [
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", _profile_id, _connector_name).into(),
+                        format!("{}_{}", _profile_id.get_string_repr(), _connector_name).into(),
                     ),
                     cache::CacheKind::Accounts(
                         format!(
@@ -775,12 +785,18 @@ impl MerchantConnectorAccountInterface for Store {
                         .into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", _merchant_id.get_string_repr()).into(),
+                        format!(
+                            "cgraph_{}_{}",
+                            _merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
                         format!(
-                            "pm_filters_cgraph_{}_{_profile_id}",
-                            _merchant_id.get_string_repr()
+                            "pm_filters_cgraph_{}_{}",
+                            _merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
                         )
                         .into(),
                     ),
@@ -840,16 +856,26 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 [
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", mca.merchant_id.get_string_repr(), _profile_id).into(),
+                        format!(
+                            "{}_{}",
+                            mca.merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", mca.merchant_id.get_string_repr())
-                            .into(),
+                        format!(
+                            "cgraph_{}_{}",
+                            mca.merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
                         format!(
-                            "pm_filters_cgraph_{}_{_profile_id}",
-                            mca.merchant_id.get_string_repr()
+                            "pm_filters_cgraph_{}_{}",
+                            mca.merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
                         )
                         .into(),
                     ),
@@ -895,16 +921,26 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 [
                     cache::CacheKind::Accounts(
-                        format!("{}_{}", mca.merchant_id.get_string_repr(), _profile_id).into(),
+                        format!(
+                            "{}_{}",
+                            mca.merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::CGraph(
-                        format!("cgraph_{}_{_profile_id}", mca.merchant_id.get_string_repr())
-                            .into(),
+                        format!(
+                            "cgraph_{}_{}",
+                            mca.merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
+                        )
+                        .into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
                         format!(
-                            "pm_filters_cgraph_{}_{_profile_id}",
-                            mca.merchant_id.get_string_repr()
+                            "pm_filters_cgraph_{}_{}",
+                            mca.merchant_id.get_string_repr(),
+                            _profile_id.get_string_repr()
                         )
                         .into(),
                     ),
@@ -1021,7 +1057,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -1480,7 +1516,9 @@ mod merchant_connector_account_cache_tests {
 
         let connector_label = "stripe_USA";
         let merchant_connector_id = "simple_merchant_connector_id";
-        let profile_id = "pro_max_ultra";
+        let profile_id =
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("pro_max_ultra"))
+                .unwrap();
         let key_manager_state = &state.into();
         db.insert_merchant_key_store(
             key_manager_state,
@@ -1544,7 +1582,7 @@ mod merchant_connector_account_cache_tests {
             created_at: date_time::now(),
             modified_at: date_time::now(),
             connector_webhook_details: None,
-            profile_id: profile_id.to_string(),
+            profile_id: profile_id.to_owned(),
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
@@ -1572,7 +1610,7 @@ mod merchant_connector_account_cache_tests {
             Conversion::convert(
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
-                    profile_id,
+                    &profile_id,
                     &mca.connector_name,
                     &merchant_key,
                 )
@@ -1584,7 +1622,11 @@ mod merchant_connector_account_cache_tests {
         };
         let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
             &db,
-            &format!("{}_{}", merchant_id.get_string_repr(), profile_id),
+            &format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                profile_id.get_string_repr(),
+            ),
             find_call,
             &ACCOUNTS_CACHE,
         )
@@ -1655,7 +1697,9 @@ mod merchant_connector_account_cache_tests {
                 .unwrap();
         let connector_label = "stripe_USA";
         let id = common_utils::id_type::MerchantConnectorAccountId::default();
-        let profile_id = "pro_max_ultra";
+        let profile_id =
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("pro_max_ultra"))
+                .unwrap();
         let key_manager_state = &state.into();
         db.insert_merchant_key_store(
             key_manager_state,
@@ -1712,7 +1756,7 @@ mod merchant_connector_account_cache_tests {
             created_at: date_time::now(),
             modified_at: date_time::now(),
             connector_webhook_details: None,
-            profile_id: profile_id.to_string(),
+            profile_id: profile_id.to_owned(),
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: common_enums::ConnectorStatus::Inactive,
@@ -1759,7 +1803,11 @@ mod merchant_connector_account_cache_tests {
 
         let _: storage::MerchantConnectorAccount = cache::get_or_populate_in_memory(
             &db,
-            &format!("{}_{}", merchant_id.clone().get_string_repr(), profile_id),
+            &format!(
+                "{}_{}",
+                merchant_id.clone().get_string_repr(),
+                profile_id.get_string_repr()
+            ),
             find_call,
             &ACCOUNTS_CACHE,
         )

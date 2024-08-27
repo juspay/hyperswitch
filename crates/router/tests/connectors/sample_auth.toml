@@ -268,3 +268,6 @@ api_secret = "Consumer Secret"
 
 [taxjar]
 api_key = "API Key"
+
+[novalnet]
+api_key="API Key"

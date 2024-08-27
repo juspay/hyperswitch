@@ -10,7 +10,7 @@ pub struct KafkaPayout<'a> {
     pub merchant_id: &'a id_type::MerchantId,
     pub customer_id: Option<&'a id_type::CustomerId>,
     pub address_id: Option<&'a String>,
-    pub profile_id: &'a String,
+    pub profile_id: &'a id_type::ProfileId,
     pub payout_method_id: Option<&'a String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub amount: MinorUnit,
