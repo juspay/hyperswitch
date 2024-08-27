@@ -179,7 +179,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                     payment_method: PaymentMethod::Card,
                     card,
                     customer_ip,
-                    term_url: item.router_data.request.complete_authorize_url.clone(),
+                    term_url: item.router_data.request.complete_authorize_url.clone(),//
                 })
             }
             PaymentMethodData::CardRedirect(_)

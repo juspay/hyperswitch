@@ -1,5 +1,6 @@
+use cards::CardNumber;
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::types::{StringMajorUnit, StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -12,9 +13,11 @@ use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
+use crate::utils::RouterData as OtherRouterData;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::PaymentsAuthorizeRequestData,
+    utils::{self, missing_field_err, CardData as CardDataUtil},
 };
 
 //TODO: Fill the struct with respective fields
@@ -32,9 +35,19 @@ impl<T> From<(StringMinorUnit, T)> for NovalnetRouterData<T> {
         }
     }
 }
+pub enum PaymentType {
+    Card,
+    Applepay,
+    Googlepay,
+}
 
 //TODO: Fill the struct with respective fields
-//TODO: DG change optional types and correct types
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum NovalNetPaymentTypes {
+    CREDITCARD,
+    DEBITCARD,
+}
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct Address {
     company: String,
@@ -74,71 +87,118 @@ pub struct Customer {
     customer_ip: String,
     birth_date: String,
 }
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct PaymentData {
-    pan_hash: String,
-    unique_id: String,
+pub struct NovalNetCard {
+    card_number: CardNumber,
+    card_expiry_month: Secret<String>,
+    card_expiry_year: Secret<String>,
+    card_cvc: Option<Secret<String>>,
+    card_holder: Option<Secret<String>>,
+    pan_hash: Option<String>,
+    unique_id: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct Transaction {
-    test_mode: String,
-    payment_type: String,
-    amount: String,
-    currency: String,
-    order_no: String,
-    hook_url: String,
-    create_token: String,
-    payment_data: PaymentData,
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NovalNetPaymentData {
+    PaymentCard(NovalNetCard),
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct Custom {
-    lang: String,
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NovalNetTransaction {
+    test_mode: i8,
+    payment_type: NovalNetPaymentTypes,
+    amount: Option<StringMinorUnit>,
+    currency: Option<String>,
+    order_no: Option<String>,
+    create_token: Option<i8>,
+    payment_data: NovalNetPaymentData,
+    hook_url: Option<String>,
+    return_url: Option<String>,
+    error_return_url: Option<String>,
 }
+// #[derive(Default, Debug, Serialize)]
+// pub struct Custom {
+//     lang: String,
+// }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct NovalnetPaymentsRequest {
-    amount: StringMinorUnit,
-    card: NovalnetCard,
-    merchant: Option<Merchant>,
-    customer: Option<Customer>,
-    transaction: Option<Transaction>,
-    custom: Option<Custom>,
+    merchant: Merchant,
+    customer: Customer,
+    transaction: NovalNetTransaction,
+    // custom: Option<Custom>,
+}
+type Error = error_stack::Report<errors::ConnectorError>;
+fn result_to_option(result: Result<String, Error>) -> Option<String> {
+    result.ok()
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct NovalnetCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaymentsRequest {//
+impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaymentsRequest {
+    //
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &NovalnetRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card = NovalnetCard {//
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
+                let merchant = Merchant {
+                    signature: "".to_string(),
+                    tariff: "".to_string(),
                 };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                    //TODO: get data from item
-                    merchant: None,
-                    customer: None,
-                    transaction: None,
-                    custom: None,
+
+                let novalnet_card = NovalNetCard {
+                    card_number: req_card.card_number,
+                    card_expiry_month: req_card.card_exp_month,
+                    card_expiry_year: req_card.card_exp_year,
+                    card_cvc: Some(req_card.card_cvc),
+                    card_holder: item.router_data.get_optional_billing_full_name(),
+                    pan_hash: None,
+                    unique_id: None,
+                };
+
+                let return_url = result_to_option(item.router_data.request.get_return_url());
+                let hook_url = result_to_option(item.router_data.request.get_webhook_url());
+                let transaction = NovalNetTransaction {
+                    test_mode: 1,
+                    payment_type: NovalNetPaymentTypes::CREDITCARD,
+                    amount: Some(item.amount.clone()),
+                    currency: Some(item.router_data.request.currency.to_string()),
+                    order_no: Some(item.router_data.connector_request_reference_id.clone()),
+                    hook_url: hook_url,
+                    return_url: return_url.clone(),
+                    error_return_url: return_url.clone(),
+                    create_token: None,
+                    payment_data: NovalNetPaymentData::PaymentCard(novalnet_card),
+                };
+
+                let billing = Billing {
+                    company: "".to_string(),
+                    house_no: "".to_string(),
+                    street: "".to_string(),
+                    city: "".to_string(),
+                    zip: "".to_string(),
+                    country_code: "".to_string(),
+                    state: "".to_string(),
+                };
+
+                let customer = Customer {
+                    first_name: "".to_string(),
+                    last_name: "".to_string(),
+                    email: "".to_string(),
+                    tel: "".to_string(),
+                    mobile: "".to_string(),
+                    billing: billing,
+                    customer_ip: "".to_string(),
+                    birth_date: "".to_string(),
+                };
+                Ok(NovalnetPaymentsRequest {
+                    merchant: merchant,
+                    transaction: transaction,
+                    customer: customer,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -152,7 +212,8 @@ pub struct NovalnetAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for NovalnetAuthType { //
+impl TryFrom<&ConnectorAuthType> for NovalnetAuthType {
+    //
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -177,7 +238,6 @@ pub enum NovalnetPaymentStatus {
     #[default]
     DEACTIVATED,
 }
-
 
 impl From<NovalnetPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: NovalnetPaymentStatus) -> Self {

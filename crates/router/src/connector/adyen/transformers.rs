@@ -142,7 +142,7 @@ pub struct LineItem {
 pub struct AdyenPaymentRequest<'a> {
     amount: Amount,
     merchant_account: Secret<String>,
-    payment_method: AdyenPaymentMethod<'a>,
+    payment_method: AdyenPaymentMethod<'a>, //
     reference: String,
     return_url: String,
     browser_info: Option<AdyenBrowserInfo>,
@@ -1509,7 +1509,7 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
     for AdyenPaymentRequest<'a>
 {
     type Error = Error;
-    fn try_from(
+    fn try_from(//
         item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item

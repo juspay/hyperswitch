@@ -1,11 +1,12 @@
 pub mod transformers;
-
+use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
+use common_utils::{ext_traits::ValueExt, pii::IpAddress};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -115,9 +116,11 @@ impl ConnectorCommon for Novalnet {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = novalnet::NovalnetAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let api_key = auth.api_key.expose();
+        let encoded_api_key = common_utils::consts::BASE64_ENGINE.encode(api_key);
         Ok(vec![(
             headers::X_NN_ACCESS_KEY.to_string(),
-            auth.api_key.expose().into_masked(),
+            encoded_api_key.into_masked(),
         )])
     }
 
