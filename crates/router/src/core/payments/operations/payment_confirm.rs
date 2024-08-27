@@ -164,7 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
                             errors::ApiErrorResponse::BusinessProfileNotFound {
-                                id: profile_id.to_string(),
+                                id: profile_id.get_string_repr().to_owned(),
                             },
                         )
                     })
@@ -476,7 +476,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         helpers::get_additional_payment_data(
                             &payment_method_data.into(),
                             store.as_ref(),
-                            profile_id.as_ref(),
+                            &profile_id,
                         )
                         .await
                     })

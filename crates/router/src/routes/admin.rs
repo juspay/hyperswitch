@@ -544,6 +544,57 @@ pub async fn payment_connector_list(
     )
     .await
 }
+/// Merchant Connector - List
+///
+/// List Merchant Connector Details for the merchant
+#[utoipa::path(
+    get,
+    path = "/accounts/{account_id}/profile/connectors",
+    params(
+        ("account_id" = String, Path, description = "The unique identifier for the merchant account"),
+    ),
+    responses(
+        (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
+        (status = 404, description = "Merchant Connector does not exist in records"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Merchant Connector Account",
+    operation_id = "List all Merchant Connectors for The given Profile",
+    security(("admin_api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
+pub async fn payment_connector_list_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsList;
+    let merchant_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        merchant_id.to_owned(),
+        |state, auth, merchant_id, _| {
+            list_payment_connectors(
+                state,
+                merchant_id,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
+        auth::auth_type(
+            &auth::AdminApiAuthWithMerchantId::default(),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantConnectorAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
@@ -895,7 +946,10 @@ pub async fn business_profile_create(
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileRetrieve;
     let (merchant_id, profile_id) = path.into_inner();
@@ -924,7 +978,7 @@ pub async fn business_profile_retrieve(
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileRetrieve;
     let profile_id = path.into_inner();
@@ -964,7 +1018,10 @@ pub async fn business_profile_retrieve(
 pub async fn business_profile_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
     json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileUpdate;
@@ -995,7 +1052,7 @@ pub async fn business_profile_update(
 pub async fn business_profile_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileUpdate;
@@ -1031,7 +1088,10 @@ pub async fn business_profile_update(
 pub async fn business_profile_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileDelete;
     let (merchant_id, profile_id) = path.into_inner();
@@ -1085,7 +1145,10 @@ pub async fn business_profiles_list(
 pub async fn toggle_connector_agnostic_mit(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
     json_payload: web::Json<api_models::admin::ConnectorAgnosticMitChoice>,
 ) -> HttpResponse {
     let flow = Flow::ToggleConnectorAgnosticMit;
@@ -1156,7 +1219,10 @@ pub async fn merchant_account_transfer_keys(
 pub async fn toggle_extended_card_info(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
     json_payload: web::Json<api_models::admin::ExtendedCardInfoChoice>,
 ) -> HttpResponse {
     let flow = Flow::ToggleExtendedCardInfo;

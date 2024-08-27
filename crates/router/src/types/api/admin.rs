@@ -160,8 +160,14 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector: item
                 .collect_billing_details_from_wallet_connector,
+            always_collect_billing_details_from_wallet_connector: item
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: item
+                .always_collect_shipping_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
             outgoing_webhook_custom_http_headers,
+            tax_connector_id: item.tax_connector_id,
+            is_tax_connector_enabled: item.is_tax_connector_enabled,
         })
     }
 }
@@ -211,14 +217,20 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .extended_card_info_config
                 .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
                 .transpose()?,
-            collect_shipping_details_from_wallet_connector: item
+            collect_shipping_details_from_wallet_connector_if_required: item
                 .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector: item
+            collect_billing_details_from_wallet_connector_if_required: item
                 .collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: item
+                .always_collect_shipping_details_from_wallet_connector,
+            always_collect_billing_details_from_wallet_connector: item
+                .always_collect_billing_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
             outgoing_webhook_custom_http_headers,
             order_fulfillment_time,
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
+            tax_connector_id: item.tax_connector_id,
+            is_tax_connector_enabled: item.is_tax_connector_enabled,
         })
     }
 }
@@ -238,7 +250,7 @@ pub async fn create_business_profile_from_merchant_account(
     use crate::core;
 
     // Generate a unique profile id
-    let profile_id = common_utils::generate_id_with_default_len("pro");
+    let profile_id = common_utils::generate_profile_id_of_default_length();
     let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
@@ -330,6 +342,14 @@ pub async fn create_business_profile_from_merchant_account(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector
             .or(Some(false)),
+        always_collect_billing_details_from_wallet_connector: request
+            .always_collect_billing_details_from_wallet_connector
+            .or(Some(false)),
+        always_collect_shipping_details_from_wallet_connector: request
+            .always_collect_shipping_details_from_wallet_connector
+            .or(Some(false)),
         outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
+        tax_connector_id: request.tax_connector_id,
+        is_tax_connector_enabled: request.is_tax_connector_enabled,
     })
 }
