@@ -17,6 +17,7 @@ payouts = ["api_models/payouts"]
 [dependencies]
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
 
 # Third party crates
 serde = { version = "1.0.197", features = ["derive"] }

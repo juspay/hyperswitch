@@ -91,7 +91,6 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 };
                 let key_str = key.to_string();
                 let field = format!("po_{}", new.payout_id);
-                let now = common_utils::date_time::now();
                 let created_payout = Payouts {
                     payout_id: new.payout_id.clone(),
                     merchant_id: new.merchant_id.clone(),
@@ -108,8 +107,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     return_url: new.return_url.clone(),
                     entity_type: new.entity_type,
                     metadata: new.metadata.clone(),
-                    created_at: new.created_at.unwrap_or(now),
-                    last_modified_at: new.last_modified_at.unwrap_or(now),
+                    created_at: new.created_at,
+                    last_modified_at: new.last_modified_at,
                     profile_id: new.profile_id.clone(),
                     status: new.status,
                     attempt_count: new.attempt_count,
@@ -936,10 +935,8 @@ impl DataModelExt for PayoutsNew {
             return_url: self.return_url,
             entity_type: self.entity_type,
             metadata: self.metadata,
-            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
-            last_modified_at: self
-                .last_modified_at
-                .unwrap_or_else(common_utils::date_time::now),
+            created_at: self.created_at,
+            last_modified_at: self.last_modified_at,
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
@@ -967,8 +964,8 @@ impl DataModelExt for PayoutsNew {
             return_url: storage_model.return_url,
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
-            created_at: Some(storage_model.created_at),
-            last_modified_at: Some(storage_model.last_modified_at),
+            created_at: storage_model.created_at,
+            last_modified_at: storage_model.last_modified_at,
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,

@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.27.0
+
+### Features
+
+- **business_profile:** Add tax_connector_id column in business_profile table ([#5576](https://github.com/juspay/hyperswitch/pull/5576)) ([`963a254`](https://github.com/juspay/hyperswitch/commit/963a2547e87fc7a4e8ed55627d3e7b9da2022f21))
+- **customer_v2:** Added list customer v2 end point ([#5517](https://github.com/juspay/hyperswitch/pull/5517)) ([`8b4d096`](https://github.com/juspay/hyperswitch/commit/8b4d0967ae3c0451d4c040f66807edbb696033b2))
+- **payment_methods_v2:** Payment methods v2 API models ([#5564](https://github.com/juspay/hyperswitch/pull/5564)) ([`e98ff95`](https://github.com/juspay/hyperswitch/commit/e98ff95b10d3990f443f8553c1a39fec9f682f96))
+- Populate payment method details in payments response ([#5661](https://github.com/juspay/hyperswitch/pull/5661)) ([`32db5dd`](https://github.com/juspay/hyperswitch/commit/32db5dd1ca929d9600d9558346b52c0b753f2e53))
+
+### Refactors
+
+- **euclid:** Make the disabled node's relation as negative ([#5701](https://github.com/juspay/hyperswitch/pull/5701)) ([`e904d0f`](https://github.com/juspay/hyperswitch/commit/e904d0fa0dc01767f131dc18e6533bbd2549c8b9))
+- **payments_response:** Remove setter from payments response ([#5676](https://github.com/juspay/hyperswitch/pull/5676)) ([`800da6a`](https://github.com/juspay/hyperswitch/commit/800da6a16a3d05ff5ae0b5557c80f7784e81a749))
+
+### Miscellaneous Tasks
+
+- Create v2 route for organization ([#5679](https://github.com/juspay/hyperswitch/pull/5679)) ([`0eaadc4`](https://github.com/juspay/hyperswitch/commit/0eaadc42b77e0f27cc4bb26c7e04d7c4f762b6d9))
+
+### Build System / Dependencies
+
+- **deps:** Bump `diesel` to `2.2.3` and `sqlx` to `0.8.1` ([#5688](https://github.com/juspay/hyperswitch/pull/5688)) ([`138134d`](https://github.com/juspay/hyperswitch/commit/138134dfb617aa679f496f6be533d9c8af7f7c06))
+
+**Full Changelog:** [`2024.08.26.0...2024.08.27.0`](https://github.com/juspay/hyperswitch/compare/2024.08.26.0...2024.08.27.0)
+
+- - -
+
 ## 2024.08.26.0
 
 ### Features
