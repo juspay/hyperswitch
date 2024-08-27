@@ -1751,6 +1751,10 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_locker_id(
         &self,
         state: &KeyManagerState,
@@ -1794,6 +1798,10 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         state: &KeyManagerState,

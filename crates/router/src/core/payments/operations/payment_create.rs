@@ -881,7 +881,7 @@ impl PaymentCreate {
         payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<domain::PaymentMethod>,
         _key_store: &domain::MerchantKeyStore,
-        profile_id: String,
+        profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
