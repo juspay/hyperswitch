@@ -2548,12 +2548,12 @@ type="Text"
 
 [[plaid.additional_merchant_data.iban]]
 name="iban"
-label="iban"
+label="Iban"
 placeholder="Enter iban"
 required=true
 type="Text"
 [[plaid.additional_merchant_data.iban]]
-name="name"
+name="iban.name"
 label="Name"
 placeholder="Enter name"
 required=true
@@ -2572,7 +2572,7 @@ placeholder="Enter account number"
 required=true
 type="Text"
 [[plaid.additional_merchant_data.bacs]]
-name="name"
+name="bacs.name"
 label="Name"
 placeholder="Enter name"
 required=true
