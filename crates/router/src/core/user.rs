@@ -2572,7 +2572,7 @@ pub async fn list_orgs_for_user(
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
     let orgs = state
         .store
-        .list_user_roles(
+        .list_user_roles_by_user_id_and_details(
             user_from_token.user_id.as_str(),
             None,
             None,
@@ -2638,7 +2638,7 @@ pub async fn list_merchants_for_user_in_org(
     } else {
         let merchant_ids = state
             .store
-            .list_user_roles(
+            .list_user_roles_by_user_id_and_details(
                 user_from_token.user_id.as_str(),
                 Some(&user_from_token.org_id),
                 None,
@@ -2721,7 +2721,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
         } else {
             let profile_ids = state
                 .store
-                .list_user_roles(
+                .list_user_roles_by_user_id_and_details(
                     user_from_token.user_id.as_str(),
                     Some(&user_from_token.org_id),
                     Some(&user_from_token.merchant_id),

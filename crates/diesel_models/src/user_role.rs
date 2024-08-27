@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -5,7 +7,7 @@ use time::PrimitiveDateTime;
 
 use crate::{enums, schema::user_roles};
 
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Eq)]
 #[diesel(table_name = user_roles, check_for_backend(diesel::pg::Pg))]
 pub struct UserRole {
     pub id: i32,
@@ -22,6 +24,56 @@ pub struct UserRole {
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
+}
+
+fn get_entity_id_and_type(user_role: &UserRole) -> (Option<String>, Option<EntityType>) {
+    match user_role.version {
+        enums::UserRoleVersion::V1 => match user_role.role_id.as_str() {
+            "org_admin" => (
+                user_role
+                    .org_id
+                    .clone()
+                    .map(|org_id| org_id.get_string_repr().to_string()),
+                Some(EntityType::Organization),
+            ),
+            "internal_view_only" | "internal_admin" => (
+                user_role
+                    .merchant_id
+                    .clone()
+                    .map(|merchant_id| merchant_id.get_string_repr().to_string()),
+                Some(EntityType::Internal),
+            ),
+            _ => (
+                user_role
+                    .merchant_id
+                    .clone()
+                    .map(|merchant_id| merchant_id.get_string_repr().to_string()),
+                Some(EntityType::Merchant),
+            ),
+        },
+        enums::UserRoleVersion::V2 => (user_role.entity_id.clone(), user_role.entity_type.clone()),
+    }
+}
+
+impl Hash for UserRole {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let (entity_id, entity_type) = get_entity_id_and_type(self);
+
+        self.user_id.hash(state);
+        entity_id.hash(state);
+        entity_type.hash(state);
+    }
+}
+
+impl PartialEq for UserRole {
+    fn eq(&self, other: &Self) -> bool {
+        let (self_entity_id, self_entity_type) = get_entity_id_and_type(self);
+        let (other_entity_id, other_entity_type) = get_entity_id_and_type(other);
+
+        self.user_id == other.user_id
+            && self_entity_id == other_entity_id
+            && self_entity_type == other_entity_type
+    }
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]

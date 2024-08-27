@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{
@@ -10,6 +10,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    db::user_role::ListUserRolesByOrgIdDetailsPayload,
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -20,7 +21,7 @@ use crate::{
     utils,
 };
 pub mod role;
-use common_enums::PermissionGroup;
+use common_enums::{EntityType, PermissionGroup};
 use strum::IntoEnumIterator;
 
 // TODO: To be deprecated once groups are stable
@@ -640,4 +641,121 @@ pub async fn delete_user_role(
 
     auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn list_users_in_lineage(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<Vec<user_api::ListUsersInEntityResponse>> {
+    let requestor_role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    let set: HashSet<_> = match requestor_role_info.get_entity_type() {
+        EntityType::Organization => state
+            .store
+            .list_user_roles_by_org_id_and_details(ListUserRolesByOrgIdDetailsPayload {
+                user_id: None,
+                org_id: &user_from_token.org_id,
+                merchant_id: None,
+                profile_id: None,
+                version: None,
+            })
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into_iter()
+            .collect(),
+        EntityType::Merchant => state
+            .store
+            .list_user_roles_by_org_id_and_details(
+                ListUserRolesByOrgIdDetailsPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id: None,
+                    version: None,
+                }, // None,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into_iter()
+            .collect(),
+        EntityType::Profile => {
+            let Some(profile_id) = user_from_token.profile_id.as_ref() else {
+                return Err(UserErrors::JwtProfileIdMissing.into());
+            };
+
+            state
+                .store
+                .list_user_roles_by_org_id_and_details(
+                    ListUserRolesByOrgIdDetailsPayload {
+                        user_id: None,
+                        org_id: &user_from_token.org_id,
+                        merchant_id: Some(&user_from_token.merchant_id),
+                        profile_id: Some(profile_id),
+                        version: None,
+                    }, // None,
+                       // &user_from_token.org_id,
+                       // Some(&user_from_token.merchant_id),
+                       // Some(profile_id),
+                       // None,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .collect()
+        }
+        EntityType::Internal => HashSet::new(),
+    };
+
+    let user_roles_map = futures::future::try_join_all(set.into_iter().map(|user_role| {
+        let state = state.clone();
+        let user_from_token = user_from_token.clone();
+        async move {
+            futures::try_join!(
+                state.global_store.find_user_by_id(&user_role.user_id),
+                roles::RoleInfo::from_role_id(
+                    &state,
+                    &user_role.role_id,
+                    &user_from_token.merchant_id,
+                    &user_from_token.org_id
+                )
+            )
+            .change_context(UserErrors::InternalServerError)
+        }
+    }))
+    .await?
+    .into_iter()
+    .fold(HashMap::new(), |mut map, (user, role_info)| {
+        // This condition is not needed if all the data is V2.
+        // TODO: Remove this condition once V1 is removed.
+        if role_info.get_entity_type() <= requestor_role_info.get_entity_type() {
+            let (_email, role_info_vec) = map.entry(user.user_id).or_insert((user.email, vec![]));
+            role_info_vec.push(role_info);
+        }
+        map
+    });
+
+    Ok(ApplicationResponse::Json(
+        user_roles_map
+            .into_values()
+            .map(
+                |(email, role_info_vec)| user_api::ListUsersInEntityResponse {
+                    email,
+                    roles: role_info_vec
+                        .into_iter()
+                        .map(|role_info| user_api::MinimalRoleInfo {
+                            role_id: role_info.get_role_id().to_owned(),
+                            role_name: role_info.get_role_name().to_owned(),
+                        })
+                        .collect(),
+                },
+            )
+            .collect(),
+    ))
 }

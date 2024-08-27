@@ -35,7 +35,7 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
-    user_role::UserRoleInterface,
+    user_role::{ListUserRolesByOrgIdDetailsPayload, UserRoleInterface},
 };
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
@@ -2872,7 +2872,7 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn list_user_roles(
+    async fn list_user_roles_by_user_id_and_details(
         &self,
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
@@ -2882,7 +2882,23 @@ impl UserRoleInterface for KafkaStore {
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         self.diesel_store
-            .list_user_roles(user_id, org_id, merchant_id, profile_id, entity_id, version)
+            .list_user_roles_by_user_id_and_details(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                entity_id,
+                version,
+            )
+            .await
+    }
+
+    async fn list_user_roles_by_org_id_and_details<'a>(
+        &self,
+        payload: ListUserRolesByOrgIdDetailsPayload<'a>,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        self.diesel_store
+            .list_user_roles_by_org_id_and_details(payload)
             .await
     }
 }
