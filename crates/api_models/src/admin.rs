@@ -330,9 +330,8 @@ pub struct MerchantAccountUpdate {
     pub frm_routing_algorithm: Option<serde_json::Value>,
 
     /// The default business profile that must be used for creating merchant accounts and payments
-    /// To unset this field, pass an empty string
-    #[schema(max_length = 64)]
-    pub default_profile: Option<String>,
+    #[schema(max_length = 64, value_type = Option<String>)]
+    pub default_profile: Option<id_type::ProfileId>,
 
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
@@ -526,8 +525,8 @@ pub struct MerchantAccountResponse {
     pub is_recon_enabled: bool,
 
     /// The default business profile that must be used for creating merchant accounts and payments
-    #[schema(max_length = 64)]
-    pub default_profile: Option<String>,
+    #[schema(max_length = 64, value_type = Option<String>)]
+    pub default_profile: Option<id_type::ProfileId>,
 
     /// Used to indicate the status of the recon module for a merchant account
     #[schema(value_type = ReconStatus, example = "not_requested")]
@@ -699,7 +698,8 @@ pub struct MerchantConnectorCreate {
     pub connector_label: Option<String>,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    pub profile_id: String,
+    #[schema(max_length = 64, value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// An object containing the required details/credentials for a Connector account.
     #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -829,7 +829,8 @@ pub struct MerchantConnectorCreate {
     pub connector_label: Option<String>,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    pub profile_id: Option<String>,
+    #[schema(max_length = 64, value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     /// An object containing the required details/credentials for a Connector account.
     #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -1063,8 +1064,8 @@ pub struct MerchantConnectorResponse {
     pub id: String,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    #[schema(max_length = 64)]
-    pub profile_id: String,
+    #[schema(max_length = 64, value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// An object containing the required details/credentials for a Connector account.
     #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -1170,8 +1171,8 @@ pub struct MerchantConnectorResponse {
     pub merchant_connector_id: String,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    #[schema(max_length = 64)]
-    pub profile_id: String,
+    #[schema(max_length = 64, value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// An object containing the required details/credentials for a Connector account.
     #[schema(value_type = Option<MerchantConnectorDetails>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
@@ -1294,8 +1295,8 @@ pub struct MerchantConnectorListResponse {
     pub merchant_connector_id: String,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    #[schema(max_length = 64)]
-    pub profile_id: String,
+    #[schema(max_length = 64, value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
@@ -1403,8 +1404,8 @@ pub struct MerchantConnectorListResponse {
     pub id: String,
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
-    #[schema(max_length = 64)]
-    pub profile_id: String,
+    #[schema(max_length = 64, value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
     #[schema(example = json!([
@@ -1555,6 +1556,10 @@ pub struct MerchantConnectorUpdate {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: Option<api_enums::ConnectorStatus>,
+
+    /// In case the merchant needs to store any additional sensitive data
+    #[schema(value_type = Option<AdditionalMerchantData>)]
+    pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -1636,6 +1641,10 @@ pub struct MerchantConnectorUpdate {
     /// The identifier for the Merchant Account
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: id_type::MerchantId,
+
+    /// In case the merchant needs to store any additional sensitive data
+    #[schema(value_type = Option<AdditionalMerchantData>)]
+    pub additional_merchant_data: Option<AdditionalMerchantData>,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -2076,9 +2085,9 @@ pub struct BusinessProfileResponse {
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
-    /// The default business profile that must be used for creating merchant accounts and payments
-    #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]
-    pub profile_id: String,
+    /// The identifier for business profile. This must be used for creating merchant accounts, payments and payouts
+    #[schema(max_length = 64, value_type = String, example = "pro_abcdefghijklmnopqrstuvwxyz")]
+    pub profile_id: id_type::ProfileId,
 
     /// Name of the business profile
     #[schema(max_length = 64)]
@@ -2193,8 +2202,8 @@ pub struct BusinessProfileResponse {
     pub merchant_id: id_type::MerchantId,
 
     /// The identifier for business profile. This must be used for creating merchant accounts, payments and payouts
-    #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]
-    pub id: String,
+    #[schema(max_length = 64, value_type = String, example = "pro_abcdefghijklmnopqrstuvwxyz")]
+    pub id: id_type::ProfileId,
 
     /// Name of the business profile
     #[schema(max_length = 64)]
@@ -2516,6 +2525,10 @@ pub struct BusinessCollectLinkConfig {
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+
+    /// Allows for removing any validations / pre-requisites which are necessary in a production environment
+    #[schema(value_type = Option<bool>, default = false)]
+    pub payout_test_mode: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

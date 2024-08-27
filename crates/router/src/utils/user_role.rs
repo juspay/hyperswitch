@@ -182,7 +182,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
     user_id: &str,
     org_id: &id_type::OrganizationId,
     merchant_id: &id_type::MerchantId,
-    profile_id: Option<&String>,
+    profile_id: Option<&id_type::ProfileId>,
     update: UserRoleUpdate,
 ) -> (
     Result<UserRole, Report<StorageError>>,

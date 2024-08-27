@@ -161,7 +161,7 @@ pub struct Provider {
 #[serde(rename_all = "snake_case")]
 pub struct ConnectorApiIntegrationPayload {
     pub connector_type: String,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub connector_name: api_models::enums::Connector,
     #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]

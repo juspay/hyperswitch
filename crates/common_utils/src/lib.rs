@@ -226,6 +226,19 @@ pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
     id_type::OrganizationId::generate()
 }
 
+/// Generate a profile id with default length, with prefix as `pro`
+pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
+    use id_type::GenerateId;
+
+    id_type::ProfileId::generate()
+}
+
+/// Generate a routing id with default length, with prefix as `routing`
+pub fn generate_routing_id_of_default_length() -> id_type::RoutingId {
+    use id_type::GenerateId;
+
+    id_type::RoutingId::generate()
+}
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {

@@ -71,7 +71,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         || webhook_url_result.as_ref().is_ok_and(String::is_empty)
     {
         logger::debug!(
-            business_profile_id=%business_profile.profile_id,
+            business_profile_id=?business_profile.profile_id,
             %idempotent_event_id,
             "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
              could not be obtained; skipping outgoing webhooks for event"

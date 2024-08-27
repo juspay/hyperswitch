@@ -6,6 +6,7 @@ use std::{borrow::Cow, fmt::Debug};
 mod customer;
 mod merchant;
 mod organization;
+mod profile;
 mod routing;
 
 mod global_id;
@@ -20,6 +21,7 @@ use diesel::{
 };
 pub use merchant::MerchantId;
 pub use organization::OrganizationId;
+pub use profile::ProfileId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
