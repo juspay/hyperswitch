@@ -589,7 +589,7 @@ async fn publish_and_redact_merchant_account_cache(
             format!(
                 "cgraph_{}_{}",
                 merchant_account.get_id().get_string_repr(),
-                profile_id,
+                profile_id.get_string_repr(),
             )
             .into(),
         )

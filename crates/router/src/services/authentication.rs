@@ -1,10 +1,14 @@
 use actix_web::http::header::HeaderMap;
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
+use api_models::payment_methods::PaymentMethodCreate;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "payouts")]
 use api_models::payouts;
-use api_models::{
-    payment_methods::{PaymentMethodCreate, PaymentMethodListRequest},
-    payments,
-};
+use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
 use common_utils::{date_time, id_type};
@@ -55,14 +59,14 @@ mod detached;
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationDataWithMultipleProfiles {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
-    pub profile_id_list: Option<Vec<String>>,
+    pub profile_id_list: Option<Vec<id_type::ProfileId>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -191,7 +195,7 @@ pub struct AuthToken {
     pub role_id: String,
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 #[cfg(feature = "olap")]
@@ -202,7 +206,7 @@ impl AuthToken {
         role_id: String,
         settings: &Settings,
         org_id: id_type::OrganizationId,
-        profile_id: Option<String>,
+        profile_id: Option<id_type::ProfileId>,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -224,7 +228,7 @@ pub struct UserFromToken {
     pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 pub struct UserIdFromAuth {
@@ -1567,9 +1571,20 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 impl ClientSecretFetch for PaymentMethodCreate {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl ClientSecretFetch for PaymentMethodIntentConfirm {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(&self.client_secret)
     }
 }
 

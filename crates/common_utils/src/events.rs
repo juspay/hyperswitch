@@ -35,6 +35,9 @@ pub enum ApiEventsType {
     Customer {
         customer_id: id_type::CustomerId,
     },
+    BusinessProfile {
+        profile_id: id_type::ProfileId,
+    },
     User {
         user_id: String,
     },

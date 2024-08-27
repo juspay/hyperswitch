@@ -114,7 +114,7 @@ pub async fn generate_jwt_auth_token_with_custom_role_attributes(
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
-    profile_id: Option<String>,
+    profile_id: Option<id_type::ProfileId>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user.get_user_id().to_string(),
