@@ -15,7 +15,7 @@ pub enum ActionUrlResponse {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct OnboardingSyncRequest {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub connector_id: String,
     pub connector: enums::Connector,
 }

@@ -47,7 +47,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
@@ -56,7 +56,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
@@ -66,7 +66,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
@@ -75,7 +75,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
@@ -155,7 +155,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -177,7 +177,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
@@ -201,7 +201,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -222,7 +222,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
@@ -377,7 +377,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
@@ -416,7 +416,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
@@ -470,7 +470,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
@@ -510,7 +510,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {

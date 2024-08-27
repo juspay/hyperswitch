@@ -33,7 +33,7 @@ where
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
 
     async fn find_business_profile_by_merchant_id_profile_id(
@@ -41,7 +41,7 @@ where
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
 
     async fn find_business_profile_by_profile_name_merchant_id(
@@ -62,7 +62,7 @@ where
 
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
@@ -105,7 +105,7 @@ impl BusinessProfileInterface for Store {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::BusinessProfile::find_by_profile_id(&conn, profile_id)
@@ -125,7 +125,7 @@ impl BusinessProfileInterface for Store {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::BusinessProfile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
@@ -191,7 +191,7 @@ impl BusinessProfileInterface for Store {
     #[instrument(skip_all)]
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -262,13 +262,13 @@ impl BusinessProfileInterface for MockDb {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.business_profiles
             .lock()
             .await
             .iter()
-            .find(|business_profile| business_profile.profile_id == profile_id)
+            .find(|business_profile| business_profile.profile_id == *profile_id)
             .cloned()
             .async_map(|business_profile| async {
                 business_profile
@@ -284,7 +284,7 @@ impl BusinessProfileInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No business profile found for profile_id = {profile_id}"
+                    "No business profile found for profile_id = {profile_id:?}"
                 ))
                 .into(),
             )
@@ -295,7 +295,7 @@ impl BusinessProfileInterface for MockDb {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.business_profiles
             .lock()
@@ -303,7 +303,7 @@ impl BusinessProfileInterface for MockDb {
             .iter()
             .find(|business_profile| {
                 business_profile.merchant_id == *merchant_id
-                    && business_profile.profile_id == profile_id
+                    && business_profile.profile_id == *profile_id
             })
             .cloned()
             .async_map(|business_profile| async {
@@ -320,7 +320,7 @@ impl BusinessProfileInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No business profile found for merchant_id = {merchant_id:?} and profile_id = {profile_id}"
+                    "No business profile found for merchant_id = {merchant_id:?} and profile_id = {profile_id:?}"
                 ))
                 .into(),
             )
@@ -362,7 +362,7 @@ impl BusinessProfileInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No business profile found for profile_id = {profile_id}"
+                    "No business profile found for profile_id = {profile_id:?}"
                 ))
                 .into(),
             )
@@ -370,18 +370,18 @@ impl BusinessProfileInterface for MockDb {
 
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut business_profiles = self.business_profiles.lock().await;
         let index = business_profiles
             .iter()
             .position(|business_profile| {
-                business_profile.profile_id == profile_id
+                business_profile.profile_id == *profile_id
                     && business_profile.merchant_id == *merchant_id
             })
             .ok_or::<errors::StorageError>(errors::StorageError::ValueNotFound(format!(
-                "No business profile found for profile_id = {profile_id} and merchant_id = {merchant_id:?}"
+                "No business profile found for profile_id = {profile_id:?} and merchant_id = {merchant_id:?}"
             )))?;
         business_profiles.remove(index);
         Ok(true)
