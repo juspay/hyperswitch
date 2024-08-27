@@ -1784,12 +1784,11 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
             _ => payment_data,
         };
 
-        let customer_acceptance = item.request.customer_acceptance.clone() 
-            .or(item
-                .request
-                .setup_mandate_details
-                .as_ref()
-                .and_then(|mandate_details| mandate_details.customer_acceptance.clone()));
+        let customer_acceptance = item.request.customer_acceptance.clone().or(item
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .and_then(|mandate_details| mandate_details.customer_acceptance.clone()));
 
         let setup_mandate_details = customer_acceptance
             .as_ref()
