@@ -4,6 +4,7 @@
     feature = "olap"
 ))]
 use crate::types::transformers::ForeignInto;
+#[cfg(feature = "olap")]
 use crate::types::{api, domain, storage, transformers::ForeignFrom};
 
 #[cfg(all(feature = "v2", feature = "customer_v2", feature = "olap"))]
