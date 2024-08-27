@@ -71,7 +71,7 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
-    pub profile_id: common_utils::id_type::ProfileId,
+    pub profile_id: id_type::ProfileId,
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,

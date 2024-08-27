@@ -8,7 +8,7 @@ crate::impl_id_type_methods!(MerchantConnectorAccountId, "merchant_connector_id"
 
 // This is to display the `MerchantConnectorAccountId` as MerchantConnectorAccountId(abcd)
 crate::impl_debug_id_type!(MerchantConnectorAccountId);
-crate::impl_default_id_type!(MerchantConnectorAccountId, "mca");
+crate::impl_generate_id_id_type!(MerchantConnectorAccountId, "mca");
 crate::impl_try_from_cow_str_id_type!(MerchantConnectorAccountId, "merchant_connector_id");
 
 crate::impl_serializable_secret_id_type!(MerchantConnectorAccountId);

@@ -670,7 +670,7 @@ pub struct MerchantId {
     any(feature = "v1", feature = "v2"),
     not(feature = "merchant_connector_account_v2")
 ))]
-#[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
@@ -678,7 +678,7 @@ pub struct MerchantConnectorId {
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
 }
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-#[derive(Default, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantConnectorId {
     #[schema(value_type = String)]
     pub id: id_type::MerchantConnectorAccountId,

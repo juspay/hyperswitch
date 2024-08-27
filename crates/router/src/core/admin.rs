@@ -2458,7 +2458,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_label: Some(connector_label.clone()),
             created_at: date_time::now(),
             modified_at: date_time::now(),
-            id: id_type::MerchantConnectorAccountId::default(),
+            id: common_utils::generate_merchant_connector_account_id_of_default_length(),
             connector_webhook_details: match self.connector_webhook_details {
                 Some(connector_webhook_details) => {
                     connector_webhook_details.encode_to_value(
@@ -2605,7 +2605,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
             connector_name: self.connector_name.to_string(),
-            merchant_connector_id: id_type::MerchantConnectorAccountId::default(),
+            merchant_connector_id: common_utils::generate_merchant_connector_account_id_of_default_length(),
             connector_account_details: domain_types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::MerchantConnectorAccount),

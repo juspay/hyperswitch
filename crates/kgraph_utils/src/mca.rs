@@ -710,7 +710,7 @@ mod tests {
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
-            id: common_utils::id_type::MerchantConnectorAccountId::default(),
+            id: common_utils::generate_merchant_connector_account_id_of_default_length(),
             connector_label: Some("something".to_string()),
             connector_account_details: masking::Secret::new(serde_json::json!({})),
             disabled: None,
@@ -767,7 +767,8 @@ mod tests {
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
-            merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId::default(),
+            merchant_connector_id:
+                common_utils::generate_merchant_connector_account_id_of_default_length(),
             business_country: Some(api_enums::CountryAlpha2::US),
             connector_label: Some("something".to_string()),
             business_label: Some("food".to_string()),

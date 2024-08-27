@@ -1696,7 +1696,7 @@ mod merchant_connector_account_cache_tests {
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("test_merchant"))
                 .unwrap();
         let connector_label = "stripe_USA";
-        let id = common_utils::id_type::MerchantConnectorAccountId::default();
+        let id = common_utils::generate_merchant_connector_account_id_of_default_length();
         let profile_id =
             common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("pro_max_ultra"))
                 .unwrap();
