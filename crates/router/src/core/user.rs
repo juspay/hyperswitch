@@ -2804,8 +2804,7 @@ pub async fn switch_org_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .filter(|role| role.status == UserStatus::Active)
-        .next()
+        .find(|role| role.status == UserStatus::Active)
         .ok_or(UserErrors::InvalidRoleOperationWithMessage(
             "No user role found for the requested org id".to_string(),
         ))?
@@ -2868,7 +2867,7 @@ pub async fn switch_org_for_user(
 
     let _ = utils::user_role::set_role_permissions_in_cache_if_required(
         &state,
-        &user_from_token.role_id,
+        &user_role.role_id,
         &merchant_id,
         &request.org_id,
     )
@@ -2927,14 +2926,12 @@ pub async fn switch_merchant_for_user_in_org(
                 .await
                 .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-            let merchant_id = merchant_account.get_id().clone();
-
             let profile_id = state
                 .store
                 .list_business_profile_by_merchant_id(
                     key_manager_state,
                     &merchant_key_store,
-                    &merchant_id,
+                    &request.merchant_id,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)?
@@ -2945,11 +2942,12 @@ pub async fn switch_merchant_for_user_in_org(
 
             (
                 merchant_account.organization_id,
-                merchant_id,
+                request.merchant_id,
                 profile_id,
                 user_from_token.role_id.clone(),
             )
         }
+
         EntityType::Organization => {
             let merchant_id = state
                 .store
@@ -2998,6 +2996,7 @@ pub async fn switch_merchant_for_user_in_org(
                 user_from_token.role_id.clone(),
             )
         }
+
         EntityType::Merchant | EntityType::Profile => {
             let user_role = state
                 .store
@@ -3012,10 +3011,9 @@ pub async fn switch_merchant_for_user_in_org(
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
-                .filter(|role| role.status == UserStatus::Active)
-                .next()
+                .find(|role| role.status == UserStatus::Active)
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
-                    "No user role associated for the requested merchant id".to_string(),
+                    "No user role associated with the requested merchant id".to_string(),
                 ))?
                 .to_owned();
 
@@ -3148,8 +3146,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
-                .filter(|role| role.status == UserStatus::Active)
-                .next()
+                .find(|role| role.status == UserStatus::Active)
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
                     "No such profile found for the merchant".to_string(),
                 ))?

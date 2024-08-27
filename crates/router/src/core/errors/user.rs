@@ -88,10 +88,6 @@ pub enum UserErrors {
     AuthConfigParsingError,
     #[error("Invalid SSO request")]
     SSOFailed,
-    #[error("Org id not found")]
-    OrgIdNotFound,
-    #[error("Profile id not found")]
-    ProfileIdNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -228,12 +224,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::SSOFailed => {
                 AER::BadRequest(ApiError::new(sub_code, 46, self.get_error_message(), None))
             }
-            Self::OrgIdNotFound => {
-                AER::BadRequest(ApiError::new(sub_code, 47, self.get_error_message(), None))
-            }
-            Self::ProfileIdNotFound => {
-                AER::BadRequest(ApiError::new(sub_code, 48, self.get_error_message(), None))
-            }
         }
     }
 }
@@ -281,8 +271,6 @@ impl UserErrors {
             Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
             Self::AuthConfigParsingError => "Auth config parsing error",
             Self::SSOFailed => "Invalid SSO request",
-            Self::OrgIdNotFound => "Org id not found",
-            Self::ProfileIdNotFound => "Profile id not found",
         }
     }
 }
