@@ -52,6 +52,8 @@ fn build_test_data(
         });
     }
 
+    let profile_id = common_utils::generate_profile_id_of_default_length();
+
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     let stripe_account = MerchantConnectorResponse {
         connector_type: api_enums::ConnectorType::FizOperations,
@@ -64,7 +66,7 @@ fn build_test_data(
         connector_label: Some("something".to_string()),
         frm_configs: None,
         connector_webhook_details: None,
-        profile_id: "profile_id".to_string(),
+        profile_id,
         applepay_verified_domains: None,
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
@@ -90,7 +92,7 @@ fn build_test_data(
         business_sub_label: Some("something".to_string()),
         frm_configs: None,
         connector_webhook_details: None,
-        profile_id: "profile_id".to_string(),
+        profile_id,
         applepay_verified_domains: None,
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,

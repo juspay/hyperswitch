@@ -51,6 +51,7 @@ pub struct Connectors {
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
+    pub novalnet: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
