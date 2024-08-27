@@ -9024,6 +9024,14 @@
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64,
             "minLength": 1
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false

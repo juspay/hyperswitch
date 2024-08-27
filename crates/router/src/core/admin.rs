@@ -2080,6 +2080,30 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
 
         pm_auth_config_validation.validate_pm_auth_config().await?;
 
+        let merchant_recipient_data = if let Some(data) = &self.additional_merchant_data {
+            Some(
+                process_open_banking_connectors(
+                    state,
+                    merchant_account.get_id(),
+                    &auth,
+                    &self.connector_type,
+                    &connector_enum,
+                    types::AdditionalMerchantData::foreign_from(data.clone()),
+                )
+                .await?,
+            )
+        } else {
+            None
+        }
+        .map(|data| {
+            serde_json::to_value(types::AdditionalMerchantData::OpenBankingRecipientData(
+                data,
+            ))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
+
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
             connector_label: self.connector_label.clone(),
@@ -2114,6 +2138,23 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config,
             status: Some(connector_status),
+            additional_merchant_data: if let Some(mcd) = merchant_recipient_data {
+                Some(
+                    domain_types::crypto_operation(
+                        key_manager_state,
+                        type_name!(domain::MerchantConnectorAccount),
+                        domain_types::CryptoOperation::Encrypt(Secret::new(mcd)),
+                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        key_store.key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_operation())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt additional_merchant_data")?,
+                )
+            } else {
+                None
+            },
             connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
                 state, &key_store, &metadata,
             )
@@ -2216,6 +2257,30 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             }
         }
 
+        let merchant_recipient_data = if let Some(data) = &self.additional_merchant_data {
+            Some(
+                process_open_banking_connectors(
+                    state,
+                    merchant_account.get_id(),
+                    &auth,
+                    &self.connector_type,
+                    &connector_enum,
+                    types::AdditionalMerchantData::foreign_from(data.clone()),
+                )
+                .await?,
+            )
+        } else {
+            None
+        }
+        .map(|data| {
+            serde_json::to_value(types::AdditionalMerchantData::OpenBankingRecipientData(
+                data,
+            ))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
+
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
             connector_name: None,
@@ -2253,6 +2318,23 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config,
             status: Some(connector_status),
+            additional_merchant_data: if let Some(mcd) = merchant_recipient_data {
+                Some(
+                    domain_types::crypto_operation(
+                        key_manager_state,
+                        type_name!(domain::MerchantConnectorAccount),
+                        domain_types::CryptoOperation::Encrypt(Secret::new(mcd)),
+                        km_types::Identifier::Merchant(key_store.merchant_id.clone()),
+                        key_store.key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_operation())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt additional_merchant_data")?,
+                )
+            } else {
+                None
+            },
             connector_wallets_details: helpers::get_encrypted_apple_pay_connector_wallets_details(
                 state, &key_store, &metadata,
             )
@@ -2349,7 +2431,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get MerchantRecipientData")?;
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
@@ -2398,7 +2480,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                     key_manager_state,
                     type_name!(domain::MerchantConnectorAccount),
                     domain_types::CryptoOperation::Encrypt(Secret::new(mcd)),
-                    identifier,
+                    km_types::Identifier::Merchant(key_store.merchant_id.clone()),
                     key_store.key.peek(),
                 )
                 .await
@@ -2518,7 +2600,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get MerchantRecipientData")?;
+        .attach_printable("Failed to serialize MerchantRecipientData")?;
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,

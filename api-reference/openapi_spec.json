@@ -13201,6 +13201,14 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
