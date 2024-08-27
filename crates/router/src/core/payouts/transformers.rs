@@ -1,6 +1,11 @@
-use crate::types::{
-    api, domain, storage,
-    transformers::{ForeignFrom, ForeignInto},
+use common_utils::link_utils::EnabledPaymentMethod;
+
+use crate::{
+    routes::app::settings::PayoutRequiredFields,
+    types::{
+        api, domain, storage,
+        transformers::{ForeignFrom, ForeignInto},
+    },
 };
 
 impl
@@ -73,5 +78,30 @@ impl
                 .as_ref()
                 .and_then(|customer| customer.phone_country_code.clone()),
         }
+    }
+}
+
+impl ForeignFrom<(PayoutRequiredFields, Vec<EnabledPaymentMethod>)>
+    for Vec<api::PayoutEnabledPaymentMethodsInfo>
+{
+    fn foreign_form(
+        (payout_required_fields, enabled_payout_methods): (
+            PayoutRequiredFields,
+            Vec<EnabledPaymentMethod>,
+        ),
+    ) -> Self {
+        enabled_payout_methods.iter().map(|enabled_payout_method| {
+            let pm = enabled_payout_method.payment_method;
+            payout_required_fields
+                .0
+                .iter()
+                .map(|(rf_pm, rf_pmt_info)| rf_pmt_info.0.iter().map(|(rf_pmt, connector_fields)| {
+                    connector_fields.fields.iter().map(|(connector, required_fields)| {
+                        required_fields.common.iter().map(|(rf_str, rf_info)| {
+                            
+                        })
+                    })
+                }))
+        })
     }
 }

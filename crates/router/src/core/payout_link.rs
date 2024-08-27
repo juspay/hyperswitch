@@ -185,6 +185,8 @@ pub async fn initiate_payout_link(
                 _ => Ordering::Equal,
             });
 
+            let payout_required_fields = state.conf.payouts.required_fields;
+
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: masking::Secret::new(merchant_account.publishable_key),
                 client_secret: link_data.client_secret.clone(),

@@ -6,10 +6,11 @@ use common_utils::{
 };
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payments};
+use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -768,10 +769,22 @@ pub struct PayoutLinkDetails {
     pub return_url: Option<url::Url>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
-    pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
+    pub enabled_payment_methods: Vec<PayoutEnabledPaymentMethodsInfo>,
     pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
     pub locale: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutEnabledPaymentMethodsInfo {
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_types_info: Vec<PaymentMethodTypeInfo>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodTypeInfo {
+    pub payment_method_type: common_enums::PaymentMethodType,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
