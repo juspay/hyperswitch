@@ -556,6 +556,7 @@ default_imp_for_connector_request_id!(
     connector::Netcetera,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
@@ -623,7 +624,6 @@ impl<const T: u8>
 default_imp_for_accept_dispute!(
     connector::Adyenplatform,
     connector::Aci,
-    connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bamboraapac,
@@ -739,7 +739,6 @@ impl<const T: u8>
 default_imp_for_file_upload!(
     connector::Adyenplatform,
     connector::Aci,
-    connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bamboraapac,
@@ -832,7 +831,6 @@ impl<const T: u8>
 default_imp_for_submit_evidence!(
     connector::Adyenplatform,
     connector::Aci,
-    connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bamboraapac,
@@ -925,7 +923,6 @@ impl<const T: u8>
 default_imp_for_defend_dispute!(
     connector::Adyenplatform,
     connector::Aci,
-    connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bamboraapac,
@@ -1214,6 +1211,7 @@ default_imp_for_payouts!(
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
@@ -2233,6 +2231,7 @@ default_imp_for_fraud_check!(
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
@@ -3047,6 +3046,7 @@ default_imp_for_connector_authentication!(
     connector::Nexinets,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
