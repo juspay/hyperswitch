@@ -533,7 +533,7 @@ describe("Auto Retries & Step Up 3DS", () => {
       });
     });
 
-    context("[OFF] Auto retries", () => {
+    context("[Config: disable] Auto retries", () => {
       it("[Config: disable] Auto retries", () => {
         cy.autoRetryConfig(fixtures.configs.gsm, globalState, "false");
       });
