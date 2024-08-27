@@ -1119,7 +1119,7 @@ where
 
 pub struct JWTAuthMerchantAndProfileFromRoute {
     pub merchant_id: id_type::MerchantId,
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
 }
 

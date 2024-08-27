@@ -1363,15 +1363,15 @@ impl<T, F> GetProfileId for (storage::Payouts, T, F) {
 }
 
 impl GetProfileId for domain::BusinessProfile {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)
     }
 }
 
 #[derive(Debug)]
-pub struct ProfileIdWrapper(pub String);
+pub struct ProfileIdWrapper(pub common_utils::id_type::ProfileId);
 impl GetProfileId for ProfileIdWrapper {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.0)
     }
 }

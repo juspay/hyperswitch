@@ -3768,7 +3768,7 @@ pub async fn create_business_profile(
 pub async fn list_business_profile(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
     let key_store = db
