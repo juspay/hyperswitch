@@ -978,11 +978,11 @@ pub async fn business_profile_update(
         |state, _auth, req, _| update_business_profile(state, &profile_id, &merchant_id, req),
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantId::default(),
-            &auth::JWTAuthMerchantAndProfileFromRoute::new(
-                merchant_id.clone(),
-                Permission::MerchantAccountWrite,
-                profile_id.clone(),
-            ),
+            &auth::JWTAuthMerchantAndProfileFromRoute {
+                merchant_id: merchant_id.clone(),
+                profile_id: profile_id.clone(),
+                required_permission: Permission::MerchantAccountWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

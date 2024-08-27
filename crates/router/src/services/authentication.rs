@@ -1119,20 +1119,6 @@ pub struct JWTAuthMerchantAndProfileFromRoute {
     pub required_permission: Permission,
 }
 
-impl JWTAuthMerchantAndProfileFromRoute {
-    pub fn new(
-        merchant_id_from_route: id_type::MerchantId,
-        permission: Permission,
-        profile_id_from_route: String,
-    ) -> Self {
-        Self {
-            merchant_id: merchant_id_from_route,
-            required_permission: permission,
-            profile_id: profile_id_from_route,
-        }
-    }
-}
-
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAuthMerchantAndProfileFromRoute
 where
