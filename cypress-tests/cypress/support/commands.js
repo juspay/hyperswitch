@@ -244,7 +244,7 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
     expect(response.body).to.be.an("array").and.not.empty;
     for (const key in response.body) {
       expect(response.body[key]).to.have.property("name").and.not.empty;
-      if (base_url.includes("sandbox")) {
+      if (base_url.includes("sandbox") || base_url.includes("integ")) {
         expect(response.body[key]).to.have.property("key_id").include("snd_")
           .and.not.empty;
       } else if (base_url.includes("localhost")) {
