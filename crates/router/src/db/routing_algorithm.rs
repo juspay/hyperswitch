@@ -21,18 +21,18 @@ pub trait RoutingAlgorithmInterface {
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
         profile_id: &str,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &str,
     ) -> StorageResult<routing_storage::RoutingProfileMetadata>;
 
@@ -77,7 +77,7 @@ impl RoutingAlgorithmInterface for Store {
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
         profile_id: &str,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         let conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::find_by_algorithm_id_profile_id(
@@ -92,7 +92,7 @@ impl RoutingAlgorithmInterface for Store {
     #[instrument(skip_all)]
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         let conn = connection::pg_connection_write(self).await?;
@@ -108,7 +108,7 @@ impl RoutingAlgorithmInterface for Store {
     #[instrument(skip_all)]
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &str,
     ) -> StorageResult<routing_storage::RoutingProfileMetadata> {
         let conn = connection::pg_connection_write(self).await?;

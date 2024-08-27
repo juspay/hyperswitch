@@ -418,14 +418,14 @@ impl RoutingAlgorithm {
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingAlgorithmRef {
-    pub algorithm_id: Option<String>,
+    pub algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub timestamp: i64,
     pub config_algo_id: Option<String>,
     pub surcharge_config_algo_id: Option<String>,
 }
 
 impl RoutingAlgorithmRef {
-    pub fn update_algorithm_id(&mut self, new_id: String) {
+    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
         self.algorithm_id = Some(new_id);
         self.timestamp = common_utils::date_time::now_unix_timestamp();
     }
