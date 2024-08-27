@@ -135,22 +135,23 @@ where
         Some(merchant_connector_account),
     );
 
-    let unified_address =
-        if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
-            let payment_method_billing = payment_method_info
-                .payment_method_billing_address
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .map(|decrypted_value| decrypted_value.parse_value("generic_data"))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to parse generic data value")?;
-            payment_data
-                .address
-                .clone()
-                .unify_with_payment_data_billing(payment_method_billing)
-        } else {
-            payment_data.address
-        };
+    let unified_address = if let Some(payment_method_info) =
+        payment_data.payment_method_info.clone()
+    {
+        let payment_method_billing = payment_method_info
+            .payment_method_billing_address
+            .map(|decrypted_data| decrypted_data.into_inner().expose())
+            .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse payment_method_billing_address")?;
+        payment_data
+            .address
+            .clone()
+            .unify_with_payment_data_billing(payment_method_billing)
+    } else {
+        payment_data.address
+    };
 
     crate::logger::debug!("unified address details {:?}", unified_address);
 

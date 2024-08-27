@@ -194,50 +194,9 @@ impl PaymentMethod {
         .await
     }
 
-    pub async fn delete_by_merchant_id_and_id(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
-        id: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, Self>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(pm_id.eq(id.to_owned())),
-        )
-        .await
-    }
-
-    pub async fn find_by_locker_id(conn: &PgPooledConn, locker_id: &str) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::locker_id.eq(locker_id.to_owned()),
-        )
-        .await
-    }
-
     pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, pm_id.eq(id.to_owned()))
             .await
-    }
-
-    pub async fn find_by_merchant_id(
-        conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-            None,
-            None,
-            None,
-        )
-        .await
     }
 
     pub async fn find_by_customer_id_merchant_id(

@@ -248,6 +248,10 @@ mod storage {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn find_payment_method_by_locker_id(
             &self,
@@ -311,6 +315,18 @@ mod storage {
                 )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
+        }
+
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        #[instrument(skip_all)]
+        async fn find_payment_method_by_locker_id(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            locker_id: &str,
+            storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+            todo!()
         }
         // not supported in kv
         #[instrument(skip_all)]
@@ -757,21 +773,7 @@ mod storage {
             merchant_id: &id_type::MerchantId,
             payment_method_id: &str,
         ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
-            storage_types::PaymentMethod::delete_by_merchant_id_and_id(
-                &conn,
-                merchant_id,
-                payment_method_id,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(
-                state,
-                key_store.key.get_inner(),
-                key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+            todo!()
         }
     }
 }

@@ -65,7 +65,7 @@ pub struct PaymentMethod {
     pub payment_method_data: OptionalEncryptableValue,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<serde_json::Value>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,

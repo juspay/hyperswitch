@@ -72,7 +72,7 @@ pub struct PaymentMethod {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<serde_json::Value>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -154,7 +154,7 @@ pub struct PaymentMethodNew {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<serde_json::Value>,
+    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -233,7 +233,7 @@ pub enum PaymentMethodUpdate {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PaymentMethodUpdate {
     MetadataUpdateAndLastUsed {
-        metadata: Option<serde_json::Value>,
+        metadata: Option<pii::SecretSerdeValue>,
         last_used_at: PrimitiveDateTime,
     },
     UpdatePaymentMethodDataAndLastUsed {
@@ -261,7 +261,7 @@ pub enum PaymentMethodUpdate {
         payment_method_type: Option<storage_enums::PaymentMethodType>,
     },
     ConnectorMandateDetailsUpdate {
-        connector_mandate_details: Option<serde_json::Value>,
+        connector_mandate_details: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -282,16 +282,51 @@ impl PaymentMethodUpdate {
 )]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
-    metadata: Option<serde_json::Value>,
+    metadata: Option<pii::SecretSerdeValue>,
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
     network_transaction_id: Option<String>,
     status: Option<storage_enums::PaymentMethodStatus>,
     locker_id: Option<String>,
     payment_method: Option<storage_enums::PaymentMethod>,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<pii::SecretSerdeValue>,
     updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodUpdateInternal {
+    pub fn create_payment_method(self, source: PaymentMethod) -> PaymentMethod {
+        let metadata = self.metadata;
+
+        PaymentMethod { metadata, ..source }
+    }
+
+    pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
+        let Self {
+            metadata,
+            payment_method_data,
+            last_used_at,
+            network_transaction_id,
+            status,
+            connector_mandate_details,
+            updated_by,
+            ..
+        } = self;
+
+        PaymentMethod {
+            metadata: metadata.map_or(source.metadata, Some),
+            payment_method_data: payment_method_data.map_or(source.payment_method_data, Some),
+            last_used_at: last_used_at.unwrap_or(source.last_used_at),
+            network_transaction_id: network_transaction_id
+                .map_or(source.network_transaction_id, Some),
+            status: status.unwrap_or(source.status),
+            connector_mandate_details: connector_mandate_details
+                .map_or(source.connector_mandate_details, Some),
+            updated_by: updated_by.map_or(source.updated_by, Some),
+            ..source
+        }
+    }
 }
 
 #[cfg(all(
@@ -316,6 +351,10 @@ pub struct PaymentMethodUpdateInternal {
     payment_method_issuer: Option<String>,
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl PaymentMethodUpdateInternal {
     pub fn create_payment_method(self, source: PaymentMethod) -> PaymentMethod {
         let metadata = self.metadata.map(Secret::new);

@@ -151,10 +151,6 @@ pub async fn create_payment_method(
 
     let current_time = common_utils::date_time::now();
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
     let response = db
         .insert_payment_method(
             &state.into(),
@@ -185,37 +181,6 @@ pub async fn create_payment_method(
                 is_stored: None,
                 swift_code: None,
                 direct_debit_token: None,
-                created_at: current_time,
-                last_modified: current_time,
-                last_used_at: current_time,
-                payment_method_billing_address,
-                updated_by: None,
-            },
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payment method in db")?;
-
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    let response = db
-        .insert_payment_method(
-            &state.into(),
-            key_store,
-            domain::PaymentMethod {
-                customer_id: customer_id.to_owned(),
-                merchant_id: merchant_id.to_owned(),
-                payment_method_id: payment_method_id.to_string(),
-                locker_id,
-                payment_method: req.payment_method,
-                payment_method_type: req.payment_method_type,
-                metadata: pm_metadata.map(Secret::new),
-                payment_method_data,
-                connector_mandate_details,
-                customer_acceptance: customer_acceptance.map(Secret::new),
-                client_secret: Some(client_secret),
-                status: status.unwrap_or(enums::PaymentMethodStatus::Active),
-                network_transaction_id: network_transaction_id.to_owned(),
                 created_at: current_time,
                 last_modified: current_time,
                 last_used_at: current_time,
@@ -748,10 +713,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let current_time = common_utils::date_time::now();
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_methods_v2")
-    ))]
     let response = db
         .insert_payment_method(
             &(&state).into(),
@@ -782,37 +743,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 is_stored: None,
                 swift_code: None,
                 direct_debit_token: None,
-                created_at: current_time,
-                last_modified: current_time,
-                last_used_at: current_time,
-                payment_method_billing_address: payment_method_billing_address.map(Into::into),
-                updated_by: None,
-            },
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payment method in db")?;
-
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    let response = db
-        .insert_payment_method(
-            &(&state).into(),
-            key_store,
-            domain::PaymentMethod {
-                customer_id: customer_id.to_owned(),
-                merchant_id: merchant_id.to_owned(),
-                payment_method_id: payment_method_id.to_string(),
-                locker_id: None,
-                payment_method: req.payment_method,
-                payment_method_type: req.payment_method_type,
-                metadata: payment_method_metadata.map(Secret::new),
-                payment_method_data: payment_method_data_encrypted.map(Into::into),
-                connector_mandate_details: Some(connector_mandate_details),
-                customer_acceptance: None,
-                client_secret: None,
-                status: enums::PaymentMethodStatus::Active,
-                network_transaction_id: None,
                 created_at: current_time,
                 last_modified: current_time,
                 last_used_at: current_time,
@@ -2264,6 +2194,10 @@ pub async fn call_to_locker_hs(
     Ok(stored_card)
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn update_payment_method_metadata_and_last_used(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2274,6 +2208,25 @@ pub async fn update_payment_method_metadata_and_last_used(
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
         metadata: pm_metadata,
+        last_used_at: common_utils::date_time::now(),
+    };
+    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn update_payment_method_metadata_and_last_used(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn db::StorageInterface,
+    pm: domain::PaymentMethod,
+    pm_metadata: Option<serde_json::Value>,
+    storage_scheme: MerchantStorageScheme,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
+        metadata: pm_metadata.map(Secret::new),
         last_used_at: common_utils::date_time::now(),
     };
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -2300,6 +2253,29 @@ pub async fn update_payment_method_and_last_used(
     Ok(())
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn update_payment_method_connector_mandate_details(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn db::StorageInterface,
+    pm: domain::PaymentMethod,
+    connector_mandate_details: Option<serde_json::Value>,
+    storage_scheme: MerchantStorageScheme,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+        connector_mandate_details: connector_mandate_details.map(Secret::new),
+    };
+
+    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
+    Ok(())
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn update_payment_method_connector_mandate_details(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
