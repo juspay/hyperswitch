@@ -4212,7 +4212,7 @@ impl BusinessProfileWrapper {
                         "Vec<RoutableConnectorChoice>",
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Merchant default config has invalid structure")?
+                    .attach_printable("Business Profile default config has invalid structure")?
             } else {
                 Vec::new()
             };
