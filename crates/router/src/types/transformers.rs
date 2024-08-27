@@ -81,6 +81,10 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
@@ -107,6 +111,36 @@ impl
             created: Some(item.created_at),
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            last_used_at: None,
+            client_secret: item.client_secret,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl
+    ForeignFrom<(
+        Option<payment_methods::CardDetailFromLocker>,
+        diesel_models::PaymentMethod,
+    )> for payment_methods::PaymentMethodResponse
+{
+    fn foreign_from(
+        (card_details, item): (
+            Option<payment_methods::CardDetailFromLocker>,
+            diesel_models::PaymentMethod,
+        ),
+    ) -> Self {
+        Self {
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            payment_method_id: item.payment_method_id,
+            payment_method: item.payment_method,
+            payment_method_type: item.payment_method_type,
+            payment_method_data: card_details
+                .map(|card| payment_methods::PaymentMethodResponseData::Card(card.clone())),
+            recurring_enabled: false,
+            metadata: item.metadata,
+            created: Some(item.created_at),
             last_used_at: None,
             client_secret: item.client_secret,
         }
@@ -269,6 +303,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
+            // api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
             api_enums::Connector::Paybox => Self::Paybox,
@@ -1800,6 +1835,7 @@ impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
     fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            payout_test_mode: item.payout_test_mode,
         }
     }
 }
@@ -1810,6 +1846,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
     fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
         Self {
             config: item.config.foreign_into(),
+            payout_test_mode: item.payout_test_mode,
         }
     }
 }

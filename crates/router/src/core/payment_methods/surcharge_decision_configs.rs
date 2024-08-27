@@ -403,20 +403,12 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
         backend_input.payment_method.payment_method_type =
             customer_payment_method.payment_method_type;
 
-        let card_network = match &customer_payment_method.payment_method_data {
-            Some(api_models::payment_methods::PaymentMethodListData::Card(card)) => card
-                .scheme
-                .as_ref()
-                .map(|scheme| {
-                    scheme
-                        .clone()
-                        .parse_enum("CardNetwork")
-                        .change_context(ConfigError::DslExecutionError)
-                })
-                .transpose()?,
+        let card_network = match customer_payment_method.payment_method_data.as_ref() {
+            Some(api_models::payment_methods::PaymentMethodListData::Card(card)) => {
+                card.card_network.clone()
+            }
             _ => None,
         };
-
         backend_input.payment_method.card_network = card_network;
 
         let surcharge_details = surcharge_source

@@ -67,7 +67,7 @@ where
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
@@ -76,7 +76,7 @@ where
     async fn list_initial_events_by_profile_id_constraints(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
@@ -256,7 +256,7 @@ impl EventInterface for Store {
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -291,7 +291,7 @@ impl EventInterface for Store {
     async fn list_initial_events_by_profile_id_constraints(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
@@ -554,7 +554,7 @@ impl EventInterface for MockDb {
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -589,7 +589,7 @@ impl EventInterface for MockDb {
     async fn list_initial_events_by_profile_id_constraints(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         created_after: Option<time::PrimitiveDateTime>,
         created_before: Option<time::PrimitiveDateTime>,
         limit: Option<i64>,
@@ -737,7 +737,8 @@ mod tests {
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
                 .unwrap();
-        let business_profile_id = "profile1";
+        let business_profile_id =
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("profile1")).unwrap();
         let payment_id = "test_payment_id";
         let key_manager_state = &state.into();
         let master_key = mockdb.get_master_key();
