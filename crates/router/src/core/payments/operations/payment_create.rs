@@ -1250,8 +1250,7 @@ impl PaymentCreate {
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
             shipping_details,
             is_payment_processor_token_flow,
-            organization_id: merchant_account
-                .organization_id.clone(),
+            organization_id: merchant_account.organization_id.clone(),
         })
     }
 

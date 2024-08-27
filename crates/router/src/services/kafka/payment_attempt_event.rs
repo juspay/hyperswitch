@@ -1,5 +1,5 @@
 // use diesel_models::enums::MandateDetails;
-use common_utils::{types::MinorUnit, id_type};
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use hyperswitch_domain_models::{
     mandates::MandateDetails, payments::payment_attempt::PaymentAttempt,
@@ -117,7 +117,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .map(|network| network.to_string()),
         }
     }
-} 
+}
 
 impl<'a> super::KafkaMessage for KafkaPaymentAttemptEvent<'a> {
     fn key(&self) -> String {

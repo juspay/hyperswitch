@@ -332,7 +332,7 @@ pub async fn generate_sample_data(
             client_version: None,
             customer_acceptance: None,
             profile_id: id_type::ProfileId::default(),
-            organization_id: org_id.clone()
+            organization_id: org_id.clone(),
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

@@ -1,7 +1,7 @@
+use common_utils::id_type;
 use diesel_models::enums as storage_enums;
 use masking::Secret;
 use time::OffsetDateTime;
-use common_utils::id_type;
 
 use crate::types::storage::dispute::Dispute;
 

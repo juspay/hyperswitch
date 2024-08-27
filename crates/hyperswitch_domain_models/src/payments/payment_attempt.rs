@@ -554,7 +554,7 @@ impl behaviour::Conversion for PaymentIntent {
         storage_model: Self::DstType,
         key: &masking::Secret<Vec<u8>>,
         key_manager_identifier: keymanager::Identifier,
-    ) -> CustomResult<Self, ValidationError> 
+    ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {

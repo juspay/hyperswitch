@@ -1,4 +1,4 @@
-use common_utils::{pii, id_type};
+use common_utils::{id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -516,14 +516,15 @@ impl PaymentAttemptUpdateInternal {
                     .or(source.tax_amount)
                     .unwrap_or(0),
         );
-        update_internal.card_network = update_internal.payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
-                .map(|network| network.to_string());
+        update_internal.card_network = update_internal
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card"))
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card_network"))
+            .and_then(|network| network.as_str())
+            .map(|network| network.to_string());
         update_internal
     }
 }

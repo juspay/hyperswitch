@@ -1,4 +1,4 @@
-use common_utils::{types::MinorUnit, id_type};
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
