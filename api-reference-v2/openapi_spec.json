@@ -7492,8 +7492,7 @@
         "required": [
           "connector_type",
           "connector_name",
-          "profile_id",
-          "merchant_id"
+          "profile_id"
         ],
         "properties": {
           "connector_type": {
@@ -7611,13 +7610,6 @@
               }
             ],
             "nullable": true
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
           },
           "additional_merchant_data": {
             "allOf": [
@@ -10280,17 +10272,6 @@
             "properties": {
               "pay_later": {
                 "$ref": "#/components/schemas/PaylaterResponse"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "type": "object"
               }
             }
           },
