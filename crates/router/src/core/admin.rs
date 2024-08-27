@@ -1503,6 +1503,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 wellsfargo::transformers::WellsfargoAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Wellsfargopayout => {
+                wellsfargopayout::transformers::WellsfargopayoutAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Wise => {
                 wise::transformers::WiseAuthType::try_from(self.auth_type)?;
                 Ok(())

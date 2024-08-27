@@ -471,6 +471,8 @@ pub trait ConnectorActions: Connector {
                 }),
                 vendor_details: None,
                 priority: None,
+                bank_type: None,
+                sec_code: None,
             },
             payment_info,
         )

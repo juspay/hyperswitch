@@ -1137,6 +1137,8 @@ pub async fn update_payouts_and_payout_attempt(
             .or(payouts.payout_type.to_owned()),
         address_id: address_id.clone(),
         customer_id: customer_id.clone(),
+        sec_code: req.sec_code,
+        bank_type: req.bank_type,
     };
     let db = &*state.store;
     payout_data.payouts = db
