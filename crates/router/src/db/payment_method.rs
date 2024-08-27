@@ -782,6 +782,7 @@ mod storage {
 mod storage {
     use common_utils::{id_type, types::keymanager::KeyManagerState};
     use error_stack::{report, FutureExt, ResultExt};
+    use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
     use router_env::{instrument, tracing};
 
     use super::PaymentMethodInterface;
@@ -794,7 +795,6 @@ mod storage {
             storage::{self as storage_types, enums::MerchantStorageScheme},
         },
     };
-    use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
 
     #[async_trait::async_trait]
     impl PaymentMethodInterface for Store {
