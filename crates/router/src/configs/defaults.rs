@@ -7627,7 +7627,7 @@ impl Default for super::settings::RequiredFields {
                                                         field_type: enums::FieldType::UserEmailAddress,
                                                         value: None,
                                                     }
-                                                )
+                                                ),
                                                 (
                                                     "billing.address.first_name".to_string(),
                                                     RequiredFieldInfo {
