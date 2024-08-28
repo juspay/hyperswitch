@@ -212,6 +212,7 @@ pub enum RoutableConnectors {
     Ebanx,
     Fiserv,
     Fiservemea,
+    // Fiuu,
     Forte,
     Globalpay,
     Globepay,
