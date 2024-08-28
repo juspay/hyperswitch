@@ -18,7 +18,9 @@ use refund_success_count::RefundSuccessCount;
 use refund_success_rate::RefundSuccessRate;
 
 use crate::{
-    enums::AuthInfo, query::{Aggregate, GroupByClause, ToSql, Window}, types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult}
+    enums::AuthInfo,
+    query::{Aggregate, GroupByClause, ToSql, Window},
+    types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, Hash)]
@@ -80,50 +82,22 @@ where
         match self {
             Self::RefundSuccessRate => {
                 RefundSuccessRate::default()
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::RefundCount => {
                 RefundCount::default()
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::RefundSuccessCount => {
                 RefundSuccessCount::default()
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::RefundProcessedAmount => {
                 RefundProcessedAmount::default()
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
         }

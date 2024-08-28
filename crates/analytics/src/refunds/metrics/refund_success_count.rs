@@ -11,7 +11,9 @@ use time::PrimitiveDateTime;
 
 use super::RefundMetricRow;
 use crate::{
-    enums::AuthInfo, query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window}, types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult}
+    enums::AuthInfo,
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
