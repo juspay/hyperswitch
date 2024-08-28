@@ -21,6 +21,7 @@ use super::{
     metrics::ApiEventMetricRow,
 };
 use crate::{
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics,
     types::FiltersError,
@@ -92,7 +93,7 @@ pub async fn get_filters(
 #[instrument(skip_all)]
 pub async fn get_api_event_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     req: GetApiEventMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<ApiMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<ApiEventMetricsBucketIdentifier, ApiEventMetricRow> =
@@ -109,14 +110,14 @@ pub async fn get_api_event_metrics(
 
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_api_event_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &auth_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,

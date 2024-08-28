@@ -828,7 +828,7 @@ impl AnalyticsProvider {
         &self,
         metric: &ApiEventMetrics,
         dimensions: &[ApiEventDimensions],
-        pub_key: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -840,14 +840,7 @@ impl AnalyticsProvider {
             | Self::CombinedSqlx(_, ckh_pool) => {
                 // Since API events are ckh only use ckh here
                 metric
-                    .load_metrics(
-                        dimensions,
-                        pub_key,
-                        filters,
-                        granularity,
-                        time_range,
-                        ckh_pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, ckh_pool)
                     .await
             }
         }
