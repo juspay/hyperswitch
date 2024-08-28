@@ -25,7 +25,7 @@ describe("Auto Retries & Step Up 3DS", () => {
     });
 
     it("List MCA", () => {
-      cy.ListMCAbyMID(globalState);
+      cy.ListMcaByMid(globalState);
     });
 
     it("API key create call", () => {
