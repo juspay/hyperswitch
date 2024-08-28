@@ -223,31 +223,31 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetPaymentFiltersRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<PaymentFiltersResponse> {
     let mut res = PaymentFiltersResponse::default();
 
     for dim in req.group_by_names {
         let values = match pool {
                         AnalyticsProvider::Sqlx(pool) => {
-                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                get_payment_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                get_payment_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                     AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_poll,
                 )
@@ -263,14 +263,14 @@ pub async fn get_filters(
                     AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_poll,
                 )
