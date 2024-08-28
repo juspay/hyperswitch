@@ -96,38 +96,6 @@ pub struct RefundNew {
     pub organization_id: common_utils::id_type::OrganizationId,
 }
 
-impl Default for RefundNew {
-    fn default() -> Self {
-        Self {
-            refund_id: Default::default(),
-            payment_id: Default::default(),
-            merchant_id: Default::default(),
-            internal_reference_id: Default::default(),
-            external_reference_id: Default::default(),
-            connector_transaction_id: Default::default(),
-            connector: Default::default(),
-            connector_refund_id: Default::default(),
-            refund_type: Default::default(),
-            total_amount: Default::default(),
-            currency: Default::default(),
-            refund_amount: Default::default(),
-            refund_status: Default::default(),
-            sent_to_gateway: Default::default(),
-            metadata: Default::default(),
-            refund_arn: Default::default(),
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            description: Default::default(),
-            attempt_id: Default::default(),
-            refund_reason: Default::default(),
-            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
-            updated_by: Default::default(),
-            merchant_connector_id: Default::default(),
-            charges: Default::default(),
-            organization_id: Default::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RefundUpdate {

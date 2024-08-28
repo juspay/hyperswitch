@@ -558,8 +558,8 @@ pub fn make_new_payment_attempt(
         fingerprint_id: Default::default(),
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
-        profile_id: common_utils::generate_profile_id_of_default_length(),
-        organization_id: Default::default(),
+        profile_id: old_payment_attempt.profile_id,
+        organization_id: old_payment_attempt.organization_id,
     }
 }
 
