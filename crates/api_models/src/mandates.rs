@@ -129,5 +129,6 @@ pub struct ProcessorPaymentToken {
     pub processor_payment_token: String,
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: api_enums::Connector,
-    pub merchant_connector_id: String,
+    #[schema(value_type = String)]
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 }

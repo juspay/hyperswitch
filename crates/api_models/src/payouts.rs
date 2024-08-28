@@ -473,7 +473,7 @@ pub struct PayoutCreateResponse {
 
     /// Unique identifier of the merchant connector account
     #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Current status of the Payout
     #[schema(value_type = PayoutStatus, example = RequiresConfirmation)]
