@@ -769,7 +769,6 @@ impl behaviour::Conversion for PaymentIntent {
                 .await
                 .and_then(|val| val.try_into_optionaloperation())
             };
-
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 payment_id: storage_model.payment_id,
                 merchant_id: storage_model.merchant_id,

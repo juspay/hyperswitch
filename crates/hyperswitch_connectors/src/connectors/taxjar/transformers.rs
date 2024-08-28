@@ -77,8 +77,6 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
         item: &TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        // let shipping = item.router_data.get_shipping_address()?;
-        // println!("$$swangi{:?}", shipping);
         let currency = item.router_data.request.currency;
         let currency_unit = &api::CurrencyUnit::Base;
         let shipping = &item
@@ -91,35 +89,41 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
                 field_name: "address",
             })?;
 
-        println!("$$shipping123{:?}", shipping);
-
         match request.order_details.clone() {
-            Some(order_details) => Ok(Self {
-                from_country: item.router_data.get_billing_country()?,
-                from_zip: item.router_data.get_billing_zip()?,
-                from_state: item.router_data.get_billing_state_code()?,
-                from_city: item.router_data.get_optional_billing_city(),
-                from_street: item.router_data.get_optional_billing_line1(),
-                to_country: shipping.get_country()?.to_owned(),
-                to_zip: shipping.get_zip()?.to_owned(),
-                to_state: shipping.to_state_code()?.to_owned(),
-                to_city: shipping.get_optional_city(),
-                to_street: shipping.get_optional_line1(),
-                amount: item.amount,
-                shipping: item.shipping,
-                line_items: order_details
-                    .iter()
-                    .map(|line_item| LineItem {
-                        id: line_item.product_id.clone(),
-                        quantity: Some(line_item.quantity),
-                        product_tax_code: line_item.product_tax_code.clone(),
-                        unit_price: Some(FloatMajorUnit::new(
-                            utils::get_amount_as_f64(currency_unit, line_item.amount, currency)
-                                .unwrap(),
-                        )),
-                    })
-                    .collect(),
-            }),
+            Some(order_details) => {
+                let line_items: Result<Vec<LineItem>, error_stack::Report<errors::ConnectorError>> =
+                    order_details
+                        .iter()
+                        .map(|line_item| {
+                            let unit_price =
+                                utils::get_amount_as_f64(currency_unit, line_item.amount, currency)
+                                    .map(FloatMajorUnit::new)?;
+
+                            Ok(LineItem {
+                                id: line_item.product_id.clone(),
+                                quantity: Some(line_item.quantity),
+                                product_tax_code: line_item.product_tax_code.clone(),
+                                unit_price: Some(unit_price),
+                            })
+                        })
+                        .collect();
+
+                Ok(Self {
+                    from_country: item.router_data.get_billing_country()?,
+                    from_zip: item.router_data.get_billing_zip()?,
+                    from_state: item.router_data.get_billing_state_code()?,
+                    from_city: item.router_data.get_optional_billing_city(),
+                    from_street: item.router_data.get_optional_billing_line1(),
+                    to_country: shipping.get_country()?.to_owned(),
+                    to_zip: shipping.get_zip()?.to_owned(),
+                    to_state: shipping.to_state_code()?.to_owned(),
+                    to_city: shipping.get_optional_city(),
+                    to_street: shipping.get_optional_line1(),
+                    amount: item.amount,
+                    shipping: item.shipping,
+                    line_items: line_items?,
+                })
+            }
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "order_details"
             })),

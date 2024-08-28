@@ -57,10 +57,10 @@ pub use hyperswitch_domain_models::{
         MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData, SyncRequestType,
-        UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
+        PaymentsSessionUpdateData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
+        ResponseId, RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        SyncRequestType, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
@@ -131,7 +131,7 @@ pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 
 pub type SessionUpdateRouterData =
-    RouterData<SessionUpdate, SessionUpdateData, PaymentsResponseData>;
+    RouterData<SessionUpdate, PaymentsSessionUpdateData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
@@ -370,7 +370,7 @@ impl Capturable for CompleteAuthorizeData {
 }
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsTaxCalculationData {}
-impl Capturable for SessionUpdateData {}
+impl Capturable for PaymentsSessionUpdateData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where

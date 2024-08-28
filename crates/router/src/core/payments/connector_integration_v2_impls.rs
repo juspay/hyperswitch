@@ -198,7 +198,7 @@ mod dummy_connector_default_impl {
         services::ConnectorIntegrationV2<
             api::SessionUpdate,
             types::PaymentFlowData,
-            types::SessionUpdateData,
+            types::PaymentsSessionUpdateData,
             types::PaymentsResponseData,
         > for connector::DummyConnector<T>
     {
@@ -663,7 +663,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl services::ConnectorIntegrationV2<
             api::SessionUpdate,
             types::PaymentFlowData,
-                types::SessionUpdateData,
+                types::PaymentsSessionUpdateData,
                 types::PaymentsResponseData,
             > for $path::$connector{}
     )*

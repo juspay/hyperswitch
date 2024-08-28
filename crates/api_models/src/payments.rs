@@ -4735,7 +4735,7 @@ pub struct SessionTokenForSimplifiedApplePay {
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 pub enum SessionToken {
-    /// The session -structure for Google Pay
+    /// The session response structure for Google Pay
     GooglePay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Klarna
     Klarna(Box<KlarnaSessionTokenResponse>),

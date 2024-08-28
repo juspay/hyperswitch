@@ -590,7 +590,7 @@ pub async fn payments_capture(
     .await
 }
 
-//Dynamic Tax Calculation
+/// Dynamic Tax Calculation
 
 #[utoipa::path(
     post,

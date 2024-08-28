@@ -52,8 +52,6 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    // let (payment_method, router_data);
-
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
@@ -65,12 +63,6 @@ where
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
-
-    // payment_method = payment_data
-    //     .payment_attempt
-    //     .payment_method
-    //     .or(payment_data.payment_attempt.payment_method)
-    //     .get_required_value("payment_method_type")?;
 
     let resource_id = match payment_data
         .payment_attempt
@@ -119,8 +111,6 @@ where
         } else {
             payment_data.address
         };
-
-    println!("unified_address {:?}", unified_address);
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -179,7 +169,6 @@ where
         connector_response: None,
         integrity_check: Ok(()),
     };
-
     Ok(router_data)
 }
 
@@ -1817,7 +1806,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SessionUpdateData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionUpdateData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -1830,10 +1819,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SessionUpdateDat
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing order_tax_amount")?;
         let amount = MinorUnit::from(payment_data.amount);
-
-        println!("additional_data_order_tax_amount: {:?}", order_tax_amount);
-
-        println!("additional_data_amount: {:?}", amount.get_amount_as_i64());
 
         Ok(Self {
             net_amount: amount + order_tax_amount, //need to change after we move to connector module

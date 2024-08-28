@@ -11,8 +11,8 @@ use hyperswitch_domain_models::{
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, SessionUpdateData,
-        SetupMandateRequestData,
+        PaymentsSessionData, PaymentsSessionUpdateData, PaymentsSyncData,
+        PaymentsTaxCalculationData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -121,7 +121,7 @@ pub trait PaymentTaxCalculation:
 
 /// trait SessionUpdate
 pub trait PaymentSessionUpdate:
-    api::ConnectorIntegration<SessionUpdate, SessionUpdateData, PaymentsResponseData>
+    api::ConnectorIntegration<SessionUpdate, PaymentsSessionUpdateData, PaymentsResponseData>
 {
 }
 

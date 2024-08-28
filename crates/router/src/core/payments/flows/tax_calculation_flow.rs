@@ -15,7 +15,7 @@ use crate::{
 impl
     ConstructFlowSpecificData<
         api::SessionUpdate,
-        types::SessionUpdateData,
+        types::PaymentsSessionUpdateData,
         types::PaymentsResponseData,
     > for PaymentData<api::SessionUpdate>
 {
@@ -29,13 +29,10 @@ impl
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::SessionUpdateRouterData> {
-        // create a new function to construct router data to send the updated amount
-
-        println!("Constructing router data for session update");
         Box::pin(
             transformers::construct_router_date_to_update_calculated_tax::<
                 api::SessionUpdate,
-                types::SessionUpdateData,
+                types::PaymentsSessionUpdateData,
             >(
                 state,
                 self.clone(),
@@ -44,7 +41,6 @@ impl
                 key_store,
                 customer,
                 merchant_connector_account,
-                // merchant_recipient_data,
             ),
         )
         .await
@@ -63,8 +59,12 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::SessionUpdate, types::SessionUpdateData>
-    for types::RouterData<api::SessionUpdate, types::SessionUpdateData, types::PaymentsResponseData>
+impl Feature<api::SessionUpdate, types::PaymentsSessionUpdateData>
+    for types::RouterData<
+        api::SessionUpdate,
+        types::PaymentsSessionUpdateData,
+        types::PaymentsResponseData,
+    >
 {
     async fn decide_flows<'a>(
         self,
@@ -75,18 +75,10 @@ impl Feature<api::SessionUpdate, types::SessionUpdateData>
         _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
-        /* Have a check here whether to call the connector or not
-           If check {
-               call connector
-           } else {
-               Ok(self)
-           }
-        */
-
         if connector.connector_name == types::Connector::Klarna {
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                 api::SessionUpdate,
-                types::SessionUpdateData,
+                types::PaymentsSessionUpdateData,
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
 
@@ -127,7 +119,7 @@ impl Feature<api::SessionUpdate, types::SessionUpdateData>
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                     api::SessionUpdate,
-                    types::SessionUpdateData,
+                    types::PaymentsSessionUpdateData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 

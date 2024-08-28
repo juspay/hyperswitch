@@ -148,13 +148,11 @@ common_utils::impl_to_sql_from_sql_json!(TaxDetails);
 pub struct PmtTax {
     pub order_tax_amount: MinorUnit,
     pub pmt: enums::PaymentMethodType,
-    // pub shipping_details: String,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DefaultTax {
     pub order_tax_amount: MinorUnit,
-    // pub shipping_details: String,
 }
 
 #[derive(
@@ -292,7 +290,7 @@ pub enum PaymentIntentUpdate {
         status: Option<storage_enums::IntentStatus>,
         updated_by: String,
     },
-    TaxCalculationUpdate {
+    SessionResponseUpdate {
         tax_details: TaxDetails,
         shipping_address_id: Option<String>,
     },
@@ -1091,7 +1089,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_payment_processor_token_flow: None,
                 tax_details: None,
             },
-            PaymentIntentUpdate::TaxCalculationUpdate {
+            PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
             } => Self {

@@ -565,8 +565,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-            Ok(types::PaymentsResponseData::TaxCalculationResponse { .. }) => None,
-            Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+            // Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -1077,8 +1076,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::TaxCalculationResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+        // Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
         Err(_) => None,
     }
 }

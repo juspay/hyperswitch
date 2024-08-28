@@ -7,7 +7,6 @@ use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
-// use crate::core::payments::Operation;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
@@ -25,8 +24,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-// use api_models::payments::PaymentsDynamicTaxCalculationRequest;
-// use crate::types::api::PaymentsDynamicTaxCalculationRequest;
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "tax_calculation")]
@@ -103,7 +100,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             merchant_account.storage_scheme,
         )
         .await?;
-        println!("shipping_address: {:?}", shipping_address);
 
         let billing_address = helpers::get_address_by_id(
             state,
@@ -114,8 +110,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             merchant_account.storage_scheme,
         )
         .await?;
-
-        // println!("billing: {:?}", billing);
 
         let profile_id = payment_intent
             .profile_id
@@ -218,23 +212,16 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
     async fn payments_dynamic_tax_calculation<'a>(
         &'a self,
         state: &SessionState,
-        // key_manager_state: &common_utils::types::keymanager::KeyManagerState,
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
-        // storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_account: &domain::MerchantAccount,
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
         *should_continue_confirm_transaction = false;
         let db = state.store.as_ref();
-        // let payment_intent = payment_data.payment_intent.clone();
         let key_manager_state: &KeyManagerState = &state.into();
-
-        // let attempt_id = payment_intent.active_attempt.get_id().clone();
-
-        // let payment_attempt = payment_data.payment_attempt.clone();
 
         let merchant_connector_id = business_profile
             .tax_connector_id
@@ -254,7 +241,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
                 id: merchant_connector_id.to_string(),
             })?;
 
-        // Derive this connector from business profile
         let connector_data =
             api::TaxCalculateConnectorData::get_connector_by_name(&mca.connector_name)?;
 
@@ -264,7 +250,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
             key_store,
             payment_data,
             &mca,
-            // &customer,
         )
         .await?;
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -283,8 +268,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        println!("response_core: {:?}", response);
-
         let tax_response =
             response
                 .response
@@ -295,18 +278,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
                     status_code: err.status_code,
                     reason: err.reason,
                 })?;
-
-        println!("tax_response: {:?}", tax_response);
-
-        // payment_data
-        //     .payment_intent
-        //     .tax_details
-        //     .clone()
-        //     .map(|tax_details| {
-        //         tax_details.pmt.map(|mut pmt| {
-        //             pmt.order_tax_amount = tax_response.order_tax_amount;
-        //         });
-        //     });
 
         let payment_method_type = payment_data
             .tax_data
@@ -322,14 +293,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
             }),
             default: None,
         });
-        // .tax_details
-        // .clone()
-        // .map(|tax_details| {
-        //     tax_details.pmt.map(|mut pmt| {
-        //         pmt.order_tax_amount = tax_response.order_tax_amount;
-        //     });
-        // });
-
         Ok(())
     }
 
@@ -396,7 +359,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        //shipping_address_id
         let shipping_details = payment_data
             .tax_data
             .clone()
@@ -414,15 +376,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
         )
         .await?;
 
-        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::TaxCalculationUpdate {
+        let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
             tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?,
             shipping_address_id: shipping_address.map(|address| address.address_id),
         };
-
-        print!(
-            "update_trackers payment_intent_update : {:?}",
-            payment_intent_update
-        );
 
         let db = &*state.store;
         let payment_intent = payment_data.payment_intent.clone();

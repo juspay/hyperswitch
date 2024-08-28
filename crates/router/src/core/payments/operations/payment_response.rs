@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-// use api_models::payments::PaymentsDynamicTaxCalculationRequest;
 use async_trait::async_trait;
-use common_enums::{AuthorizationStatus, SessionUpdateStatus};
+use common_enums::AuthorizationStatus;
 use common_utils::{
     ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, MinorUnit},
@@ -509,10 +508,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculatio
     where
         F: 'b + Send,
     {
-        // if connector_ call successfull -> paymnet_intent.amount update
-        let _shipping_address = payment_data.address.get_shipping();
-        let _amount = payment_data.amount;
-
         payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_id,
@@ -529,13 +524,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculatio
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SessionUpdateData> for PaymentResponse {
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionUpdateData>
+    for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::SessionUpdateData, types::PaymentsResponseData>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsSessionUpdateData,
+            types::PaymentsResponseData,
+        >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
@@ -543,64 +544,53 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SessionUpdateData> fo
     where
         F: 'b + Send,
     {
-        // if connector_ call successfull -> paymnet_intent.amount update
+        // let session_update_details =
+        //     payment_data
+        //         .payment_intent
+        //         .tax_details
+        //         .clone()
+        //         .ok_or_else(|| {
+        //             report!(errors::ApiErrorResponse::InternalServerError)
+        //                 .attach_printable("missing tax_details in payment_intent")
+        //         })?;
 
-        println!("swangi1234");
+        // let pmt_amount = session_update_details
+        //     .pmt
+        //     .clone()
+        //     .map(|pmt| pmt.order_tax_amount)
+        //     .ok_or(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("Missing tax_details.order_tax_amount")?;
 
-        let session_update_details =
-            payment_data
-                .payment_intent
-                .tax_details
-                .clone()
-                .ok_or_else(|| {
-                    report!(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("missing tax_details in payment_intent")
-                })?;
+        // let total_amount = MinorUnit::from(payment_data.amount) + pmt_amount;
 
-        println!("session_update_details: {:?}", session_update_details);
+        // // if connector_ call successfull -> paymnet_intent.amount update
+        // match router_data.response.clone() {
+        //     Err(_) => (None, None),
+        //     Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
+        //         if status == SessionUpdateStatus::Success {
+        //             (
+        //                 Some(
+        //                     storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
+        //                         amount: total_amount,
+        //                         amount_capturable: total_amount,
+        //                     },
+        //                 ),
+        //                 Some(
+        //                     storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
+        //                         amount: pmt_amount,
+        //                     },
+        //                 ),
+        //             )
+        //         } else {
+        //             (None, None)
+        //         }
+        //     }
+        //     _ => Err(errors::ApiErrorResponse::InternalServerError)
+        //         .attach_printable("unexpected response in session_update flow")?,
+        // };
 
-        let pmt_amount = session_update_details
-            .pmt
-            .clone()
-            .map(|pmt| pmt.order_tax_amount)
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Missing tax_details.order_tax_amount")?;
-
-        println!("pmt_amount: {:?}", pmt_amount);
-
-        let total_amount = MinorUnit::from(payment_data.amount) + pmt_amount;
-
-        println!("total_amount: {:?}", total_amount);
-
-        println!("router_data.response: {:?}", router_data.response.clone());
-
-        match router_data.response.clone() {
-            Err(_) => (None, None),
-            Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {
-                if status == SessionUpdateStatus::Success {
-                    (
-                        Some(
-                            storage::PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
-                                amount: total_amount,
-                                amount_capturable: total_amount,
-                            },
-                        ),
-                        Some(
-                            storage::PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate {
-                                amount: pmt_amount,
-                            },
-                        ),
-                    )
-                } else {
-                    (None, None)
-                }
-            }
-            _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unexpected response in session_update flow")?,
-        };
-
-        let _shipping_address = payment_data.address.get_shipping();
-        let _amount = payment_data.amount;
+        // let _shipping_address = payment_data.address.get_shipping();
+        // let _amount = payment_data.amount;
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
@@ -1304,20 +1294,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
                         } => (None, None),
-                        types::PaymentsResponseData::TaxCalculationResponse { .. } => (None, None),
-                        types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
-                        // types::PaymentsResponseData::TaxCalculationResponse {
-                        //     order_tax_amount,
-                        //     net_amount,
-                        //     shipping_address,
-                        // } => (
-                        //     None,
-                        //     Some(storage::PaymentAttemptUpdate::SessionUpdate {
-                        //         amount: net_amount,
-                        //         order_tax_amount,
-                        //         payment_method_shipping_address_id: shipping_address,
-                        //     }),
-                        // ),
+                        // types::PaymentsResponseData::SessionUpdateResponse { .. } => (None, None),
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         } => match payment_data.multiple_capture_data {

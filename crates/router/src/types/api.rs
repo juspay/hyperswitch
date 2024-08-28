@@ -35,7 +35,6 @@ pub mod payments_v2;
 #[cfg(feature = "payouts")]
 pub mod payouts_v2;
 pub mod refunds_v2;
-// pub mod calculate_tax;
 
 use std::{fmt::Debug, str::FromStr};
 

@@ -2280,10 +2280,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 unified_message,
                 connector_transaction_id,
             },
-            // DieselPaymentAttemptUpdate::SessionUpdate { amount, order_tax_amount, payment_method_shipping_address_id } => Self::SessionUpdate {
-            //     amount: MinorUnit::new(amount),
-            //     order_tax_amount: MinorUnit::new(order_tax_amount),
-            //     payment_method_shipping_address_id }
         }
     }
 }

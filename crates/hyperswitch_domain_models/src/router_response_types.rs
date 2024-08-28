@@ -68,14 +68,9 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
-    TaxCalculationResponse {
-        order_tax_amount: i64,
-        net_amount: i64,
-        shipping_address: Option<String>,
-    },
-    SessionUpdateResponse {
-        status: common_enums::SessionUpdateStatus,
-    },
+    // SessionUpdateResponse {
+    //     status: common_enums::SessionUpdateStatus,
+    // },
 }
 
 #[derive(Debug, Clone)]
@@ -83,7 +78,6 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
     pub net_amount: MinorUnit,
     pub shipping_address: Option<String>,
-    // pub currency: storage_enums::Currency,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

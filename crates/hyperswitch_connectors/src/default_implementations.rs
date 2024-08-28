@@ -38,8 +38,8 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        RetrieveFileRequestData, SessionUpdateData, SubmitEvidenceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionUpdateData,
+        PaymentsTaxCalculationData, RetrieveFileRequestData, SubmitEvidenceRequestData,
         UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -129,7 +129,7 @@ macro_rules! default_imp_for_session_update {
             impl
             ConnectorIntegration<
                 SessionUpdate,
-                SessionUpdateData,
+                PaymentsSessionUpdateData,
                 PaymentsResponseData,
         > for $path::$connector
         {}

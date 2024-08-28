@@ -517,7 +517,7 @@ impl FloatMajorUnit {
     }
 
     /// converts to minor unit as i64 from FloatMajorUnit
-    pub fn to_minor_unit_as_i64(
+    fn to_minor_unit_as_i64(
         self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {

@@ -180,17 +180,15 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         Ok(())
     }
 
-    //
+    #[allow(clippy::too_many_arguments)]
     async fn payments_dynamic_tax_calculation<'a>(
         &'a self,
         _state: &SessionState,
-        // _key_manager_state: &common_utils::types::keymanager::KeyManagerState,
         _payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,
-        // _storage_scheme: enums::MerchantStorageScheme,
         _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())

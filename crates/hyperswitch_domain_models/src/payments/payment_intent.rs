@@ -257,9 +257,8 @@ pub enum PaymentIntentUpdate {
         status: Option<storage_enums::IntentStatus>,
         updated_by: String,
     },
-    TaxCalculationUpdate {
+    SessionResponseUpdate {
         tax_details: diesel_models::TaxDetails,
-        // amount: MinorUnit,
         shipping_address_id: Option<String>,
     },
 }
@@ -487,7 +486,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::TaxCalculationUpdate {
+            PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
             } => Self {
@@ -659,10 +658,10 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
                 Self::ManualUpdate { status, updated_by }
             }
-            PaymentIntentUpdate::TaxCalculationUpdate {
+            PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
-            } => Self::TaxCalculationUpdate {
+            } => Self::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
             },

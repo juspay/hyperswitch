@@ -521,22 +521,15 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
     async fn payments_dynamic_tax_calculation<'a>(
         &'a self,
         state: &SessionState,
-        // key_manager_state: &common_utils::types::keymanager::KeyManagerState,
         payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
-        // storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.as_ref();
-        // let payment_intent = payment_data.payment_intent.clone();
         let key_manager_state: &KeyManagerState = &state.into();
-
-        // let attempt_id = payment_intent.active_attempt.get_id().clone();
-
-        // let payment_attempt = payment_data.payment_attempt.clone();
 
         let merchant_connector_id = business_profile
             .tax_connector_id
@@ -556,7 +549,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
                 id: merchant_connector_id.to_string(),
             })?;
 
-        // Derive this connector from business profile
         let connector_data =
             api::TaxCalculateConnectorData::get_connector_by_name(&mca.connector_name)?;
 
@@ -566,7 +558,6 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             key_store,
             payment_data,
             &mca,
-            // &customer,
         )
         .await?;
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<

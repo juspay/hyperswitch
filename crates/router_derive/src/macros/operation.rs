@@ -116,7 +116,9 @@ impl Conversion {
             Derives::SessionUpdate => {
                 syn::Ident::new("PaymentsDynamicTaxCalculationRequest", Span::call_site())
             }
-            Derives::SessionUpdateData => syn::Ident::new("SessionUpdateData", Span::call_site()),
+            Derives::SessionUpdateData => {
+                syn::Ident::new("PaymentsSessionUpdateData", Span::call_site())
+            }
         }
     }
 
@@ -438,7 +440,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     CompleteAuthorizeData,
                     PaymentsIncrementalAuthorizationData,
                     PaymentsTaxCalculationData,
-                    SessionUpdateData,
+                    PaymentsSessionUpdateData,
 
                     api::{
                         PaymentsCaptureRequest,

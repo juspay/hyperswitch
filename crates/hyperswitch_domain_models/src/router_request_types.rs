@@ -801,12 +801,10 @@ pub struct PaymentsTaxCalculationData {
     pub shipping_cost: MinorUnit,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub shipping_address: Address,
-    // New amount for amount frame work
-    // pub minor_amount: MinorUnit,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct SessionUpdateData {
+pub struct PaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
     pub net_amount: MinorUnit,
 }

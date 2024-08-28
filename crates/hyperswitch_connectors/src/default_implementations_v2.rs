@@ -26,10 +26,10 @@ use hyperswitch_domain_models::{
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData, SessionUpdateData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
+        PaymentsSessionUpdateData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
+        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
@@ -188,7 +188,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
          impl ConnectorIntegrationV2<
             SessionUpdate,
             PaymentFlowData,
-            SessionUpdateData,
+            PaymentsSessionUpdateData,
             PaymentsResponseData,
             > for $path::$connector{}
     )*

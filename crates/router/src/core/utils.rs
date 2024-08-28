@@ -858,7 +858,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     mca: &MerchantConnectorAccount,
-    // customer: &'a Option<domain::Customer>,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
     let payment_intent = &payment_data.payment_intent.clone();
     let payment_attempt = &payment_data.payment_attempt.clone();
@@ -884,9 +883,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         None,
         key_store,
         &profile_id,
-        // How do we derive the connector name?
         &mca.connector_name,
-        // Take this from business profile
         payment_attempt.merchant_connector_id.as_ref(),
     )
     .await?;
@@ -900,7 +897,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
     let add = payment_data.address.clone();
-    // println!("$$$$$$ {:?}", add);
 
     let shipping_address = payment_data
         .tax_data
@@ -909,8 +905,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Missing shipping_details")?;
-
-    println!("$$$$$$shipping_address {:?}", shipping_address);
 
     let order_details: Option<Vec<OrderDetailsWithAmount>> = payment_intent
         .order_details
@@ -929,8 +923,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
                 .collect::<Result<Vec<_>, _>>()
         })
         .transpose()?;
-
-    println!("$$$$$$order2 {:?}", order_details);
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -994,7 +986,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         minor_amount_captured: payment_intent.amount_captured,
         integrity_check: Ok(()),
     };
-    println!("$$$$$$ {:?}", router_data);
     Ok(router_data)
 }
 

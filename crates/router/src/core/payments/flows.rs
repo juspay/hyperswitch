@@ -3271,7 +3271,7 @@ macro_rules! default_imp_for_session_update {
             impl
             services::ConnectorIntegration<
                 api::SessionUpdate,
-                types::SessionUpdateData,
+                types::PaymentsSessionUpdateData,
                 types::PaymentsResponseData
         > for $path::$connector
         {}
@@ -3284,7 +3284,7 @@ impl<const T: u8> api::PaymentSessionUpdate for connector::DummyConnector<T> {}
 impl<const T: u8>
     services::ConnectorIntegration<
         api::SessionUpdate,
-        types::SessionUpdateData,
+        types::PaymentsSessionUpdateData,
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
