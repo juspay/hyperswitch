@@ -144,6 +144,9 @@ pub mod routes {
                         .service(
                             web::scope("/org")
                                 .service(
+                                    web::resource("{domain}/info").route(web::get().to(get_info)),
+                                )
+                                .service(
                                     web::resource("metrics/payments")
                                         .route(web::post().to(get_org_payment_metrics)),
                                 )
