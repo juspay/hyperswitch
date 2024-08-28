@@ -21,13 +21,14 @@ use super::{
 };
 use crate::{
     disputes::DisputeMetricAccumulator,
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics, AnalyticsProvider,
 };
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     req: GetDisputeMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<DisputeMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -44,14 +45,14 @@ pub async fn get_metrics(
         );
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_dispute_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &auth_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
