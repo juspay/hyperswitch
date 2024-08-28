@@ -489,7 +489,13 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
-                analytics::refunds::get_filters(&state.pool, req, auth.merchant_account.get_id())
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::refunds::get_filters(&state.pool, req, &auth)
                     .await
                     .map(ApplicationResponse::Json)
             },
