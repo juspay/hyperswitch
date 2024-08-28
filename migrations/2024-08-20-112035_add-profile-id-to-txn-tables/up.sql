@@ -18,6 +18,7 @@ ADD COLUMN IF NOT EXISTS organization_id VARCHAR(32) NOT NULL DEFAULT 'default_o
 ALTER TABLE dispute
 ADD COLUMN IF NOT EXISTS organization_id VARCHAR(32) NOT NULL DEFAULT 'default_org';
 
+-- This doesn't work on V2
 UPDATE payment_attempt pa
 SET organization_id = ma.organization_id
 FROM merchant_account ma

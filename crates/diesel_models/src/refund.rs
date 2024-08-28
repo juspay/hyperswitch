@@ -120,7 +120,7 @@ impl Default for RefundNew {
             description: Default::default(),
             attempt_id: Default::default(),
             refund_reason: Default::default(),
-            profile_id: Default::default(),
+            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
             updated_by: Default::default(),
             merchant_connector_id: Default::default(),
             charges: Default::default(),
