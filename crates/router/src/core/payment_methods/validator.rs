@@ -15,6 +15,17 @@ use crate::{
     utils,
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn validate_request_and_initiate_payment_method_collect_link(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _req: &PaymentMethodCollectLinkRequest,
+) -> RouterResult<PaymentMethodCollectLinkData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -25,6 +36,7 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
     let merchant_id = merchant_account.get_id().clone();
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     match db
         .find_customer_by_customer_id_merchant_id(
             &state.into(),

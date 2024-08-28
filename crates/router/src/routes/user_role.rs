@@ -249,3 +249,40 @@ pub async fn delete_user_role(
     ))
     .await
 }
+
+pub async fn get_role_information(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetRolesInfo;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |_, _: (), _, _| async move {
+            user_role_core::get_authorization_info_with_group_tag().await
+        },
+        &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ListUsersInLineage;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| {
+            user_role_core::list_users_in_lineage(state, user_from_token)
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

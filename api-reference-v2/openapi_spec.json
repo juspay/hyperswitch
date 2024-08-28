@@ -20,11 +20,157 @@
     }
   ],
   "paths": {
-    "/connector_accounts": {
+    "/v2/organization": {
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Create",
+        "description": "Organization - Create\n\nCreate a new organization",
+        "operationId": "Create an Organization",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Create an organization with organization_name": {
+                  "value": {
+                    "organization_name": "organization_abc"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/organization/{organization_id}": {
+      "get": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Retrieve",
+        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
+        "operationId": "Retrieve an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "Organization - Update",
+        "description": "Organization - Update\n\nCreate a new organization for .",
+        "operationId": "Update an Organization",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "description": "The unique identifier for the Organization",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationRequest"
+              },
+              "examples": {
+                "Update organization_name of the organization": {
+                  "value": {
+                    "organization_name": "organization_abcd"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Organization Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/connector_accounts": {
       "post": {
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Create",
+        "description": "Merchant Connector - Create\n\nCreates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -95,11 +241,13 @@
         ]
       }
     },
-    "/connector_accounts/{id}": {
+    "/v2/connector_accounts/{id}": {
       "get": {
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Retrieve",
+        "description": "Merchant Connector - Retrieve\n\nRetrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -137,10 +285,12 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Update",
+        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -211,6 +361,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
+        "summary": "Merchant Connector - Delete",
+        "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -357,7 +509,7 @@
           }
         ]
       },
-      "post": {
+      "put": {
         "tags": [
           "Merchant Account"
         ],
@@ -419,6 +571,560 @@
         "security": [
           {
             "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles": {
+      "post": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Create",
+        "description": "Business Profile - Create\n\nCreates a new *business profile* for a merchant",
+        "operationId": "Create A Business Profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProfileCreate"
+              },
+              "examples": {
+                "Create a business profile with profile name": {
+                  "value": {
+                    "profile_name": "shoe_business"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Business Account Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Retrieve",
+        "description": "Business Profile - Retrieve\n\nRetrieve existing *business profile*",
+        "operationId": "Retrieve a Business Profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Business Profile Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Update",
+        "description": "Business Profile - Update\n\nUpdate the *business profile*",
+        "operationId": "Update a Business Profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessProfileCreate"
+              },
+              "examples": {
+                "Update business profile with profile name fields": {
+                  "value": {
+                    "profile_name": "shoe_business"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Business Profile Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/activate_routing_algorithm": {
+      "patch": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Activate routing algorithm",
+        "description": "Business Profile - Activate routing algorithm\n\nActivates a routing algorithm under a business profile",
+        "operationId": "Activates a routing algorithm under a business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingAlgorithmId"
+              },
+              "examples": {
+                "Activate a routing algorithm": {
+                  "value": {
+                    "routing_algorithm_id": "routing_algorithm_123"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm is activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/deactivate_routing_algorithm": {
+      "patch": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Deactivate routing algorithm",
+        "description": "Business Profile - Deactivate routing algorithm\n\nDeactivates a routing algorithm under a business profile",
+        "operationId": " Deactivates a routing algorithm under a business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully deactivated routing config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request"
+          },
+          "403": {
+            "description": "Malformed request"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/fallback_routing": {
+      "post": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Update Default Fallback Routing Algorithm",
+        "description": "Business Profile - Update Default Fallback Routing Algorithm\n\nUpdate the default fallback routing algorithm for the business profile",
+        "operationId": "Update the default fallback routing algorithm for the business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated the default fallback routing algorithm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoutableConnectorChoice"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Retrieve Default Fallback Routing Algorithm",
+        "description": "Business Profile - Retrieve Default Fallback Routing Algorithm\n\nRetrieve the default fallback routing algorithm for the business profile",
+        "operationId": "Retrieve the default fallback routing algorithm for the business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved default fallback routing algorithm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoutableConnectorChoice"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/routing_algorithm": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Retrieve Active Routing Algorithm",
+        "description": "Business Profile - Retrieve Active Routing Algorithm\n\nRetrieve active routing algorithm under the business profile",
+        "operationId": "Retrieve the active routing algorithm under the business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of records of the algorithms to be returned",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "The record offset of the algorithm from which to start gathering the results",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved active config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedRoutingConfigRetrieveResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/routing_algorithm": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Create",
+        "description": "Routing - Create\n\nCreate a routing algorithm",
+        "operationId": "Create a routing algprithm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/routing_algorithm/{routing_algorithm_id}": {
+      "get": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Retrieve",
+        "description": "Routing - Retrieve\n\nRetrieve a routing algorithm with its algorithm id",
+        "operationId": "Retrieve a routing algorithm with its algorithm id",
+        "parameters": [
+          {
+            "name": "routing_algorithm_id",
+            "in": "path",
+            "description": "The unique identifier for a routing algorithm",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully fetched routing algorithm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantRoutingAlgorithm"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -559,6 +1265,55 @@
         ],
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "AchBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "routing_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for ach bank debit payment",
+            "example": "0001****3456"
+          },
+          "routing_number": {
+            "type": "string",
+            "description": "Partially masked routing number for ach bank debit payment",
+            "example": "110***000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_holder_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankHolderType"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "AchBankTransfer": {
@@ -1139,6 +1894,31 @@
           "unresolved"
         ]
       },
+      "BacsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "sort_code"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Bacs payment method",
+            "example": "0001****3456"
+          },
+          "sort_code": {
+            "type": "string",
+            "description": "Partially masked sort code for Bacs payment method",
+            "example": "108800"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -1200,6 +1980,35 @@
           }
         }
       },
+      "BancontactBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "example": "4242",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          }
+        }
+      },
       "Bank": {
         "oneOf": [
           {
@@ -1213,6 +2022,54 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          }
+        ]
+      },
+      "BankDebitAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "$ref": "#/components/schemas/AchBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "$ref": "#/components/schemas/BacsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "becs"
+            ],
+            "properties": {
+              "becs": {
+                "$ref": "#/components/schemas/BecsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -1423,6 +2280,13 @@
           }
         ]
       },
+      "BankHolderType": {
+        "type": "string",
+        "enum": [
+          "personal",
+          "business"
+        ]
+      },
       "BankNames": {
         "type": "string",
         "description": "Name of banks supported by Hyperswitch",
@@ -1572,6 +2436,31 @@
           "yoursafe",
           "n26",
           "nationale_nederlanden"
+        ]
+      },
+      "BankRedirectAdditionalData": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankRedirectDetails"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bank_name": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
         ]
       },
       "BankRedirectBilling": {
@@ -1900,9 +2789,6 @@
             "properties": {
               "przelewy24": {
                 "type": "object",
-                "required": [
-                  "billing_details"
-                ],
                 "properties": {
                   "bank_name": {
                     "allOf": [
@@ -1913,7 +2799,12 @@
                     "nullable": true
                   },
                   "billing_details": {
-                    "$ref": "#/components/schemas/BankRedirectBilling"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -2017,6 +2908,201 @@
             "properties": {
               "local_bank_redirect": {
                 "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "BankRedirectDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "BancontactCard"
+            ],
+            "properties": {
+              "BancontactCard": {
+                "$ref": "#/components/schemas/BancontactBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Blik"
+            ],
+            "properties": {
+              "Blik": {
+                "$ref": "#/components/schemas/BlikBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Giropay"
+            ],
+            "properties": {
+              "Giropay": {
+                "$ref": "#/components/schemas/GiropayBankRedirectAdditionalData"
+              }
+            }
+          }
+        ]
+      },
+      "BankTransferAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco"
+            ],
+            "properties": {
+              "multibanco": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "permata"
+            ],
+            "properties": {
+              "permata": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bca"
+            ],
+            "properties": {
+              "bca": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bni_va"
+            ],
+            "properties": {
+              "bni_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bri_va"
+            ],
+            "properties": {
+              "bri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "cimb_va"
+            ],
+            "properties": {
+              "cimb_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "danamon_va"
+            ],
+            "properties": {
+              "danamon_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mandiri_va"
+            ],
+            "properties": {
+              "mandiri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pse"
+            ],
+            "properties": {
+              "pse": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_transfer"
+            ],
+            "properties": {
+              "local_bank_transfer": {
+                "$ref": "#/components/schemas/LocalBankTransferAdditionalData"
               }
             }
           }
@@ -2401,6 +3487,48 @@
           }
         ]
       },
+      "BankType": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "savings"
+        ]
+      },
+      "BecsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "bsb_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Becs payment method",
+            "example": "0001****3456"
+          },
+          "bsb_number": {
+            "type": "string",
+            "description": "Bank-State-Branch (bsb) number",
+            "example": "000000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "BlikBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "blik_code": {
+            "type": "string",
+            "example": "3GD9MO",
+            "nullable": true
+          }
+        }
+      },
       "BlocklistDataKind": {
         "type": "string",
         "enum": [
@@ -2655,17 +3783,27 @@
             "$ref": "#/components/schemas/BusinessGenericLinkConfig"
           },
           {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "payout_test_mode": {
+                "type": "boolean",
+                "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
+                "default": false,
+                "nullable": true
+              }
+            }
           }
         ]
       },
       "BusinessProfileCreate": {
         "type": "object",
+        "required": [
+          "profile_name"
+        ],
         "properties": {
           "profile_name": {
             "type": "string",
             "description": "The name of business profile",
-            "nullable": true,
             "maxLength": 64
           },
           "return_url": {
@@ -2684,7 +3822,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -2707,12 +3845,7 @@
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
-            "nullable": true
-          },
-          "intent_fulfillment_time": {
+          "order_fulfillment_time": {
             "type": "integer",
             "format": "int32",
             "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
@@ -2720,15 +3853,10 @@
             "nullable": true,
             "minimum": 0
           },
-          "frm_routing_algorithm": {
-            "type": "object",
-            "description": "The frm routing algorithm to be used for routing payments to desired FRM's",
-            "nullable": true
-          },
-          "payout_routing_algorithm": {
+          "order_fulfillment_time_origin": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
               }
             ],
             "nullable": true
@@ -2738,7 +3866,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Verified applepay domains for a particular profile",
+            "description": "Verified Apple Pay domains for a particular profile",
             "nullable": true
           },
           "session_expiry": {
@@ -2770,16 +3898,30 @@
             "description": "Whether to use the billing details passed when creating the intent as payment method billing",
             "nullable": true
           },
-          "collect_shipping_details_from_wallet_connector": {
+          "collect_shipping_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
-          "collect_billing_details_from_wallet_connector": {
+          "collect_billing_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
@@ -2801,6 +3943,15 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         },
         "additionalProperties": false
@@ -2809,10 +3960,11 @@
         "type": "object",
         "required": [
           "merchant_id",
-          "profile_id",
+          "id",
           "profile_name",
           "enable_payment_response_hash",
-          "redirect_to_merchant_with_http_post"
+          "redirect_to_merchant_with_http_post",
+          "is_tax_connector_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -2821,9 +3973,9 @@
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64
           },
-          "profile_id": {
+          "id": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "description": "The identifier for business profile. This must be used for creating merchant accounts, payments and payouts",
             "example": "pro_abcdefghijklmnopqrstuvwxyz",
             "maxLength": 64
           },
@@ -2847,7 +3999,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a default value is used.",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
@@ -2869,37 +4021,12 @@
             "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
-            "nullable": true
-          },
-          "intent_fulfillment_time": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
-            "example": 900,
-            "nullable": true
-          },
-          "frm_routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
-            "nullable": true
-          },
-          "payout_routing_algorithm": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
-              }
-            ],
-            "nullable": true
-          },
           "applepay_verified_domains": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Verified applepay domains for a particular profile",
+            "description": "Verified Apple Pay domains for a particular profile",
             "nullable": true
           },
           "session_expiry": {
@@ -2937,16 +4064,30 @@
             ],
             "nullable": true
           },
-          "collect_shipping_details_from_wallet_connector": {
+          "collect_shipping_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
-          "collect_billing_details_from_wallet_connector": {
+          "collect_billing_details_from_wallet_connector_if_required": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple pay, Google pay etc)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
@@ -2968,6 +4109,31 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
             "nullable": true
+          },
+          "order_fulfillment_time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Will be used to determine the time till which your payment will be active once the payment session starts",
+            "example": 900,
+            "nullable": true,
+            "minimum": 0
+          },
+          "order_fulfillment_time_origin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderFulfillmentTimeOrigin"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         }
       },
@@ -3461,6 +4627,19 @@
           }
         }
       },
+      "CardTokenAdditionalData": {
+        "type": "object",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
       },
@@ -3559,6 +4738,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",
@@ -3577,6 +4757,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",
@@ -4644,7 +5825,8 @@
         "type": "object",
         "required": [
           "merchant_reference_id",
-          "created_at"
+          "created_at",
+          "id"
         ],
         "properties": {
           "merchant_reference_id": {
@@ -4722,6 +5904,10 @@
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 64
+          },
+          "id": {
+            "type": "string",
+            "description": "Global id"
           }
         }
       },
@@ -5814,6 +7000,32 @@
           }
         }
       },
+      "GiftCardAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GivexGiftCardAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -5854,6 +7066,42 @@
           "cvc": {
             "type": "string",
             "description": "The card verification code."
+          }
+        }
+      },
+      "GiropayBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bic": {
+            "type": "string",
+            "description": "Masked bank account bic code",
+            "nullable": true
+          },
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "nullable": true
+          },
+          "country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GivexGiftCardAdditionalData": {
+        "type": "object",
+        "required": [
+          "last4"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the gift card number",
+            "example": "4242"
           }
         }
       },
@@ -6700,6 +7948,17 @@
           }
         }
       },
+      "LocalBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bank_code": {
+            "type": "string",
+            "description": "Partially masked bank code",
+            "example": "**** OA2312",
+            "nullable": true
+          }
+        }
+      },
       "MandateAmountData": {
         "type": "object",
         "required": [
@@ -7177,6 +8436,7 @@
         "required": [
           "connector_type",
           "connector_name",
+          "profile_id",
           "merchant_id"
         ],
         "properties": {
@@ -7188,14 +8448,14 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`",
             "example": "stripe_US_travel",
             "nullable": true
           },
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true
+            "maxLength": 64
           },
           "connector_account_details": {
             "allOf": [
@@ -7276,12 +8536,6 @@
             },
             "description": "Contains the frm configs for the merchant connector",
             "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
-            "nullable": true
-          },
-          "merchant_connector_id": {
-            "type": "string",
-            "description": "Unique ID of the connector",
-            "example": "mca_5apGeP94tMts6rg3U3kR",
             "nullable": true
           },
           "pm_auth_config": {
@@ -7394,6 +8648,7 @@
           "connector_type",
           "connector_name",
           "id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -7417,7 +8672,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "payment_methods_enabled": {
@@ -7518,6 +8772,7 @@
           "connector_type",
           "connector_name",
           "id",
+          "profile_id",
           "status"
         ],
         "properties": {
@@ -7541,7 +8796,6 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true,
             "maxLength": 64
           },
           "connector_account_details": {
@@ -7666,7 +8920,7 @@
           },
           "connector_label": {
             "type": "string",
-            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports. Eg: if your profile label is `default`, connector label can be `stripe_default`",
+            "description": "This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`",
             "example": "stripe_US_travel",
             "nullable": true
           },
@@ -7765,6 +9019,14 @@
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64,
             "minLength": 1
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -8485,6 +9747,13 @@
             "nullable": true
           }
         }
+      },
+      "OrderFulfillmentTimeOrigin": {
+        "type": "string",
+        "enum": [
+          "create",
+          "confirm"
+        ]
       },
       "OrganizationRequest": {
         "type": "object",
@@ -9935,7 +11204,7 @@
             ],
             "properties": {
               "bank_transfer": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankTransferAdditionalData"
               }
             }
           },
@@ -9964,22 +11233,11 @@
           {
             "type": "object",
             "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "bank_redirect"
             ],
             "properties": {
               "bank_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
           },
@@ -9990,7 +11248,7 @@
             ],
             "properties": {
               "crypto": {
-                "type": "object"
+                "$ref": "#/components/schemas/CryptoData"
               }
             }
           },
@@ -10001,7 +11259,7 @@
             ],
             "properties": {
               "bank_debit": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankDebitAdditionalData"
               }
             }
           },
@@ -10034,7 +11292,7 @@
             ],
             "properties": {
               "real_time_payment": {
-                "type": "object"
+                "$ref": "#/components/schemas/RealTimePaymentData"
               }
             }
           },
@@ -10045,7 +11303,7 @@
             ],
             "properties": {
               "upi": {
-                "type": "object"
+                "$ref": "#/components/schemas/UpiAdditionalData"
               }
             }
           },
@@ -10056,7 +11314,7 @@
             ],
             "properties": {
               "voucher": {
-                "type": "object"
+                "$ref": "#/components/schemas/VoucherData"
               }
             }
           },
@@ -10067,7 +11325,7 @@
             ],
             "properties": {
               "gift_card": {
-                "type": "object"
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
               }
             }
           },
@@ -10078,7 +11336,7 @@
             ],
             "properties": {
               "card_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardRedirectData"
               }
             }
           },
@@ -10089,7 +11347,7 @@
             ],
             "properties": {
               "card_token": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardTokenAdditionalData"
               }
             }
           },
@@ -10100,7 +11358,7 @@
             ],
             "properties": {
               "open_banking": {
-                "type": "object"
+                "$ref": "#/components/schemas/OpenBankingData"
               }
             }
           }
@@ -11401,11 +12659,12 @@
       "PaymentsCreateResponseOpenApi": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -11415,7 +12674,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -11423,7 +12681,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -11457,7 +12714,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -12454,11 +13712,12 @@
       "PaymentsResponse": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -12468,7 +13727,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -12476,7 +13734,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -12510,7 +13767,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -13597,6 +14855,12 @@
                 "description": "List of payout methods shown on collect UI",
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
                 "nullable": true
+              },
+              "test_mode": {
+                "type": "boolean",
+                "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
+                "example": false,
+                "nullable": true
               }
             }
           }
@@ -13957,6 +15221,12 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Unique identifier of the merchant connector account",
+            "example": "mca_sAD3OZLATetvjLOYhUSy",
+            "nullable": true
+          },
           "status": {
             "$ref": "#/components/schemas/PayoutStatus"
           },
@@ -14252,7 +15522,14 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PayoutCreateResponse"
-            }
+            },
+            "description": "The list of payouts response objects"
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of available payouts for given constraints",
+            "nullable": true
           }
         }
       },
@@ -14518,6 +15795,29 @@
             "type": "string",
             "description": "Individual taxpayer identification number",
             "example": "000123456",
+            "nullable": true
+          }
+        }
+      },
+      "PixBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "pix_key": {
+            "type": "string",
+            "description": "Partially masked unique key for pix transfer",
+            "example": "a1f4102e ****** 6fa48899c1d1",
+            "nullable": true
+          },
+          "cpf": {
+            "type": "string",
+            "description": "Partially masked CPF - CPF is a Brazilian tax identification number",
+            "example": "**** 124689",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "description": "Partially masked CNPJ - CNPJ is a Brazilian company tax identification number",
+            "example": "**** 417312",
             "nullable": true
           }
         }
@@ -15477,6 +16777,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",
@@ -15493,6 +16794,7 @@
           "noon",
           "nuvei",
           "opennode",
+          "paybox",
           "payme",
           "payone",
           "paypal",
@@ -15604,6 +16906,17 @@
         "description": "Routing Algorithm kind",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "RoutingAlgorithmId": {
+        "type": "object",
+        "required": [
+          "routing_algorithm_id"
+        ],
+        "properties": {
+          "routing_algorithm_id": {
+            "type": "string"
+          }
         }
       },
       "RoutingAlgorithmKind": {
@@ -15860,6 +17173,25 @@
             "type": "string",
             "description": "The billing name for SEPA and BACS billing",
             "example": "Jane Doe",
+            "nullable": true
+          }
+        }
+      },
+      "SepaBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "iban"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "example": "DE8937******013000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -16489,6 +17821,42 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpiAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi_collect"
+            ],
+            "properties": {
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_intent"
+            ],
+            "properties": {
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
+              }
+            }
+          }
+        ]
+      },
+      "UpiCollectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "vpa_id": {
+            "type": "string",
+            "description": "Masked VPA ID",
+            "nullable": true
+          }
+        }
       },
       "UpiCollectData": {
         "type": "object",

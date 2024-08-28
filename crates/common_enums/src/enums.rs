@@ -160,6 +160,7 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
+    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -210,7 +211,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Fiserv,
-    // Fiservemea,
+    Fiservemea,
     Forte,
     Globalpay,
     Globepay,
@@ -225,11 +226,12 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
+    // Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    // Paybox, added as template code for future usage
+    Paybox,
     Payme,
     Payone,
     Paypal,
@@ -245,6 +247,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    // Taxjar,
     Trustpay,
     // Tsys,
     Tsys,
@@ -3084,20 +3087,23 @@ pub enum ApiVersion {
     Debug,
     Eq,
     PartialEq,
+    Ord,
+    PartialOrd,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
+    Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
-    Internal,
-    Organization,
-    Merchant,
-    Profile,
+    Internal = 3,
+    Organization = 2,
+    Merchant = 1,
+    Profile = 0,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

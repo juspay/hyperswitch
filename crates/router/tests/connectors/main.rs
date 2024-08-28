@@ -45,8 +45,10 @@ mod mollie;
 mod multisafepay;
 mod netcetera;
 mod nexinets;
+mod nexixpay;
 mod nmi;
 mod noon;
+mod novalnet;
 mod nuvei;
 #[cfg(feature = "dummy_connector")]
 mod opayo;
@@ -69,6 +71,7 @@ mod shift4;
 mod square;
 mod stax;
 mod stripe;
+mod taxjar;
 mod trustpay;
 mod tsys;
 mod utils;

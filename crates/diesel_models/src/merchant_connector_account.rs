@@ -33,7 +33,7 @@ pub struct MerchantConnectorAccount {
     pub connector_account_details: Encryption,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_type: storage_enums::ConnectorType,
@@ -48,13 +48,14 @@ pub struct MerchantConnectorAccount {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -62,7 +63,7 @@ pub struct MerchantConnectorAccount {
     not(feature = "merchant_connector_account_v2")
 ))]
 impl MerchantConnectorAccount {
-    pub fn get_id(&self) -> String {
+    pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
 }
@@ -94,19 +95,20 @@ pub struct MerchantConnectorAccount {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
-    pub profile_id: Option<String>,
+    pub profile_id: id_type::ProfileId,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
-    pub id: String,
+    pub id: id_type::MerchantConnectorAccountId,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
 impl MerchantConnectorAccount {
-    pub fn get_id(&self) -> String {
+    pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
 }
@@ -124,7 +126,7 @@ pub struct MerchantConnectorAccountNew {
     pub connector_account_details: Option<Encryption>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
     pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
@@ -137,13 +139,14 @@ pub struct MerchantConnectorAccountNew {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -163,14 +166,15 @@ pub struct MerchantConnectorAccountNew {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<pii::SecretSerdeValue>>,
-    pub profile_id: Option<String>,
+    pub profile_id: id_type::ProfileId,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
-    pub id: String,
+    pub id: id_type::MerchantConnectorAccountId,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -186,7 +190,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_label: Option<String>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub frm_configs: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -199,6 +203,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: Option<storage_enums::ConnectorStatus>,
     pub connector_wallets_details: Option<Encryption>,
+    pub additional_merchant_data: Option<Encryption>,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
@@ -220,6 +225,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: Option<storage_enums::ConnectorStatus>,
     pub connector_wallets_details: Option<Encryption>,
+    pub additional_merchant_data: Option<Encryption>,
 }
 
 #[cfg(all(

@@ -60,7 +60,7 @@ pub async fn routing_create_config(
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<routing_types::RoutingAlgorithmId>,
+    path: web::Path<String>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
@@ -69,12 +69,12 @@ pub async fn routing_link_config(
         state,
         &req,
         path.into_inner(),
-        |state, auth: auth::AuthenticationData, algorithm_id, _| {
+        |state, auth: auth::AuthenticationData, algorithm, _| {
             routing::link_routing_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                algorithm_id.0,
+                algorithm,
                 transaction_type,
             )
         },
@@ -96,7 +96,7 @@ pub async fn routing_link_config(
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<routing_types::RoutingAlgorithmId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
@@ -117,7 +117,7 @@ pub async fn routing_link_config(
                 auth.merchant_account,
                 auth.key_store,
                 wrapper.profile_id,
-                wrapper.algorithm_id.0,
+                wrapper.algorithm_id.routing_algorithm_id,
                 transaction_type,
             )
         },
@@ -139,7 +139,7 @@ pub async fn routing_link_config(
 pub async fn routing_retrieve_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<routing_types::RoutingAlgorithmId>,
+    path: web::Path<String>,
 ) -> impl Responder {
     let algorithm_id = path.into_inner();
     let flow = Flow::RoutingRetrieveConfig;
@@ -149,7 +149,7 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            routing::retrieve_active_routing_config(
+            routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -209,7 +209,7 @@ pub async fn list_routing_configs(
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingUnlinkConfig;
@@ -280,7 +280,55 @@ pub async fn routing_unlink_config(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+#[instrument(skip_all)]
+pub async fn routing_update_default_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
+    json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
+) -> impl Responder {
+    let wrapper = routing_types::ProfileDefaultRoutingConfig {
+        profile_id: path.into_inner(),
+        connectors: json_payload.into_inner(),
+    };
+    Box::pin(oss_api::server_wrap(
+        Flow::RoutingUpdateDefaultConfig,
+        state,
+        &req,
+        wrapper,
+        |state, auth: auth::AuthenticationData, wrapper, _| {
+            routing::update_default_fallback_routing(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                wrapper.profile_id,
+                wrapper.connectors,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 #[instrument(skip_all)]
 pub async fn routing_update_default_config(
     state: web::Data<AppState>,
@@ -314,7 +362,49 @@ pub async fn routing_update_default_config(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(
+    feature = "olap",
+    feature = "v2",
+    feature = "routing_v2",
+    feature = "business_profile_v2"
+))]
+#[instrument(skip_all)]
+pub async fn routing_retrieve_default_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
+) -> impl Responder {
+    Box::pin(oss_api::server_wrap(
+        Flow::RoutingRetrieveDefaultConfig,
+        state,
+        &req,
+        path.into_inner(),
+        |state, auth: auth::AuthenticationData, profile_id, _| {
+            routing::retrieve_default_fallback_algorithm_for_profile(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                profile_id,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RoutingRead),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
@@ -584,7 +674,7 @@ pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     use crate::services::authentication::AuthenticationData;
@@ -663,7 +753,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
 pub async fn routing_update_default_config_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {

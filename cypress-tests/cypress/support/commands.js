@@ -84,6 +84,7 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
     expect(response.body.default_profile).to.not.be.empty;
     expect(response.body.organization_id).to.not.be.empty;
     globalState.set("organizationId", response.body.organization_id);
+    globalState.set("publishableKey", response.body.publishable_key);
   });
 });
 
@@ -228,10 +229,10 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
 
 Cypress.Commands.add("apiKeyListCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
-
+  const base_url = globalState.get("baseUrl");
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/api_keys/${merchant_id}/list`,
+    url: `${base_url}/api_keys/${merchant_id}/list`,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -244,8 +245,13 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
     expect(response.body).to.be.an("array").and.not.empty;
     for (const key in response.body) {
       expect(response.body[key]).to.have.property("name").and.not.empty;
-      expect(response.body[key]).to.have.property("key_id").include("snd_").and
-        .not.empty;
+      if (base_url.includes("sandbox") || base_url.includes("integ")) {
+        expect(response.body[key]).to.have.property("key_id").include("snd_")
+          .and.not.empty;
+      } else if (base_url.includes("localhost")) {
+        expect(response.body[key]).to.have.property("key_id").include("dev_")
+          .and;
+      }
       expect(response.body[key].merchant_id).to.equal(merchant_id);
     }
   });
@@ -484,7 +490,8 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": globalState.get("adminApiKey"),
+      "x-merchant-id": merchant_id,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -530,7 +537,8 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
+        "api-key": globalState.get("adminApiKey"),
+        "x-merchant-id": merchant_id,
       },
       body: updateConnectorBody,
       failOnStatusCode: false,
@@ -554,7 +562,8 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": globalState.get("adminApiKey"),
+      "X-Merchant-Id": merchant_id,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -763,7 +772,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
-    request,
+    createPaymentBody,
     req_data,
     res_data,
     authentication_type,
@@ -771,22 +780,23 @@ Cypress.Commands.add(
     globalState
   ) => {
     if (
-      !request ||
-      typeof request !== "object" ||
-      !req_data.currency ||
-      !authentication_type
+      !createPaymentBody ||
+      typeof createPaymentBody !== "object" ||
+      !req_data.currency
     ) {
       throw new Error(
         "Invalid parameters provided to createPaymentIntentTest command"
       );
     }
-    request.currency = req_data.currency;
-    request.authentication_type = authentication_type;
-    request.capture_method = capture_method;
-    request.setup_future_usage = req_data.setup_future_usage;
-    request.customer_acceptance = req_data.customer_acceptance;
-    request.customer_id = globalState.get("customerId");
-    globalState.set("paymentAmount", request.amount);
+
+    for (const key in req_data) {
+      createPaymentBody[key] = req_data[key];
+    }
+    createPaymentBody.authentication_type = authentication_type;
+
+    createPaymentBody.capture_method = capture_method;
+    createPaymentBody.customer_id = globalState.get("customerId");
+    globalState.set("paymentAmount", createPaymentBody.amount);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -796,7 +806,7 @@ Cypress.Commands.add(
         "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
-      body: request,
+      body: createPaymentBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -811,9 +821,11 @@ Cypress.Commands.add(
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
         }
-        expect(request.amount).to.equal(response.body.amount);
+        expect(createPaymentBody.amount).to.equal(response.body.amount);
         expect(null).to.equal(response.body.amount_received);
-        expect(request.amount).to.equal(response.body.amount_capturable);
+        expect(createPaymentBody.amount).to.equal(
+          response.body.amount_capturable
+        );
       } else {
         defaultErrorHandler(response, res_data);
       }
@@ -895,6 +907,7 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("paymentID", paymentIntentID);
+        globalState.set("connectorId", response.body.connector);
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -951,6 +964,7 @@ Cypress.Commands.add(
   (confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentId = globalState.get("paymentID");
     const connectorId = globalState.get("connectorId");
+    console.log("connectorId", connectorId);
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
@@ -971,6 +985,8 @@ Cypress.Commands.add(
       if (response.status === 200) {
         expect(response.headers["content-type"]).to.include("application/json");
         globalState.set("paymentID", paymentIntentId);
+        globalState.set("connectorId", response.body.connector);
+        console.log("connectorId", response.body.connector);
         globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
         switch (response.body.authentication_type) {
@@ -1250,7 +1266,7 @@ Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, req_data, res_data, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
-    if (req_data.setup_future_usage === "on_session"){
+    if (req_data.setup_future_usage === "on_session") {
       saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
@@ -2036,6 +2052,9 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
       //set jwt_token
       globalState.set("jwtToken", response.body.token);
 
+      //setting merchantId for manual create merchant
+      globalState.set("merchantId", response.body.merchant_id);
+
       // set session cookie
       const sessionCookie = response.headers["set-cookie"][0];
       const sessionValue = sessionCookie.split(";")[0];
@@ -2055,14 +2074,15 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
 });
 
 // Specific to routing tests
-Cypress.Commands.add("ListMCAbyMID", (globalState) => {
+Cypress.Commands.add("ListMcaByMid", (globalState) => {
   const merchantId = globalState.get("merchantId");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": globalState.get("adminApiKey"),
+      "X-Merchant-Id": merchantId,
     },
     failOnStatusCode: false,
   }).then((response) => {

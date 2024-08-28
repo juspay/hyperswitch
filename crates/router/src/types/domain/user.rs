@@ -904,7 +904,7 @@ impl UserFromStorage {
     pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
         state
             .store
-            .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
+            .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -985,7 +985,7 @@ impl UserFromStorage {
         } else {
             state
                 .store
-                .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
+                .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
                 .await?
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)
@@ -1340,7 +1340,7 @@ pub struct MerchantLevel {
 pub struct ProfileLevel {
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
 }
 
 #[derive(Clone)]
@@ -1381,7 +1381,7 @@ impl NewUserRole<NoLevel> {
 pub struct EntityInfo {
     org_id: id_type::OrganizationId,
     merchant_id: Option<id_type::MerchantId>,
-    profile_id: Option<String>,
+    profile_id: Option<id_type::ProfileId>,
     entity_id: String,
     entity_type: EntityType,
 }
@@ -1527,7 +1527,7 @@ impl NewUserRole<ProfileLevel> {
             org_id: entity.org_id.clone(),
             merchant_id: Some(entity.merchant_id.clone()),
             profile_id: Some(entity.profile_id.clone()),
-            entity_id: entity.profile_id,
+            entity_id: entity.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
         });
         state.store.insert_user_role(new_v2_role).await
