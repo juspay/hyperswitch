@@ -96,7 +96,6 @@ pub struct RefundNew {
     pub organization_id: common_utils::id_type::OrganizationId,
 }
 
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RefundUpdate {
     Update {
