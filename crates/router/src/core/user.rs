@@ -61,6 +61,7 @@ pub async fn signup_with_merchant_id(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            None,
         )
         .await?;
 
@@ -133,6 +134,7 @@ pub async fn signup(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            None,
         )
         .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
@@ -164,6 +166,7 @@ pub async fn signup_token_only_flow(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            None,
         )
         .await?;
 
@@ -315,6 +318,7 @@ pub async fn connect_account(
                 state.clone(),
                 consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
+                None,
             )
             .await?;
 
@@ -1339,6 +1343,7 @@ pub async fn create_merchant_account(
             state.clone(),
             consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            Some(UserRoleVersion::V1),
         )
         .await;
     if let Err(e) = role_insertion_res {

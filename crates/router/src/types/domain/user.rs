@@ -664,6 +664,7 @@ impl NewUser {
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
+        version: Option<UserRoleVersion>,
     ) -> UserResult<UserRole> {
         let org_id = self
             .get_new_merchant()
@@ -671,14 +672,40 @@ impl NewUser {
             .get_organization_id();
         let merchant_id = self.get_new_merchant().get_merchant_id();
 
-        self.get_no_level_user_role(role_id, user_status)
+        let org_user_role = self
+            .get_no_level_user_role(role_id, user_status)
             .add_entity(OrganizationLevel {
                 org_id,
                 merchant_id,
-            })
-            .insert_in_v1_and_v2(&state)
-            .await
-            .change_context(UserErrors::InternalServerError)
+            });
+
+        match version {
+            Some(UserRoleVersion::V1) => org_user_role
+                .insert_in_v1(&state)
+                .await
+                .change_context(UserErrors::InternalServerError),
+
+            Some(UserRoleVersion::V2) => org_user_role
+                .insert_in_v2(&state)
+                .await
+                .change_context(UserErrors::InternalServerError),
+
+            None => {
+                org_user_role
+                    .clone()
+                    .insert_in_v2(&state)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?;
+
+                // Returning V1 role so that merchant_id will not be null
+                org_user_role
+                    .insert_in_v1(&state)
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+            }
+        }
+
+        // Returning V1 role so merchant_id will always be present user_role
     }
 }
 
@@ -1351,6 +1378,14 @@ impl NewUserRole<NoLevel> {
     }
 }
 
+pub struct EntityInfo {
+    org_id: id_type::OrganizationId,
+    merchant_id: Option<id_type::MerchantId>,
+    profile_id: Option<String>,
+    entity_id: String,
+    entity_type: EntityType,
+}
+
 impl<E> NewUserRole<E>
 where
     E: Clone,
@@ -1396,16 +1431,8 @@ where
     }
 }
 
-pub struct EntityInfo {
-    org_id: id_type::OrganizationId,
-    merchant_id: Option<id_type::MerchantId>,
-    profile_id: Option<String>,
-    entity_id: String,
-    entity_type: EntityType,
-}
-
 impl NewUserRole<OrganizationLevel> {
-    pub async fn insert_in_v1_and_v2(
+    pub async fn insert_in_v1(
         self,
         state: &SessionState,
     ) -> CustomResult<UserRole, errors::StorageError> {
@@ -1414,7 +1441,14 @@ impl NewUserRole<OrganizationLevel> {
         let new_v1_role = self
             .clone()
             .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-        let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
+        state.store.insert_user_role(new_v1_role).await
+    }
+
+    pub async fn insert_in_v2(
+        self,
+        state: &SessionState,
+    ) -> CustomResult<UserRole, errors::StorageError> {
+        let entity = self.entity.clone();
 
         let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
             org_id: entity.org_id.clone(),
@@ -1423,10 +1457,7 @@ impl NewUserRole<OrganizationLevel> {
             entity_id: entity.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
         });
-        state.store.insert_user_role(new_v2_role).await?;
-
-        // Returning v1 role so that merchant_id will be present in the role
-        Ok(db_v1_role)
+        state.store.insert_user_role(new_v2_role).await
     }
 }
 
