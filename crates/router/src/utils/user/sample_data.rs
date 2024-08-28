@@ -331,7 +331,7 @@ pub async fn generate_sample_data(
             client_source: None,
             client_version: None,
             customer_acceptance: None,
-            profile_id: common_utils::generate_profile_id_of_default_length(),
+            profile_id: profile_id.clone(),
             organization_id: org_id.clone(),
         };
 
