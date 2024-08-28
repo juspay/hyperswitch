@@ -209,7 +209,7 @@ where
                             merchant_account,
                             Some(&save_payment_method_data.request.get_payment_method_data()),
                             payment_method_create_request.to_owned(),
-                            false,
+                            false, //saving the card in locker
                             amount,
                             currency,
                         ))
@@ -225,7 +225,7 @@ where
                                 merchant_account,
                                 Some(&save_payment_method_data.request.get_payment_method_data()),
                                 payment_method_create_request.to_owned(),
-                                true,
+                                true, //saving the token in locker
                                 amount,
                                 currency,
                             ))
@@ -262,7 +262,7 @@ where
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encrypt payment method data")?;
 
-                let pm_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
+                let pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                     match token_resp {
                         Some(token_resp) => {
                             let pm_token_details = token_resp.card.as_ref().map(|card| {
@@ -395,7 +395,7 @@ where
                                             }),
                                             network_token_requestor_ref_id,
                                             network_token_locker_id,
-                                            pm_token_data_encrypted.map(Into::into),
+                                            pm_network_token_data_encrypted.map(Into::into),
                                         )
                                         .await
                                     } else {
@@ -496,7 +496,7 @@ where
                                                 }),
                                                 network_token_requestor_ref_id,
                                                 network_token_locker_id,
-                                                pm_token_data_encrypted.map(Into::into),
+                                                pm_network_token_data_encrypted.map(Into::into),
                                             )
                                             .await
                                         } else {
@@ -696,7 +696,7 @@ where
                                 }),
                                 network_token_requestor_ref_id,
                                 network_token_locker_id,
-                                pm_token_data_encrypted.map(Into::into),
+                                pm_network_token_data_encrypted.map(Into::into),
                             )
                             .await?;
                         };
@@ -857,7 +857,7 @@ pub async fn save_card_in_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed")?;
-            Ok((res, dc, None))
+            Ok((res, dc, None)) //network_token_requestor_ref_id is None in case of card
         }
         None => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
