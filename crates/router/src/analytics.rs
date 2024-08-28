@@ -51,7 +51,7 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("metrics/refunds")
-                                        .route(web::post().to(get_refunds_metrics)),
+                                        .route(web::post().to(get_merchant_refund_metrics)),
                                 )
                                 .service(
                                     web::resource("filters/payments")
@@ -63,7 +63,7 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("filters/refunds")
-                                        .route(web::post().to(get_refund_filters)),
+                                        .route(web::post().to(get_merchant_refund_filters)),
                                 )
                                 .service(
                                     web::resource("{domain}/info").route(web::get().to(get_info)),
@@ -150,6 +150,14 @@ pub mod routes {
                                 .service(
                                     web::resource("filters/payments")
                                         .route(web::post().to(get_org_payment_filters)),
+                                )
+                                .service(
+                                    web::resource("metrics/refunds")
+                                        .route(web::post().to(get_org_refund_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/refunds")
+                                        .route(web::post().to(get_org_refund_filters)),
                                 ),
                         ),
                 )
@@ -306,7 +314,7 @@ pub mod routes {
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
-    pub async fn get_refunds_metrics(
+    pub async fn get_merchant_refund_metrics(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<[GetRefundMetricRequest; 1]>,
@@ -330,6 +338,42 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::MerchantLevel {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::refunds::get_metrics(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
+    pub async fn get_org_refund_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetRefundMetricRequest; 1]>,
+    ) -> impl Responder {
+        #[allow(clippy::expect_used)]
+        // safety: This shouldn't panic owing to the data type
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetRefundMetricRequest");
+        let flow = AnalyticsFlow::GetRefundsMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone()
                 };
                 analytics::refunds::get_metrics(&state.pool, &auth, req)
                     .await
@@ -563,7 +607,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_refund_filters(
+    pub async fn get_merchant_refund_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<GetRefundFilterRequest>,
@@ -580,6 +624,32 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::MerchantLevel {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::refunds::get_filters(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_org_refund_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetRefundFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetRefundFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
                 };
                 analytics::refunds::get_filters(&state.pool, req, &auth)
                     .await
