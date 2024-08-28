@@ -373,7 +373,7 @@ pub mod routes {
             |state, auth: AuthenticationData, req, _| async move {
                 let org_id = auth.merchant_account.get_org_id();
                 let auth: AuthInfo = AuthInfo::OrgLevel {
-                    org_id: org_id.clone()
+                    org_id: org_id.clone(),
                 };
                 analytics::refunds::get_metrics(&state.pool, &auth, req)
                     .await
