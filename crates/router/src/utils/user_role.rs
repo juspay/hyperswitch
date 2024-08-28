@@ -128,6 +128,18 @@ pub async fn set_role_permissions_in_cache_by_user_role(
     .is_ok()
 }
 
+pub async fn set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
+    state: &SessionState,
+    role_id: &str,
+    merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
+) -> bool {
+    set_role_permissions_in_cache_if_required(state, role_id, merchant_id, org_id)
+        .await
+        .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
+        .is_ok()
+}
+
 pub async fn set_role_permissions_in_cache_if_required(
     state: &SessionState,
     role_id: &str,
