@@ -20,7 +20,11 @@ use super::{
     RefundMetricsAccumulator,
 };
 use crate::{
-    enums::AuthInfo, errors::{AnalyticsError, AnalyticsResult}, metrics, refunds::RefundMetricAccumulator, AnalyticsProvider
+    enums::AuthInfo,
+    errors::{AnalyticsError, AnalyticsResult},
+    metrics,
+    refunds::RefundMetricAccumulator,
+    AnalyticsProvider,
 };
 
 pub async fn get_metrics(

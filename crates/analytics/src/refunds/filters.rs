@@ -8,7 +8,9 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo, query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window}, types::{
+    enums::AuthInfo,
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
         LoadRow,
     }
