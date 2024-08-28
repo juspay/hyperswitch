@@ -154,7 +154,6 @@ export const connectorDetails = {
         },
       },
     },
-
     PartialCapture: {
       Request: {},
       Response: {

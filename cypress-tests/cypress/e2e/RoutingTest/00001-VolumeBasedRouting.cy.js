@@ -6,7 +6,8 @@ let globalState;
 
 describe("Volume Based Routing Test", () => {
   let should_continue = true;
-  context("Routing with Stripe as top priority", () => {
+
+  context("Create Jwt Token", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -30,6 +31,7 @@ describe("Volume Based Routing Test", () => {
       cy.merchantRetrieveCall(globalState);
     });
   });
+
   context("Volume based routing with 100% of stripe", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -39,6 +41,10 @@ describe("Volume Based Routing Test", () => {
 
     afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
+    });
+
+    it("list-mca-by-mid", () => {
+      cy.ListMcaByMid(globalState);
     });
 
     it("api-key-create-call-test", () => {
@@ -152,6 +158,7 @@ describe("Volume Based Routing Test", () => {
       );
     });
   });
+
   context("Volume based routing with 100% of adyen", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -162,8 +169,8 @@ describe("Volume Based Routing Test", () => {
     afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
-    it("retrieve-mca", () => {
-      cy.ListMCAbyMID(globalState);
+    it("list-mca-by-mid", () => {
+      cy.ListMcaByMid(globalState);
     });
 
     it("api-key-create-call-test", () => {

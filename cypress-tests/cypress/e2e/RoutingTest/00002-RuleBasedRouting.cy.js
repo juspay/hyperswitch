@@ -5,26 +5,29 @@ import * as utils from "../RoutingUtils/utils";
 let globalState;
 
 describe("Rule Based Routing Test", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
+  context("Create Jwt Token", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
     });
-  });
 
-  after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+    it("create-jwt-token", () => {
+      let data = utils.getConnectorDetails("common")["jwt"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
 
-  it("create-jwt-token", () => {
-    let data = utils.getConnectorDetails("common")["jwt"];
-    let req_data = data["Request"];
-    let res_data = data["Response"];
+      cy.createJWTToken(req_data, res_data, globalState);
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
 
-    cy.createJWTToken(req_data, res_data, globalState);
-  });
-
-  it("merchant retrieve call", () => {
-    cy.merchantRetrieveCall(globalState);
+    it("merchant retrieve call", () => {
+      cy.merchantRetrieveCall(globalState);
+    });
   });
 
   context("Rule based routing,Card->Stripe,Bank_redirect->adyen", () => {
@@ -39,7 +42,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("retrieve-mca", () => {
-      cy.ListMCAbyMID(globalState);
+      cy.ListMcaByMid(globalState);
     });
 
     it("api-key-create-call-test", () => {
@@ -215,7 +218,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("retrieve-mca", () => {
-      cy.ListMCAbyMID(globalState);
+      cy.ListMcaByMid(globalState);
     });
 
     it("api-key-create-call-test", () => {
@@ -377,7 +380,7 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("retrieve-mca", () => {
-        cy.ListMCAbyMID(globalState);
+        cy.ListMcaByMid(globalState);
       });
 
       it("api-key-create-call-test", () => {

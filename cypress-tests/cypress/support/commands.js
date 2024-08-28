@@ -2069,7 +2069,7 @@ Cypress.Commands.add("createJWTToken", (req_data, res_data, globalState) => {
 });
 
 // Specific to routing tests
-Cypress.Commands.add("ListMCAbyMID", (globalState) => {
+Cypress.Commands.add("ListMcaByMid", (globalState) => {
   const merchantId = globalState.get("merchantId");
   cy.request({
     method: "GET",

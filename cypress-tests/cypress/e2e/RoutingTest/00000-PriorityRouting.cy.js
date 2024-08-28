@@ -6,7 +6,7 @@ let globalState;
 
 describe("Priority Based Routing Test", () => {
   let should_continue = true;
-  context("Routing with Stripe as top priority", () => {
+  context("Create Jwt Token", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -41,8 +41,8 @@ describe("Priority Based Routing Test", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
-    it("retrieve-mca", () => {
-      cy.ListMCAbyMID(globalState);
+    it("list-mca-by-mid", () => {
+      cy.ListMcaByMid(globalState);
     });
 
     it("api-key-create-call-test", () => {
@@ -130,8 +130,8 @@ describe("Priority Based Routing Test", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
-    it("retrieve-mca", () => {
-      cy.ListMCAbyMID(globalState);
+    it("list-mca-by-mid", () => {
+      cy.ListMcaByMid(globalState);
     });
 
     it("api-key-create-call-test", () => {
