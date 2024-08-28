@@ -2671,6 +2671,14 @@ pub async fn create_payout_link(
             .and_then(|config| config.payout_link_id.clone()),
         "payout_link",
     )?;
+    let form_layout = payout_link_config_req
+        .as_ref()
+        .and_then(|config| config.form_layout.to_owned())
+        .or_else(|| {
+            profile_config
+                .as_ref()
+                .and_then(|config| config.form_layout.to_owned())
+        });
 
     let data = PayoutLinkData {
         payout_link_id: payout_link_id.clone(),
@@ -2684,6 +2692,7 @@ pub async fn create_payout_link(
         amount: MinorUnit::from(*amount),
         currency: *currency,
         allowed_domains,
+        form_layout,
     };
 
     create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await

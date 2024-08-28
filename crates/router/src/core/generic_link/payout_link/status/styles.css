@@ -80,7 +80,7 @@ body {
 #resource-info-container {
   width: 100%;
   border-top: 1px solid rgb(231, 234, 241);
-  padding: 20px 0;
+  padding: 20px 10px;
 }
 #resource-info {
   display: flex;

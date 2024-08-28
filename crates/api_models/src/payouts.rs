@@ -4,6 +4,7 @@ use common_utils::{
     crypto, id_type, link_utils,
     pii::{self, Email},
 };
+use indexmap::IndexMap;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -203,6 +204,10 @@ pub struct PayoutCreatePayoutLinkConfig {
     /// List of payout methods shown on collect UI
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
+
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
 }
 
 /// The payout method information required for carrying out a payout
@@ -769,10 +774,12 @@ pub struct PayoutLinkDetails {
     pub return_url: Option<url::Url>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
-    pub enabled_payment_methods: Vec<PayoutEnabledPaymentMethodsInfo>,
+    pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
+    pub enabled_payment_methods_with_required_fields: Vec<PayoutEnabledPaymentMethodsInfo>,
     pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
     pub locale: String,
+    pub form_layout: Option<common_enums::UIWidgetFormLayout>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -784,7 +791,7 @@ pub struct PayoutEnabledPaymentMethodsInfo {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodTypeInfo {
     pub payment_method_type: common_enums::PaymentMethodType,
-    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+    pub required_fields: Option<IndexMap<String, RequiredFieldInfo>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

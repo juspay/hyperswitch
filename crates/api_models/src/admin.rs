@@ -2516,6 +2516,10 @@ pub struct BusinessCollectLinkConfig {
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

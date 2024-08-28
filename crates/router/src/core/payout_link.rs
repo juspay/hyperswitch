@@ -1,8 +1,4 @@
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-};
-
+use crate::types::transformers::ForeignFrom;
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
@@ -13,6 +9,10 @@ use common_utils::{
 use diesel_models::PayoutLinkUpdate;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+};
 
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
@@ -185,7 +185,10 @@ pub async fn initiate_payout_link(
                 _ => Ordering::Equal,
             });
 
-            let payout_required_fields = state.conf.payouts.required_fields;
+            let enabled_payment_methods_with_required_fields = ForeignFrom::foreign_from((
+                &state.conf.payouts.required_fields,
+                enabled_payment_methods.clone(),
+            ));
 
             let js_data = payouts::PayoutLinkDetails {
                 publishable_key: masking::Secret::new(merchant_account.publishable_key),
@@ -203,9 +206,11 @@ pub async fn initiate_payout_link(
                     .attach_printable("Failed to parse payout status link's return URL")?,
                 ui_config: ui_config_data,
                 enabled_payment_methods,
+                enabled_payment_methods_with_required_fields,
                 amount,
                 currency: payout.destination_currency,
                 locale: locale.clone(),
+                form_layout: link_data.form_layout,
             };
 
             let serialized_css_content = String::new();

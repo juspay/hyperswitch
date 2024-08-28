@@ -1,5 +1,3 @@
-use common_utils::link_utils::EnabledPaymentMethod;
-
 use crate::{
     routes::app::settings::PayoutRequiredFields,
     types::{
@@ -7,6 +5,8 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
 };
+use common_utils::link_utils::EnabledPaymentMethod;
+use std::collections::HashMap;
 
 impl
     ForeignFrom<(
@@ -81,27 +81,64 @@ impl
     }
 }
 
-impl ForeignFrom<(PayoutRequiredFields, Vec<EnabledPaymentMethod>)>
+use indexmap::IndexMap;
+
+impl ForeignFrom<(&PayoutRequiredFields, Vec<EnabledPaymentMethod>)>
     for Vec<api::PayoutEnabledPaymentMethodsInfo>
 {
-    fn foreign_form(
+    fn foreign_from(
         (payout_required_fields, enabled_payout_methods): (
-            PayoutRequiredFields,
+            &PayoutRequiredFields,
             Vec<EnabledPaymentMethod>,
         ),
     ) -> Self {
-        enabled_payout_methods.iter().map(|enabled_payout_method| {
-            let pm = enabled_payout_method.payment_method;
-            payout_required_fields
-                .0
-                .iter()
-                .map(|(rf_pm, rf_pmt_info)| rf_pmt_info.0.iter().map(|(rf_pmt, connector_fields)| {
-                    connector_fields.fields.iter().map(|(connector, required_fields)| {
-                        required_fields.common.iter().map(|(rf_str, rf_info)| {
-                            
-                        })
+        enabled_payout_methods
+            .into_iter()
+            .map(|enabled_payout_method| {
+                let payment_method = enabled_payout_method.payment_method;
+                let payment_method_types_info = enabled_payout_method
+                    .payment_method_types
+                    .into_iter()
+                    .filter_map(|pmt| {
+                        payout_required_fields
+                            .0
+                            .get(&payment_method)
+                            .and_then(|pmt_info| {
+                                pmt_info.0.get(&pmt).map(|connector_fields| {
+                                    let mut required_fields = IndexMap::new();
+
+                                    for (_, required_field_final) in &connector_fields.fields {
+                                        required_fields.extend(required_field_final.common.clone());
+                                        required_fields
+                                            .extend(required_field_final.mandate.clone());
+                                        required_fields
+                                            .extend(required_field_final.non_mandate.clone());
+                                    }
+
+                                    api::PaymentMethodTypeInfo {
+                                        payment_method_type: pmt,
+                                        required_fields: if required_fields.is_empty() {
+                                            None
+                                        } else {
+                                            Some(required_fields)
+                                        },
+                                    }
+                                })
+                            })
+                            .or_else(|| {
+                                Some(api::PaymentMethodTypeInfo {
+                                    payment_method_type: pmt,
+                                    required_fields: None,
+                                })
+                            })
                     })
-                }))
-        })
+                    .collect();
+
+                api::PayoutEnabledPaymentMethodsInfo {
+                    payment_method,
+                    payment_method_types_info,
+                }
+            })
+            .collect()
     }
 }
