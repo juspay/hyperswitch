@@ -11,7 +11,9 @@ use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo, query::{Aggregate, GroupByClause, ToSql, Window}, types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult}
+    enums::AuthInfo,
+    query::{Aggregate, GroupByClause, ToSql, Window},
+    types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
 
 mod payment_intent_count;
@@ -77,50 +79,22 @@ where
         match self {
             Self::SuccessfulSmartRetries => {
                 SuccessfulSmartRetries
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::TotalSmartRetries => {
                 TotalSmartRetries
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::SmartRetriedAmount => {
                 SmartRetriedAmount
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::PaymentIntentCount => {
                 PaymentIntentCount
-                    .load_metrics(
-                        dimensions,
-                        auth,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
         }

@@ -15,10 +15,12 @@ use time::PrimitiveDateTime;
 
 use super::PaymentIntentMetricRow;
 use crate::{
-    enums::AuthInfo, query::{
+    enums::AuthInfo,
+    query::{
         Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
         Window,
-    }, types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult}
+    },
+    types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
@@ -72,7 +74,7 @@ where
         filters.set_filter_clause(&mut query_builder).switch()?;
 
         auth.set_filter_clause(&mut query_builder).switch()?;
-        
+
         query_builder
             .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)
             .switch()?;

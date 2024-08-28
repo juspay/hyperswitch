@@ -23,7 +23,11 @@ use super::{
     PaymentIntentMetricsAccumulator,
 };
 use crate::{
-    enums::AuthInfo, errors::{AnalyticsError, AnalyticsResult}, metrics, payment_intents::PaymentIntentMetricAccumulator, AnalyticsProvider
+    enums::AuthInfo,
+    errors::{AnalyticsError, AnalyticsResult},
+    metrics,
+    payment_intents::PaymentIntentMetricAccumulator,
+    AnalyticsProvider,
 };
 
 #[derive(Debug)]

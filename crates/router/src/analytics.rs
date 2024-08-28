@@ -235,13 +235,9 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::payment_intents::get_metrics(
-                    &state.pool,
-                    &auth,
-                    req,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
