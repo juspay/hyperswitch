@@ -19,6 +19,7 @@ ALTER TABLE dispute
 ADD COLUMN IF NOT EXISTS organization_id VARCHAR(32) NOT NULL DEFAULT 'default_org';
 
 -- This doesn't work on V2
+-- The below backfill step has to be run after the code deployment
 -- UPDATE payment_attempt pa
 -- SET organization_id = ma.organization_id
 -- FROM merchant_account ma
