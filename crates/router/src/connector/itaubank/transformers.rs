@@ -133,15 +133,30 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
 pub struct ItaubankAuthType {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
+    pub(super) certificate: Option<Secret<String>>,
+    pub(super) certificate_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ItaubankAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
+            types::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Ok(Self {
+                client_secret: api_key.to_owned(),
+                client_id: key1.to_owned(),
+                certificate: Some(api_secret.to_owned()),
+                certificate_key: Some(key2.to_owned()),
+            }),
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 client_secret: api_key.to_owned(),
                 client_id: key1.to_owned(),
+                certificate: None,
+                certificate_key: None,
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
