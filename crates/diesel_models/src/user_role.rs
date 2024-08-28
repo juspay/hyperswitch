@@ -50,9 +50,7 @@ fn get_entity_id_and_type(user_role: &UserRole) -> (Option<String>, Option<Entit
                 .map(|merchant_id| merchant_id.get_string_repr().to_string()),
             Some(EntityType::Merchant),
         ),
-        (enums::UserRoleVersion::V2, _) => {
-            (user_role.entity_id.clone(), user_role.entity_type.clone())
-        }
+        (enums::UserRoleVersion::V2, _) => (user_role.entity_id.clone(), user_role.entity_type),
     }
 }
 
