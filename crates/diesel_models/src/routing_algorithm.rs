@@ -1,7 +1,8 @@
-use crate::{enums, schema::routing_algorithm};
 use common_utils::id_type;
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
+
+use crate::{enums, schema::routing_algorithm};
 
 #[derive(Clone, Debug, Identifiable, Insertable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = routing_algorithm, primary_key(algorithm_id), check_for_backend(diesel::pg::Pg))]
