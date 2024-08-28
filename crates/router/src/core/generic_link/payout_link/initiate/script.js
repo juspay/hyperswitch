@@ -1,6 +1,10 @@
 // @ts-check
 
 // Top level checks
+// @ts-ignore
+var payoutDetails = window.__PAYOUT_DETAILS;
+var isTestMode = payoutDetails.test_mode;
+
 var isFramed = false;
 try {
   isFramed = window.parent.location !== window.location;
@@ -12,7 +16,7 @@ try {
 }
 
 // Remove the script from DOM incase it's not iframed
-if (!isFramed) {
+if (!isTestMode && !isFramed) {
   function initializePayoutSDK() {
     var errMsg = "{{i18n_not_allowed}}";
     var contentElement = document.getElementById("payout-link");

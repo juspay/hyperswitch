@@ -2096,6 +2096,7 @@ name = "connector_configs"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "common_utils",
  "serde",
  "serde_with",
  "toml 0.8.12",
@@ -6154,6 +6155,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
+ "indexmap 2.4.0",
  "infer",
  "iso_currency",
  "isocountry",

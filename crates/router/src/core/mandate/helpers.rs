@@ -16,7 +16,7 @@ pub async fn get_profile_id_for_mandate(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     mandate: Mandate,
-) -> CustomResult<String, errors::ApiErrorResponse> {
+) -> CustomResult<common_utils::id_type::ProfileId, errors::ApiErrorResponse> {
     let profile_id = if let Some(ref payment_id) = mandate.original_payment_id {
         let pi = state
             .store
@@ -35,6 +35,7 @@ pub async fn get_profile_id_for_mandate(
                 .ok_or(errors::ApiErrorResponse::BusinessProfileNotFound {
                     id: pi
                         .profile_id
+                        .map(|profile_id| profile_id.get_string_repr().to_owned())
                         .unwrap_or_else(|| "Profile id is Null".to_string()),
                 })?;
         Ok(profile_id)

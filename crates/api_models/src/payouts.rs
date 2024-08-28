@@ -7,7 +7,6 @@ use common_utils::{
 use indexmap::IndexMap;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -146,7 +145,8 @@ pub struct PayoutCreateRequest {
     pub payout_token: Option<String>,
 
     /// The business profile to use for this payout, especially if there are multiple business profiles associated with the account, otherwise default business profile associated with the merchant account will be used.
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     /// The send method which will be required for processing payouts, check options for better understanding.
     #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
@@ -208,6 +208,12 @@ pub struct PayoutCreatePayoutLinkConfig {
     /// Form layout of the payout link
     #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
     pub form_layout: Option<api_enums::UIWidgetFormLayout>,
+
+    /// `test_mode` allows for opening payout links without any restrictions. This removes
+    /// - domain name validations
+    /// - check for making sure link is accessed within an iframe
+    #[schema(value_type = Option<bool>, example = false)]
+    pub test_mode: Option<bool>,
 }
 
 /// The payout method information required for carrying out a payout
@@ -472,7 +478,7 @@ pub struct PayoutCreateResponse {
 
     /// Unique identifier of the merchant connector account
     #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Current status of the Payout
     #[schema(value_type = PayoutStatus, example = RequiresConfirmation)]
@@ -487,7 +493,8 @@ pub struct PayoutCreateResponse {
     pub error_code: Option<String>,
 
     /// The business profile that is associated with this payout
-    pub profile_id: String,
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
 
     /// Time when the payout was created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -691,7 +698,8 @@ pub struct PayoutListFilterConstraints {
 )]
     pub payout_id: Option<String>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
     /// The identifier for customer
     #[schema(value_type = Option<String>,example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
@@ -780,6 +788,7 @@ pub struct PayoutLinkDetails {
     pub currency: common_enums::Currency,
     pub locale: String,
     pub form_layout: Option<common_enums::UIWidgetFormLayout>,
+    pub test_mode: bool,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -807,4 +816,5 @@ pub struct PayoutLinkStatusDetails {
     pub error_message: Option<String>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
+    pub test_mode: bool,
 }

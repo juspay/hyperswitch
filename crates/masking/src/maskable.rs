@@ -2,7 +2,7 @@
 //! This module contains Masking objects and traits
 //!
 
-use crate::{ExposeInterface, PeekInterface, Secret};
+use crate::{ExposeInterface, Secret};
 
 ///
 /// An Enum that allows us to optionally mask data, based on which enum variant that data is stored
@@ -101,7 +101,7 @@ impl Mask for String {
 impl Mask for Secret<String> {
     type Output = String;
     fn into_masked(self) -> Maskable<Self::Output> {
-        Maskable::new_normal(self.peek().to_string())
+        Maskable::new_masked(self)
     }
 }
 

@@ -88,6 +88,8 @@ pub enum UserErrors {
     AuthConfigParsingError,
     #[error("Invalid SSO request")]
     SSOFailed,
+    #[error("profile_id missing in JWT")]
+    JwtProfileIdMissing,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -224,6 +226,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::SSOFailed => {
                 AER::BadRequest(ApiError::new(sub_code, 46, self.get_error_message(), None))
             }
+            Self::JwtProfileIdMissing => {
+                AER::Unauthorized(ApiError::new(sub_code, 47, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -271,6 +276,7 @@ impl UserErrors {
             Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
             Self::AuthConfigParsingError => "Auth config parsing error",
             Self::SSOFailed => "Invalid SSO request",
+            Self::JwtProfileIdMissing => "profile_id missing in JWT",
         }
     }
 }

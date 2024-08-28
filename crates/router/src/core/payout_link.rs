@@ -79,7 +79,10 @@ pub async fn initiate_payout_link(
             message: "payout link not found".to_string(),
         })?;
 
-    validator::validate_payout_link_render_request(request_headers, &payout_link)?;
+    let allowed_domains = validator::validate_payout_link_render_request_and_get_allowed_domains(
+        request_headers,
+        &payout_link,
+    )?;
 
     // Check status and return form data accordingly
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
@@ -120,7 +123,7 @@ pub async fn initiate_payout_link(
 
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: (link_data.allowed_domains),
+                    allowed_domains,
                     data: GenericLinksData::ExpiredLink(expired_link_data),
                     locale,
                 },
@@ -195,7 +198,7 @@ pub async fn initiate_payout_link(
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,
-                customer_id: customer.get_customer_id(),
+                customer_id: customer.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link
                     .return_url
@@ -211,6 +214,7 @@ pub async fn initiate_payout_link(
                 currency: payout.destination_currency,
                 locale: locale.clone(),
                 form_layout: link_data.form_layout,
+                test_mode: link_data.test_mode.unwrap_or(false),
             };
 
             let serialized_css_content = String::new();
@@ -231,7 +235,7 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: (link_data.allowed_domains),
+                    allowed_domains,
                     data: GenericLinksData::PayoutLink(generic_form_data),
                     locale,
                 },
@@ -256,6 +260,7 @@ pub async fn initiate_payout_link(
                 error_code: payout_attempt.error_code,
                 error_message: payout_attempt.error_message,
                 ui_config: ui_config_data,
+                test_mode: link_data.test_mode.unwrap_or(false),
             };
 
             let serialized_css_content = String::new();
@@ -274,7 +279,7 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: (link_data.allowed_domains),
+                    allowed_domains,
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
                     locale,
                 },

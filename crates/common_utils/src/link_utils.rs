@@ -169,6 +169,8 @@ pub struct PayoutLinkData {
     pub allowed_domains: HashSet<String>,
     /// Form layout of the payout link
     pub form_layout: Option<UIWidgetFormLayout>,
+    /// `test_mode` can be used for testing payout links without any restrictions
+    pub test_mode: Option<bool>,
 }
 
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);

@@ -1,11 +1,13 @@
+use std::hash::Hash;
+
 use common_enums::EntityType;
-use common_utils::id_type;
+use common_utils::{consts, id_type};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::user_roles};
 
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Eq)]
 #[diesel(table_name = user_roles, check_for_backend(diesel::pg::Pg))]
 pub struct UserRole {
     pub id: i32,
@@ -18,10 +20,59 @@ pub struct UserRole {
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
+}
+
+fn get_entity_id_and_type(user_role: &UserRole) -> (Option<String>, Option<EntityType>) {
+    match (user_role.version, user_role.role_id.as_str()) {
+        (enums::UserRoleVersion::V1, consts::ROLE_ID_ORGANIZATION_ADMIN) => (
+            user_role
+                .org_id
+                .clone()
+                .map(|org_id| org_id.get_string_repr().to_string()),
+            Some(EntityType::Organization),
+        ),
+        (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER)
+        | (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_ADMIN) => (
+            user_role
+                .merchant_id
+                .clone()
+                .map(|merchant_id| merchant_id.get_string_repr().to_string()),
+            Some(EntityType::Internal),
+        ),
+        (enums::UserRoleVersion::V1, _) => (
+            user_role
+                .merchant_id
+                .clone()
+                .map(|merchant_id| merchant_id.get_string_repr().to_string()),
+            Some(EntityType::Merchant),
+        ),
+        (enums::UserRoleVersion::V2, _) => (user_role.entity_id.clone(), user_role.entity_type),
+    }
+}
+
+impl Hash for UserRole {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let (entity_id, entity_type) = get_entity_id_and_type(self);
+
+        self.user_id.hash(state);
+        entity_id.hash(state);
+        entity_type.hash(state);
+    }
+}
+
+impl PartialEq for UserRole {
+    fn eq(&self, other: &Self) -> bool {
+        let (self_entity_id, self_entity_type) = get_entity_id_and_type(self);
+        let (other_entity_id, other_entity_type) = get_entity_id_and_type(other);
+
+        self.user_id == other.user_id
+            && self_entity_id == other_entity_id
+            && self_entity_type == other_entity_type
+    }
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -36,7 +87,7 @@ pub struct UserRoleNew {
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,

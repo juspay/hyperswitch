@@ -1043,6 +1043,18 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn update_payouts_and_payout_attempt(
+    _payout_data: &mut PayoutData,
+    _merchant_account: &domain::MerchantAccount,
+    _req: &payouts::PayoutCreateRequest,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn update_payouts_and_payout_attempt(
     payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
@@ -1077,7 +1089,7 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data
             .customer_details
             .as_ref()
-            .map(|customer| customer.get_customer_id())
+            .map(|customer| customer.customer_id.clone())
     } else {
         payout_data.payouts.customer_id.clone()
     };

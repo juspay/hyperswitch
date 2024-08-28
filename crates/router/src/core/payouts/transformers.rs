@@ -1,13 +1,38 @@
-use crate::{
-    routes::app::settings::PayoutRequiredFields,
-    types::{
-        api, domain, storage,
-        transformers::{ForeignFrom, ForeignInto},
-    },
-};
-use common_utils::link_utils::EnabledPaymentMethod;
-use std::collections::HashMap;
+use indexmap::IndexMap;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    feature = "olap"
+))]
+use crate::types::transformers::ForeignInto;
+#[cfg(feature = "olap")]
+use crate::types::{api, domain, storage};
+use crate::types::transformers::ForeignFrom;
 
+#[cfg(all(feature = "v2", feature = "customer_v2", feature = "olap"))]
+impl
+    ForeignFrom<(
+        storage::Payouts,
+        storage::PayoutAttempt,
+        Option<domain::Customer>,
+    )> for api::PayoutCreateResponse
+{
+    fn foreign_from(
+        item: (
+            storage::Payouts,
+            storage::PayoutAttempt,
+            Option<domain::Customer>,
+        ),
+    ) -> Self {
+        todo!()
+    }
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    feature = "olap"
+))]
 impl
     ForeignFrom<(
         storage::Payouts,
@@ -47,7 +72,7 @@ impl
             connector: payout_attempt.connector,
             payout_type: payout.payout_type,
             auto_fulfill: payout.auto_fulfill,
-            customer_id: customer.as_ref().map(|cust| cust.get_customer_id()),
+            customer_id: customer.as_ref().map(|cust| cust.customer_id.clone()),
             customer: customer.as_ref().map(|cust| cust.foreign_into()),
             return_url: payout.return_url,
             business_country: payout_attempt.business_country,
@@ -80,8 +105,6 @@ impl
         }
     }
 }
-
-use indexmap::IndexMap;
 
 impl ForeignFrom<(&PayoutRequiredFields, Vec<EnabledPaymentMethod>)>
     for Vec<api::PayoutEnabledPaymentMethodsInfo>
