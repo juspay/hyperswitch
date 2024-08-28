@@ -204,10 +204,7 @@ impl MerchantAccount {
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.id
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    
     /// Get the organization_id from MerchantAccount
     pub fn get_org_id(&self) -> &common_utils::id_type::OrganizationId {
         &self.organization_id
