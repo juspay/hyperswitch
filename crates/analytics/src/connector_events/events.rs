@@ -4,7 +4,9 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo, query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window}, types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow}
+    enums::AuthInfo,
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
 pub trait ConnectorEventLogAnalytics: LoadRow<ConnectorEventsResult> {}
 
