@@ -327,7 +327,7 @@ impl AnalyticsProvider {
         &self,
         metric: &PaymentIntentMetrics,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -341,7 +341,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -353,7 +353,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -365,7 +365,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -374,7 +374,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -394,7 +394,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -403,7 +403,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,

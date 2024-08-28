@@ -12,8 +12,7 @@ use time::PrimitiveDateTime;
 
 use super::PaymentIntentMetricRow;
 use crate::{
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
-    types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
+    enums::AuthInfo, query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window}, types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult}
 };
 
 #[derive(Default)]
@@ -32,7 +31,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -67,9 +66,7 @@ where
 
         filters.set_filter_clause(&mut query_builder).switch()?;
 
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)

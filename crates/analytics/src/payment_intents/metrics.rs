@@ -11,8 +11,7 @@ use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use crate::{
-    query::{Aggregate, GroupByClause, ToSql, Window},
-    types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
+    enums::AuthInfo, query::{Aggregate, GroupByClause, ToSql, Window}, types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult}
 };
 
 mod payment_intent_count;
@@ -47,7 +46,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -68,7 +67,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -80,7 +79,7 @@ where
                 SuccessfulSmartRetries
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
@@ -92,7 +91,7 @@ where
                 TotalSmartRetries
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
@@ -104,7 +103,7 @@ where
                 SmartRetriedAmount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
@@ -116,7 +115,7 @@ where
                 PaymentIntentCount
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
