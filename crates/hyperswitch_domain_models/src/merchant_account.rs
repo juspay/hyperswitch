@@ -204,7 +204,7 @@ impl MerchantAccount {
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.id
     }
-    
+
     /// Get the organization_id from MerchantAccount
     pub fn get_org_id(&self) -> &common_utils::id_type::OrganizationId {
         &self.organization_id
