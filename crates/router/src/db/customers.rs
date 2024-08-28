@@ -1,6 +1,5 @@
 use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use futures::future::try_join_all;
 use hyperswitch_domain_models::customer;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -84,7 +83,6 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<customer::Customer, errors::StorageError>;
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -117,7 +115,7 @@ where
     async fn find_customer_by_global_id(
         &self,
         state: &KeyManagerState,
-        id: &String,
+        id: &str,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -129,7 +127,6 @@ mod storage {
     use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use diesel_models::kv;
     use error_stack::{report, ResultExt};
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     use futures::future::try_join_all;
     use hyperswitch_domain_models::customer;
     use masking::PeekInterface;
@@ -233,7 +230,7 @@ mod storage {
         async fn find_optional_by_merchant_id_merchant_reference_id(
             &self,
             state: &KeyManagerState,
-            customer_id: &id_type::CustomerId,
+            merchant_reference_id: &id_type::CustomerId,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -242,7 +239,7 @@ mod storage {
             let database_call = || async {
                 storage_types::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
-                    customer_id,
+                    merchant_reference_id,
                     merchant_id,
                 )
                 .await
@@ -256,9 +253,9 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id: merchant_reference_id.get_string_repr(),
                     };
-                    let field = format!("cust_{}", customer_id.get_string_repr());
+                    let field = format!("cust_{}", merchant_reference_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
@@ -511,7 +508,6 @@ mod storage {
             }
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
@@ -719,7 +715,7 @@ mod storage {
         async fn find_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: &String,
+            id: &str,
             _merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -919,6 +915,7 @@ mod storage {
             })
         }
 
+        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         #[cfg(all(feature = "v2", feature = "customer_v2"))]
         async fn find_optional_by_merchant_id_merchant_reference_id(
@@ -1052,7 +1049,6 @@ mod storage {
             }
         }
 
-        #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
         #[instrument(skip_all)]
         async fn list_customers_by_merchant_id(
             &self,
@@ -1154,7 +1150,7 @@ mod storage {
         async fn find_customer_by_global_id(
             &self,
             state: &KeyManagerState,
-            id: &String,
+            id: &str,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -1196,7 +1192,7 @@ impl CustomerInterface for MockDb {
         let customer = customers
             .iter()
             .find(|customer| {
-                customer.get_customer_id() == *customer_id && &customer.merchant_id == merchant_id
+                customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
             })
             .cloned();
         customer
@@ -1223,28 +1219,9 @@ impl CustomerInterface for MockDb {
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
-        let customers = self.customers.lock().await;
-        let customer = customers
-            .iter()
-            .find(|customer| {
-                customer.get_customer_id() == *customer_id && &customer.merchant_id == merchant_id
-            })
-            .cloned();
-        customer
-            .async_map(|c| async {
-                c.convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-            .transpose()
+        todo!()
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -1372,7 +1349,7 @@ impl CustomerInterface for MockDb {
     async fn find_customer_by_global_id(
         &self,
         _state: &KeyManagerState,
-        _id: &String,
+        _id: &str,
         _merchant_id: &id_type::MerchantId,
         _key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,

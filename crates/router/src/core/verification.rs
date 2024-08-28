@@ -12,7 +12,7 @@ pub async fn verify_merchant_creds_for_applepay(
     state: SessionState,
     body: verifications::ApplepayMerchantVerificationRequest,
     merchant_id: common_utils::id_type::MerchantId,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> CustomResult<services::ApplicationResponse<ApplepayMerchantResponse>, errors::ApiErrorResponse>
 {
     let applepay_merchant_configs = state.conf.applepay_merchant_configs.get_inner();
@@ -87,7 +87,7 @@ pub async fn verify_merchant_creds_for_applepay(
 pub async fn get_verified_apple_domains_with_mid_mca_id(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    merchant_connector_id: String,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> CustomResult<
     services::ApplicationResponse<verifications::ApplepayVerifiedDomainsResponse>,
     errors::ApiErrorResponse,
@@ -111,7 +111,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
             &merchant_id,
-            merchant_connector_id.as_str(),
+            &merchant_connector_id,
             &key_store,
         )
         .await

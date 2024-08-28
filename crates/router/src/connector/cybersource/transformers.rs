@@ -18,7 +18,7 @@ use crate::{
     connector::utils::{
         self, AddressDetailsData, ApplePayDecrypt, CardData, NetworkTokenData,
         PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreProcessingData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
+        PaymentsPreProcessingData, PaymentsSyncRequestData,
         RecurringMandateData, RouterData,
     },
     consts,
@@ -55,6 +55,23 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CybersourceRo
     }
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct CybersourceConnectorMetadataObject {
+    pub disable_avs: Option<bool>,
+    pub disable_cvn: Option<bool>,
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
+            })?;
+        Ok(metadata)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceZeroMandateRequest {
@@ -67,7 +84,7 @@ pub struct CybersourceZeroMandateRequest {
 impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let email = item.request.get_email()?;
+        let email = item.get_billing_email()?;
         let bill_to = build_bill_to(item.get_optional_billing(), email)?;
 
         let order_information = OrderInformationWithBill {
@@ -77,6 +94,9 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             },
             bill_to: Some(bill_to),
         };
+        let connector_merchant_config =
+            CybersourceConnectorMetadataObject::try_from(&item.connector_meta_data)?;
+
         let (action_list, action_token_types, authorization_options) = (
             Some(vec![CybersourceActionsList::TokenCreate]),
             Some(vec![
@@ -90,6 +110,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     stored_credential_used: None,
                 }),
                 merchant_intitiated_transaction: None,
+                ignore_avs_result: connector_merchant_config.disable_avs,
+                ignore_cv_result: connector_merchant_config.disable_cvn,
             }),
         );
 
@@ -311,6 +333,8 @@ pub enum CybersourceActionsTokenType {
 pub struct CybersourceAuthorizationOptions {
     initiator: Option<CybersourcePaymentInitiator>,
     merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    ignore_avs_result: Option<bool>,
+    ignore_cv_result: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -566,6 +590,9 @@ impl
             .unwrap_or("internet")
             .to_string();
 
+        let connector_merchant_config =
+            CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
         let (action_list, action_token_types, authorization_options) = if item
             .router_data
             .request
@@ -594,6 +621,8 @@ impl
                         credential_stored_on_file: Some(true),
                         stored_credential_used: None,
                     }),
+                    ignore_avs_result: connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
                     merchant_intitiated_transaction: None,
                 }),
             )
@@ -642,6 +671,8 @@ impl
                                 original_authorized_amount,
                                 previous_transaction_id: None,
                             }),
+                            ignore_avs_result: connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
                     )
                 }
@@ -708,6 +739,8 @@ impl
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(network_transaction_id)),
                             }),
+                            ignore_avs_result: connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
                     )
                 }
@@ -776,13 +809,24 @@ impl
                                     mandate_data.network_transaction_id,
                                 )),
                             }),
+                            ignore_avs_result: connector_merchant_config.disable_avs,
+                            ignore_cv_result: connector_merchant_config.disable_cvn,
                         }),
                     )
                 }
                 None => (None, None, None),
             }
         } else {
-            (None, None, None)
+            (
+                None,
+                None,
+                Some(CybersourceAuthorizationOptions {
+                    initiator: None,
+                    merchant_intitiated_transaction: None,
+                    ignore_avs_result: connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
+                }),
+            )
         };
         // this logic is for external authenticated card
         let commerce_indicator_for_external_authentication = item
@@ -864,19 +908,23 @@ fn get_commerce_indicator_for_external_authentication(
 }
 
 impl
-    From<(
+    TryFrom<(
         &CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
         Option<PaymentSolution>,
         &CybersourceConsumerAuthValidateResponse,
     )> for ProcessingInformation
 {
-    fn from(
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
         (item, solution, three_ds_data): (
             &CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
             Option<PaymentSolution>,
             &CybersourceConsumerAuthValidateResponse,
         ),
-    ) -> Self {
+    ) -> Result<Self, Self::Error> {
+        let connector_merchant_config =
+            CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
         let (action_list, action_token_types, authorization_options) = if item
             .router_data
             .request
@@ -899,12 +947,14 @@ impl
                         stored_credential_used: None,
                     }),
                     merchant_intitiated_transaction: None,
+                    ignore_avs_result: connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
                 }),
             )
         } else {
             (None, None, None)
         };
-        Self {
+        Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
@@ -918,7 +968,7 @@ impl
                 .indicator
                 .to_owned()
                 .unwrap_or(String::from("internet")),
-        }
+        })
     }
 }
 
@@ -1071,7 +1121,7 @@ impl
             domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item.router_data.get_billing_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
@@ -1232,7 +1282,7 @@ impl
             domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item.router_data.get_billing_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
@@ -1267,7 +1317,7 @@ impl
             })?;
 
         let processing_information =
-            ProcessingInformation::from((item, None, &three_ds_info.three_ds_data));
+            ProcessingInformation::try_from((item, None, &three_ds_info.three_ds_data))?;
 
         let consumer_authentication_information = Some(CybersourceConsumerAuthInformation {
             ucaf_collection_indicator: three_ds_info.three_ds_data.ucaf_collection_indicator,
@@ -1315,7 +1365,7 @@ impl
             domain::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item.router_data.get_billing_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let processing_information = ProcessingInformation::try_from((
@@ -1384,7 +1434,7 @@ impl
             domain::GooglePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item.router_data.get_billing_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
@@ -1446,7 +1496,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                                     }
                                 },
                                 None => {
-                                    let email = item.router_data.request.get_email()?;
+                                    let email = item.router_data.get_billing_email()?;
                                     let bill_to = build_bill_to(
                                         item.router_data.get_optional_billing(),
                                         email,
@@ -1600,10 +1650,10 @@ impl
         let payment_instrument = CybersoucrePaymentInstrument {
             id: connector_mandate_id.into(),
         };
-        let bill_to =
-            item.router_data.request.get_email().ok().and_then(|email| {
-                build_bill_to(item.router_data.get_optional_billing(), email).ok()
-            });
+        let bill_to = item
+            .router_data
+            .get_optional_billing_email()
+            .and_then(|email| build_bill_to(item.router_data.get_optional_billing(), email).ok());
         let order_information = OrderInformationWithBill::from((item, bill_to));
         let payment_information =
             PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
@@ -1754,6 +1804,9 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
     fn try_from(
         item: &CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRouterData>,
     ) -> Result<Self, Self::Error> {
+        let connector_merchant_config =
+            CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
         Ok(Self {
             processing_information: ProcessingInformation {
                 action_list: None,
@@ -1769,6 +1822,8 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsIncrementalAuthorizationRout
                         previous_transaction_id: None,
                         original_authorized_amount: None,
                     }),
+                    ignore_avs_result: connector_merchant_config.disable_avs,
+                    ignore_cv_result: connector_merchant_config.disable_cvn,
                 }),
                 commerce_indicator: String::from("internet"),
                 capture: None,
@@ -2426,7 +2481,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
                     })?
                     .1
                     .to_string();
-                let email = item.router_data.request.get_email()?;
+                let email = item.router_data.get_billing_email()?;
                 let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
                 let order_information = OrderInformationWithBill {
                     amount_details,

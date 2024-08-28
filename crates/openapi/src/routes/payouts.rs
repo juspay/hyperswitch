@@ -107,6 +107,28 @@ pub async fn payouts_fulfill() {}
 )]
 pub async fn payouts_list() {}
 
+/// Payouts - List for the Given Profiles
+#[utoipa::path(
+    get,
+    path = "/payouts/profile/list",
+    params(
+        ("customer_id" = String, Query, description = "The identifier for customer"),
+        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
+        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
+        ("limit" = String, Query, description = "limit on the number of objects to return"),
+        ("created" = String, Query, description = "The time at which payout is created"),
+        ("time_range" = String, Query, description = "The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).")
+    ),
+    responses(
+        (status = 200, description = "Payouts listed", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "List payouts using generic constraints for the given Profiles",
+    security(("api_key" = []))
+)]
+pub async fn payouts_list_profile() {}
+
 /// Payouts - List available filters
 #[utoipa::path(
     post,
@@ -135,6 +157,21 @@ pub async fn payouts_list_filters() {}
     security(("api_key" = []))
 )]
 pub async fn payouts_list_by_filter() {}
+
+/// Payouts - List using filters for the given Profiles
+#[utoipa::path(
+    post,
+    path = "/payouts/list",
+    request_body=PayoutListFilterConstraints,
+    responses(
+        (status = 200, description = "Payouts filtered", body = PayoutListResponse),
+        (status = 404, description = "Payout not found")
+    ),
+    tag = "Payouts",
+    operation_id = "Filter payouts using specific constraints for the given Profiles",
+    security(("api_key" = []))
+)]
+pub async fn payouts_list_by_filter_profile() {}
 
 /// Payouts - Confirm
 #[utoipa::path(
