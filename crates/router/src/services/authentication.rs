@@ -692,7 +692,7 @@ where
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AdminApiAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 
 #[async_trait]

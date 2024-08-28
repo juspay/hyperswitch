@@ -1415,7 +1415,7 @@ impl ApiKeys {
             .service(
                 web::resource("/{key_id}")
                     .route(web::get().to(api_key_retrieve))
-                    .route(web::post().to(api_key_update))
+                    .route(web::put().to(api_key_update))
                     .route(web::delete().to(api_key_revoke)),
             )
     }
