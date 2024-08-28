@@ -228,10 +228,10 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
 
 Cypress.Commands.add("apiKeyListCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
-
+  const base_url = globalState.get("baseUrl");
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/api_keys/${merchant_id}/list`,
+    url: `${base_url}/api_keys/${merchant_id}/list`,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -244,8 +244,13 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
     expect(response.body).to.be.an("array").and.not.empty;
     for (const key in response.body) {
       expect(response.body[key]).to.have.property("name").and.not.empty;
-      expect(response.body[key]).to.have.property("key_id").include("snd_").and
-        .not.empty;
+      if (base_url.includes("sandbox") || base_url.includes("integ")) {
+        expect(response.body[key]).to.have.property("key_id").include("snd_")
+          .and.not.empty;
+      } else if (base_url.includes("localhost")) {
+        expect(response.body[key]).to.have.property("key_id").include("dev_")
+          .and;
+      }
       expect(response.body[key].merchant_id).to.equal(merchant_id);
     }
   });
