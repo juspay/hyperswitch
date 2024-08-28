@@ -105,7 +105,7 @@ pub async fn api_key_update() {}
 ///
 /// Update information for the specified API Key.
 #[utoipa::path(
-    post,
+    put,
     path = "/v2/api_keys/{key_id}",
     request_body = UpdateApiKeyRequest,
     params (
