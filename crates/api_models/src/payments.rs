@@ -969,7 +969,7 @@ pub struct VerifyRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum MandateTransactionType {
     NewMandateTransaction,

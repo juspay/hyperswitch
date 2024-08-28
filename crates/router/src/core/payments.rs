@@ -201,7 +201,7 @@ where
         &key_store,
         &mut payment_data,
         eligible_connectors,
-        mandate_type,
+        mandate_type.clone(),
     )
     .await?;
 
@@ -264,6 +264,7 @@ where
                 &connector_details,
                 &business_profile,
                 &key_store,
+                mandate_type,
             )
             .await?;
         if should_continue_transaction {
