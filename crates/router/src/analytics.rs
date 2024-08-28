@@ -3,7 +3,7 @@ pub use analytics::*;
 pub mod routes {
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, connector_events::connector_events_core,
+        api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
         errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
         outgoing_webhook_event::outgoing_webhook_events_core, sdk_events::sdk_events_core,
         AnalyticsFlow,
@@ -191,7 +191,13 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::payments::get_metrics(&state.pool, auth.merchant_account.get_id(), req)
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::payments::get_metrics(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
