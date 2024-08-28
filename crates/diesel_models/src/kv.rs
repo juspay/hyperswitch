@@ -142,7 +142,7 @@ impl DBOperation {
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
                     Customer::update_by_customer_id_merchant_id(
                         conn,
-                        cust.orig.get_customer_id().clone(),
+                        cust.orig.customer_id.clone(),
                         cust.orig.merchant_id.clone(),
                         cust.update_data,
                     )
