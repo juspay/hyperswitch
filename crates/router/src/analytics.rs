@@ -142,26 +142,24 @@ pub mod routes {
                                 ),
                         )
                         .service(
-                            web::scope("/org")
-                                .service(
-                                    web::resource("metrics/payments")
-                                        .route(web::post().to(get_org_payment_metrics)),
-                                ),
+                            web::scope("/org").service(
+                                web::resource("metrics/payments")
+                                    .route(web::post().to(get_org_payment_metrics)),
+                            ),
                         ),
                 )
                 .service(
-                    web::scope("/v2")
-                        .service(
-                            web::scope("/merchant")
-                                .service(
-                                    web::resource("/metrics/payments")
-                                        .route(web::post().to(get_payment_intents_metrics)),
-                                )
-                                .service(
-                                    web::resource("/filters/payments")
-                                        .route(web::post().to(get_payment_intents_filters)),
-                                ),
-                        ),
+                    web::scope("/v2").service(
+                        web::scope("/merchant")
+                            .service(
+                                web::resource("/metrics/payments")
+                                    .route(web::post().to(get_payment_intents_metrics)),
+                            )
+                            .service(
+                                web::resource("/filters/payments")
+                                    .route(web::post().to(get_payment_intents_filters)),
+                            ),
+                    ),
                 )
         }
     }
