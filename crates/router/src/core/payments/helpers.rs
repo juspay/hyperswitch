@@ -2995,7 +2995,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(id_type::ProfileId::default()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3017,6 +3017,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3061,7 +3062,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(id_type::ProfileId::default()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3082,6 +3083,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3123,7 +3125,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(id_type::ProfileId::default()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3145,6 +3147,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

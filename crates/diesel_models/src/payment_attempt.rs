@@ -80,7 +80,6 @@ pub struct PaymentAttempt {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
-    pub organization_id: common_utils::id_type::OrganizationId,
     pub card_network: Option<String>,
 }
 

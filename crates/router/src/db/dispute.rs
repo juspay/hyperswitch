@@ -405,9 +405,10 @@ mod tests {
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
                 connector: "connector".into(),
                 evidence: Some(Secret::from(Value::String("evidence".into()))),
-                profile_id: None,
+                profile_id: Some(common_utils::id_type::ProfileId::default()),
                 merchant_connector_id: None,
                 dispute_amount: 1040,
+                organization_id: common_utils::id_type::OrganizationId::default(),
             }
         }
 
