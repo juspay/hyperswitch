@@ -13,7 +13,7 @@ use crate::{
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
         LoadRow,
-    }
+    },
 };
 pub trait RefundFilterAnalytics: LoadRow<RefundFilterRow> {}
 
