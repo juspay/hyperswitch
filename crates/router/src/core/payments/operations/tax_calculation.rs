@@ -238,7 +238,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.to_string(),
+                id: merchant_connector_id.get_string_repr().to_string(),
             })?;
 
         let connector_data =

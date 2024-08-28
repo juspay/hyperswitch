@@ -1670,7 +1670,7 @@ pub async fn payments_manual_update(
         &req,
         payload,
         |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
-        &auth::AdminApiAuthWithMerchantId::default(),
+        &auth::AdminApiAuthWithMerchantIdFromHeader,
         locking_action,
     ))
     .await

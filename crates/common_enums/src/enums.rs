@@ -160,6 +160,7 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
+    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -210,7 +211,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Fiserv,
-    // Fiservemea,
+    Fiservemea,
     Forte,
     Globalpay,
     Globepay,
@@ -3115,6 +3116,7 @@ pub enum ApiVersion {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]

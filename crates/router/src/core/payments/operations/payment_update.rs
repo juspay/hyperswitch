@@ -546,7 +546,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.to_string(),
+                id: merchant_connector_id.get_string_repr().to_string(),
             })?;
 
         let connector_data =
@@ -659,6 +659,27 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
 
 #[async_trait]
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn update_trackers<'b>(
+        &'b self,
+        _state: &'b SessionState,
+        _req_state: ReqState,
+        mut _payment_data: PaymentData<F>,
+        _customer: Option<domain::Customer>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        _key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
+    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    where
+        F: 'b + Send,
+    {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -758,7 +779,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let customer_id = customer.clone().map(|c| c.get_customer_id());
+        let customer_id = customer.clone().map(|c| c.customer_id);
 
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;

@@ -240,7 +240,7 @@ pub async fn internal_user_signup(
 pub async fn switch_merchant_id(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    json_payload: web::Json<user_api::SwitchMerchantIdRequest>,
+    json_payload: web::Json<user_api::SwitchMerchantRequest>,
 ) -> HttpResponse {
     let flow = Flow::SwitchMerchant;
     Box::pin(api::server_wrap(
@@ -963,6 +963,62 @@ pub async fn list_profiles_for_user_in_org_and_merchant(
         (),
         |state, user_from_token, _, _| {
             user_core::list_profiles_for_user_in_org_and_merchant_account(state, user_from_token)
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn switch_org_for_user(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SwitchOrganizationRequest>,
+) -> HttpResponse {
+    let flow = Flow::SwitchOrg;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, user, req, _| user_core::switch_org_for_user(state, req, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn switch_merchant_for_user_in_org(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SwitchMerchantRequest>,
+) -> HttpResponse {
+    let flow = Flow::SwitchMerchantV2;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, user, req, _| user_core::switch_merchant_for_user_in_org(state, req, user),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn switch_profile_for_user_in_org_and_merchant(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::SwitchProfileRequest>,
+) -> HttpResponse {
+    let flow = Flow::SwitchProfile;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, user, req, _| {
+            user_core::switch_profile_for_user_in_org_and_merchant(state, req, user)
         },
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,

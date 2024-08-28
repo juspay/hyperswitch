@@ -53,7 +53,7 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
 }
 
@@ -87,7 +87,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: Option<bool>,
 }
 
@@ -485,7 +485,7 @@ pub struct BusinessProfile {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
+    pub tax_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_tax_connector_enabled: bool,
 }
 

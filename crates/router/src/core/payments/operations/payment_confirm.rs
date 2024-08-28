@@ -529,7 +529,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         })?;
 
         let m_state = state.clone();
-        let m_mandate_type = mandate_type.clone();
+        let m_mandate_type = mandate_type;
         let m_merchant_account = merchant_account.clone();
         let m_request = request.clone();
         let m_key_store = key_store.clone();
@@ -854,6 +854,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         populate_surcharge_details(state, payment_data).await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         state: &SessionState,
@@ -862,6 +863,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
+        mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let external_authentication_flow =
             helpers::get_payment_external_authentication_flow_during_confirm(
@@ -870,6 +872,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
                 business_profile,
                 payment_data,
                 connector_call_type,
+                mandate_type,
             )
             .await?;
         payment_data.authentication = match external_authentication_flow {
@@ -1210,7 +1213,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 .clone(),
         );
 
-        let customer_id = customer.clone().map(|c| c.get_customer_id());
+        let customer_id = customer.clone().map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.take();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = payment_data.payment_intent.business_label.clone();
@@ -1416,7 +1419,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 let key_manager_state = state.into();
                 tokio::spawn(
                     async move {
-                        let m_customer_customer_id = customer.get_customer_id().to_owned();
+                        let m_customer_customer_id = customer.customer_id.to_owned();
                         m_db.update_customer_by_customer_id_merchant_id(
                             &key_manager_state,
                             m_customer_customer_id,

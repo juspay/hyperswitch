@@ -275,6 +275,7 @@ where
                 &connector_details,
                 &business_profile,
                 &key_store,
+                mandate_type,
             )
             .await?;
 
@@ -2033,8 +2034,10 @@ where
                 &connector_name,
             );
 
-            let connector_label = if let Some(connector_label) =
-                merchant_connector_account.get_mca_id().or(connector_label)
+            let connector_label = if let Some(connector_label) = merchant_connector_account
+                .get_mca_id()
+                .map(|mca_id| mca_id.get_string_repr().to_string())
+                .or(connector_label)
             {
                 connector_label
             } else {
@@ -2309,7 +2312,7 @@ pub async fn construct_profile_id_and_get_mca<'a, F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     connector_name: &str,
-    merchant_connector_id: Option<&String>,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     key_store: &domain::MerchantKeyStore,
     _should_validate: bool,
 ) -> RouterResult<helpers::MerchantConnectorAccountType>
@@ -2735,7 +2738,7 @@ where
 #[derive(Clone)]
 pub struct MandateConnectorDetails {
     pub connector: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone)]

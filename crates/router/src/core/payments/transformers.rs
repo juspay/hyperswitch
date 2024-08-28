@@ -91,9 +91,7 @@ where
         state,
         customer_data: customer,
     };
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| customer.get_customer_id());
+    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
     let unified_address =
         if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
@@ -172,6 +170,30 @@ where
     Ok(router_data)
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn construct_payment_router_data<'a, F, T>(
+    _state: &'a SessionState,
+    _payment_data: PaymentData<F>,
+    _connector_id: &str,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _customer: &'a Option<domain::Customer>,
+    _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    _merchant_recipient_data: Option<types::MerchantRecipientData>,
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
+where
+    T: TryFrom<PaymentAdditionalData<'a, F>>,
+    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
+    F: Clone,
+    error_stack::Report<errors::ApiErrorResponse>:
+        From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
+{
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payment_router_data<'a, F, T>(
@@ -240,9 +262,7 @@ where
         customer_data: customer,
     };
 
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| customer.get_customer_id());
+    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
     let supported_connector = &state
         .conf
@@ -505,6 +525,23 @@ where
     F: Clone,
     Op: Debug,
 {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        _data: PaymentData<F>,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
         data: PaymentData<F>,
@@ -533,7 +570,7 @@ where
                 verify_id: Some(data.payment_intent.payment_id),
                 merchant_id: Some(data.payment_intent.merchant_id),
                 client_secret: data.payment_intent.client_secret.map(Secret::new),
-                customer_id: customer.as_ref().map(|x| x.get_customer_id().clone()),
+                customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
                 email: customer
                     .as_ref()
                     .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
@@ -557,6 +594,30 @@ where
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+// try to use router data here so that already validated things , we don't want to repeat the validations.
+// Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
+#[allow(clippy::too_many_arguments)]
+pub fn payments_to_payments_response<Op, F: Clone>(
+    _payment_data: PaymentData<F>,
+    _captures: Option<Vec<storage::Capture>>,
+    _customer: Option<domain::Customer>,
+    _auth_flow: services::AuthFlow,
+    _base_url: &str,
+    _operation: &Op,
+    _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+    _connector_http_status_code: Option<u16>,
+    _external_latency: Option<u128>,
+    _is_latency_header_enabled: Option<bool>,
+) -> RouterResponse<api::PaymentsResponse>
+where
+    Op: Debug,
+{
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all)]
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
@@ -978,7 +1039,7 @@ where
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
             currency: currency.to_string(),
-            customer_id: customer.as_ref().map(|cus| cus.clone().get_customer_id()),
+            customer_id: customer.as_ref().map(|cus| cus.clone().customer_id),
             customer: customer_details_response,
             description: payment_intent.description,
             refunds: refunds_response,
@@ -1439,6 +1500,17 @@ where
     state: &'a SessionState,
     customer_data: &'a Option<domain::Customer>,
 }
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(_additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1532,7 +1604,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let customer_id = additional_data
             .customer_data
             .as_ref()
-            .map(|data| data.get_customer_id().clone());
+            .map(|data| data.customer_id.clone());
 
         let charges = match payment_data.payment_intent.charges {
             Some(charges) => charges

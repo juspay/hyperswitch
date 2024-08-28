@@ -193,7 +193,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         let customer_id = payment_intent
             .customer_id
             .as_ref()
-            .or(request.get_customer_id())
+            .or(request.customer_id.as_ref())
             .cloned();
 
         helpers::validate_customer_id_mandatory_cases(
