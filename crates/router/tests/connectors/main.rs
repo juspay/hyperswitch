@@ -45,6 +45,7 @@ mod mollie;
 mod multisafepay;
 mod netcetera;
 mod nexinets;
+mod nexixpay;
 mod nmi;
 mod noon;
 mod novalnet;

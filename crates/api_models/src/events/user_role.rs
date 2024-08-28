@@ -7,7 +7,7 @@ use crate::user_role::{
         UpdateRoleRequest,
     },
     AcceptInvitationRequest, AuthorizationInfoResponse, DeleteUserRoleRequest,
-    MerchantSelectRequest, TransferOrgOwnershipRequest, UpdateUserRoleRequest,
+    MerchantSelectRequest, UpdateUserRoleRequest,
 };
 
 common_utils::impl_api_event_type!(
@@ -20,7 +20,6 @@ common_utils::impl_api_event_type!(
         MerchantSelectRequest,
         AcceptInvitationRequest,
         DeleteUserRoleRequest,
-        TransferOrgOwnershipRequest,
         CreateRoleRequest,
         UpdateRoleRequest,
         ListRolesResponse,

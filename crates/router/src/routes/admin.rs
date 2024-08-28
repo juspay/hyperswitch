@@ -298,7 +298,10 @@ pub async fn connector_create(
 pub async fn connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsRetrieve;
     let (merchant_id, merchant_connector_id) = path.into_inner();
@@ -341,7 +344,7 @@ pub async fn connector_retrieve(
 pub async fn connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsRetrieve;
     let id = path.into_inner();
@@ -495,7 +498,10 @@ pub async fn payment_connector_list_profile(
 pub async fn connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
     json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsUpdate;
@@ -552,7 +558,7 @@ pub async fn connector_update(
 pub async fn connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantConnectorAccountId>,
     json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsUpdate;
@@ -605,7 +611,10 @@ pub async fn connector_update(
 pub async fn connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsDelete;
     let (merchant_id, merchant_connector_id) = path.into_inner();
@@ -641,7 +650,7 @@ pub async fn connector_delete(
 pub async fn connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsDelete;
     let id = path.into_inner();
