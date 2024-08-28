@@ -2850,7 +2850,10 @@ pub async fn list_payment_methods(
         // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
-            let domain_id = builder.make_domain(mca.get_id(), mca.connector_name.as_str());
+            let domain_id = builder.make_domain(
+                mca.get_id().get_string_repr().to_string(),
+                mca.connector_name.as_str(),
+            );
 
             let Ok(domain_id) = domain_id else {
                 logger::error!("Failed to construct domain for list payment methods");
@@ -2916,7 +2919,7 @@ pub async fn list_payment_methods(
                     .find_payment_method_by_customer_id_merchant_id_list(
                         &((&state).into()),
                         &key_store,
-                       &customer.get_customer_id(),
+                       &customer.customer_id,
                        merchant_account.get_id(),
                         None,
                     )
@@ -3874,7 +3877,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
 #[allow(clippy::too_many_arguments)]
 pub async fn filter_payment_methods(
     graph: &cgraph::ConstraintGraph<dir::DirValue>,
-    mca_id: String,
+    mca_id: id_type::MerchantConnectorAccountId,
     payment_methods: &[Secret<serde_json::Value>],
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
@@ -4024,7 +4027,7 @@ pub async fn filter_payment_methods(
                     let context = AnalysisContext::from_dir_values(context_values.clone());
                     logger::info!("Context created for List Payment method is {:?}", context);
 
-                    let domain_ident: &[String] = &[mca_id.clone()];
+                    let domain_ident: &[String] = &[mca_id.clone().get_string_repr().to_string()];
                     let result = graph.key_value_analysis(
                         pm_dir_value.clone(),
                         &context,
@@ -5373,7 +5376,7 @@ pub async fn set_default_payment_method(
         },
     )?;
 
-    let customer_id = customer.get_customer_id().clone();
+    let customer_id = customer.customer_id.clone();
 
     let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
         default_payment_method_id: Some(Some(payment_method_id.to_owned())),

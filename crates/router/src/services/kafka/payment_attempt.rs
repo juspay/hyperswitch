@@ -47,7 +47,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub error_reason: Option<&'a String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: MinorUnit,
-    pub merchant_connector_id: Option<&'a String>,
+    pub merchant_connector_id: Option<&'a common_utils::id_type::MerchantConnectorAccountId>,
     pub net_amount: MinorUnit,
     pub unified_code: Option<&'a String>,
     pub unified_message: Option<&'a String>,
