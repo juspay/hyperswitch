@@ -47,6 +47,7 @@ pub enum RoutingAlgorithm {
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
     // Novalnet,
+    // Nexixpay,
     // Fiservemea,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -211,6 +212,7 @@ impl Connector {
             Self::Aci
             // Add Separate authentication support for connectors
 			// | Self::Novalnet
+			// | Self::Nexixpay
 			// | Self::Taxjar
 			// | Self::Fiservemea
             | Self::Adyen
