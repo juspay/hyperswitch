@@ -4519,7 +4519,8 @@ pub async fn list_customer_payment_method(
 async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
-    key_store: &domain::MerchantKeyStore,
+    #[cfg(feature = "payouts")] key_store: &domain::MerchantKeyStore,
+    #[cfg(not(feature = "payouts"))] _key_store: &domain::MerchantKeyStore,
     pm: &domain::PaymentMethod,
     #[cfg(feature = "payouts")] parent_payment_method_token: Option<String>,
     #[cfg(not(feature = "payouts"))] _parent_payment_method_token: Option<String>,
