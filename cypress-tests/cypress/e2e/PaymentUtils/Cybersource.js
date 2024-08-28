@@ -55,6 +55,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         customer_acceptance: null,
@@ -85,6 +88,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         customer_acceptance: null,
@@ -102,6 +108,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         customer_acceptance: null,
@@ -119,6 +128,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         customer_acceptance: null,
@@ -136,6 +148,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         customer_acceptance: null,
@@ -153,6 +168,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         customer_acceptance: null,
@@ -225,6 +243,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         customer_acceptance: null,
@@ -241,6 +262,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -257,6 +281,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -273,6 +300,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -289,6 +319,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -305,6 +338,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -321,6 +357,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -337,6 +376,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -353,6 +395,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
@@ -369,6 +414,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
@@ -385,6 +433,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -409,6 +460,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         setup_future_usage: "off_session",
         customer_acceptance: {
@@ -432,6 +486,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         setup_future_usage: "off_session",
         customer_acceptance: {
@@ -477,6 +534,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -501,6 +561,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: null,
@@ -525,6 +588,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: null,
@@ -549,6 +615,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         currency: "USD",
         mandate_data: null,
@@ -574,6 +643,9 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
+          billing: {
+            email: "example@email.com"
+          }
         },
         mandate_data: null,
         authentication_type: "three_ds",
