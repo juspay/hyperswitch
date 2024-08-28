@@ -795,12 +795,12 @@ where
 {
     fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
         match self {
-            AuthInfo::OrgLevel { org_id } => {
+            Self::OrgLevel { org_id } => {
                 builder
                     .add_filter_clause("organization_id", org_id)
                     .attach_printable("Error adding organization_id filter")?;
             }
-            AuthInfo::MerchantLevel {
+            Self::MerchantLevel {
                 org_id,
                 merchant_ids,
             } => {
@@ -811,7 +811,7 @@ where
                     .add_filter_in_range_clause("merchant_id", merchant_ids)
                     .attach_printable("Error adding merchant_id filter")?;
             }
-            AuthInfo::ProfileLevel {
+            Self::ProfileLevel {
                 org_id,
                 merchant_id,
                 profile_ids,
