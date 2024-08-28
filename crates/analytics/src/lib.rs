@@ -432,7 +432,7 @@ impl AnalyticsProvider {
         &self,
         metric: &RefundMetrics,
         dimensions: &[RefundDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -445,7 +445,7 @@ impl AnalyticsProvider {
                                 metric
                                     .load_metrics(
                                         dimensions,
-                                        merchant_id,
+                                        auth,
                                         filters,
                                         granularity,
                                         time_range,
@@ -457,7 +457,7 @@ impl AnalyticsProvider {
                                 metric
                                     .load_metrics(
                                         dimensions,
-                                        merchant_id,
+                                        auth,
                                         filters,
                                         granularity,
                                         time_range,
@@ -469,7 +469,7 @@ impl AnalyticsProvider {
                                 let (ckh_result, sqlx_result) = tokio::join!(
                                     metric.load_metrics(
                                         dimensions,
-                                        merchant_id,
+                                        auth,
                                         filters,
                                         granularity,
                                         time_range,
@@ -477,7 +477,7 @@ impl AnalyticsProvider {
                                     ),
                                     metric.load_metrics(
                                         dimensions,
-                                        merchant_id,
+                                        auth,
                                         filters,
                                         granularity,
                                         time_range,
@@ -496,7 +496,7 @@ impl AnalyticsProvider {
                                 let (ckh_result, sqlx_result) = tokio::join!(
                                     metric.load_metrics(
                                         dimensions,
-                                        merchant_id,
+                                        auth,
                                         filters,
                                         granularity,
                                         time_range,
@@ -504,7 +504,7 @@ impl AnalyticsProvider {
                                     ),
                                     metric.load_metrics(
                                         dimensions,
-                                        merchant_id,
+                                        auth,
                                         filters,
                                         granularity,
                                         time_range,

@@ -265,7 +265,13 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::refunds::get_metrics(&state.pool, auth.merchant_account.get_id(), req)
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let auth: AuthInfo = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::refunds::get_metrics(&state.pool, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },

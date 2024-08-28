@@ -18,8 +18,7 @@ use refund_success_count::RefundSuccessCount;
 use refund_success_rate::RefundSuccessRate;
 
 use crate::{
-    query::{Aggregate, GroupByClause, ToSql, Window},
-    types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
+    enums::AuthInfo, query::{Aggregate, GroupByClause, ToSql, Window}, types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult}
 };
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, Hash)]
@@ -51,7 +50,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -72,7 +71,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -83,7 +82,7 @@ where
                 RefundSuccessRate::default()
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
@@ -95,7 +94,7 @@ where
                 RefundCount::default()
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
@@ -107,7 +106,7 @@ where
                 RefundSuccessCount::default()
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
@@ -119,7 +118,7 @@ where
                 RefundProcessedAmount::default()
                     .load_metrics(
                         dimensions,
-                        merchant_id,
+                        auth,
                         filters,
                         granularity,
                         time_range,
