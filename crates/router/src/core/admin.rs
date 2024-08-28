@@ -4,7 +4,6 @@ use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-use base64::Engine;
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -24,7 +23,7 @@ use uuid::Uuid;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
-    consts::{self, BASE64_ENGINE},
+    consts,
     core::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
@@ -35,7 +34,11 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
-    services::{self, api as service_api, authentication, pm_auth as payment_initiation_service},
+    services::{
+        self,
+        api::{self as service_api, client},
+        authentication, pm_auth as payment_initiation_service,
+    },
     types::{
         self,
         api::{self, admin},
@@ -198,6 +201,10 @@ pub async fn create_merchant_account(
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
     #[cfg(feature = "keymanager_create")]
     {
+        use base64::Engine;
+
+        use crate::consts::BASE64_ENGINE;
+
         keymanager::transfer_key_to_key_manager(
             key_manager_state,
             EncryptionTransferRequest {
@@ -1608,7 +1615,7 @@ impl<'a> ConnectorAuthTypeValidation<'a> {
                 certificate,
                 private_key,
             } => {
-                helpers::create_identity_from_certificate_and_key(
+                client::create_identity_from_certificate_and_key(
                     certificate.to_owned(),
                     private_key.to_owned(),
                 )
@@ -1699,34 +1706,6 @@ impl<'a> PaymentMethodsEnabled<'a> {
     }
 }
 
-struct CertificateAndCertificateKey<'a> {
-    certificate: &'a Secret<String>,
-    certificate_key: &'a Secret<String>,
-}
-
-impl<'a> CertificateAndCertificateKey<'a> {
-    pub fn create_identity_from_certificate_and_key(
-        &self,
-    ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
-        let decoded_certificate = BASE64_ENGINE
-            .decode(self.certificate.clone().expose())
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        let decoded_certificate_key = BASE64_ENGINE
-            .decode(self.certificate_key.clone().expose())
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        let certificate = String::from_utf8(decoded_certificate)
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        let certificate_key = String::from_utf8(decoded_certificate_key)
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-        reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
-            .change_context(errors::ApiClientError::CertificateDecodeFailed)
-    }
-}
-
 struct ConnectorMetadata<'a> {
     connector_metadata: &'a Option<pii::SecretSerdeValue>,
 }
@@ -1743,11 +1722,7 @@ impl<'a> ConnectorMetadata<'a> {
             })?
             .and_then(|metadata| metadata.get_apple_pay_certificates())
             .map(|(certificate, certificate_key)| {
-                let certificate_and_certificate_key = CertificateAndCertificateKey {
-                    certificate: &certificate,
-                    certificate_key: &certificate_key,
-                };
-                certificate_and_certificate_key.create_identity_from_certificate_and_key()
+                client::create_identity_from_certificate_and_key(certificate, certificate_key)
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -4208,16 +4183,19 @@ impl BusinessProfileWrapper {
     pub fn get_default_fallback_list_of_connector_under_profile(
         &self,
     ) -> RouterResult<Vec<routing_types::RoutableConnectorChoice>> {
-        use masking::ExposeOptionInterface;
-        self.profile
-            .default_fallback_routing
-            .clone()
-            .expose_option()
-            .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
-                "Vec<RoutableConnectorChoice>",
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant default config has invalid structure")
+        let fallback_connectors =
+            if let Some(default_fallback_routing) = self.profile.default_fallback_routing.clone() {
+                default_fallback_routing
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Business Profile default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+        Ok(fallback_connectors)
     }
     pub fn get_default_routing_configs_from_profile(
         &self,
