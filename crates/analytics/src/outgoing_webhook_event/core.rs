@@ -3,12 +3,12 @@ use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 
 use super::events::{get_outgoing_webhook_event, OutgoingWebhookLogsResult};
-use crate::{errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
+use crate::{enums::AuthInfo, errors::AnalyticsResult, types::FiltersError, AnalyticsProvider};
 
 pub async fn outgoing_webhook_events_core(
     pool: &AnalyticsProvider,
     req: OutgoingWebhookLogsRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<Vec<OutgoingWebhookLogsResult>> {
     let data = match pool {
         AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
@@ -18,7 +18,7 @@ pub async fn outgoing_webhook_events_core(
         AnalyticsProvider::Clickhouse(ckh_pool)
         | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
-            get_outgoing_webhook_event(merchant_id, req, ckh_pool).await
+            get_outgoing_webhook_event(auth, req, ckh_pool).await
         }
     }
     .switch()?;
