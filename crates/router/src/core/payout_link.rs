@@ -193,7 +193,7 @@ pub async fn initiate_payout_link(
                 client_secret: link_data.client_secret.clone(),
                 payout_link_id: payout_link.link_id,
                 payout_id: payout_link.primary_reference,
-                customer_id: customer.get_customer_id(),
+                customer_id: customer.customer_id,
                 session_expiry: payout_link.expiry,
                 return_url: payout_link
                     .return_url

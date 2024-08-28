@@ -212,7 +212,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
+            | Flow::SwitchOrg
             | Flow::SwitchMerchant
+            | Flow::SwitchMerchantV2
+            | Flow::SwitchProfile
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
@@ -258,7 +261,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AcceptInvitation
             | Flow::MerchantSelect
             | Flow::DeleteUserRole
-            | Flow::TransferOrgOwnership
             | Flow::CreateRole
             | Flow::UpdateRole
             | Flow::UserFromEmail
