@@ -19,24 +19,24 @@ ALTER TABLE dispute
 ADD COLUMN IF NOT EXISTS organization_id VARCHAR(32) NOT NULL DEFAULT 'default_org';
 
 -- This doesn't work on V2
-UPDATE payment_attempt pa
-SET organization_id = ma.organization_id
-FROM merchant_account ma
-WHERE pa.merchant_id = ma.merchant_id;
+-- UPDATE payment_attempt pa
+-- SET organization_id = ma.organization_id
+-- FROM merchant_account ma
+-- WHERE pa.merchant_id = ma.merchant_id;
 
-UPDATE payment_intent pi
-SET organization_id = ma.organization_id
-FROM merchant_account ma
-WHERE pi.merchant_id = ma.merchant_id;
+-- UPDATE payment_intent pi
+-- SET organization_id = ma.organization_id
+-- FROM merchant_account ma
+-- WHERE pi.merchant_id = ma.merchant_id;
 
-UPDATE refund r
-SET organization_id = ma.organization_id
-FROM merchant_account ma
-WHERE r.merchant_id = ma.merchant_id;
+-- UPDATE refund r
+-- SET organization_id = ma.organization_id
+-- FROM merchant_account ma
+-- WHERE r.merchant_id = ma.merchant_id;
 
-UPDATE payment_attempt pa
-SET profile_id = pi.profile_id
-FROM payment_intent pi
-WHERE pa.payment_id = pi.payment_id
-  AND pa.merchant_id = pi.merchant_id
-  AND pi.profile_id IS NOT NULL;
+-- UPDATE payment_attempt pa
+-- SET profile_id = pi.profile_id
+-- FROM payment_intent pi
+-- WHERE pa.payment_id = pi.payment_id
+--   AND pa.merchant_id = pi.merchant_id
+--   AND pi.profile_id IS NOT NULL;
