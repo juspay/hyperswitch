@@ -55,7 +55,7 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("filters/payments")
-                                        .route(web::post().to(get_payment_filters)),
+                                        .route(web::post().to(get_merchant_payment_filters)),
                                 )
                                 .service(
                                     web::resource("filters/frm")
@@ -142,10 +142,15 @@ pub mod routes {
                                 ),
                         )
                         .service(
-                            web::scope("/org").service(
-                                web::resource("metrics/payments")
-                                    .route(web::post().to(get_org_payment_metrics)),
-                            ),
+                            web::scope("/org")
+                                .service(
+                                    web::resource("metrics/payments")
+                                        .route(web::post().to(get_org_payment_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/payments")
+                                        .route(web::post().to(get_org_payment_filters)),
+                                ),
                         ),
                 )
                 .service(
@@ -478,7 +483,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_payment_filters(
+    pub async fn get_merchant_payment_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<GetPaymentFiltersRequest>,
@@ -495,6 +500,32 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::MerchantLevel {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::payments::get_filters(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_org_payment_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetPaymentFiltersRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
                 };
                 analytics::payments::get_filters(&state.pool, req, &auth)
                     .await
