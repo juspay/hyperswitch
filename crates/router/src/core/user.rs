@@ -2796,7 +2796,7 @@ pub async fn switch_org_for_user(
 
     let user_role = state
         .store
-        .list_user_roles(
+        .list_user_roles_by_user_id(
             &user_from_token.user_id,
             Some(&request.org_id),
             None,
@@ -3015,7 +3015,7 @@ pub async fn switch_merchant_for_user_in_org(
         EntityType::Merchant | EntityType::Profile => {
             let user_role = state
                 .store
-                .list_user_roles(
+                .list_user_roles_by_user_id(
                     &user_from_token.user_id,
                     Some(&user_from_token.org_id),
                     Some(&request.merchant_id),
@@ -3155,7 +3155,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         EntityType::Profile => {
             let user_role = state
                 .store
-                .list_user_roles(
+                .list_user_roles_by_user_id(
                     &user_from_token.user_id,
                     Some(&user_from_token.org_id),
                     Some(&user_from_token.merchant_id),
