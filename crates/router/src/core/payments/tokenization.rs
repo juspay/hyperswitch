@@ -271,26 +271,23 @@ where
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Unable to encrypt payment method data")?;
 
-                let pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
-                    match token_resp {
-                        Some(token_resp) => {
-                            let pm_token_details = token_resp.card.as_ref().map(|card| {
-                                PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
-                                    card.clone(),
-                                ))
-                            });
+                let pm_network_token_data_encrypted: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = match token_resp {
+                    Some(token_resp) => {
+                        let pm_token_details = token_resp.card.as_ref().map(|card| {
+                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
+                        });
 
-                            pm_token_details
-                                .async_map(|pm_card| {
-                                    create_encrypted_data(state, key_store, pm_card)
-                                })
-                                .await
-                                .transpose()
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Unable to encrypt payment method data")?
-                        }
-                        None => None,
-                    };
+                        pm_token_details
+                            .async_map(|pm_card| create_encrypted_data(state, key_store, pm_card))
+                            .await
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to encrypt payment method data")?
+                    }
+                    None => None,
+                };
 
                 let encrypted_payment_method_billing_address: Option<
                     Encryptable<Secret<serde_json::Value>>,

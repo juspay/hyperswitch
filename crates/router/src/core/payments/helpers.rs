@@ -1842,7 +1842,8 @@ pub async fn retrieve_card_with_permanent_token(
                     pm_data,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError);
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to fetch network token data from tokenization service");
                 if let Ok(network_token_data) = network_token_data {
                     return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
                 }

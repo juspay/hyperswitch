@@ -15,7 +15,7 @@ use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
-        NetworkTokenData, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
+        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
     },
     consts,
     core::errors,
@@ -136,15 +136,6 @@ pub struct LineItem {
     quantity: Option<u16>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MpiData {
-    directory_response: String,
-    authentication_response: String,
-    token_authentication_verification_value: Secret<String>, //cryptogram
-    eci: String,
-}
-
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -175,7 +166,6 @@ pub struct AdyenPaymentRequest<'a> {
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
     merchant_order_reference: Option<String>,
-    mpi_data: Option<MpiData>,
 }
 
 #[derive(Debug, Serialize)]
@@ -613,7 +603,6 @@ pub enum AdyenPaymentMethod<'a> {
     #[serde(rename = "econtext_stores")]
     PayEasy(Box<JCSVoucherData>),
     Pix(Box<PmdForPaymentType>),
-    NetworkToken(Box<AdyenNetworkTokenData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1212,19 +1201,6 @@ pub struct AdyenAuthType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AdyenNetworkTokenData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-    number: CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    holder_name: Option<Secret<String>>,
-    brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
-    network_payment_reference: Option<Secret<String>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentType {
     Affirm,
@@ -1572,16 +1548,14 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 domain::PaymentMethodData::GiftCard(ref gift_card_data) => {
                     AdyenPaymentRequest::try_from((item, gift_card_data.as_ref()))
                 }
-                domain::PaymentMethodData::NetworkToken(ref token_data) => {
-                    AdyenPaymentRequest::try_from((item, token_data))
-                }
                 domain::PaymentMethodData::Crypto(_)
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::RealTimePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::NetworkToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -2592,51 +2566,12 @@ impl<'a>
                     }
                 }
             }
-            payments::MandateReferenceId::NetworkTokenWithNTI(mandate_data) => {
-                match item.router_data.request.payment_method_data {
-                    domain::PaymentMethodData::NetworkToken(ref token_data) => {
-                        let card_issuer = token_data.get_card_issuer()?;
-                        let brand = CardBrand::try_from(&card_issuer)?;
-                        let card_holder_name = item.router_data.get_optional_billing_full_name();
-                        let adyen_network_token = AdyenNetworkTokenData {
-                            payment_type: PaymentType::NetworkToken,
-                            number: token_data.token_number.clone(),
-                            expiry_month: token_data.token_exp_month.clone(),
-                            expiry_year: token_data.get_expiry_year_4_digit(),
-                            holder_name: card_holder_name,
-                            brand: Some(brand),
-                            network_payment_reference: Some(Secret::new(
-                                mandate_data.network_transaction_id,
-                            )),
-                        };
-                        Ok(AdyenPaymentMethod::NetworkToken(Box::new(
-                            adyen_network_token,
-                        )))
-                    }
-
-                    domain::PaymentMethodData::Card(_)
-                    | domain::PaymentMethodData::CardRedirect(_)
-                    | domain::PaymentMethodData::Wallet(_)
-                    | domain::PaymentMethodData::PayLater(_)
-                    | domain::PaymentMethodData::BankRedirect(_)
-                    | domain::PaymentMethodData::BankDebit(_)
-                    | domain::PaymentMethodData::BankTransfer(_)
-                    | domain::PaymentMethodData::Crypto(_)
-                    | domain::PaymentMethodData::MandatePayment
-                    | domain::PaymentMethodData::Reward
-                    | domain::PaymentMethodData::RealTimePayment(_)
-                    | domain::PaymentMethodData::Upi(_)
-                    | domain::PaymentMethodData::Voucher(_)
-                    | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
-                        Err(errors::ConnectorError::NotSupported {
-                            message: "Network tokenization for payment method".to_string(),
-                            connector: "Adyen",
-                        })?
-                    }
-                }
-            } //
+            payments::MandateReferenceId::NetworkTokenWithNTI(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Network tokenization for payment method".to_string(),
+                    connector: "Adyen",
+                })?
+            }
         }?;
         Ok(AdyenPaymentRequest {
             amount,
@@ -2664,7 +2599,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         })
     }
 }
@@ -2728,7 +2662,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         })
     }
 }
@@ -2784,7 +2717,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         };
         Ok(request)
     }
@@ -2844,7 +2776,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         };
         Ok(request)
     }
@@ -2896,7 +2827,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         };
         Ok(request)
     }
@@ -2948,7 +2878,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         };
         Ok(request)
     }
@@ -3012,7 +2941,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         })
     }
 }
@@ -3112,7 +3040,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         })
     }
 }
@@ -3188,7 +3115,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         })
     }
 }
@@ -3248,7 +3174,6 @@ impl<'a>
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             metadata: item.router_data.request.metadata.clone().map(Into::into),
             merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: None,
         })
     }
 }
@@ -5231,99 +5156,5 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::DefendDisputeRoute
                 ..data.clone()
             })
         }
-    }
-}
-
-impl<'a> TryFrom<(&domain::NetworkTokenData, Option<Secret<String>>)> for AdyenPaymentMethod<'a> {
-    type Error = Error;
-    fn try_from(
-        (token_data, card_holder_name): (&domain::NetworkTokenData, Option<Secret<String>>),
-    ) -> Result<Self, Self::Error> {
-        let adyen_network_token = AdyenNetworkTokenData {
-            payment_type: PaymentType::NetworkToken,
-            number: token_data.token_number.clone(),
-            expiry_month: token_data.token_exp_month.clone(),
-            expiry_year: token_data.get_expiry_year_4_digit(),
-            holder_name: card_holder_name,
-            brand: None,
-            network_payment_reference: None,
-        };
-        Ok(AdyenPaymentMethod::NetworkToken(Box::new(
-            adyen_network_token,
-        )))
-    }
-}
-
-impl<'a>
-    TryFrom<(
-        &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-        &domain::NetworkTokenData,
-    )> for AdyenPaymentRequest<'a>
-{
-    type Error = Error;
-    fn try_from(
-        value: (
-            &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
-            &domain::NetworkTokenData,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let (item, token_data) = value;
-        let amount = get_amount_data(item);
-        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
-        let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let shopper_reference = build_shopper_reference(
-            &item.router_data.customer_id,
-            item.router_data.merchant_id.clone(),
-        );
-        let (recurring_processing_model, store_payment_method, _) =
-            get_recurring_processing_model(item.router_data)?;
-        let browser_info = get_browser_info(item.router_data)?;
-        let billing_address =
-            get_address_info(item.router_data.get_optional_billing()).transpose()?;
-        let country_code = get_country_code(item.router_data.get_optional_billing());
-        let additional_data = get_additional_data(item.router_data);
-        let return_url = item.router_data.request.get_return_url()?;
-        let card_holder_name = item.router_data.get_optional_billing_full_name();
-        let payment_method = AdyenPaymentMethod::try_from((token_data, card_holder_name))?;
-        let shopper_email = item.router_data.request.email.clone();
-        let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
-        let mpi_data = MpiData {
-            directory_response: "Y".to_string(),
-            authentication_response: "Y".to_string(),
-            token_authentication_verification_value: token_data
-                .token_cryptogram
-                .clone()
-                .unwrap_or_default(),
-            eci: "07".to_string(),
-        };
-
-        Ok(AdyenPaymentRequest {
-            amount,
-            merchant_account: auth_type.merchant_account,
-            payment_method,
-            reference: item.router_data.connector_request_reference_id.clone(),
-            return_url,
-            shopper_interaction,
-            recurring_processing_model,
-            browser_info,
-            additional_data,
-            telephone_number: None,
-            shopper_name,
-            shopper_email,
-            shopper_locale: None,
-            social_security_number: None,
-            billing_address,
-            delivery_address: None,
-            country_code,
-            line_items: None,
-            shopper_reference,
-            store_payment_method,
-            channel: None,
-            shopper_statement: item.router_data.request.statement_descriptor.clone(),
-            shopper_ip: item.router_data.request.get_ip_address_as_optional(),
-            metadata: item.router_data.request.metadata.clone().map(Into::into),
-            merchant_order_reference: item.router_data.request.merchant_order_reference_id.clone(),
-            mpi_data: Some(mpi_data),
-        })
     }
 }

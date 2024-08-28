@@ -35,12 +35,12 @@ pub enum EncryptionAlgorithm {
 pub async fn encrypt_jwe(
     payload: &[u8],
     public_key: impl AsRef<[u8]>,
-    enc: EncryptionAlgorithm,
+    algorithm: EncryptionAlgorithm,
     key_id: Option<&str>,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
     let mut src_header = jwe::JweHeader::new();
-    let enc_str = enc.as_ref();
+    let enc_str = algorithm.as_ref();
     src_header.set_content_encryption(enc_str);
     src_header.set_token_type("JWT");
     if let Some(kid) = key_id {

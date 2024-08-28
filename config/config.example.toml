@@ -721,4 +721,4 @@ encryption_key = "" # Encryption key used for encrypting data in user_authentica
 connector_list = ""
 
 [network_tokenization_supported_card_networks]
-card_networks = "visa" # Supported card networks for network tokenization
+card_networks = "Visa" # Supported card networks for network tokenization

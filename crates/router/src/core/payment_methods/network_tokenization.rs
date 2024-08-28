@@ -111,10 +111,18 @@ pub struct AuthenticationDetails {
     cryptogram: Secret<String>,
     token: CardNumber,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenDetails {
+    exp_month: Secret<String>,
+    exp_year: Secret<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenResponse {
     authentication_details: AuthenticationDetails,
     network: api_enums::CardNetwork,
+    token_details: TokenDetails,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -231,6 +239,7 @@ pub async fn mk_tokenization_req(
             .clone()
             .into_masked(),
     );
+    request.add_default_headers();
     request.set_body(RequestContent::Json(Box::new(api_payload)));
 
     let response = services::call_connector_api(state, request, "generate_token")
@@ -238,9 +247,7 @@ pub async fn mk_tokenization_req(
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
 
     let res = response
-        .map_err(|error| {
-            error.change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
-        })
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
@@ -308,11 +315,7 @@ pub async fn make_card_network_tokenization_request(
     let payload = card_data
         .encode_to_string_of_json()
         .and_then(|x| x.encode_to_string_of_json())
-        .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)
-        .map_err(|e| {
-            logger::error!(fetch_err=?e);
-            errors::NetworkTokenizationError::RequestEncodingFailed
-        })?;
+        .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)?;
 
     let payload_bytes = payload.as_bytes();
     let amount_str = amount.map_or_else(String::new, |a| a.to_string());
@@ -354,6 +357,7 @@ pub async fn get_network_token(
             .clone()
             .into_masked(),
     );
+    request.add_default_headers();
     request.set_body(RequestContent::Json(Box::new(payload)));
 
     // Send the request using `call_connector_api`
@@ -362,9 +366,7 @@ pub async fn get_network_token(
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
 
     let res = response
-        .map_err(|error| {
-            error.change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
-        })
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
@@ -445,8 +447,12 @@ pub async fn get_token_from_tokenization_service(
     let network_token_data = NetworkTokenData {
         token_number: token_response.authentication_details.token,
         token_cryptogram: Some(token_response.authentication_details.cryptogram),
-        token_exp_month: token_decrypted.expiry_month.unwrap_or_default(),
-        token_exp_year: token_decrypted.expiry_year.unwrap_or_default(),
+        token_exp_month: token_decrypted
+            .expiry_month
+            .unwrap_or(token_response.token_details.exp_month),
+        token_exp_year: token_decrypted
+            .expiry_year
+            .unwrap_or(token_response.token_details.exp_year),
         nick_name: token_decrypted.card_holder_name,
         card_issuer: None,
         card_network: Some(token_response.network),
@@ -541,6 +547,7 @@ pub async fn check_token_status_with_tokenization_service(
             .clone()
             .into_masked(),
     );
+    request.add_default_headers();
     request.set_body(RequestContent::Json(Box::new(payload)));
 
     // Send the request using `call_connector_api`
@@ -548,9 +555,7 @@ pub async fn check_token_status_with_tokenization_service(
         .await
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed);
     let res = response
-        .map_err(|error| {
-            error.change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
-        })
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {
@@ -648,6 +653,7 @@ pub async fn delete_network_token_from_tokenization_service(
             .clone()
             .into_masked(),
     );
+    request.add_default_headers();
     request.set_body(RequestContent::Json(Box::new(payload)));
 
     // Send the request using `call_connector_api`
@@ -655,9 +661,7 @@ pub async fn delete_network_token_from_tokenization_service(
         .await
         .change_context(errors::NetworkTokenizationError::DeleteNetworkTokenFailed);
     let res = response
-        .map_err(|error| {
-            error.change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
-        })
+        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
         .and_then(|inner| match inner {
             Err(err_res) => {

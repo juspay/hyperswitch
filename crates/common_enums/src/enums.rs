@@ -1767,7 +1767,7 @@ pub enum CardNetwork {
     DinersClub,
     #[serde(alias = "DISCOVER")]
     Discover,
-    #[serde(alias = "CARTRSBANCAIRES")]
+    #[serde(alias = "CARTESBANCAIRES")]
     CartesBancaires,
     #[serde(alias = "UNIONPAY")]
     UnionPay,

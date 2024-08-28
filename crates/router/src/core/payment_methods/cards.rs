@@ -76,8 +76,7 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization,
-            transformers as payment_methods, vault},
+        payment_methods::{network_tokenization, transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -136,7 +135,11 @@ pub async fn create_payment_method(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
+))]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
