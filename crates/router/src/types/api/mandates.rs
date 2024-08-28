@@ -108,6 +108,10 @@ impl MandateResponseExt for MandateResponse {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
     fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
         mandates::MandateCardDetails {
@@ -123,6 +127,33 @@ impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
             card_issuer: card_details_from_locker.card_issuer,
             card_network: card_details_from_locker.card_network,
             card_type: card_details_from_locker.card_type,
+            nick_name: card_details_from_locker.nick_name,
+        }
+        .into()
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<api::payment_methods::CardDetailFromLocker> for MandateCardDetails {
+    fn from(card_details_from_locker: api::payment_methods::CardDetailFromLocker) -> Self {
+        mandates::MandateCardDetails {
+            last4_digits: card_details_from_locker.last4_digits,
+            card_exp_month: card_details_from_locker.expiry_month.clone(),
+            card_exp_year: card_details_from_locker.expiry_year.clone(),
+            card_holder_name: card_details_from_locker.card_holder_name,
+            card_token: None,
+            scheme: None,
+            issuer_country: card_details_from_locker
+                .issuer_country
+                .map(|country| country.to_string()),
+            card_fingerprint: card_details_from_locker.card_fingerprint,
+            card_isin: card_details_from_locker.card_isin,
+            card_issuer: card_details_from_locker.card_issuer,
+            card_network: card_details_from_locker.card_network,
+            card_type: card_details_from_locker
+                .card_type
+                .as_ref()
+                .map(|c| c.to_string()),
             nick_name: card_details_from_locker.nick_name,
         }
         .into()

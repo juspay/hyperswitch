@@ -6,6 +6,9 @@ use std::{borrow::Cow, fmt::Debug};
 mod customer;
 mod merchant;
 mod organization;
+mod profile;
+
+mod global_id;
 
 pub use customer::CustomerId;
 use diesel::{
@@ -17,6 +20,7 @@ use diesel::{
 };
 pub use merchant::MerchantId;
 pub use organization::OrganizationId;
+pub use profile::ProfileId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -87,22 +91,22 @@ impl AlphaNumericId {
 pub(crate) struct LengthId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
 
 /// Error generated from violation of constraints for MerchantReferenceId
-#[derive(Debug, Deserialize, Serialize, Error, PartialEq, Eq)]
-pub(crate) enum LengthIdError<const MAX_LENGTH: u8, const MIN_LENGTH: u8> {
-    #[error("the maximum allowed length for this field is {MAX_LENGTH}")]
+#[derive(Debug, Error, PartialEq, Eq)]
+pub(crate) enum LengthIdError {
+    #[error("the maximum allowed length for this field is {0}")]
     /// Maximum length of string violated
-    MaxLengthViolated,
+    MaxLengthViolated(u8),
 
-    #[error("the minimum required length for this field is {MIN_LENGTH}")]
+    #[error("the minimum required length for this field is {0}")]
     /// Minimum length of string violated
-    MinLengthViolated,
+    MinLengthViolated(u8),
 
     #[error("{0}")]
     /// Input contains invalid characters
     AlphanumericIdError(AlphaNumericIdError),
 }
 
-impl From<AlphaNumericIdError> for LengthIdError<0, 0> {
+impl From<AlphaNumericIdError> for LengthIdError {
     fn from(alphanumeric_id_error: AlphaNumericIdError) -> Self {
         Self::AlphanumericIdError(alphanumeric_id_error)
     }
@@ -110,19 +114,17 @@ impl From<AlphaNumericIdError> for LengthIdError<0, 0> {
 
 impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH> {
     /// Generates new [MerchantReferenceId] from the given input string
-    pub fn from(
-        input_string: Cow<'static, str>,
-    ) -> Result<Self, LengthIdError<MAX_LENGTH, MIN_LENGTH>> {
+    pub fn from(input_string: Cow<'static, str>) -> Result<Self, LengthIdError> {
         let trimmed_input_string = input_string.trim().to_string();
         let length_of_input_string = u8::try_from(trimmed_input_string.len())
-            .map_err(|_| LengthIdError::MaxLengthViolated)?;
+            .map_err(|_| LengthIdError::MaxLengthViolated(MAX_LENGTH))?;
 
         when(length_of_input_string > MAX_LENGTH, || {
-            Err(LengthIdError::MaxLengthViolated)
+            Err(LengthIdError::MaxLengthViolated(MAX_LENGTH))
         })?;
 
         when(length_of_input_string < MIN_LENGTH, || {
-            Err(LengthIdError::MinLengthViolated)
+            Err(LengthIdError::MinLengthViolated(MIN_LENGTH))
         })?;
 
         let alphanumeric_id = match AlphaNumericId::from(trimmed_input_string.into()) {
@@ -141,6 +143,25 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
     /// Use this function only if you are sure that the length is within the range
     pub(crate) fn new_unchecked(alphanumeric_id: AlphaNumericId) -> Self {
         Self(alphanumeric_id)
+    }
+
+    /// Create a new LengthId from aplhanumeric id
+    pub(crate) fn from_alphanumeric_id(
+        alphanumeric_id: AlphaNumericId,
+    ) -> Result<Self, LengthIdError> {
+        let length_of_input_string = alphanumeric_id.0.len();
+        let length_of_input_string = u8::try_from(length_of_input_string)
+            .map_err(|_| LengthIdError::MaxLengthViolated(MAX_LENGTH))?;
+
+        when(length_of_input_string > MAX_LENGTH, || {
+            Err(LengthIdError::MaxLengthViolated(MAX_LENGTH))
+        })?;
+
+        when(length_of_input_string < MIN_LENGTH, || {
+            Err(LengthIdError::MinLengthViolated(MIN_LENGTH))
+        })?;
+
+        Ok(Self(alphanumeric_id))
     }
 }
 
@@ -177,6 +198,12 @@ where
         let string_val = String::from_sql(value)?;
         Ok(Self(AlphaNumericId::new_unchecked(string_val)))
     }
+}
+
+/// An interface to generate object identifiers.
+pub trait GenerateId {
+    /// Generates a random object identifier.
+    fn generate() -> Self;
 }
 
 #[cfg(test)]
@@ -290,7 +317,11 @@ mod merchant_reference_id_tests {
 
         dbg!(&parsed_merchant_reference_id);
 
-        assert!(parsed_merchant_reference_id
-            .is_err_and(|error_type| matches!(error_type, LengthIdError::MaxLengthViolated)));
+        assert!(
+            parsed_merchant_reference_id.is_err_and(|error_type| matches!(
+                error_type,
+                LengthIdError::MaxLengthViolated(MAX_LENGTH)
+            ))
+        );
     }
 }

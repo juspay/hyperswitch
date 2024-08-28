@@ -78,7 +78,38 @@ pub async fn customers_retrieve(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
+pub async fn customers_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::CustomersRetrieve;
+
+    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
+
+    let auth = if auth::is_jwt_auth(req.headers()) {
+        Box::new(auth::JWTAuth(Permission::CustomerRead))
+    } else {
+        match auth::is_ephemeral_auth(req.headers()) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(err),
+        }
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::CustomersList;
