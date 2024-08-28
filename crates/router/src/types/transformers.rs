@@ -301,6 +301,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Nexinets => Self::Nexinets,
+            // api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
             // api_enums::Connector::Novalnet => Self::Novalnet,
@@ -1535,10 +1536,18 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
+    fn foreign_from(_customer: &domain::Customer) -> Self {
+        todo!()
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
-            id: Some(customer.get_customer_id().clone()),
+            id: Some(customer.customer_id.clone()),
             name: customer
                 .name
                 .as_ref()

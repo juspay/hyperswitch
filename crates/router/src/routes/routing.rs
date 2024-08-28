@@ -60,7 +60,7 @@ pub async fn routing_create_config(
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path,
+    path: web::Path<common_utils::id_type::RoutingId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
@@ -74,7 +74,7 @@ pub async fn routing_link_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                algorithm.routing_algorithm_id,
+                algorithm,
                 transaction_type,
             )
         },
@@ -139,7 +139,7 @@ pub async fn routing_link_config(
 pub async fn routing_retrieve_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<routing_types::RoutingAlgorithmId>,
+    path: web::Path<common_utils::id_type::RoutingId>,
 ) -> impl Responder {
     let algorithm_id = path.into_inner();
     let flow = Flow::RoutingRetrieveConfig;

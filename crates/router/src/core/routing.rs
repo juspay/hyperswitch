@@ -277,7 +277,7 @@ pub async fn link_routing_config_under_profile(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile_id: common_utils::id_type::ProfileId,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -425,18 +425,15 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: routing_types::RoutingAlgorithmId,
+    algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let routing_algorithm = RoutingAlgorithmUpdate::fetch_routing_algo(
-        merchant_account.get_id(),
-        &algorithm_id.routing_algorithm_id,
-        db,
-    )
-    .await?;
+    let routing_algorithm =
+        RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
+            .await?;
     core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
@@ -461,7 +458,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: routing_types::RoutingAlgorithmId,
+    algorithm_id: String,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -469,7 +466,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
 
     let routing_algorithm = db
         .find_routing_algorithm_by_algorithm_id_merchant_id(
-            &algorithm_id.routing_algorithm_id,
+            &algorithm_id,
             merchant_account.get_id(),
         )
         .await

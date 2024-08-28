@@ -33,7 +33,7 @@ pub struct Mandate {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
     pub original_payment_id: Option<String>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
 }
 
@@ -71,7 +71,7 @@ pub struct MandateNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
     pub original_payment_id: Option<String>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
 }
 
