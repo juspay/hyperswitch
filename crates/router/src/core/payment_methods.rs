@@ -453,6 +453,7 @@ pub async fn retrieve_payment_method_with_token(
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
+    payment_method_info: Option<storage::PaymentMethod>,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
     let token = match token_data {
         storage::PaymentTokenData::TemporaryGeneric(generic_token) => {
@@ -506,6 +507,7 @@ pub async fn retrieve_payment_method_with_token(
                 merchant_key_store,
                 storage_scheme,
                 mandate_id,
+                payment_method_info,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -538,6 +540,7 @@ pub async fn retrieve_payment_method_with_token(
                 merchant_key_store,
                 storage_scheme,
                 mandate_id,
+                payment_method_info,
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?

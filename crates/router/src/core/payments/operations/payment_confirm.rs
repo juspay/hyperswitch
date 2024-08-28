@@ -1205,7 +1205,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             payment_data.payment_intent.billing_address_id.clone(),
             payment_data
                 .payment_attempt
-                .clone()
                 .payment_method_billing_address_id
                 .clone(),
         );
