@@ -466,6 +466,8 @@ pub enum Flow {
     ListMerchantsForUserInOrg,
     /// List Profile for user in org and merchant
     ListProfileForUserInOrgAndMerchant,
+    /// List Users in Org
+    ListUsersInLineage,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

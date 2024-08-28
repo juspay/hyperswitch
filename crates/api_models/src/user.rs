@@ -418,3 +418,15 @@ pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
     pub profile_id: id_type::ProfileId,
     pub profile_name: String,
 }
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListUsersInEntityResponse {
+    pub email: pii::Email,
+    pub roles: Vec<MinimalRoleInfo>,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct MinimalRoleInfo {
+    pub role_id: String,
+    pub role_name: String,
+}

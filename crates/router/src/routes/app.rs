@@ -1799,6 +1799,7 @@ impl User {
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
+                .service(web::resource("/v2/list").route(web::get().to(list_users_in_lineage)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
