@@ -496,10 +496,24 @@ pub async fn list_customers(
     merchant_id: id_type::MerchantId,
     _profile_id_list: Option<Vec<id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
+    request: customers::CustomerListRequest,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
+
+    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+        limit: request
+            .limit
+            .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
+        offset: request.offset,
+    };
+
     let domain_customers = db
-        .list_customers_by_merchant_id(&(&state).into(), &merchant_id, &key_store)
+        .list_customers_by_merchant_id(
+            &(&state).into(),
+            &merchant_id,
+            &key_store,
+            customer_list_constraints,
+        )
         .await
         .switch()?;
 
