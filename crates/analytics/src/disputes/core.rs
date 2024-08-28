@@ -124,30 +124,30 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetDisputeFilterRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<DisputeFiltersResponse> {
     let mut res = DisputeFiltersResponse::default();
     for dim in req.group_by_names {
         let values = match pool {
                         AnalyticsProvider::Sqlx(pool) => {
-                            get_dispute_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                            get_dispute_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                            get_dispute_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                            get_dispute_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                     AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_pool,
                 )
@@ -163,14 +163,14 @@ pub async fn get_filters(
                     AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_pool,
                 )
