@@ -390,9 +390,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
-                // enums::Connector::Fiservemea => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea)))
-                // }
+                enums::Connector::Fiservemea => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
+                }
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
                 }

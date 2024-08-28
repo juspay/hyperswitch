@@ -1351,6 +1351,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 fiserv::transformers::FiservSessionObject::try_from(self.connector_meta_data)?;
                 Ok(())
             }
+            api_enums::Connector::Fiservemea => {
+                fiservemea::transformers::FiservemeaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Forte => {
                 forte::transformers::ForteAuthType::try_from(self.auth_type)?;
                 Ok(())
