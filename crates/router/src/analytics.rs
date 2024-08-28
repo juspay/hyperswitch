@@ -110,11 +110,11 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("connector_event_logs")
-                                        .route(web::get().to(get_connector_events)),
+                                        .route(web::get().to(get_merchant_connector_events)),
                                 )
                                 .service(
                                     web::resource("outgoing_webhook_event_logs")
-                                        .route(web::get().to(get_outgoing_webhook_events)),
+                                        .route(web::get().to(get_merchant_outgoing_webhook_events)),
                                 )
                                 .service(
                                     web::resource("filters/api_events")
@@ -174,6 +174,14 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/api_events")
                                         .route(web::post().to(get_org_api_events_metrics)),
+                                )
+                                .service(
+                                    web::resource("connector_event_logs")
+                                        .route(web::get().to(get_org_connector_events)),
+                                )
+                                .service(
+                                    web::resource("outgoing_webhook_event_logs")
+                                        .route(web::get().to(get_org_outgoing_webhook_events)),
                                 ),
                         ),
                 )
@@ -790,7 +798,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_outgoing_webhook_events(
+    pub async fn get_merchant_outgoing_webhook_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Query<
@@ -809,6 +817,34 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::MerchantLevel {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
+                };
+                outgoing_webhook_events_core(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_org_outgoing_webhook_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<
+            api_models::analytics::outgoing_webhook_event::OutgoingWebhookLogsRequest,
+        >,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetOutgoingWebhookEvents;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
                 };
                 outgoing_webhook_events_core(&state.pool, req, &auth)
                     .await
@@ -1096,7 +1132,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_connector_events(
+    pub async fn get_merchant_connector_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
@@ -1113,6 +1149,32 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::MerchantLevel {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
+                };
+                connector_events_core(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_org_connector_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetConnectorEvents;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
                 };
                 connector_events_core(&state.pool, req, &auth)
                     .await
