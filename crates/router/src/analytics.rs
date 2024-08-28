@@ -134,11 +134,11 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("filters/disputes")
-                                        .route(web::post().to(get_dispute_filters)),
+                                        .route(web::post().to(get_merchant_dispute_filters)),
                                 )
                                 .service(
                                     web::resource("metrics/disputes")
-                                        .route(web::post().to(get_dispute_metrics)),
+                                        .route(web::post().to(get_merchant_dispute_metrics)),
                                 ),
                         )
                         .service(
@@ -158,6 +158,14 @@ pub mod routes {
                                 .service(
                                     web::resource("filters/refunds")
                                         .route(web::post().to(get_org_refund_filters)),
+                                )
+                                .service(
+                                    web::resource("metrics/disputes")
+                                        .route(web::post().to(get_org_dispute_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/disputes")
+                                        .route(web::post().to(get_org_dispute_filters)),
                                 ),
                         ),
                 )
@@ -1126,7 +1134,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_dispute_filters(
+    pub async fn get_merchant_dispute_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<api_models::analytics::GetDisputeFilterRequest>,
@@ -1153,10 +1161,37 @@ pub mod routes {
         ))
         .await
     }
+
+    pub async fn get_org_dispute_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::analytics::GetDisputeFilterRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetDisputeFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
+                };
+                analytics::disputes::get_filters(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
-    pub async fn get_dispute_metrics(
+    pub async fn get_merchant_dispute_metrics(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<[GetDisputeMetricRequest; 1]>,
@@ -1180,6 +1215,42 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::MerchantLevel {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
+                };
+                analytics::disputes::get_metrics(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
+    pub async fn get_org_dispute_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetDisputeMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetDisputeMetricRequest");
+        let flow = AnalyticsFlow::GetDisputeMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let auth: AuthInfo = AuthInfo::OrgLevel {
+                    org_id: org_id.clone(),
                 };
                 analytics::disputes::get_metrics(&state.pool, &auth, req)
                     .await
