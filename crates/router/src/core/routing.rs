@@ -14,8 +14,12 @@ use super::payments;
 use super::payouts;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use crate::utils::ValueExt;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
 use crate::{
-    consts,
+    core::{admin, errors::RouterResult},
+    db::StorageInterface,
+};
+use crate::{
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
@@ -27,11 +31,6 @@ use crate::{
         transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
-};
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{
-    core::{admin, errors::RouterResult},
-    db::StorageInterface,
 };
 pub enum TransactionData<'a, F>
 where
@@ -212,10 +211,7 @@ pub async fn create_routing_algorithm_under_profile(
         })
         .attach_printable("Algorithm of config not given")?;
 
-    let algorithm_id = common_utils::generate_id(
-        consts::ROUTING_CONFIG_ID_LENGTH,
-        &format!("routing_{}", merchant_account.get_id().get_string_repr()),
-    );
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
 
     let profile_id = request
         .profile_id
@@ -458,7 +454,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();

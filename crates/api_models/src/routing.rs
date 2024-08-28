@@ -89,7 +89,7 @@ pub enum LinkedRoutingConfigRetrieveResponse {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 /// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
-    pub id: String,
+    pub id: common_utils::id_type::RoutingId,
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,

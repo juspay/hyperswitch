@@ -114,7 +114,7 @@ impl Default for MerchantAccountRoutingAlgorithm {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum MerchantAccountRoutingAlgorithm {
-    V1(Option<String>),
+    V1(Option<common_utils::id_type::RoutingId>),
 }
 
 #[cfg(feature = "payouts")]
@@ -289,7 +289,7 @@ where
 pub async fn perform_static_routing_v1<F: Clone>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    algorithm_id: Option<String>,
+    algorithm_id: Option<common_utils::id_type::RoutingId>,
     business_profile: &domain::BusinessProfile,
     transaction_data: &routing::TransactionData<'_, F>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {

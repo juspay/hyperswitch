@@ -4128,7 +4128,7 @@ impl BusinessProfileWrapper {
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        algorithm_id: String,
+        algorithm_id: common_utils::id_type::RoutingId,
         transaction_type: &storage::enums::TransactionType,
     ) -> RouterResult<()> {
         let routing_cache_key = self.clone().get_routing_config_cache_key();
@@ -4169,7 +4169,7 @@ impl BusinessProfileWrapper {
     pub fn get_routing_algorithm_id<'a, F>(
         &'a self,
         transaction_data: &'a routing::TransactionData<'_, F>,
-    ) -> Option<String>
+    ) -> Option<id_type::RoutingId>
     where
         F: Send + Clone,
     {
