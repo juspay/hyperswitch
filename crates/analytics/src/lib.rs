@@ -8,7 +8,7 @@ pub mod payment_intents;
 pub mod payments;
 mod query;
 pub mod refunds;
-
+pub mod enums;
 pub mod active_payments;
 pub mod api_event;
 pub mod auth_events;
@@ -23,6 +23,7 @@ mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
 use common_utils::errors::CustomResult;
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
+use enums::AuthInfo;
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
@@ -112,7 +113,7 @@ impl AnalyticsProvider {
         &self,
         metric: &PaymentMetrics,
         dimensions: &[PaymentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -125,7 +126,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -137,7 +138,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -149,7 +150,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -158,7 +159,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -178,7 +179,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -187,7 +188,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -216,7 +217,7 @@ impl AnalyticsProvider {
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -230,7 +231,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -243,10 +244,10 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
-                                time_range,
+                                time_range, 
                                 pool,
                             )
                             .await
@@ -256,7 +257,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -266,7 +267,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -287,7 +288,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
@@ -297,7 +298,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                merchant_id,
+                                auth,
                                 filters,
                                 granularity,
                                 time_range,
