@@ -23,7 +23,7 @@ pub struct PaymentLink {
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub secure_link: Option<String>,
 }
 
@@ -54,6 +54,6 @@ pub struct PaymentLinkNew {
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub secure_link: Option<String>,
 }

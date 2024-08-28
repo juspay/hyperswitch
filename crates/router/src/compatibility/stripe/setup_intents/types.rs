@@ -451,7 +451,7 @@ pub(crate) fn into_stripe_next_action(
 
 #[derive(Default, Eq, PartialEq, Serialize)]
 pub struct StripeSetupIntentResponse {
-    pub id: Option<String>,
+    pub id: String,
     pub object: String,
     pub status: StripeSetupStatus,
     pub client_secret: Option<masking::Secret<String>>,
