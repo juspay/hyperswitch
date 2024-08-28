@@ -34,11 +34,9 @@ CREATE TYPE "PaymentMethodIssuerCode" AS ENUM (
 
 ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS payment_method_issuer_code "PaymentMethodIssuerCode";
 
-ALTER TABLE payment_methods DROP CONSTRAINT IF EXISTS payment_methods_pkey;
-
-ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS payment_method_id VARCHAR(64) PRIMARY KEY;
-
+ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS payment_method_id VARCHAR(64);
 UPDATE payment_methods SET payment_method_id = id;
-
+ALTER TABLE payment_methods DROP CONSTRAINT IF EXISTS payment_methods_pkey;
+ALTER TABLE payment_methods ADD CONSTRAINT payment_methods_pkey PRIMARY KEY (payment_method_id);
 ALTER TABLE payment_methods DROP COLUMN IF EXISTS id;
 ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS id SERIAL;

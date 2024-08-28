@@ -82,7 +82,6 @@ impl MandateResponseExt for MandateResponse {
                 payment_methods::cards::get_card_details_without_locker_fallback(
                     &payment_method,
                     state,
-                    &key_store,
                 )
                 .await?
             };
@@ -164,7 +163,6 @@ impl MandateResponseExt for MandateResponse {
                 payment_methods::cards::get_card_details_without_locker_fallback(
                     &payment_method,
                     state,
-                    &key_store,
                 )
                 .await?
             };

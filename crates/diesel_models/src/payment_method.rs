@@ -281,9 +281,7 @@ impl PaymentMethodUpdate {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-#[derive(
-    Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
     metadata: Option<pii::SecretSerdeValue>,
@@ -296,6 +294,7 @@ pub struct PaymentMethodUpdateInternal {
     connector_mandate_details: Option<pii::SecretSerdeValue>,
     updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
+    last_modified: PrimitiveDateTime,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -328,6 +327,7 @@ impl PaymentMethodUpdateInternal {
             connector_mandate_details: connector_mandate_details
                 .map_or(source.connector_mandate_details, Some),
             updated_by: updated_by.map_or(source.updated_by, Some),
+            last_modified: common_utils::date_time::now(),
             ..source
         }
     }
@@ -337,9 +337,7 @@ impl PaymentMethodUpdateInternal {
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-#[derive(
-    Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize,
-)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
@@ -353,6 +351,7 @@ pub struct PaymentMethodUpdateInternal {
     updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     payment_method_issuer: Option<String>,
+    last_modified: PrimitiveDateTime,
 }
 
 #[cfg(all(
@@ -388,6 +387,7 @@ impl PaymentMethodUpdateInternal {
             connector_mandate_details: connector_mandate_details
                 .map_or(source.connector_mandate_details, Some),
             updated_by: updated_by.map_or(source.updated_by, Some),
+            last_modified: common_utils::date_time::now(),
             ..source
         }
     }
@@ -415,6 +415,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -430,6 +431,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -443,6 +445,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -459,6 +462,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -475,6 +479,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
@@ -488,6 +493,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -508,6 +514,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer,
                 payment_method_type,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -523,6 +530,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
         }
     }
@@ -546,6 +554,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -560,6 +569,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -572,6 +582,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -587,6 +598,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -602,6 +614,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::StatusUpdate { status } => Self {
                 metadata: None,
@@ -614,6 +627,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -632,6 +646,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_type,
+                last_modified: common_utils::date_time::now(),
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -646,6 +661,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_transaction_id: None,
                 updated_by: None,
                 payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
             },
         }
     }

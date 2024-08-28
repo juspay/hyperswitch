@@ -1299,8 +1299,7 @@ pub async fn add_payment_method(
                     };
 
                     let existing_pm_data =
-                        get_card_details_without_locker_fallback(&existing_pm, state, key_store)
-                            .await?;
+                        get_card_details_without_locker_fallback(&existing_pm, state).await?;
 
                     let updated_card = Some(api::CardDetailFromLocker {
                         scheme: existing_pm.scheme.clone(),
@@ -4377,12 +4376,10 @@ pub async fn list_customer_payment_method(
 
         // Retrieve the masked bank details to be sent as a response
         let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
-            get_masked_bank_details(state, &pm, &key_store)
-                .await
-                .unwrap_or_else(|error| {
-                    logger::error!(?error);
-                    None
-                })
+            get_masked_bank_details(&pm).await.unwrap_or_else(|error| {
+                logger::error!(?error);
+                None
+            })
         } else {
             None
         };
@@ -4527,7 +4524,7 @@ async fn get_pm_list_context(
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let payment_method_retrieval_context = match payment_method {
         enums::PaymentMethod::Card => {
-            let card_details = get_card_details_with_locker_fallback(pm, state, key_store).await?;
+            let card_details = get_card_details_with_locker_fallback(pm, state).await?;
 
             card_details.as_ref().map(|card| PaymentMethodListContext {
                 card_details: Some(card.clone()),
@@ -4545,7 +4542,7 @@ async fn get_pm_list_context(
 
         enums::PaymentMethod::BankDebit => {
             // Retrieve the pm_auth connector details so that it can be tokenized
-            let bank_account_token_data = get_bank_account_connector_details(state, pm, key_store)
+            let bank_account_token_data = get_bank_account_connector_details(pm)
                 .await
                 .unwrap_or_else(|err| {
                     logger::error!(error=?err);
@@ -4908,12 +4905,10 @@ async fn generate_saved_pm_response(
     let payment_method = pm.payment_method.get_required_value("payment_method")?;
 
     let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
-        get_masked_bank_details(state, &pm, key_store)
-            .await
-            .unwrap_or_else(|err| {
-                logger::error!(error=?err);
-                None
-            })
+        get_masked_bank_details(&pm).await.unwrap_or_else(|err| {
+            logger::error!(error=?err);
+            None
+        })
     } else {
         None
     };
@@ -5091,7 +5086,6 @@ where
 pub async fn get_card_details_with_locker_fallback(
     pm: &domain::PaymentMethod,
     state: &routes::SessionState,
-    _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
     let card_decrypted = pm
         .payment_method_data
@@ -5118,7 +5112,6 @@ pub async fn get_card_details_with_locker_fallback(
 pub async fn get_card_details_with_locker_fallback(
     pm: &domain::PaymentMethod,
     state: &routes::SessionState,
-    _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
     let card_decrypted = pm
         .payment_method_data
@@ -5147,7 +5140,6 @@ pub async fn get_card_details_with_locker_fallback(
 pub async fn get_card_details_without_locker_fallback(
     pm: &domain::PaymentMethod,
     state: &routes::SessionState,
-    _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card_decrypted = pm
         .payment_method_data
@@ -5174,10 +5166,7 @@ pub async fn get_card_details_without_locker_fallback(
 pub async fn get_card_details_without_locker_fallback(
     pm: &domain::PaymentMethod,
     state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let key = key_store.key.get_inner().peek();
-    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
     let card_decrypted = pm
         .payment_method_data
         .clone()
@@ -5237,9 +5226,7 @@ pub async fn get_lookup_key_from_locker(
 }
 
 async fn get_masked_bank_details(
-    _state: &routes::SessionState,
     pm: &domain::PaymentMethod,
-    _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<MaskedBankDetails>> {
     let payment_method_data = pm
         .payment_method_data
@@ -5268,9 +5255,7 @@ async fn get_masked_bank_details(
 }
 
 async fn get_bank_account_connector_details(
-    _state: &routes::SessionState,
     pm: &domain::PaymentMethod,
-    _key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResult<Option<BankAccountTokenData>> {
     let payment_method_data = pm
         .payment_method_data
@@ -5618,7 +5603,7 @@ pub async fn retrieve_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card details from locker")?
         } else {
-            get_card_details_without_locker_fallback(&pm, &state, &key_store).await?
+            get_card_details_without_locker_fallback(&pm, &state).await?
         };
         Some(card_detail)
     } else {
@@ -5679,7 +5664,7 @@ pub async fn retrieve_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card details from locker")?
         } else {
-            get_card_details_without_locker_fallback(&pm, &state, &key_store).await?
+            get_card_details_without_locker_fallback(&pm, &state).await?
         };
         Some(card_detail)
     } else {
