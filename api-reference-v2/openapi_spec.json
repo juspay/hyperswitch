@@ -1128,6 +1128,175 @@
           }
         ]
       }
+    },
+    "/v2/api_keys": {
+      "post": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Create",
+        "description": "API Key - Create\n\nCreate a new API Key for accessing our APIs from your servers. The plaintext API Key will be\ndisplayed only once on creation, so ensure you store it securely.",
+        "operationId": "Create an API Key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/api_keys/{key_id}": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Retrieve",
+        "description": "API Key - Retrieve\n\nRetrieve information about the specified API Key.",
+        "operationId": "Retrieve an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Update",
+        "description": "API Key - Update\n\nUpdate information for the specified API Key.",
+        "operationId": "Update an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Revoke",
+        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
+        "operationId": "Revoke an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -8436,8 +8605,7 @@
         "required": [
           "connector_type",
           "connector_name",
-          "profile_id",
-          "merchant_id"
+          "profile_id"
         ],
         "properties": {
           "connector_type": {
@@ -8550,13 +8718,6 @@
               }
             ],
             "nullable": true
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
           },
           "additional_merchant_data": {
             "allOf": [
