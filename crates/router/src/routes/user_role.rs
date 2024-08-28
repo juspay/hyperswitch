@@ -269,3 +269,20 @@ pub async fn get_role_information(
     ))
     .await
 }
+
+pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ListUsersInLineage;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| {
+            user_role_core::list_users_in_lineage(state, user_from_token)
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

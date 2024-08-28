@@ -233,6 +233,14 @@ pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
     id_type::ProfileId::generate()
 }
 
+/// Generate a merchant_connector_account id with default length, with prefix as `mca`
+pub fn generate_merchant_connector_account_id_of_default_length(
+) -> id_type::MerchantConnectorAccountId {
+    use id_type::GenerateId;
+
+    id_type::MerchantConnectorAccountId::generate()
+}
+
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {

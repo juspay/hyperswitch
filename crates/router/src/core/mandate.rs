@@ -353,7 +353,7 @@ pub async fn mandate_procedure<F, FData>(
     resp: &types::RouterData<F, FData, types::PaymentsResponseData>,
     customer_id: &Option<id_type::CustomerId>,
     pm_id: Option<String>,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::RouterResult<Option<String>>
 where
