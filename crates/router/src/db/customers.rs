@@ -1078,7 +1078,7 @@ mod storage {
             state: &KeyManagerState,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
-            constraints: CustomerListConstraints,
+            constraints: super::CustomerListConstraints,
         ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
 
