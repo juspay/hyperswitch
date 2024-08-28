@@ -529,7 +529,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         })?;
 
         let m_state = state.clone();
-        let m_mandate_type = mandate_type.clone();
+        let m_mandate_type = mandate_type;
         let m_merchant_account = merchant_account.clone();
         let m_request = request.clone();
         let m_key_store = key_store.clone();

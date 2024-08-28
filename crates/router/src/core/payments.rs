@@ -201,7 +201,7 @@ where
         &key_store,
         &mut payment_data,
         eligible_connectors,
-        mandate_type.clone(),
+        mandate_type,
     )
     .await?;
 
