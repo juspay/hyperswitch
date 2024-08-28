@@ -5087,7 +5087,7 @@ pub struct PaymentsManualUpdateRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsManualUpdateResponse {
     /// The identifier for the payment
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
     /// The identifier for the payment attempt
     pub attempt_id: String,
     /// Merchant ID
