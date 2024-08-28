@@ -1842,7 +1842,7 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
 ))]
 struct MerchantDefaultConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
-    merchant_connector_id: &'a String,
+    merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
     store: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
@@ -1907,7 +1907,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
 ))]
 struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
-    merchant_connector_id: &'a String,
+    merchant_connector_id: &'a common_utils::id_type::MerchantConnectorAccountId,
     store: &'a dyn StorageInterface,
     business_profile: domain::BusinessProfile,
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
@@ -1954,7 +1954,7 @@ trait MerchantConnectorAccountUpdateBridge {
         self,
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount>;
@@ -1980,7 +1980,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         self,
         db: &dyn StorageInterface,
         _merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
@@ -2148,7 +2148,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         self,
         db: &dyn StorageInterface,
         merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
@@ -2161,7 +2161,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         .await
         .to_not_found_response(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.to_string(),
+                id: merchant_connector_id.get_string_repr().to_string(),
             },
         )
     }
@@ -2433,7 +2433,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             connector_label: Some(connector_label.clone()),
             created_at: date_time::now(),
             modified_at: date_time::now(),
-            id: common_utils::generate_time_ordered_id("mca"),
+            id: common_utils::generate_merchant_connector_account_id_of_default_length(),
             connector_webhook_details: match self.connector_webhook_details {
                 Some(connector_webhook_details) => {
                     connector_webhook_details.encode_to_value(
@@ -2580,7 +2580,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             merchant_id: business_profile.merchant_id.clone(),
             connector_type: self.connector_type,
             connector_name: self.connector_name.to_string(),
-            merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
+            merchant_connector_id: common_utils::generate_merchant_connector_account_id_of_default_length(),
             connector_account_details: domain_types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::MerchantConnectorAccount),
@@ -2913,7 +2913,7 @@ pub async fn retrieve_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
     profile_id: Option<id_type::ProfileId>,
-    merchant_connector_id: String,
+    merchant_connector_id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -2940,7 +2940,7 @@ pub async fn retrieve_connector(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_connector_id.clone(),
+            id: merchant_connector_id.get_string_repr().to_string(),
         })?;
     core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
@@ -2953,7 +2953,7 @@ pub async fn retrieve_connector(
 pub async fn retrieve_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    id: String,
+    id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -2970,14 +2970,14 @@ pub async fn retrieve_connector(
         .find_merchant_connector_account_by_id(key_manager_state, &id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: id.clone(),
+            id: id.clone().get_string_repr().to_string(),
         })?;
 
     // Validate if the merchant_id sent in the request is valid
     if mca.merchant_id != merchant_id {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Invalid merchant_id {} provided for merchant_connector_account {}",
+                "Invalid merchant_id {} provided for merchant_connector_account {:?}",
                 merchant_id.get_string_repr(),
                 id
             ),
@@ -3039,7 +3039,7 @@ pub async fn update_connector(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
     profile_id: Option<id_type::ProfileId>,
-    merchant_connector_id: &str,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let db = state.store.as_ref();
@@ -3101,7 +3101,10 @@ pub async fn update_connector(
             },
         )
         .attach_printable_lazy(|| {
-            format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
+            format!(
+                "Failed while updating MerchantConnectorAccount: id: {:?}",
+                merchant_connector_id
+            )
         })?;
 
     let response = updated_mca.foreign_try_into()?;
@@ -3116,7 +3119,7 @@ pub async fn update_connector(
 pub async fn delete_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    merchant_connector_id: String,
+    merchant_connector_id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -3143,7 +3146,7 @@ pub async fn delete_connector(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_connector_id.clone(),
+            id: merchant_connector_id.get_string_repr().to_string(),
         })?;
 
     let is_deleted = db
@@ -3153,7 +3156,7 @@ pub async fn delete_connector(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: merchant_connector_id.clone(),
+            id: merchant_connector_id.get_string_repr().to_string(),
         })?;
 
     let response = api::MerchantConnectorDeleteResponse {
@@ -3168,7 +3171,7 @@ pub async fn delete_connector(
 pub async fn delete_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    id: String,
+    id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -3185,14 +3188,14 @@ pub async fn delete_connector(
         .find_merchant_connector_account_by_id(key_manager_state, &id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: id.clone(),
+            id: id.clone().get_string_repr().to_string(),
         })?;
 
     // Validate if the merchant_id sent in the request is valid
     if mca.merchant_id != merchant_id {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Invalid merchant_id {} provided for merchant_connector_account {}",
+                "Invalid merchant_id {} provided for merchant_connector_account {:?}",
                 merchant_id.get_string_repr(),
                 id
             ),
@@ -3204,7 +3207,7 @@ pub async fn delete_connector(
         .delete_merchant_connector_account_by_id(&id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: id.clone(),
+            id: id.clone().get_string_repr().to_string(),
         })?;
 
     let response = api::MerchantConnectorDeleteResponse {
