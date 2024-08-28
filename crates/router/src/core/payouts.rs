@@ -1196,7 +1196,7 @@ pub async fn create_recipient(
                             not(feature = "customer_v2")
                         ))]
                         {
-                            let customer_id = customer.get_customer_id().to_owned();
+                            let customer_id = customer.customer_id.to_owned();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_customer_id_merchant_id(
                                     &state.into(),
@@ -2213,7 +2213,24 @@ pub async fn response_handler(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[allow(clippy::too_many_arguments)]
+pub async fn payout_create_db_entries(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _req: &payouts::PayoutCreateRequest,
+    _payout_id: &String,
+    _profile_id: &String,
+    _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
+    _locale: &String,
+    _customer: Option<&domain::Customer>,
+) -> RouterResult<PayoutData> {
+    todo!()
+}
+
 // DB entries
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[allow(clippy::too_many_arguments)]
 pub async fn payout_create_db_entries(
     state: &SessionState,
@@ -2228,7 +2245,7 @@ pub async fn payout_create_db_entries(
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
-    let customer_id = customer.map(|cust| cust.get_customer_id());
+    let customer_id = customer.map(|cust| cust.customer_id.clone());
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
@@ -2477,7 +2494,7 @@ pub async fn make_payout_data(
                 Some(payout_token) => {
                     let customer_id = customer_details
                         .as_ref()
-                        .map(|cd| cd.get_customer_id().to_owned())
+                        .map(|cd| cd.customer_id.to_owned())
                         .get_required_value("customer_id when payout_token is sent")?;
                     helpers::make_payout_method_data(
                         state,
@@ -2763,7 +2780,7 @@ pub async fn get_mca_from_profile_id(
     merchant_account: &domain::MerchantAccount,
     profile_id: &common_utils::id_type::ProfileId,
     connector_name: &str,
-    merchant_connector_id: Option<&String>,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(

@@ -201,7 +201,7 @@ pub struct ConnectorData {
     pub connector: ConnectorEnum,
     pub connector_name: types::Connector,
     pub get_token: GetToken,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone)]
@@ -264,7 +264,7 @@ impl ConnectorData {
         connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
-        connector_id: Option<String>,
+        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let connector_name = api_enums::Connector::from_str(name)
@@ -284,7 +284,7 @@ impl ConnectorData {
         connectors: &Connectors,
         name: &str,
         connector_type: GetToken,
-        connector_id: Option<String>,
+        connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         let connector = Self::convert_connector(connectors, name)?;
         let payout_connector_name = api_enums::PayoutConnectors::from_str(name)
@@ -471,6 +471,9 @@ impl ConnectorData {
                 enums::Connector::Nexinets => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Nexinets)))
                 }
+                // enums::Connector::Nexixpay => {
+                //     Ok(ConnectorEnum::Old(Box::new(&connector::Nexixpay)))
+                // }
                 enums::Connector::Paypal => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paypal::new())))
                 }

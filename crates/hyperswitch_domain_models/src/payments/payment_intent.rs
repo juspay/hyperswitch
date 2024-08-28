@@ -746,7 +746,7 @@ pub struct PaymentIntentListParams {
     pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
     pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
     pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
-    pub merchant_connector_id: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<String>,

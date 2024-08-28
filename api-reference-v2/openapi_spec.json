@@ -8537,12 +8537,6 @@
             "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
-          "merchant_connector_id": {
-            "type": "string",
-            "description": "Unique ID of the connector",
-            "example": "mca_5apGeP94tMts6rg3U3kR",
-            "nullable": true
-          },
           "pm_auth_config": {
             "type": "object",
             "description": "pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt",

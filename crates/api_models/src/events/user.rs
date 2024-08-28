@@ -17,10 +17,10 @@ use crate::user::{
     GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse,
     ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
     SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
-    SsoSignInRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
-    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
-    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    SsoSignInRequest, SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest,
+    TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
+    UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest, UserFromEmailRequest,
+    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -56,7 +56,9 @@ common_utils::impl_api_event_type!(
         GetMetaDataResponse,
         GetMetaDataRequest,
         SetMetaDataRequest,
-        SwitchMerchantIdRequest,
+        SwitchOrganizationRequest,
+        SwitchMerchantRequest,
+        SwitchProfileRequest,
         CreateInternalUserRequest,
         UserMerchantCreate,
         ListUsersResponse,
