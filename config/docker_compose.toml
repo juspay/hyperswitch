@@ -401,6 +401,12 @@ debit = { currency = "USD" }
 apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
 
+[pm_filters.cybersource]
+credit = { currency = "USD,GBP,EUR" }
+debit = { currency = "USD,GBP,EUR" }
+apple_pay = { currency = "USD,GBP,EUR" }
+google_pay = { currency = "USD,GBP,EUR" }
+
 [pm_filters.helcim]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
