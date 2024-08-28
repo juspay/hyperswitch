@@ -265,7 +265,7 @@ pub async fn retry_delivery_attempt(
 async fn get_account_and_key_store(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> errors::RouterResult<(MerchantAccountOrBusinessProfile, domain::MerchantKeyStore)> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -292,13 +292,13 @@ async fn get_account_and_key_store(
                 .await
                 .attach_printable_lazy(|| {
                     format!(
-                        "Failed to find business profile by merchant_id `{merchant_id:?}` and profile_id `{profile_id}`. \
-                        The merchant_id associated with the business profile `{profile_id}` may be \
+                        "Failed to find business profile by merchant_id `{merchant_id:?}` and profile_id `{profile_id:?}`. \
+                        The merchant_id associated with the business profile `{profile_id:?}` may be \
                         different than the merchant_id specified (`{merchant_id:?}`)."
                     )
                 })
                 .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id,
+                    id: profile_id.get_string_repr().to_owned(),
                 })?;
 
             Ok((

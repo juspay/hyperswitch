@@ -443,7 +443,6 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn list_customers_by_merchant_id(
         &self,
         state: &KeyManagerState,
@@ -715,7 +714,7 @@ impl EventInterface for KafkaStore {
     async fn list_initial_events_by_profile_id_primary_object_id(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
@@ -732,7 +731,7 @@ impl EventInterface for KafkaStore {
     async fn list_initial_events_by_profile_id_constraints(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
         created_after: Option<PrimitiveDateTime>,
         created_before: Option<PrimitiveDateTime>,
         limit: Option<i64>,
@@ -1130,7 +1129,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
@@ -1163,7 +1162,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         self.diesel_store
@@ -1180,7 +1179,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
-        id: &str,
+        id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         self.diesel_store
@@ -1224,7 +1223,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
@@ -1237,7 +1236,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
     async fn delete_merchant_connector_account_by_id(
         &self,
-        id: &str,
+        id: &id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
             .delete_merchant_connector_account_by_id(id)
@@ -1473,7 +1472,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method: Option<Vec<common_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -2374,7 +2373,7 @@ impl BusinessProfileInterface for KafkaStore {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
@@ -2386,7 +2385,7 @@ impl BusinessProfileInterface for KafkaStore {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
         self.diesel_store
             .find_business_profile_by_merchant_id_profile_id(
@@ -2417,7 +2416,7 @@ impl BusinessProfileInterface for KafkaStore {
 
     async fn delete_business_profile_by_profile_id_merchant_id(
         &self,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
@@ -2494,7 +2493,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
 
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
         algorithm_id: &str,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
@@ -2515,7 +2514,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
         algorithm_id: &str,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<storage::RoutingProfileMetadata, errors::StorageError> {
         self.diesel_store
             .find_routing_algorithm_metadata_by_algorithm_id_profile_id(algorithm_id, profile_id)
@@ -2524,7 +2523,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
 
     async fn list_routing_algorithm_metadata_by_profile_id(
         &self,
-        profile_id: &str,
+        profile_id: &id_type::ProfileId,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::RoutingProfileMetadata>, errors::StorageError> {
@@ -2808,7 +2807,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
@@ -2827,7 +2826,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: user_storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
@@ -2848,7 +2847,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
@@ -2877,7 +2876,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {

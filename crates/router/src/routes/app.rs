@@ -894,9 +894,13 @@ impl Customers {
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::put().to(customers_update))
+                        .route(web::post().to(customers_update))
                         .route(web::post().to(customers_retrieve)),
                 )
+        }
+        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
@@ -1137,10 +1141,29 @@ impl Blocklist {
 
 #[cfg(feature = "olap")]
 pub struct Organization;
-#[cfg(feature = "olap")]
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl Organization {
     pub fn server(state: AppState) -> Scope {
         web::scope("/organization")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(organization_retrieve))
+                    .route(web::put().to(organization_update)),
+            )
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
+impl Organization {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/organization")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(organization_create)))
             .service(
@@ -1681,6 +1704,19 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
+                ),
+        );
+
+        route = route.service(
+            web::scope("/switch")
+                .service(web::resource("/org").route(web::post().to(switch_org_for_user)))
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(switch_profile_for_user_in_org_and_merchant)),
                 ),
         );
 

@@ -75,8 +75,8 @@ pub struct PayoutAttempt {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    pub profile_id: String,
-    pub merchant_connector_id: Option<String>,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
 }
 
@@ -96,39 +96,11 @@ pub struct PayoutAttemptNew {
     pub error_code: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
-    pub created_at: Option<PrimitiveDateTime>,
-    pub last_modified_at: Option<PrimitiveDateTime>,
-    pub profile_id: String,
-    pub merchant_connector_id: Option<String>,
+    pub created_at: PrimitiveDateTime,
+    pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
-}
-
-impl Default for PayoutAttemptNew {
-    fn default() -> Self {
-        let now = common_utils::date_time::now();
-
-        Self {
-            payout_attempt_id: String::default(),
-            payout_id: String::default(),
-            customer_id: None,
-            merchant_id: id_type::MerchantId::default(),
-            address_id: None,
-            connector: None,
-            connector_payout_id: None,
-            payout_token: None,
-            status: storage_enums::PayoutStatus::default(),
-            is_eligible: None,
-            error_message: None,
-            error_code: None,
-            business_country: None,
-            business_label: None,
-            created_at: Some(now),
-            last_modified_at: Some(now),
-            profile_id: String::default(),
-            merchant_connector_id: None,
-            routing_info: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -152,7 +124,7 @@ pub enum PayoutAttemptUpdate {
     UpdateRouting {
         connector: String,
         routing_info: Option<serde_json::Value>,
-        merchant_connector_id: Option<String>,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     },
 }
 
@@ -170,7 +142,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub routing_info: Option<serde_json::Value>,
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {

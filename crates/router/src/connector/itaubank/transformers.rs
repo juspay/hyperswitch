@@ -133,15 +133,30 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
 pub struct ItaubankAuthType {
     pub(super) client_id: Secret<String>,
     pub(super) client_secret: Secret<String>,
+    pub(super) certificate: Option<Secret<String>>,
+    pub(super) certificate_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ItaubankAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
+            types::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Ok(Self {
+                client_secret: api_key.to_owned(),
+                client_id: key1.to_owned(),
+                certificate: Some(api_secret.to_owned()),
+                certificate_key: Some(key2.to_owned()),
+            }),
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 client_secret: api_key.to_owned(),
                 client_id: key1.to_owned(),
+                certificate: None,
+                certificate_key: None,
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -181,10 +196,12 @@ pub struct ItaubankUpdateTokenResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ItaubankTokenErrorResponse {
     pub status: i64,
     pub title: Option<String>,
     pub detail: Option<String>,
+    pub user_message: Option<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, ItaubankUpdateTokenResponse, T, types::AccessToken>>
@@ -449,4 +466,12 @@ pub struct ItaubankErrorBody {
     pub status: u16,
     pub title: Option<String>,
     pub detail: Option<String>,
+    pub violacoes: Option<Vec<Violations>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Violations {
+    pub razao: String,
+    pub propriedade: String,
+    pub valor: String,
 }

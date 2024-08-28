@@ -4,7 +4,7 @@ pub mod helpers;
 pub mod retry;
 pub mod transformers;
 pub mod validator;
-use std::vec::IntoIter;
+use std::{collections::HashSet, vec::IntoIter};
 
 use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 #[cfg(feature = "payout_retry")]
@@ -28,7 +28,7 @@ use futures::future::join_all;
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger, tracing, Env};
 use scheduler::utils as pt_utils;
 use serde_json;
 use time::Duration;
@@ -66,7 +66,7 @@ pub struct PayoutData {
     pub payouts: storage::Payouts,
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
 }
@@ -514,7 +514,7 @@ pub async fn payouts_update_core(
 pub async fn payouts_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -740,7 +740,7 @@ pub async fn payouts_fulfill_core(
 pub async fn payouts_list_core(
     _state: SessionState,
     _merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     _key_store: domain::MerchantKeyStore,
     _constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -755,7 +755,7 @@ pub async fn payouts_list_core(
 pub async fn payouts_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -864,7 +864,7 @@ pub async fn payouts_list_core(
 pub async fn payouts_filtered_list_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
@@ -1143,7 +1143,11 @@ pub async fn create_recipient(
     let connector_name = connector_data.connector_name.to_string();
 
     // Create the connector label using {profile_id}_{connector_name}
-    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
+    let connector_label = format!(
+        "{}_{}",
+        payout_data.profile_id.get_string_repr(),
+        connector_name
+    );
     let (should_call_connector, _connector_customer_id) =
         helpers::should_call_payout_connector_create_customer(
             state,
@@ -1192,7 +1196,7 @@ pub async fn create_recipient(
                             not(feature = "customer_v2")
                         ))]
                         {
-                            let customer_id = customer.get_customer_id().to_owned();
+                            let customer_id = customer.customer_id.to_owned();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_customer_id_merchant_id(
                                     &state.into(),
@@ -2209,7 +2213,24 @@ pub async fn response_handler(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[allow(clippy::too_many_arguments)]
+pub async fn payout_create_db_entries(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _req: &payouts::PayoutCreateRequest,
+    _payout_id: &String,
+    _profile_id: &String,
+    _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
+    _locale: &String,
+    _customer: Option<&domain::Customer>,
+) -> RouterResult<PayoutData> {
+    todo!()
+}
+
 // DB entries
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[allow(clippy::too_many_arguments)]
 pub async fn payout_create_db_entries(
     state: &SessionState,
@@ -2217,14 +2238,14 @@ pub async fn payout_create_db_entries(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
     payout_id: &String,
-    profile_id: &String,
+    profile_id: &common_utils::id_type::ProfileId,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     locale: &String,
     customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
-    let customer_id = customer.map(|cust| cust.get_customer_id());
+    let customer_id = customer.map(|cust| cust.customer_id.clone());
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
@@ -2291,7 +2312,7 @@ pub async fn payout_create_db_entries(
     let payouts_req = storage::PayoutsNew {
         payout_id: payout_id.to_string(),
         merchant_id: merchant_id.to_owned(),
-        customer_id,
+        customer_id: customer_id.to_owned(),
         address_id: address_id.to_owned(),
         payout_type,
         amount,
@@ -2303,7 +2324,7 @@ pub async fn payout_create_db_entries(
         return_url: req.return_url.to_owned(),
         entity_type: req.entity_type.unwrap_or_default(),
         payout_method_id,
-        profile_id: profile_id.to_string(),
+        profile_id: profile_id.to_owned(),
         attempt_count: 1,
         metadata: req.metadata.clone(),
         confirm: req.confirm,
@@ -2313,7 +2334,8 @@ pub async fn payout_create_db_entries(
         client_secret: Some(client_secret),
         priority: req.priority,
         status,
-        ..Default::default()
+        created_at: common_utils::date_time::now(),
+        last_modified_at: common_utils::date_time::now(),
     };
     let payouts = db
         .insert_payout(payouts_req, merchant_account.storage_scheme)
@@ -2333,8 +2355,18 @@ pub async fn payout_create_db_entries(
         business_country: req.business_country.to_owned(),
         business_label: req.business_label.to_owned(),
         payout_token: req.payout_token.to_owned(),
-        profile_id: profile_id.to_string(),
-        ..Default::default()
+        profile_id: profile_id.to_owned(),
+        customer_id,
+        address_id,
+        connector: None,
+        connector_payout_id: None,
+        is_eligible: None,
+        error_message: None,
+        error_code: None,
+        created_at: common_utils::date_time::now(),
+        last_modified_at: common_utils::date_time::now(),
+        merchant_connector_id: None,
+        routing_info: None,
     };
     let payout_attempt = db
         .insert_payout_attempt(
@@ -2371,7 +2403,7 @@ pub async fn payout_create_db_entries(
 pub async fn make_payout_data(
     _state: &SessionState,
     _merchant_account: &domain::MerchantAccount,
-    _auth_profile_id: Option<String>,
+    _auth_profile_id: Option<common_utils::id_type::ProfileId>,
     _key_store: &domain::MerchantKeyStore,
     _req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
@@ -2382,7 +2414,7 @@ pub async fn make_payout_data(
 pub async fn make_payout_data(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    auth_profile_id: Option<String>,
+    auth_profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
@@ -2450,7 +2482,6 @@ pub async fn make_payout_data(
         .await
         .transpose()?
         .and_then(|c| c);
-
     let profile_id = payout_attempt.profile_id.clone();
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
@@ -2463,7 +2494,7 @@ pub async fn make_payout_data(
                 Some(payout_token) => {
                     let customer_id = customer_details
                         .as_ref()
-                        .map(|cd| cd.get_customer_id().to_owned())
+                        .map(|cd| cd.customer_id.to_owned())
                         .get_required_value("customer_id when payout_token is sent")?;
                     helpers::make_payout_method_data(
                         state,
@@ -2568,7 +2599,7 @@ pub async fn add_external_account_addition_task(
 async fn validate_and_get_business_profile(
     state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
-    profile_id: &String,
+    profile_id: &common_utils::id_type::ProfileId,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<domain::BusinessProfile> {
     let db = &*state.store;
@@ -2588,7 +2619,7 @@ async fn validate_and_get_business_profile(
         db.find_business_profile_by_profile_id(key_manager_state, merchant_key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })
     }
 }
@@ -2614,15 +2645,34 @@ pub async fn create_payout_link(
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
 
-    // Validate allowed_domains presence
-    let allowed_domains = profile_config
+    let test_mode_in_config = payout_link_config_req
         .as_ref()
-        .map(|config| config.config.allowed_domains.to_owned())
-        .get_required_value("allowed_domains")
-        .change_context(errors::ApiErrorResponse::LinkConfigurationError {
-            message: "Payout links cannot be used without setting allowed_domains in profile"
-                .to_string(),
-        })?;
+        .and_then(|config| config.test_mode)
+        .or_else(|| profile_config.as_ref().and_then(|c| c.payout_test_mode));
+    let is_test_mode_enabled = test_mode_in_config.unwrap_or(false);
+
+    let allowed_domains = match (router_env::which(), is_test_mode_enabled) {
+        // Throw error in case test_mode was enabled in production
+        (Env::Production, true) => Err(report!(errors::ApiErrorResponse::LinkConfigurationError {
+            message: "test_mode cannot be true for creating payout_links in production".to_string()
+        })),
+        // Send empty set of whitelisted domains
+        (_, true) => {
+            Ok(HashSet::new())
+        },
+        // Otherwise, fetch and use allowed domains from profile config
+        (_, false) => {
+            profile_config
+            .as_ref()
+            .map(|config| config.config.allowed_domains.to_owned())
+            .get_required_value("allowed_domains")
+            .change_context(errors::ApiErrorResponse::LinkConfigurationError {
+                message:
+                    "Payout links cannot be used without setting allowed_domains in profile. If you're using a non-production environment, you can set test_mode to true while in payout_link_config"
+                        .to_string(),
+            })
+        }
+    }?;
 
     // Form data to be injected in the link
     let (logo, merchant_name, theme) = match ui_config {
@@ -2685,6 +2735,7 @@ pub async fn create_payout_link(
         amount: MinorUnit::from(*amount),
         currency: *currency,
         allowed_domains,
+        test_mode: test_mode_in_config,
     };
 
     create_payout_link_db_entry(state, merchant_id, &data, req.return_url.clone()).await
@@ -2727,9 +2778,9 @@ pub async fn create_payout_link_db_entry(
 pub async fn get_mca_from_profile_id(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    profile_id: &String,
+    profile_id: &common_utils::id_type::ProfileId,
     connector_name: &str,
-    merchant_connector_id: Option<&String>,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<payment_helpers::MerchantConnectorAccountType> {
     let merchant_connector_account = payment_helpers::get_merchant_connector_account(

@@ -27,6 +27,7 @@ use crate::{
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait ConstructFlowSpecificData<F, Req, Res> {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -36,6 +37,18 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
+    ) -> RouterResult<types::RouterData<F, Req, Res>>;
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn construct_router_data<'a>(
+        &self,
+        _state: &SessionState,
+        _connector_id: &str,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     async fn get_merchant_recipient_data<'a>(
@@ -554,8 +567,10 @@ default_imp_for_connector_request_id!(
     connector::Mollie,
     connector::Multisafepay,
     connector::Netcetera,
+    connector::Nexixpay,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
@@ -1208,8 +1223,10 @@ default_imp_for_payouts!(
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
+    connector::Nexixpay,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
@@ -2227,8 +2244,10 @@ default_imp_for_fraud_check!(
     connector::Multisafepay,
     connector::Netcetera,
     connector::Nexinets,
+    connector::Nexixpay,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
@@ -3041,8 +3060,10 @@ default_imp_for_connector_authentication!(
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nexixpay,
     connector::Nmi,
     connector::Noon,
+    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,

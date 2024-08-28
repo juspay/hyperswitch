@@ -160,6 +160,7 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
+    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -210,7 +211,7 @@ pub enum RoutableConnectors {
     Dlocal,
     Ebanx,
     Fiserv,
-    // Fiservemea,
+    Fiservemea,
     Forte,
     Globalpay,
     Globepay,
@@ -225,6 +226,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
+    // Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
