@@ -5016,6 +5016,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
+    mandate_type: Option<api_models::payments::MandateTransactionType>,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
     let authentication_id = payment_data.payment_attempt.authentication_id.clone();
     let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
@@ -5050,7 +5051,11 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         authentication_id.map(|authentication_id| {
             PaymentExternalAuthenticationFlow::PostAuthenticationFlow { authentication_id }
         })
-    } else if separate_authentication_requested && is_authentication_type_3ds {
+    } else if separate_authentication_requested
+        && is_authentication_type_3ds
+        && mandate_type
+            != Some(api_models::payments::MandateTransactionType::RecurringMandateTransaction)
+    {
         if let Some((connector_data, card_number)) =
             connector_supports_separate_authn.zip(card_number)
         {

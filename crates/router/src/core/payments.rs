@@ -264,6 +264,7 @@ where
                 &connector_details,
                 &business_profile,
                 &key_store,
+                mandate_type,
             )
             .await?;
         if should_continue_transaction {
