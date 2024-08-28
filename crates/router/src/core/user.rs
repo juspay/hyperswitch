@@ -62,7 +62,7 @@ pub async fn signup_with_merchant_id(
     let user_role = new_user
         .insert_user_role_in_db(
             state.clone(),
-            consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
         )
         .await?;
@@ -134,7 +134,7 @@ pub async fn signup(
     let user_role = new_user
         .insert_user_role_in_db(
             state.clone(),
-            consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
         )
         .await?;
@@ -165,7 +165,7 @@ pub async fn signup_token_only_flow(
     let user_role = new_user
         .insert_user_role_in_db(
             state.clone(),
-            consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
         )
         .await?;
@@ -316,7 +316,7 @@ pub async fn connect_account(
         let user_role = new_user
             .insert_user_role_in_db(
                 state.clone(),
-                consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+                common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
             )
             .await?;
@@ -1310,7 +1310,7 @@ pub async fn create_internal_user(
     new_user
         .insert_user_role_in_db(
             state,
-            consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
+            common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             UserStatus::Active,
         )
         .await?;
@@ -1389,7 +1389,7 @@ pub async fn switch_merchant_id(
     } else {
         let user_roles = state
             .store
-            .list_user_roles_by_user_id(&user_from_token.user_id, UserRoleVersion::V1)
+            .list_user_roles_by_user_id_and_version(&user_from_token.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)?;
 
@@ -1450,7 +1450,7 @@ pub async fn create_merchant_account(
     let role_insertion_res = new_user
         .insert_user_role_in_db(
             state.clone(),
-            consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
         )
         .await;
@@ -1471,7 +1471,10 @@ pub async fn list_merchants_for_user(
 ) -> UserResponse<Vec<user_api::UserMerchantAccount>> {
     let user_roles = state
         .store
-        .list_user_roles_by_user_id(user_from_token.user_id.as_str(), UserRoleVersion::V1)
+        .list_user_roles_by_user_id_and_version(
+            user_from_token.user_id.as_str(),
+            UserRoleVersion::V1,
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -2572,7 +2575,7 @@ pub async fn list_orgs_for_user(
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
     let orgs = state
         .store
-        .list_user_roles_by_user_id_and_details(
+        .list_user_roles_by_user_id(
             user_from_token.user_id.as_str(),
             None,
             None,
@@ -2638,7 +2641,7 @@ pub async fn list_merchants_for_user_in_org(
     } else {
         let merchant_ids = state
             .store
-            .list_user_roles_by_user_id_and_details(
+            .list_user_roles_by_user_id(
                 user_from_token.user_id.as_str(),
                 Some(&user_from_token.org_id),
                 None,
@@ -2721,7 +2724,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
         } else {
             let profile_ids = state
                 .store
-                .list_user_roles_by_user_id_and_details(
+                .list_user_roles_by_user_id(
                     user_from_token.user_id.as_str(),
                     Some(&user_from_token.org_id),
                     Some(&user_from_token.merchant_id),

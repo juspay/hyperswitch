@@ -5,7 +5,6 @@ use diesel_models::role::{RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
 
 use crate::{
-    consts,
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     routes::{app::ReqState, SessionState},
     services::{
@@ -72,7 +71,7 @@ pub async fn create_role(
     .await?;
 
     if matches!(req.role_scope, RoleScope::Organization)
-        && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
+        && user_from_token.role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user creating org level role");
@@ -292,7 +291,7 @@ pub async fn update_role(
     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
     if matches!(role_info.get_scope(), RoleScope::Organization)
-        && user_from_token.role_id != consts::user_role::ROLE_ID_ORGANIZATION_ADMIN
+        && user_from_token.role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user changing org level role");

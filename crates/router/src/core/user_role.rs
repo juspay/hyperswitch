@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    db::user_role::ListUserRolesByOrgIdDetailsPayload,
+    db::user_role::ListUserRolesByOrgIdPayload,
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -619,13 +619,13 @@ pub async fn delete_user_role(
     // Check if user has any more role associations
     let user_roles_v2 = state
         .store
-        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V2)
+        .list_user_roles_by_user_id_and_version(user_from_db.get_user_id(), UserRoleVersion::V2)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     let user_roles_v1 = state
         .store
-        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V1)
+        .list_user_roles_by_user_id_and_version(user_from_db.get_user_id(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -656,10 +656,10 @@ pub async fn list_users_in_lineage(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
-    let set: HashSet<_> = match requestor_role_info.get_entity_type() {
+    let user_roles_set: HashSet<_> = match requestor_role_info.get_entity_type() {
         EntityType::Organization => state
             .store
-            .list_user_roles_by_org_id_and_details(ListUserRolesByOrgIdDetailsPayload {
+            .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
                 user_id: None,
                 org_id: &user_from_token.org_id,
                 merchant_id: None,
@@ -672,15 +672,13 @@ pub async fn list_users_in_lineage(
             .collect(),
         EntityType::Merchant => state
             .store
-            .list_user_roles_by_org_id_and_details(
-                ListUserRolesByOrgIdDetailsPayload {
-                    user_id: None,
-                    org_id: &user_from_token.org_id,
-                    merchant_id: Some(&user_from_token.merchant_id),
-                    profile_id: None,
-                    version: None,
-                }, // None,
-            )
+            .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                user_id: None,
+                org_id: &user_from_token.org_id,
+                merchant_id: Some(&user_from_token.merchant_id),
+                profile_id: None,
+                version: None,
+            })
             .await
             .change_context(UserErrors::InternalServerError)?
             .into_iter()
@@ -692,19 +690,13 @@ pub async fn list_users_in_lineage(
 
             state
                 .store
-                .list_user_roles_by_org_id_and_details(
-                    ListUserRolesByOrgIdDetailsPayload {
-                        user_id: None,
-                        org_id: &user_from_token.org_id,
-                        merchant_id: Some(&user_from_token.merchant_id),
-                        profile_id: Some(profile_id),
-                        version: None,
-                    }, // None,
-                       // &user_from_token.org_id,
-                       // Some(&user_from_token.merchant_id),
-                       // Some(profile_id),
-                       // None,
-                )
+                .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id: Some(profile_id),
+                    version: None,
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
@@ -713,49 +705,72 @@ pub async fn list_users_in_lineage(
         EntityType::Internal => HashSet::new(),
     };
 
-    let user_roles_map = futures::future::try_join_all(set.into_iter().map(|user_role| {
-        let state = state.clone();
-        let user_from_token = user_from_token.clone();
-        async move {
-            futures::try_join!(
-                state.global_store.find_user_by_id(&user_role.user_id),
-                roles::RoleInfo::from_role_id(
-                    &state,
-                    &user_role.role_id,
-                    &user_from_token.merchant_id,
-                    &user_from_token.org_id
-                )
+    let mut email_map = state
+        .global_store
+        .find_users_by_user_ids(
+            user_roles_set
+                .iter()
+                .map(|user_role| user_role.user_id.clone())
+                .collect(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .map(|user| (user.user_id.clone(), user.email))
+        .collect::<HashMap<_, _>>();
+
+    let role_info_map =
+        futures::future::try_join_all(user_roles_set.iter().map(|user_role| async {
+            roles::RoleInfo::from_role_id(
+                &state,
+                &user_role.role_id,
+                &user_from_token.merchant_id,
+                &user_from_token.org_id,
             )
-            .change_context(UserErrors::InternalServerError)
-        }
-    }))
-    .await?
-    .into_iter()
-    .fold(HashMap::new(), |mut map, (user, role_info)| {
-        // This condition is not needed if all the data is V2.
-        // TODO: Remove this condition once V1 is removed.
-        if role_info.get_entity_type() <= requestor_role_info.get_entity_type() {
-            let (_email, role_info_vec) = map.entry(user.user_id).or_insert((user.email, vec![]));
-            role_info_vec.push(role_info);
-        }
-        map
-    });
+            .await
+            .map(|role_info| {
+                (
+                    user_role.role_id.clone(),
+                    user_api::MinimalRoleInfo {
+                        role_id: user_role.role_id.clone(),
+                        role_name: role_info.get_role_name().to_string(),
+                    },
+                )
+            })
+        }))
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .collect::<HashMap<_, _>>();
+
+    let user_role_map = user_roles_set
+        .into_iter()
+        .fold(HashMap::new(), |mut map, user_role| {
+            map.entry(user_role.user_id)
+                .or_insert(Vec::with_capacity(1))
+                .push(user_role.role_id);
+            map
+        });
 
     Ok(ApplicationResponse::Json(
-        user_roles_map
-            .into_values()
-            .map(
-                |(email, role_info_vec)| user_api::ListUsersInEntityResponse {
-                    email,
-                    roles: role_info_vec
+        user_role_map
+            .into_iter()
+            .map(|(user_id, role_id_vec)| {
+                Ok::<_, error_stack::Report<UserErrors>>(user_api::ListUsersInEntityResponse {
+                    email: email_map
+                        .remove(&user_id)
+                        .ok_or(UserErrors::InternalServerError)?,
+                    roles: role_id_vec
                         .into_iter()
-                        .map(|role_info| user_api::MinimalRoleInfo {
-                            role_id: role_info.get_role_id().to_owned(),
-                            role_name: role_info.get_role_name().to_owned(),
+                        .map(|role_id| {
+                            role_info_map
+                                .get(&role_id)
+                                .cloned()
+                                .ok_or(UserErrors::InternalServerError)
                         })
-                        .collect(),
-                },
-            )
-            .collect(),
+                        .collect::<Result<Vec<_>, _>>()?,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?,
     ))
 }

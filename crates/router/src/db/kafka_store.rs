@@ -35,7 +35,7 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
-    user_role::{ListUserRolesByOrgIdDetailsPayload, UserRoleInterface},
+    user_role::{ListUserRolesByOrgIdPayload, UserRoleInterface},
 };
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
@@ -2793,13 +2793,13 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id_and_version(
         &self,
         user_id: &str,
         version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store
-            .list_user_roles_by_user_id(user_id, version)
+            .list_user_roles_by_user_id_and_version(user_id, version)
             .await
     }
 
@@ -2872,7 +2872,7 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn list_user_roles_by_user_id_and_details(
+    async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
@@ -2882,7 +2882,7 @@ impl UserRoleInterface for KafkaStore {
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         self.diesel_store
-            .list_user_roles_by_user_id_and_details(
+            .list_user_roles_by_user_id(
                 user_id,
                 org_id,
                 merchant_id,
@@ -2893,13 +2893,11 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn list_user_roles_by_org_id_and_details<'a>(
+    async fn list_user_roles_by_org_id<'a>(
         &self,
-        payload: ListUserRolesByOrgIdDetailsPayload<'a>,
+        payload: ListUserRolesByOrgIdPayload<'a>,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_org_id_and_details(payload)
-            .await
+        self.diesel_store.list_user_roles_by_org_id(payload).await
     }
 }
 

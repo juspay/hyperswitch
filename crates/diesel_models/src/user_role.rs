@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use common_enums::EntityType;
-use common_utils::id_type;
+use common_utils::{consts, id_type};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -27,31 +27,32 @@ pub struct UserRole {
 }
 
 fn get_entity_id_and_type(user_role: &UserRole) -> (Option<String>, Option<EntityType>) {
-    match user_role.version {
-        enums::UserRoleVersion::V1 => match user_role.role_id.as_str() {
-            "org_admin" => (
-                user_role
-                    .org_id
-                    .clone()
-                    .map(|org_id| org_id.get_string_repr().to_string()),
-                Some(EntityType::Organization),
-            ),
-            "internal_view_only" | "internal_admin" => (
-                user_role
-                    .merchant_id
-                    .clone()
-                    .map(|merchant_id| merchant_id.get_string_repr().to_string()),
-                Some(EntityType::Internal),
-            ),
-            _ => (
-                user_role
-                    .merchant_id
-                    .clone()
-                    .map(|merchant_id| merchant_id.get_string_repr().to_string()),
-                Some(EntityType::Merchant),
-            ),
-        },
-        enums::UserRoleVersion::V2 => (user_role.entity_id.clone(), user_role.entity_type.clone()),
+    match (user_role.version, user_role.role_id.as_str()) {
+        (enums::UserRoleVersion::V1, consts::ROLE_ID_ORGANIZATION_ADMIN) => (
+            user_role
+                .org_id
+                .clone()
+                .map(|org_id| org_id.get_string_repr().to_string()),
+            Some(EntityType::Organization),
+        ),
+        (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER)
+        | (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_ADMIN) => (
+            user_role
+                .merchant_id
+                .clone()
+                .map(|merchant_id| merchant_id.get_string_repr().to_string()),
+            Some(EntityType::Internal),
+        ),
+        (enums::UserRoleVersion::V1, _) => (
+            user_role
+                .merchant_id
+                .clone()
+                .map(|merchant_id| merchant_id.get_string_repr().to_string()),
+            Some(EntityType::Merchant),
+        ),
+        (enums::UserRoleVersion::V2, _) => {
+            (user_role.entity_id.clone(), user_role.entity_type.clone())
+        }
     }
 }
 
