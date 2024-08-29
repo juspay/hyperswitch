@@ -43,8 +43,8 @@ pub async fn encrypt_jwe(
     let enc_str = algorithm.as_ref();
     src_header.set_content_encryption(enc_str);
     src_header.set_token_type("JWT");
-    if let Some(kid) = key_id {
-        src_header.set_key_id(kid);
+    if let Some(key_id) = key_id {
+        src_header.set_key_id(key_id);
     }
     let encrypter = alg
         .encrypter_from_pem(public_key)

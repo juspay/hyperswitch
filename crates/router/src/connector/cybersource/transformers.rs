@@ -1200,7 +1200,7 @@ impl
             domain::NetworkTokenData,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.request.get_email()?;
+        let email = item.router_data.get_billing_email()?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 

@@ -3739,7 +3739,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                         let network_transaction_id = payment_method_info
                             .network_transaction_id
                             .as_ref()
-                            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to featch the network transaction id")?;
 
                         let mandate_reference_id =
                             Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
@@ -3757,7 +3758,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                         let network_transaction_id = payment_method_info
                             .network_transaction_id
                             .as_ref()
-                            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to featch the network transaction id")?;
 
                         let mandate_reference_id =
                             Some(payments_api::MandateReferenceId::NetworkMandateId(
@@ -3777,7 +3779,8 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                     let network_transaction_id = payment_method_info
                         .network_transaction_id
                         .as_ref()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to featch the network transaction id")?;
 
                     let mandate_reference_id =
                         Some(payments_api::MandateReferenceId::NetworkMandateId(

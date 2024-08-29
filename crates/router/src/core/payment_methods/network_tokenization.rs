@@ -513,7 +513,8 @@ pub async fn do_status_check_for_network_token(
             Ok((token_exp_month, token_exp_year))
         } else {
             Err(errors::NetworkTokenizationError::FetchNetworkTokenFailed)
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Check network token status failed")?
         }
     } else {
         Ok((None, None))

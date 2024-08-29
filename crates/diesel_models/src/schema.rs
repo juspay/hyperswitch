@@ -992,7 +992,7 @@ diesel::table! {
         payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
-        #[max_length = 64]
+        #[max_length = 128]
         network_token_requestor_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         network_token_locker_id -> Nullable<Varchar>,

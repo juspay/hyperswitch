@@ -1808,7 +1808,7 @@ pub async fn retrieve_card_with_permanent_token(
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(
-                            "failed to fetch card information from the permanent locker",
+                            "failed to fetch network token information from the permanent locker",
                         )?;
                         let expiry = nt_data.token_exp_month.zip(nt_data.token_exp_year);
                         if let Some((exp_month, exp_year)) = expiry {
