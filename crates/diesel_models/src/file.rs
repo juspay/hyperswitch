@@ -18,7 +18,7 @@ pub struct FileMetadataNew {
     pub available: bool,
     pub connector_label: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable, Selectable)]
@@ -37,7 +37,7 @@ pub struct FileMetadata {
     pub created_at: time::PrimitiveDateTime,
     pub connector_label: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ pub enum FileMetadataUpdate {
         file_upload_provider: Option<common_enums::FileUploadProvider>,
         available: bool,
         profile_id: Option<common_utils::id_type::ProfileId>,
-        merchant_connector_id: Option<String>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
 }
 
@@ -58,7 +58,7 @@ pub struct FileMetadataUpdateInternal {
     file_upload_provider: Option<common_enums::FileUploadProvider>,
     available: bool,
     profile_id: Option<common_utils::id_type::ProfileId>,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl From<FileMetadataUpdate> for FileMetadataUpdateInternal {

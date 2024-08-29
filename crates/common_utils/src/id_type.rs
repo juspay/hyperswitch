@@ -5,6 +5,7 @@ use std::{borrow::Cow, fmt::Debug};
 
 mod customer;
 mod merchant;
+mod merchant_connector_account;
 mod organization;
 mod profile;
 
@@ -19,6 +20,7 @@ use diesel::{
     sql_types,
 };
 pub use merchant::MerchantId;
+pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
 pub use profile::ProfileId;
 use serde::{Deserialize, Serialize};

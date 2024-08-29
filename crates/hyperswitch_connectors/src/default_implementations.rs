@@ -90,8 +90,10 @@ default_imp_for_authorize_session_token!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -116,8 +118,10 @@ default_imp_for_complete_authorize!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -142,8 +146,10 @@ default_imp_for_incremental_authorization!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -168,8 +174,10 @@ default_imp_for_create_customer!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Taxjar
 );
 
@@ -194,8 +202,10 @@ default_imp_for_connector_redirect_response!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -220,8 +230,10 @@ default_imp_for_pre_processing_steps!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -246,8 +258,10 @@ default_imp_for_post_processing_steps!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -272,8 +286,10 @@ default_imp_for_approve!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -298,8 +314,10 @@ default_imp_for_reject!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -324,8 +342,10 @@ default_imp_for_webhook_source_verification!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -351,8 +371,10 @@ default_imp_for_accept_dispute!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -377,8 +399,10 @@ default_imp_for_submit_evidence!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -403,8 +427,10 @@ default_imp_for_defend_dispute!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -438,8 +464,10 @@ default_imp_for_file_upload!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -466,8 +494,10 @@ default_imp_for_payouts_create!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -494,8 +524,10 @@ default_imp_for_payouts_retrieve!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -522,8 +554,10 @@ default_imp_for_payouts_eligibility!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -550,8 +584,10 @@ default_imp_for_payouts_fulfill!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -578,8 +614,10 @@ default_imp_for_payouts_cancel!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -606,8 +644,10 @@ default_imp_for_payouts_quote!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -634,8 +674,10 @@ default_imp_for_payouts_recipient!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -662,8 +704,10 @@ default_imp_for_payouts_recipient_account!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -690,8 +734,10 @@ default_imp_for_frm_sale!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -718,8 +764,10 @@ default_imp_for_frm_checkout!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -746,8 +794,10 @@ default_imp_for_frm_transaction!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -774,8 +824,10 @@ default_imp_for_frm_fulfillment!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -802,8 +854,10 @@ default_imp_for_frm_record_return!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -827,8 +881,10 @@ default_imp_for_revoking_mandates!(
     connectors::Bitpay,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiuu,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexixpay,
     connectors::Stax,
     connectors::Taxjar
 );

@@ -1,4 +1,5 @@
 use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
+use diesel_models::query::customers::CustomerListConstraints as DieselCustomerListConstraints;
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::customer;
@@ -16,6 +17,20 @@ use crate::{
         storage::{self as storage_types, enums::MerchantStorageScheme},
     },
 };
+
+pub struct CustomerListConstraints {
+    pub limit: u16,
+    pub offset: Option<u32>,
+}
+
+impl From<CustomerListConstraints> for DieselCustomerListConstraints {
+    fn from(value: CustomerListConstraints) -> Self {
+        Self {
+            limit: i64::from(value.limit),
+            offset: value.offset.map(i64::from),
+        }
+    }
+}
 
 #[async_trait::async_trait]
 pub trait CustomerInterface
@@ -88,6 +103,7 @@ where
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
+        constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<customer::Customer>, errors::StorageError>;
 
     async fn insert_customer(
@@ -230,7 +246,7 @@ mod storage {
         async fn find_optional_by_merchant_id_merchant_reference_id(
             &self,
             state: &KeyManagerState,
-            customer_id: &id_type::CustomerId,
+            merchant_reference_id: &id_type::CustomerId,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
@@ -239,7 +255,7 @@ mod storage {
             let database_call = || async {
                 storage_types::Customer::find_optional_by_merchant_id_merchant_reference_id(
                     &conn,
-                    customer_id,
+                    merchant_reference_id,
                     merchant_id,
                 )
                 .await
@@ -253,9 +269,9 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id: merchant_reference_id.get_string_repr(),
                     };
-                    let field = format!("cust_{}", customer_id.get_string_repr());
+                    let field = format!("cust_{}", merchant_reference_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
                         // check for ValueNotFound
                         async {
@@ -514,13 +530,20 @@ mod storage {
             state: &KeyManagerState,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
+            constraints: super::CustomerListConstraints,
         ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
 
-            let encrypted_customers =
-                storage_types::Customer::list_by_merchant_id(&conn, merchant_id)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+            let customer_list_constraints =
+                diesel_models::query::customers::CustomerListConstraints::from(constraints);
+
+            let encrypted_customers = storage_types::Customer::list_by_merchant_id(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
@@ -1055,13 +1078,20 @@ mod storage {
             state: &KeyManagerState,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
+            constraints: super::CustomerListConstraints,
         ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
 
-            let encrypted_customers =
-                storage_types::Customer::list_by_merchant_id(&conn, merchant_id)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+            let customer_list_constraints =
+                diesel_models::query::customers::CustomerListConstraints::from(constraints);
+
+            let encrypted_customers = storage_types::Customer::list_by_merchant_id(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
@@ -1192,7 +1222,7 @@ impl CustomerInterface for MockDb {
         let customer = customers
             .iter()
             .find(|customer| {
-                customer.get_customer_id() == *customer_id && &customer.merchant_id == merchant_id
+                customer.customer_id == *customer_id && &customer.merchant_id == merchant_id
             })
             .cloned();
         customer
@@ -1219,25 +1249,7 @@ impl CustomerInterface for MockDb {
         key_store: &domain::MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
-        let customers = self.customers.lock().await;
-        let customer = customers
-            .iter()
-            .find(|customer| {
-                customer.get_customer_id() == *customer_id && &customer.merchant_id == merchant_id
-            })
-            .cloned();
-        customer
-            .async_map(|c| async {
-                c.convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-            .transpose()
+        todo!()
     }
 
     async fn list_customers_by_merchant_id(
@@ -1245,6 +1257,7 @@ impl CustomerInterface for MockDb {
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
+        constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
 
@@ -1252,6 +1265,8 @@ impl CustomerInterface for MockDb {
             customers
                 .iter()
                 .filter(|customer| customer.merchant_id == *merchant_id)
+                .take(usize::from(constraints.limit))
+                .skip(usize::try_from(constraints.offset.unwrap_or(0)).unwrap_or(0))
                 .map(|customer| async {
                     customer
                         .to_owned()
