@@ -100,6 +100,12 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for routing
         routes::routing::routing_create_config,
         routes::routing::routing_retrieve_config,
+
+        // Routes for api keys
+        routes::api_keys::api_key_create,
+        routes::api_keys::api_key_retrieve,
+        routes::api_keys::api_key_update,
+        routes::api_keys::api_key_revoke,
     ),
     components(schemas(
         common_utils::types::MinorUnit,

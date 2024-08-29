@@ -50,6 +50,7 @@ pub struct ConnectorAuthentication {
     pub multisafepay: Option<HeaderKey>,
     pub netcetera: Option<HeaderKey>,
     pub nexinets: Option<BodyKey>,
+    pub nexixpay: Option<HeaderKey>,
     pub noon: Option<SignatureKey>,
     pub novalnet: Option<HeaderKey>,
     pub nmi: Option<HeaderKey>,
