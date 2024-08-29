@@ -432,7 +432,9 @@ pub async fn get_token_pm_type_mandate_details(
                                     &db.get_master_key().to_vec().into(),
                                 )
                                 .await
-                                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+                                .to_not_found_response(
+                                    errors::ApiErrorResponse::MerchantAccountNotFound,
+                                )?;
 
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -454,24 +456,14 @@ pub async fn get_token_pm_type_mandate_details(
                                 None,
                                 Some(payments::MandateConnectorDetails {
                                     connector: connector_name,
-                                    merchant_connector_id: Some(
-                                        mca_id.clone(),
-                                    ),
+                                    merchant_connector_id: Some(mca_id.clone()),
                                 }),
                                 None,
                             )
                         } else {
-                            (
-                                None,
-                                request.payment_method,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                            )
+                            (None, request.payment_method, None, None, None, None, None)
                         }
-                    },
+                    }
                     RecurringDetails::MandateId(mandate_id) => {
                         let mandate_generic_data = get_token_for_recurring_mandate(
                             state,
