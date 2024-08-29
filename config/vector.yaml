@@ -60,6 +60,7 @@ transforms:
       - plus_1_events
     source: |-
       .timestamp = from_unix_timestamp!(.created_at, unit: "seconds")
+      ."@timestamp" = from_unix_timestamp(.created_at, unit: "seconds") ?? now()
 
   sdk_transformed:
     type: throttle
@@ -70,7 +71,7 @@ transforms:
     window_secs: 60
 
 sinks:
-  opensearch_events:
+  opensearch_events_1:
     type: elasticsearch
     inputs:
       - events
@@ -92,9 +93,32 @@ sinks:
         - partition
         - topic
     bulk:
-      # Add a date prefixed index for better grouping
-      # index: "vector-{{ .topic }}-%Y-%m-%d"
-      index: "{{ .topic }}"
+      index: "vector-{{ .topic }}"
+
+  opensearch_events_2:
+    type: elasticsearch
+    inputs:
+      - events
+    endpoints:
+      - "https://opensearch:9200"
+    id_key: message_key
+    api_version: v7
+    tls:
+      verify_certificate: false
+      verify_hostname: false
+    auth:
+      strategy: basic
+      user: admin
+      password: 0penS3arc#
+    encoding:
+      except_fields:
+        - message_key
+        - offset
+        - partition
+        - topic
+    bulk:
+      # Add a date suffixed index for better grouping
+      index: "vector-{{ .topic }}-%Y-%m-%d"
 
   opensearch_logs:
     type: elasticsearch
@@ -111,7 +135,7 @@ sinks:
       user: admin
       password: 0penS3arc#
     bulk:
-      # Add a date prefixed index for better grouping
+      # Add a date suffixed index for better grouping
       # index: "vector-{{ .topic }}-%Y-%m-%d"
       index: "logs-{{ .container_name }}-%Y-%m-%d"
 

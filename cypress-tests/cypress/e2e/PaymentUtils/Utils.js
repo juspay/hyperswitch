@@ -7,12 +7,15 @@ import {
 } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
+import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
+import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
+import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -20,13 +23,16 @@ const connectorDetails = {
   bluesnap: bluesnapConnectorDetails,
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  fiservemea: fiservemeaConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   nmi: nmiConnectorDetails,
+  paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
+  wellsfargo: wellsfargoConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {

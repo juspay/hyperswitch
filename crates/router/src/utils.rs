@@ -22,8 +22,6 @@ use api_models::{
 };
 use base64::Engine;
 use common_utils::types::keymanager::KeyManagerState;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::types::keymanager::{Identifier, ToEncryptable};
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -31,10 +29,15 @@ pub use common_utils::{
     id_type,
     validation::validate_email,
 };
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{
+    type_name,
+    types::keymanager::{Identifier, ToEncryptable},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use hyperswitch_domain_models::type_encryption::batch_encrypt;
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use image::Luma;
 use nanoid::nanoid;
 use qrcode;
@@ -52,7 +55,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        utils, webhooks as webhooks_core,
+        webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -381,7 +384,10 @@ pub async fn find_mca_from_authentication_id_type(
         .await
         .to_not_found_response(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: authentication.merchant_connector_id.to_string(),
+                id: authentication
+                    .merchant_connector_id
+                    .get_string_repr()
+                    .to_string(),
             },
         )
     }
@@ -427,7 +433,7 @@ pub async fn get_mca_from_payment_intent(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }
@@ -442,20 +448,14 @@ pub async fn get_mca_from_payment_intent(
             }
         }
         None => {
-            let profile_id = match payment_intent.profile_id {
-                Some(profile_id) => profile_id,
-                None => utils::get_profile_id_from_business_details(
-                    payment_intent.business_country,
-                    payment_intent.business_label.as_ref(),
-                    merchant_account,
-                    payment_intent.profile_id.as_ref(),
-                    db,
-                    false,
-                )
-                .await
+            let profile_id = payment_intent
+                .profile_id
+                .as_ref()
+                .get_required_value("profile_id")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")?,
-            };
+                .attach_printable("profile_id is not set in payment_intent")?
+                .clone();
+
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
                 not(feature = "merchant_connector_account_v2")
@@ -470,7 +470,10 @@ pub async fn get_mca_from_payment_intent(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+                        id: format!(
+                            "profile_id {} and connector_name {connector_name}",
+                            profile_id.get_string_repr()
+                        ),
                     },
                 )
             }
@@ -528,7 +531,7 @@ pub async fn get_mca_from_payout_attempt(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }
@@ -559,7 +562,8 @@ pub async fn get_mca_from_payout_attempt(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: format!(
                             "profile_id {} and connector_name {}",
-                            payout.profile_id, connector_name
+                            payout.profile_id.get_string_repr(),
+                            connector_name
                         ),
                     },
                 )
@@ -580,7 +584,17 @@ pub async fn get_mca_from_object_reference_id(
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
-    match merchant_account.default_profile.as_ref() {
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
+    let default_profile_id = merchant_account.default_profile.as_ref();
+
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let default_profile_id = Option::<&String>::None;
+
+    match default_profile_id {
         Some(profile_id) => {
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
@@ -596,14 +610,17 @@ pub async fn get_mca_from_object_reference_id(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("profile_id {profile_id} and connector_name {connector_name}"),
+                        id: format!(
+                            "profile_id {} and connector_name {connector_name}",
+                            profile_id.get_string_repr()
+                        ),
                     },
                 )
             }
             #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
             {
-                let _ = db;
-                let _ = profile_id;
+                let _db = db;
+                let _profile_id = profile_id;
                 todo!()
             }
         }
@@ -790,17 +807,21 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         storage_scheme: storage::enums::MerchantStorageScheme,
         merchant_id: id_type::MerchantId,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
-        let encrypted_data = batch_encrypt(
+        let encrypted_data = crypto_operation(
             &state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: Some(address_details.clone()),
-                phone_number: self.phone.clone(),
-                email: self.email.clone(),
-            }),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: Some(address_details.clone()),
+                    phone_number: self.phone.clone(),
+                    email: self.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(storage::AddressUpdate::Update {
@@ -829,17 +850,21 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
-        let encrypted_data = batch_encrypt(
+        let encrypted_data = crypto_operation(
             &state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: Some(address_details.clone()),
-                phone_number: self.phone.clone(),
-                email: self.email.clone(),
-            }),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: Some(address_details.clone()),
+                    phone_number: self.phone.clone(),
+                    email: self.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         let address = domain::Address {
@@ -880,17 +905,21 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
         storage_scheme: storage::enums::MerchantStorageScheme,
         merchant_id: id_type::MerchantId,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
-        let encrypted_data = batch_encrypt(
+        let encrypted_data = crypto_operation(
             &state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: Some(address_details.clone()),
-                phone_number: self.phone.clone(),
-                email: self.email.clone(),
-            }),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: Some(address_details.clone()),
+                    phone_number: self.phone.clone(),
+                    email: self.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(storage::AddressUpdate::Update {
@@ -919,17 +948,21 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
         key: &[u8],
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerAddress, common_utils::errors::CryptoError> {
-        let encrypted_data = batch_encrypt(
+        let encrypted_data = crypto_operation(
             &state.into(),
-            AddressDetailsWithPhone::to_encryptable(AddressDetailsWithPhone {
-                address: Some(address_details.clone()),
-                phone_number: self.phone.clone(),
-                email: self.email.clone(),
-            }),
+            type_name!(storage::Address),
+            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
+                AddressDetailsWithPhone {
+                    address: Some(address_details.clone()),
+                    phone_number: self.phone.clone(),
+                    email: self.email.clone(),
+                },
+            )),
             Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
-        .await?;
+        .await
+        .and_then(|val| val.try_into_batchoperation())?;
         let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
             .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         let address = domain::Address {
@@ -1075,7 +1108,7 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op>(
     merchant_account: domain::MerchantAccount,
-    business_profile: diesel_models::business_profile::BusinessProfile,
+    business_profile: domain::BusinessProfile,
     key_store: &domain::MerchantKeyStore,
     payment_data: crate::core::payments::PaymentData<F>,
     customer: Option<domain::Customer>,

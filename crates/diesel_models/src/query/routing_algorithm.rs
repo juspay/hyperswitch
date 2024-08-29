@@ -7,7 +7,7 @@ use crate::{
     enums,
     errors::DatabaseError,
     query::generics,
-    routing_algorithm::{RoutingAlgorithm, RoutingAlgorithmMetadata, RoutingProfileMetadata},
+    routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
     schema::routing_algorithm::dsl,
     PgPooledConn, StorageResult,
 };
@@ -34,7 +34,7 @@ impl RoutingAlgorithm {
     pub async fn find_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -48,7 +48,7 @@ impl RoutingAlgorithm {
     pub async fn find_metadata_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<RoutingProfileMetadata> {
         Self::table()
             .select((
@@ -68,7 +68,7 @@ impl RoutingAlgorithm {
             )
             .limit(1)
             .load_async::<(
-                String,
+                common_utils::id_type::ProfileId,
                 String,
                 String,
                 Option<String>,
@@ -109,13 +109,14 @@ impl RoutingAlgorithm {
 
     pub async fn list_metadata_by_profile_id(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         limit: i64,
         offset: i64,
-    ) -> StorageResult<Vec<RoutingAlgorithmMetadata>> {
+    ) -> StorageResult<Vec<RoutingProfileMetadata>> {
         Ok(Self::table()
             .select((
                 dsl::algorithm_id,
+                dsl::profile_id,
                 dsl::name,
                 dsl::description,
                 dsl::kind,
@@ -128,6 +129,7 @@ impl RoutingAlgorithm {
             .offset(offset)
             .load_async::<(
                 String,
+                common_utils::id_type::ProfileId,
                 String,
                 Option<String>,
                 enums::RoutingAlgorithmKind,
@@ -141,6 +143,7 @@ impl RoutingAlgorithm {
             .map(
                 |(
                     algorithm_id,
+                    profile_id,
                     name,
                     description,
                     kind,
@@ -148,7 +151,7 @@ impl RoutingAlgorithm {
                     modified_at,
                     algorithm_for,
                 )| {
-                    RoutingAlgorithmMetadata {
+                    RoutingProfileMetadata {
                         algorithm_id,
                         name,
                         description,
@@ -156,6 +159,7 @@ impl RoutingAlgorithm {
                         created_at,
                         modified_at,
                         algorithm_for,
+                        profile_id,
                     }
                 },
             )
@@ -184,7 +188,7 @@ impl RoutingAlgorithm {
             .offset(offset)
             .order(dsl::modified_at.desc())
             .load_async::<(
-                String,
+                common_utils::id_type::ProfileId,
                 String,
                 String,
                 Option<String>,
@@ -246,7 +250,7 @@ impl RoutingAlgorithm {
             .offset(offset)
             .order(dsl::modified_at.desc())
             .load_async::<(
-                String,
+                common_utils::id_type::ProfileId,
                 String,
                 String,
                 Option<String>,

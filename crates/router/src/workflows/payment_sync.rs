@@ -67,6 +67,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 state,
                 state.get_req_state(),
                 merchant_account.clone(),
+                None,
                 key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
@@ -168,11 +169,15 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .attach_printable("Could not find profile_id in payment intent")?;
 
                     let business_profile = db
-                        .find_business_profile_by_profile_id(profile_id)
+                        .find_business_profile_by_profile_id(
+                            key_manager_state,
+                            &key_store,
+                            profile_id,
+                        )
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::BusinessProfileNotFound {
-                                id: profile_id.to_string(),
+                                id: profile_id.get_string_repr().to_owned(),
                             },
                         )?;
 

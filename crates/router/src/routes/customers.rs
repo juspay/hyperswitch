@@ -61,7 +61,15 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req, _| {
+            retrieve_customer(
+                state,
+                auth.merchant_account,
+                auth.profile_id,
+                auth.key_store,
+                req,
+            )
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -77,8 +85,7 @@ pub async fn customers_retrieve(
 ) -> HttpResponse {
     let flow = Flow::CustomersRetrieve;
 
-    let payload =
-        web::Json(customers::GlobalId::new_global_id_struct(path.into_inner())).into_inner();
+    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth(Permission::CustomerRead))
@@ -102,19 +109,26 @@ pub async fn customers_retrieve(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
-pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn customers_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<customers::CustomerListRequest>,
+) -> HttpResponse {
     let flow = Flow::CustomersList;
+    let payload = query.into_inner();
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, auth, _, _| {
+        payload,
+        |state, auth, request, _| {
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
+                None,
                 auth.key_store,
+                request,
             )
         },
         auth::auth_type(
@@ -138,13 +152,20 @@ pub async fn customers_update(
     let flow = Flow::CustomersUpdate;
     let customer_id = path.into_inner();
     json_payload.customer_id = Some(customer_id);
+    let customer_update_id = customers::UpdateCustomerId::new("temp_global_id".to_string());
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, auth, req, _| {
-            update_customer(state, auth.merchant_account, req, auth.key_store, None)
+            update_customer(
+                state,
+                auth.merchant_account,
+                req,
+                auth.key_store,
+                customer_update_id.clone(),
+            )
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
@@ -166,6 +187,7 @@ pub async fn customers_update(
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
     let id = path.into_inner().clone();
+    let customer_update_id = customers::UpdateCustomerId::new(id);
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -177,7 +199,7 @@ pub async fn customers_update(
                 auth.merchant_account,
                 req,
                 auth.key_store,
-                Some(id.clone()),
+                customer_update_id.clone(),
             )
         },
         auth::auth_type(
@@ -198,8 +220,7 @@ pub async fn customers_delete(
     path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::CustomersDelete;
-    let payload =
-        web::Json(customers::GlobalId::new_global_id_struct(path.into_inner())).into_inner();
+    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
 
     Box::pin(api::server_wrap(
         flow,

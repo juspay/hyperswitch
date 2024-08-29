@@ -15,7 +15,7 @@ describe("Corner cases", () => {
     );
   });
 
-  context("[Payment] [Payment create] Invalid Card Info", () => {
+  context("[Payment] Invalid Info", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -26,9 +26,9 @@ describe("Corner cases", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("[Payment create] Invalid card number", () => {
+    it("[Payment] Invalid card number", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidCardNumber"
+        "InvalidCardNumber"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -43,9 +43,9 @@ describe("Corner cases", () => {
       );
     });
 
-    it("[Payment create] Invalid expiry month", () => {
+    it("[Payment] Invalid expiry month", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidExpiryMonth"
+        "InvalidExpiryMonth"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -60,9 +60,9 @@ describe("Corner cases", () => {
       );
     });
 
-    it("[Payment create] Invalid expiry year", () => {
+    it("[Payment] Invalid expiry year", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidExpiryYear"
+        "InvalidExpiryYear"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -77,9 +77,94 @@ describe("Corner cases", () => {
       );
     });
 
-    it("[Payment create] Invalid card CVV", () => {
+    it("[Payment] Invalid card CVV", () => {
       let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
-        "invalidCardCvv"
+        "InvalidCardCvv"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid currency", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidCurrency"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid capture method", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidCaptureMethod"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid payment method", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidPaymentMethod"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Invalid `amount_to_capture`", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "InvalidAmountToCapture"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentIntentBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("[Payment] Missing required params", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "MissingRequiredParam"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -159,7 +244,7 @@ describe("Corner cases", () => {
       }
     });
 
-    it("Create payment intent", () => {
+    it("Create payment intent and confirm", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSManualCapture"
       ];
@@ -220,7 +305,7 @@ describe("Corner cases", () => {
       }
     });
 
-    it("Create payment intent", () => {
+    it("Create payment intent and confirm", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
@@ -266,6 +351,70 @@ describe("Corner cases", () => {
     });
   });
 
+  context("[Payment] Confirm successful payment", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("Create payment intent and confirm", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
+
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentCreateConfirmBody,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Confirm call", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "ConfirmSuccessfulPayment"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.confirmCallTest(
+        fixtures.confirmBody,
+        req_data,
+        res_data,
+        true,
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+  });
+
   context("[Payment] Void successful payment", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
@@ -285,7 +434,7 @@ describe("Corner cases", () => {
       }
     });
 
-    it("Create payment intent", () => {
+    it("Create payment intent and confirm", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
@@ -311,15 +460,287 @@ describe("Corner cases", () => {
     });
 
     it("Void call", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "VoidErrored"
+      // `commons` here is intentionally used as we need to pass `ResponseCustom`
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "Void"
       ];
       let req_data = data["Request"];
-      let res_data = data["Response"];
+      let res_data = data["ResponseCustom"];
       cy.voidCallTest(fixtures.voidBody, req_data, res_data, globalState);
 
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
+    });
+  });
+
+  context("[Payment] 3DS with greater capture", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("Create payment intent and confirm", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "3DSManualCapture"
+      ];
+
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentCreateConfirmBody,
+        req_data,
+        res_data,
+        "three_ds",
+        "manual",
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Handle redirection", () => {
+      let expected_redirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expected_redirection);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Capture call", () => {
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "CaptureGreaterAmount"
+      ];
+
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.captureCallTest(
+        fixtures.captureBody,
+        req_data,
+        res_data,
+        65000,
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+  });
+
+  context("[Payment] Refund exceeds captured Amount", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("Create payment intent and confirm", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
+
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentCreateConfirmBody,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Refund call", () => {
+      // `commons` here is intentionally used as we need to pass `ResponseCustom`
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "Refund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["ResponseCustom"];
+      cy.refundCallTest(
+        fixtures.refundBody,
+        req_data,
+        res_data,
+        65000,
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+  });
+
+  context("[Payment] Refund unsuccessful payment", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("Create payment intent and confirm", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
+
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+
+      cy.createConfirmPaymentTest(
+        paymentCreateConfirmBody,
+        req_data,
+        res_data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Refund call", () => {
+      // `commons` here is intentionally used as we need to pass `ResponseCustom`
+      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+        "Refund"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["ResponseCustom"];
+      cy.refundCallTest(
+        fixtures.refundBody,
+        req_data,
+        res_data,
+        65000,
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+  });
+
+  context("[Payment] Recurring mandate with greater mandate amount", () => {
+    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!should_continue) {
+        this.skip();
+      }
+    });
+
+    it("No 3DS CIT", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "MandateSingleUseNo3DSManualCapture"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        req_data,
+        res_data,
+        6500,
+        true,
+        "manual",
+        "new_mandate",
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("cit-capture-call-test", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "Capture"
+      ];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.captureCallTest(
+        fixtures.captureBody,
+        req_data,
+        res_data,
+        6500,
+        globalState
+      );
+      if (should_continue)
+        should_continue = utils.should_continue_further(res_data);
+    });
+
+    it("Retrieve payment", () => {
+      cy.retrievePaymentCallTest(globalState);
+    });
+
+    it("Confirm No 3DS MIT", () => {
+      cy.mitForMandatesCallTest(
+        fixtures.mitConfirmBody,
+        65000,
+        true,
+        "manual",
+        globalState
+      );
     });
   });
 });

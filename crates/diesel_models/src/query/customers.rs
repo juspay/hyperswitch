@@ -23,6 +23,11 @@ impl CustomerNew {
     }
 }
 
+pub struct CustomerListConstraints {
+    pub limit: i64,
+    pub offset: Option<i64>,
+}
+
 // #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -49,31 +54,27 @@ impl Customer {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_id_merchant_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
-        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
-    }
-
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_id(conn: &PgPooledConn, id: &String) -> StorageResult<Self> {
+    pub async fn find_by_global_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
+        constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
-            None,
-            None,
+            Some(constraints.limit),
+            constraints.offset,
             Some(dsl::created_at),
         )
         .await
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_optional_by_customer_id_merchant_id(
+    pub async fn find_optional_by_merchant_id_merchant_reference_id(
         conn: &PgPooledConn,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
@@ -144,16 +145,16 @@ impl Customer {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_customer_id_merchant_id(
+    pub async fn find_by_merchant_reference_id_merchant_id(
         conn: &PgPooledConn,
-        customer_id: &id_type::CustomerId,
+        merchant_reference_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::merchant_reference_id.eq(customer_id.to_owned())),
+                .and(dsl::merchant_reference_id.eq(merchant_reference_id.to_owned())),
         )
         .await
     }

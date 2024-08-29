@@ -17,18 +17,20 @@ frm = []
 olap = []
 openapi = ["common_enums/openapi", "olap", "recon", "dummy_connector", "olap"]
 recon = []
-v1 = []
-v2 = []
+v1 = ["common_utils/v1"]
+v2 = ["common_utils/v2"]
 business_profile_v2 = []
-customer_v2 = []
+customer_v2 = ["common_utils/customer_v2"]
 merchant_account_v2 = []
 merchant_connector_account_v2 = []
 payment_v2 = []
+payment_methods_v2 = []
 routing_v2 = []
 
 [dependencies]
 actix-web = { version = "4.5.1", optional = true }
 error-stack = "0.4.1"
+indexmap = "2.3.0"
 mime = "0.3.17"
 reqwest = { version = "0.11.27", optional = true }
 serde = { version = "1.0.197", features = ["derive"] }
@@ -37,6 +39,8 @@ strum = { version = "0.26", features = ["derive"] }
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
+rustc-hash = "1.1.0"
+nutype = { version = "0.4.2", features = ["serde"] }
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
@@ -45,3 +49,6 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+
+[lints]
+workspace = true

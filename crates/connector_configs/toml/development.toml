@@ -1217,6 +1217,9 @@ key1="Merchant ID"
 api_secret="Shared Secret"
 [cybersource.connector_webhook_details]
 merchant_secret="Source verification key"
+[cybersource.metadata]
+disable_avs = "Disable AVS check"
+disable_cvn = "Disable CVN check"
 
 [[cybersource.metadata.apple_pay]]
 name="certificate"
@@ -1452,6 +1455,47 @@ type="Text"
 [fiserv.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[fiservemea]
+[[fiservemea.credit]]
+  payment_method_type = "Mastercard"
+[[fiservemea.credit]]
+  payment_method_type = "Visa"
+[[fiservemea.credit]]
+  payment_method_type = "Interac"
+[[fiservemea.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiservemea.credit]]
+  payment_method_type = "JCB"
+[[fiservemea.credit]]
+  payment_method_type = "DinersClub"
+[[fiservemea.credit]]
+  payment_method_type = "Discover"
+[[fiservemea.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiservemea.credit]]
+  payment_method_type = "UnionPay"
+[[fiservemea.debit]]
+  payment_method_type = "Mastercard"
+[[fiservemea.debit]]
+  payment_method_type = "Visa"
+[[fiservemea.debit]]
+  payment_method_type = "Interac"
+[[fiservemea.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiservemea.debit]]
+  payment_method_type = "JCB"
+[[fiservemea.debit]]
+  payment_method_type = "DinersClub"
+[[fiservemea.debit]]
+  payment_method_type = "Discover"
+[[fiservemea.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiservemea.debit]]
+  payment_method_type = "UnionPay"
+[fiservemea.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"
+
 [forte]
 [[forte.credit]]
   payment_method_type = "Mastercard"
@@ -1614,9 +1658,11 @@ merchant_secret="Source verification key"
 [itaubank]
 [[itaubank.bank_transfer]]
   payment_method_type = "pix"
-[itaubank.connector_auth.BodyKey]
+[itaubank.connector_auth.MultiAuthKey]
 key1="Client Id"
 api_key="Client Secret"
+api_secret="Certificates"
+key2="Certificate Key"
 
 [klarna]
 [[klarna.pay_later]]
@@ -2513,6 +2559,13 @@ type="Text"
 api_key="Login"
 key1="Trankey"
 
+[plaid]
+[[plaid.open_banking]]
+  payment_method_type = "open_banking_pis"
+[plaid.connector_auth.BodyKey]
+api_key="client_id"
+key1="secret"
+
 [powertranz]
 [[powertranz.credit]]
   payment_method_type = "Mastercard"
@@ -2942,7 +2995,7 @@ merchant_secret="Source verification key"
   payment_method_type = "CartesBancaires"
 [[square.debit]]
   payment_method_type = "UnionPay"
-[square_payout.connector_auth.BodyKey]
+[square.connector_auth.BodyKey]
 api_key = "Square API Key"
 key1 = "Square Client Id"
 [square.connector_webhook_details]
@@ -3795,3 +3848,89 @@ key1="Public Api Key"
 [datatrans.connector_auth.BodyKey]
 api_key = "Passcode"
 key1 = "datatrans MerchantId"
+
+[paybox]
+[[paybox.credit]]
+  payment_method_type = "Mastercard"
+[[paybox.credit]]
+  payment_method_type = "Visa"
+[[paybox.credit]]
+  payment_method_type = "Interac"
+[[paybox.credit]]
+  payment_method_type = "AmericanExpress"
+[[paybox.credit]]
+  payment_method_type = "JCB"
+[[paybox.credit]]
+  payment_method_type = "DinersClub"
+[[paybox.credit]]
+  payment_method_type = "Discover"
+[[paybox.credit]]
+  payment_method_type = "CartesBancaires"
+[[paybox.credit]]
+  payment_method_type = "UnionPay"
+[[paybox.debit]]
+  payment_method_type = "Mastercard"
+[[paybox.debit]]
+  payment_method_type = "Visa"
+[[paybox.debit]]
+  payment_method_type = "Interac"
+[[paybox.debit]]
+  payment_method_type = "AmericanExpress"
+[[paybox.debit]]
+  payment_method_type = "JCB"
+[[paybox.debit]]
+  payment_method_type = "DinersClub"
+[[paybox.debit]]
+  payment_method_type = "Discover"
+[[paybox.debit]]
+  payment_method_type = "CartesBancaires"
+[paybox.connector_auth.SignatureKey]
+api_key="SITE Key"
+key1="Rang Identifier"
+api_secret="CLE Secret"
+
+[wellsfargo]
+[[wellsfargo.credit]]
+  payment_method_type = "Mastercard"
+[[wellsfargo.credit]]
+  payment_method_type = "Visa"
+[[wellsfargo.credit]]
+  payment_method_type = "Interac"
+[[wellsfargo.credit]]
+  payment_method_type = "AmericanExpress"
+[[wellsfargo.credit]]
+  payment_method_type = "JCB"
+[[wellsfargo.credit]]
+  payment_method_type = "DinersClub"
+[[wellsfargo.credit]]
+  payment_method_type = "Discover"
+[[wellsfargo.credit]]
+  payment_method_type = "CartesBancaires"
+[[wellsfargo.credit]]
+  payment_method_type = "UnionPay"
+[[wellsfargo.debit]]
+  payment_method_type = "Mastercard"
+[[wellsfargo.debit]]
+  payment_method_type = "Visa"
+[[wellsfargo.debit]]
+  payment_method_type = "Interac"
+[[wellsfargo.debit]]
+  payment_method_type = "AmericanExpress"
+[[wellsfargo.debit]]
+  payment_method_type = "JCB"
+[[wellsfargo.debit]]
+  payment_method_type = "DinersClub"
+[[wellsfargo.debit]]
+  payment_method_type = "Discover"
+[[wellsfargo.debit]]
+  payment_method_type = "CartesBancaires"
+[[wellsfargo.debit]]
+  payment_method_type = "UnionPay"
+[[wellsfargo.wallet]]
+  payment_method_type = "apple_pay"
+[[wellsfargo.wallet]]
+  payment_method_type = "google_pay"
+[wellsfargo.connector_auth.SignatureKey]
+api_key="Key"
+key1="Merchant ID"
+api_secret="Shared Secret"

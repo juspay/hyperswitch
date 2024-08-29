@@ -295,7 +295,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         payment_method: Option<Vec<PaymentMethod>>,
         payment_method_type: Option<Vec<PaymentMethodType>>,
         authentication_type: Option<Vec<AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -1064,7 +1064,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_method: Option<Vec<PaymentMethod>>,
         payment_method_type: Option<Vec<PaymentMethodType>>,
         authentication_type: Option<Vec<AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -1917,6 +1917,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => DieselPaymentAttemptUpdate::ManualUpdate {
                 status,
                 error_code,
@@ -1925,6 +1926,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             },
         }
     }
@@ -2267,6 +2269,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             } => Self::ManualUpdate {
                 status,
                 error_code,
@@ -2275,6 +2278,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
                 unified_code,
                 unified_message,
+                connector_transaction_id,
             },
         }
     }

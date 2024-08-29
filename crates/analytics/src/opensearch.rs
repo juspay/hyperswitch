@@ -493,7 +493,7 @@ impl OpenSearchQueryBuilder {
             let range = json!(time_range);
             filter_array.push(json!({
                 "range": {
-                    "timestamp": range
+                    "@timestamp": range
                 }
             }));
         }
@@ -518,7 +518,19 @@ impl OpenSearchQueryBuilder {
                 let mut final_query = Map::new();
                 final_query.insert("bool".to_string(), json!({ "filter": updated_query }));
 
-                let payload = json!({ "query": Value::Object(final_query) });
+                let mut sort_obj = Map::new();
+                sort_obj.insert(
+                    "@timestamp".to_string(),
+                    json!({
+                        "order": "desc"
+                    }),
+                );
+                let payload = json!({
+                    "query": Value::Object(final_query),
+                    "sort": [
+                        Value::Object(sort_obj)
+                    ]
+                });
                 payload
             })
             .collect::<Vec<Value>>())

@@ -462,11 +462,11 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
-    pub id: Option<String>,
+    pub id: String,
     pub object: &'static str,
     pub amount: i64,
     pub amount_received: Option<i64>,
-    pub amount_capturable: Option<i64>,
+    pub amount_capturable: i64,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<masking::Secret<String>>,
@@ -520,7 +520,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             id: resp.payment_id,
             status: StripePaymentStatus::from(resp.status),
             amount: resp.amount.get_amount_as_i64(),
-            amount_capturable: resp.amount_capturable.map(|amt| amt.get_amount_as_i64()),
+            amount_capturable: resp.amount_capturable.get_amount_as_i64(),
             amount_received: resp.amount_received.map(|amt| amt.get_amount_as_i64()),
             connector: resp.connector,
             client_secret: resp.client_secret,

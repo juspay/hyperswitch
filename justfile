@@ -55,12 +55,27 @@ check_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; . == ("v1", "merchant_account_v2", "payment_v2","routing_v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( any( . ; . == ("v1") ) ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    set +x
+
+run_v2:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
+        jq -r '
+            [ .packages[] | select(.name == "router") | .features | keys[] # Obtain features of `router` package
+            | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
+            | join(",") # Construct a comma-separated string of features for passing to `cargo`
+    ')"
+
+    set -x
+    cargo run --package router --features "${FEATURES}"
     set +x
 
 check *FLAGS:
@@ -76,7 +91,7 @@ check *FLAGS:
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo check {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
     set +x
 
 alias cl := clippy
@@ -120,10 +135,8 @@ euclid-wasm features='dummy_connector':
 precommit: fmt clippy
 
 # Check compilation of v2 feature on base dependencies
-v2_intermediate_features := "merchant_account_v2,payment_v2,customer_v2,business_profile_v2"
 hack_v2:
-    cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of "v2 " --include-features "v2" --include-features {{ v2_intermediate_features }} --package "hyperswitch_domain_models" --package "diesel_models" --package "api_models"
-    cargo hack clippy --features "v2,payment_v2" -p storage_impl
+    scripts/ci-checks-v2.sh
 
 # Use the env variables if present, or fallback to default values
 

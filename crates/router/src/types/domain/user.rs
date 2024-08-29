@@ -5,7 +5,7 @@ use api_models::{
 };
 use common_enums::TokenPurpose;
 use common_utils::{
-    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii,
+    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
 };
 use diesel_models::{
@@ -868,7 +868,7 @@ impl UserFromStorage {
     pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
         state
             .store
-            .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
+            .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -949,7 +949,7 @@ impl UserFromStorage {
         } else {
             state
                 .store
-                .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
+                .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
                 .await?
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)
@@ -1001,13 +1001,15 @@ impl UserFromStorage {
 
             let key_store = UserKeyStore {
                 user_id: self.get_user_id().to_string(),
-                key: domain_types::encrypt(
+                key: domain_types::crypto_operation(
                     key_manager_state,
-                    key.to_vec().into(),
+                    type_name!(UserKeyStore),
+                    domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
                 )
                 .await
+                .and_then(|val| val.try_into_operation())
                 .change_context(UserErrors::InternalServerError)?,
                 created_at: common_utils::date_time::now(),
             };
@@ -1051,13 +1053,15 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::decrypt_optional::<String, masking::WithType>(
+        Ok(domain_types::crypto_operation::<String, masking::WithType>(
             key_manager_state,
-            self.0.totp_secret.clone(),
+            type_name!(storage_user::User),
+            domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
             Identifier::User(user_key_store.user_id.clone()),
             user_key_store.key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_optionaloperation())
         .change_context(UserErrors::InternalServerError)?
         .map(Encryptable::into_inner))
     }

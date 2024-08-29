@@ -1,7 +1,9 @@
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-use common_enums::OrderFulfillmentTimeOrigin;
+use std::collections::{HashMap, HashSet};
+
+use common_enums::AuthenticationConnectors;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use masking::Secret;
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -20,19 +22,10 @@ use crate::schema_v2::business_profile;
     any(feature = "v1", feature = "v2"),
     not(feature = "business_profile_v2")
 ))]
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Identifiable,
-    Queryable,
-    Selectable,
-    router_derive::DebugAsDisplay,
-)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -41,7 +34,7 @@ pub struct BusinessProfile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -50,10 +43,10 @@ pub struct BusinessProfile {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<serde_json::Value>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
-    pub payout_link_config: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -61,6 +54,10 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -70,7 +67,7 @@ pub struct BusinessProfile {
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct BusinessProfileNew {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -79,7 +76,7 @@ pub struct BusinessProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -88,10 +85,10 @@ pub struct BusinessProfileNew {
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<serde_json::Value>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
-    pub payout_link_config: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -99,6 +96,10 @@ pub struct BusinessProfileNew {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -114,7 +115,7 @@ pub struct BusinessProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<serde_json::Value>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub intent_fulfillment_time: Option<i64>,
@@ -123,10 +124,10 @@ pub struct BusinessProfileUpdateInternal {
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<serde_json::Value>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<serde_json::Value>,
-    pub payout_link_config: Option<serde_json::Value>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -134,254 +135,19 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "business_profile_v2")
 ))]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum BusinessProfileUpdate {
-    Update {
-        profile_name: Option<String>,
-        return_url: Option<String>,
-        enable_payment_response_hash: Option<bool>,
-        payment_response_hash_key: Option<String>,
-        redirect_to_merchant_with_http_post: Option<bool>,
-        webhook_details: Option<serde_json::Value>,
-        metadata: Option<pii::SecretSerdeValue>,
-        routing_algorithm: Option<serde_json::Value>,
-        intent_fulfillment_time: Option<i64>,
-        frm_routing_algorithm: Option<serde_json::Value>,
-        payout_routing_algorithm: Option<serde_json::Value>,
-        is_recon_enabled: Option<bool>,
-        applepay_verified_domains: Option<Vec<String>>,
-        payment_link_config: Option<serde_json::Value>,
-        session_expiry: Option<i64>,
-        authentication_connector_details: Option<serde_json::Value>,
-        payout_link_config: Option<serde_json::Value>,
-        extended_card_info_config: Option<pii::SecretSerdeValue>,
-        use_billing_as_payment_method_billing: Option<bool>,
-        collect_shipping_details_from_wallet_connector: Option<bool>,
-        collect_billing_details_from_wallet_connector: Option<bool>,
-        is_connector_agnostic_mit_enabled: Option<bool>,
-        outgoing_webhook_custom_http_headers: Option<Encryption>,
-    },
-    RoutingAlgorithmUpdate {
-        routing_algorithm: Option<serde_json::Value>,
-        payout_routing_algorithm: Option<serde_json::Value>,
-    },
-    ExtendedCardInfoUpdate {
-        is_extended_card_info_enabled: Option<bool>,
-    },
-    ConnectorAgnosticMitUpdate {
-        is_connector_agnostic_mit_enabled: Option<bool>,
-    },
-}
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
-impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
-    fn from(business_profile_update: BusinessProfileUpdate) -> Self {
-        let now = common_utils::date_time::now();
-
-        match business_profile_update {
-            BusinessProfileUpdate::Update {
-                profile_name,
-                return_url,
-                enable_payment_response_hash,
-                payment_response_hash_key,
-                redirect_to_merchant_with_http_post,
-                webhook_details,
-                metadata,
-                routing_algorithm,
-                intent_fulfillment_time,
-                frm_routing_algorithm,
-                payout_routing_algorithm,
-                is_recon_enabled,
-                applepay_verified_domains,
-                payment_link_config,
-                session_expiry,
-                authentication_connector_details,
-                payout_link_config,
-                extended_card_info_config,
-                use_billing_as_payment_method_billing,
-                collect_shipping_details_from_wallet_connector,
-                collect_billing_details_from_wallet_connector,
-                is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers,
-            } => Self {
-                profile_name,
-                modified_at: now,
-                return_url,
-                enable_payment_response_hash,
-                payment_response_hash_key,
-                redirect_to_merchant_with_http_post,
-                webhook_details,
-                metadata,
-                routing_algorithm,
-                intent_fulfillment_time,
-                frm_routing_algorithm,
-                payout_routing_algorithm,
-                is_recon_enabled,
-                applepay_verified_domains,
-                payment_link_config,
-                session_expiry,
-                authentication_connector_details,
-                payout_link_config,
-                is_extended_card_info_enabled: None,
-                extended_card_info_config,
-                use_billing_as_payment_method_billing,
-                collect_shipping_details_from_wallet_connector,
-                collect_billing_details_from_wallet_connector,
-                is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers,
-            },
-            BusinessProfileUpdate::RoutingAlgorithmUpdate {
-                routing_algorithm,
-                payout_routing_algorithm,
-            } => Self {
-                profile_name: None,
-                modified_at: now,
-                return_url: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                webhook_details: None,
-                metadata: None,
-                routing_algorithm,
-                intent_fulfillment_time: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm,
-                is_recon_enabled: None,
-                applepay_verified_domains: None,
-                payment_link_config: None,
-                session_expiry: None,
-                authentication_connector_details: None,
-                payout_link_config: None,
-                is_extended_card_info_enabled: None,
-                extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled: None,
-                use_billing_as_payment_method_billing: None,
-                collect_shipping_details_from_wallet_connector: None,
-                collect_billing_details_from_wallet_connector: None,
-                outgoing_webhook_custom_http_headers: None,
-            },
-            BusinessProfileUpdate::ExtendedCardInfoUpdate {
-                is_extended_card_info_enabled,
-            } => Self {
-                profile_name: None,
-                modified_at: now,
-                return_url: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                webhook_details: None,
-                metadata: None,
-                routing_algorithm: None,
-                intent_fulfillment_time: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
-                is_recon_enabled: None,
-                applepay_verified_domains: None,
-                payment_link_config: None,
-                session_expiry: None,
-                authentication_connector_details: None,
-                payout_link_config: None,
-                is_extended_card_info_enabled,
-                extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled: None,
-                use_billing_as_payment_method_billing: None,
-                collect_shipping_details_from_wallet_connector: None,
-                collect_billing_details_from_wallet_connector: None,
-                outgoing_webhook_custom_http_headers: None,
-            },
-            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
-                is_connector_agnostic_mit_enabled,
-            } => Self {
-                profile_name: None,
-                modified_at: now,
-                return_url: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                webhook_details: None,
-                metadata: None,
-                routing_algorithm: None,
-                intent_fulfillment_time: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
-                is_recon_enabled: None,
-                applepay_verified_domains: None,
-                payment_link_config: None,
-                session_expiry: None,
-                authentication_connector_details: None,
-                payout_link_config: None,
-                is_extended_card_info_enabled: None,
-                extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled,
-                use_billing_as_payment_method_billing: None,
-                collect_shipping_details_from_wallet_connector: None,
-                collect_billing_details_from_wallet_connector: None,
-                outgoing_webhook_custom_http_headers: None,
-            },
-        }
-    }
-}
-
-// This is being used only in the `BusinessProfileInterface` implementation for `MockDb`.
-// This can be removed once the `BusinessProfileInterface` trait has been updated to use the domain
-// model instead.
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
-impl From<BusinessProfileNew> for BusinessProfile {
-    fn from(new: BusinessProfileNew) -> Self {
-        Self {
-            profile_id: new.profile_id,
-            merchant_id: new.merchant_id,
-            profile_name: new.profile_name,
-            created_at: new.created_at,
-            modified_at: new.modified_at,
-            return_url: new.return_url,
-            enable_payment_response_hash: new.enable_payment_response_hash,
-            payment_response_hash_key: new.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: new.redirect_to_merchant_with_http_post,
-            webhook_details: new.webhook_details,
-            metadata: new.metadata,
-            routing_algorithm: new.routing_algorithm,
-            intent_fulfillment_time: new.intent_fulfillment_time,
-            frm_routing_algorithm: new.frm_routing_algorithm,
-            payout_routing_algorithm: new.payout_routing_algorithm,
-            is_recon_enabled: new.is_recon_enabled,
-            applepay_verified_domains: new.applepay_verified_domains,
-            payment_link_config: new.payment_link_config,
-            session_expiry: new.session_expiry,
-            authentication_connector_details: new.authentication_connector_details,
-            payout_link_config: new.payout_link_config,
-            is_connector_agnostic_mit_enabled: new.is_connector_agnostic_mit_enabled,
-            is_extended_card_info_enabled: new.is_extended_card_info_enabled,
-            extended_card_info_config: new.extended_card_info_config,
-            use_billing_as_payment_method_billing: new.use_billing_as_payment_method_billing,
-            collect_shipping_details_from_wallet_connector: new
-                .collect_shipping_details_from_wallet_connector,
-            collect_billing_details_from_wallet_connector: new
-                .collect_billing_details_from_wallet_connector,
-            outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
-        }
-    }
-}
-
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
-impl BusinessProfileUpdate {
+impl BusinessProfileUpdateInternal {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
-        let BusinessProfileUpdateInternal {
+        let Self {
             profile_name,
             modified_at,
             return_url,
@@ -407,7 +173,11 @@ impl BusinessProfileUpdate {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
-        } = self.into();
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
+            tax_connector_id,
+            is_tax_connector_enabled,
+        } = self;
         BusinessProfile {
             profile_id: source.profile_id,
             merchant_id: source.merchant_id,
@@ -451,6 +221,14 @@ impl BusinessProfileUpdate {
                     .or(source.collect_billing_details_from_wallet_connector),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
+            always_collect_billing_details_from_wallet_connector:
+                always_collect_billing_details_from_wallet_connector
+                    .or(source.always_collect_billing_details_from_wallet_connector),
+            always_collect_shipping_details_from_wallet_connector:
+                always_collect_shipping_details_from_wallet_connector
+                    .or(source.always_collect_shipping_details_from_wallet_connector),
+            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
+            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
         }
     }
 }
@@ -461,19 +239,10 @@ impl BusinessProfileUpdate {
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Identifiable,
-    Queryable,
-    Selectable,
-    router_derive::DebugAsDisplay,
-)]
+#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -482,15 +251,15 @@ pub struct BusinessProfile {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<pii::SecretSerdeValue>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -498,19 +267,23 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub routing_algorithm_id: Option<String>,
     pub order_fulfillment_time: Option<i64>,
-    pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct BusinessProfileNew {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -519,15 +292,15 @@ pub struct BusinessProfileNew {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<pii::SecretSerdeValue>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -535,12 +308,16 @@ pub struct BusinessProfileNew {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub routing_algorithm_id: Option<String>,
     pub order_fulfillment_time: Option<i64>,
-    pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -553,15 +330,15 @@ pub struct BusinessProfileUpdateInternal {
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
-    pub webhook_details: Option<pii::SecretSerdeValue>,
+    pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
-    pub payment_link_config: Option<pii::SecretSerdeValue>,
+    pub payment_link_config: Option<BusinessPaymentLinkConfig>,
     pub session_expiry: Option<i64>,
-    pub authentication_connector_details: Option<pii::SecretSerdeValue>,
-    pub payout_link_config: Option<pii::SecretSerdeValue>,
+    pub authentication_connector_details: Option<AuthenticationConnectorDetails>,
+    pub payout_link_config: Option<BusinessPayoutLinkConfig>,
     pub is_extended_card_info_enabled: Option<bool>,
     pub extended_card_info_config: Option<pii::SecretSerdeValue>,
     pub is_connector_agnostic_mit_enabled: Option<bool>,
@@ -569,219 +346,22 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub routing_algorithm_id: Option<String>,
     pub order_fulfillment_time: Option<i64>,
-    pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<String>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum BusinessProfileUpdate {
-    Update {
-        profile_name: Option<String>,
-        return_url: Option<String>,
-        enable_payment_response_hash: Option<bool>,
-        payment_response_hash_key: Option<String>,
-        redirect_to_merchant_with_http_post: Option<bool>,
-        webhook_details: Option<pii::SecretSerdeValue>,
-        metadata: Option<pii::SecretSerdeValue>,
-        is_recon_enabled: Option<bool>,
-        applepay_verified_domains: Option<Vec<String>>,
-        payment_link_config: Option<pii::SecretSerdeValue>,
-        session_expiry: Option<i64>,
-        authentication_connector_details: Option<pii::SecretSerdeValue>,
-        payout_link_config: Option<pii::SecretSerdeValue>,
-        extended_card_info_config: Option<pii::SecretSerdeValue>,
-        use_billing_as_payment_method_billing: Option<bool>,
-        collect_shipping_details_from_wallet_connector: Option<bool>,
-        collect_billing_details_from_wallet_connector: Option<bool>,
-        is_connector_agnostic_mit_enabled: Option<bool>,
-        outgoing_webhook_custom_http_headers: Option<Encryption>,
-        routing_algorithm_id: Option<String>,
-        order_fulfillment_time: Option<i64>,
-        order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
-        frm_routing_algorithm_id: Option<String>,
-        payout_routing_algorithm_id: Option<String>,
-        default_fallback_routing: Option<pii::SecretSerdeValue>,
-    },
-    RoutingAlgorithmUpdate {
-        routing_algorithm_id: Option<String>,
-        payout_routing_algorithm_id: Option<String>,
-    },
-    ExtendedCardInfoUpdate {
-        is_extended_card_info_enabled: Option<bool>,
-    },
-    ConnectorAgnosticMitUpdate {
-        is_connector_agnostic_mit_enabled: Option<bool>,
-    },
-}
-
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
-    fn from(business_profile_update: BusinessProfileUpdate) -> Self {
-        let now = common_utils::date_time::now();
-
-        match business_profile_update {
-            BusinessProfileUpdate::Update {
-                profile_name,
-                return_url,
-                enable_payment_response_hash,
-                payment_response_hash_key,
-                redirect_to_merchant_with_http_post,
-                webhook_details,
-                metadata,
-                is_recon_enabled,
-                applepay_verified_domains,
-                payment_link_config,
-                session_expiry,
-                authentication_connector_details,
-                payout_link_config,
-                extended_card_info_config,
-                use_billing_as_payment_method_billing,
-                collect_shipping_details_from_wallet_connector,
-                collect_billing_details_from_wallet_connector,
-                is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers,
-                routing_algorithm_id,
-                order_fulfillment_time,
-                order_fulfillment_time_origin,
-                frm_routing_algorithm_id,
-                payout_routing_algorithm_id,
-                default_fallback_routing,
-            } => Self {
-                profile_name,
-                modified_at: now,
-                return_url,
-                enable_payment_response_hash,
-                payment_response_hash_key,
-                redirect_to_merchant_with_http_post,
-                webhook_details,
-                metadata,
-                is_recon_enabled,
-                applepay_verified_domains,
-                payment_link_config,
-                session_expiry,
-                authentication_connector_details,
-                payout_link_config,
-                is_extended_card_info_enabled: None,
-                extended_card_info_config,
-                use_billing_as_payment_method_billing,
-                collect_shipping_details_from_wallet_connector,
-                collect_billing_details_from_wallet_connector,
-                is_connector_agnostic_mit_enabled,
-                outgoing_webhook_custom_http_headers,
-                routing_algorithm_id,
-                order_fulfillment_time,
-                order_fulfillment_time_origin,
-                frm_routing_algorithm_id,
-                payout_routing_algorithm_id,
-                default_fallback_routing,
-            },
-            BusinessProfileUpdate::RoutingAlgorithmUpdate {
-                routing_algorithm_id,
-                payout_routing_algorithm_id,
-            } => Self {
-                profile_name: None,
-                modified_at: now,
-                return_url: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                webhook_details: None,
-                metadata: None,
-                is_recon_enabled: None,
-                applepay_verified_domains: None,
-                payment_link_config: None,
-                session_expiry: None,
-                authentication_connector_details: None,
-                payout_link_config: None,
-                is_extended_card_info_enabled: None,
-                extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled: None,
-                use_billing_as_payment_method_billing: None,
-                collect_shipping_details_from_wallet_connector: None,
-                collect_billing_details_from_wallet_connector: None,
-                outgoing_webhook_custom_http_headers: None,
-                routing_algorithm_id,
-                order_fulfillment_time: None,
-                order_fulfillment_time_origin: None,
-                frm_routing_algorithm_id: None,
-                payout_routing_algorithm_id,
-                default_fallback_routing: None,
-            },
-            BusinessProfileUpdate::ExtendedCardInfoUpdate {
-                is_extended_card_info_enabled,
-            } => Self {
-                profile_name: None,
-                modified_at: now,
-                return_url: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                webhook_details: None,
-                metadata: None,
-                is_recon_enabled: None,
-                applepay_verified_domains: None,
-                payment_link_config: None,
-                session_expiry: None,
-                authentication_connector_details: None,
-                payout_link_config: None,
-                is_extended_card_info_enabled,
-                extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled: None,
-                use_billing_as_payment_method_billing: None,
-                collect_shipping_details_from_wallet_connector: None,
-                collect_billing_details_from_wallet_connector: None,
-                outgoing_webhook_custom_http_headers: None,
-                routing_algorithm_id: None,
-                order_fulfillment_time: None,
-                order_fulfillment_time_origin: None,
-                frm_routing_algorithm_id: None,
-                payout_routing_algorithm_id: None,
-                default_fallback_routing: None,
-            },
-            BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
-                is_connector_agnostic_mit_enabled,
-            } => Self {
-                profile_name: None,
-                modified_at: now,
-                return_url: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                webhook_details: None,
-                metadata: None,
-                is_recon_enabled: None,
-                applepay_verified_domains: None,
-                payment_link_config: None,
-                session_expiry: None,
-                authentication_connector_details: None,
-                payout_link_config: None,
-                is_extended_card_info_enabled: None,
-                extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled,
-                use_billing_as_payment_method_billing: None,
-                collect_shipping_details_from_wallet_connector: None,
-                collect_billing_details_from_wallet_connector: None,
-                outgoing_webhook_custom_http_headers: None,
-                routing_algorithm_id: None,
-                order_fulfillment_time: None,
-                order_fulfillment_time_origin: None,
-                frm_routing_algorithm_id: None,
-                payout_routing_algorithm_id: None,
-                default_fallback_routing: None,
-            },
-        }
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-impl BusinessProfileUpdate {
+impl BusinessProfileUpdateInternal {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
-        let BusinessProfileUpdateInternal {
+        let Self {
             profile_name,
             modified_at,
             return_url,
@@ -803,13 +383,17 @@ impl BusinessProfileUpdate {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
             routing_algorithm_id,
             order_fulfillment_time,
             order_fulfillment_time_origin,
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
-        } = self.into();
+            tax_connector_id,
+            is_tax_connector_enabled,
+        } = self;
         BusinessProfile {
             profile_id: source.profile_id,
             merchant_id: source.merchant_id,
@@ -849,6 +433,12 @@ impl BusinessProfileUpdate {
                     .or(source.collect_billing_details_from_wallet_connector),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
+            always_collect_billing_details_from_wallet_connector:
+                always_collect_billing_details_from_wallet_connector
+                    .or(always_collect_billing_details_from_wallet_connector),
+            always_collect_shipping_details_from_wallet_connector:
+                always_collect_shipping_details_from_wallet_connector
+                    .or(always_collect_shipping_details_from_wallet_connector),
             routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
             order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
             order_fulfillment_time_origin: order_fulfillment_time_origin
@@ -857,6 +447,8 @@ impl BusinessProfileUpdate {
             payout_routing_algorithm_id: payout_routing_algorithm_id
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
+            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
+            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
         }
     }
 }
@@ -895,11 +487,80 @@ impl From<BusinessProfileNew> for BusinessProfile {
                 .collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
             routing_algorithm_id: new.routing_algorithm_id,
+            always_collect_billing_details_from_wallet_connector: new
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: new
+                .always_collect_shipping_details_from_wallet_connector,
             order_fulfillment_time: new.order_fulfillment_time,
             order_fulfillment_time_origin: new.order_fulfillment_time_origin,
             frm_routing_algorithm_id: new.frm_routing_algorithm_id,
             payout_routing_algorithm_id: new.payout_routing_algorithm_id,
             default_fallback_routing: new.default_fallback_routing,
+            tax_connector_id: new.tax_connector_id,
+            is_tax_connector_enabled: new.is_tax_connector_enabled,
         }
     }
 }
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct AuthenticationConnectorDetails {
+    pub authentication_connectors: Vec<AuthenticationConnectors>,
+    pub three_ds_requestor_url: String,
+}
+
+common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Json)]
+pub struct WebhookDetails {
+    pub webhook_version: Option<String>,
+    pub webhook_username: Option<String>,
+    pub webhook_password: Option<Secret<String>>,
+    pub webhook_url: Option<Secret<String>>,
+    pub payment_created_enabled: Option<bool>,
+    pub payment_succeeded_enabled: Option<bool>,
+    pub payment_failed_enabled: Option<bool>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct BusinessPaymentLinkConfig {
+    pub domain_name: Option<String>,
+    #[serde(flatten)]
+    pub default_config: Option<PaymentLinkConfigRequest>,
+    pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
+    pub allowed_domains: Option<HashSet<String>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentLinkConfigRequest {
+    pub theme: Option<String>,
+    pub logo: Option<String>,
+    pub seller_name: Option<String>,
+    pub sdk_layout: Option<String>,
+    pub display_sdk_only: Option<bool>,
+    pub enabled_saved_payment_method: Option<bool>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct BusinessPayoutLinkConfig {
+    #[serde(flatten)]
+    pub config: BusinessGenericLinkConfig,
+    pub payout_test_mode: Option<bool>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct BusinessGenericLinkConfig {
+    pub domain_name: Option<String>,
+    pub allowed_domains: HashSet<String>,
+    #[serde(flatten)]
+    pub ui_config: common_utils::link_utils::GenericLinkUiConfig,
+}
+
+common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);

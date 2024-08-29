@@ -233,6 +233,18 @@ mod id_type {
         };
     }
 
+    /// Implements the `GenerateId` trait on the specified ID type.
+    #[macro_export]
+    macro_rules! impl_generate_id_id_type {
+        ($type:ty, $prefix:literal) => {
+            impl $crate::id_type::GenerateId for $type {
+                fn generate() -> Self {
+                    Self($crate::generate_ref_id_with_default_length($prefix))
+                }
+            }
+        };
+    }
+
     /// Implements the `SerializableSecret` trait on the specified ID type.
     #[macro_export]
     macro_rules! impl_serializable_secret_id_type {
@@ -300,4 +312,15 @@ mod id_type {
             $crate::impl_queryable_id_type!($type, diesel::sql_types::Text);
         };
     }
+}
+
+/// Get the type name for a type
+#[macro_export]
+macro_rules! type_name {
+    ($type:ty) => {
+        std::any::type_name::<$type>()
+            .rsplit("::")
+            .nth(1)
+            .unwrap_or_default();
+    };
 }
