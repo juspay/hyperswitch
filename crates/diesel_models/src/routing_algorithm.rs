@@ -7,7 +7,7 @@ use crate::{enums, schema::routing_algorithm};
 #[diesel(table_name = routing_algorithm, primary_key(algorithm_id), check_for_backend(diesel::pg::Pg))]
 pub struct RoutingAlgorithm {
     pub algorithm_id: String,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub name: String,
     pub description: Option<String>,
@@ -29,7 +29,7 @@ pub struct RoutingAlgorithmMetadata {
 }
 
 pub struct RoutingProfileMetadata {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub algorithm_id: String,
     pub name: String,
     pub description: Option<String>,

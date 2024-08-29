@@ -5,8 +5,8 @@ use common_utils::{
     pii::{self, EmailStrategy},
     types::{keymanager::ToEncryptable, Description},
 };
-use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -46,6 +46,16 @@ pub struct CustomerRequest {
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CustomerListRequest {
+    /// Offset
+    #[schema(example = 32)]
+    pub offset: Option<u32>,
+    /// Limit
+    #[schema(example = 32)]
+    pub limit: Option<u16>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -282,6 +292,8 @@ pub struct CustomerResponse {
     /// The identifier for the default payment method.
     #[schema(max_length = 64, example = "pm_djh2837dwduh890123")]
     pub default_payment_method_id: Option<String>,
+    /// Global id
+    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -305,6 +317,19 @@ impl CustomerId {
 
     pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
         Self { customer_id: cust }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GlobalId {
+    pub id: String,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl GlobalId {
+    pub fn new(id: String) -> Self {
+        Self { id }
     }
 }
 

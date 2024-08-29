@@ -89,6 +89,23 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::business_profile::business_profile_create,
         routes::business_profile::business_profile_retrieve,
         routes::business_profile::business_profile_update,
+
+        // Routes for routing under business profile
+        routes::business_profile::routing_link_config,
+        routes::business_profile::routing_unlink_config,
+        routes::business_profile::routing_update_default_config,
+        routes::business_profile::routing_retrieve_default_config,
+        routes::business_profile::routing_retrieve_linked_config,
+
+        // Routes for routing
+        routes::routing::routing_create_config,
+        routes::routing::routing_retrieve_config,
+
+        // Routes for api keys
+        routes::api_keys::api_key_create,
+        routes::api_keys::api_key_retrieve,
+        routes::api_keys::api_key_update,
+        routes::api_keys::api_key_revoke,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -150,6 +167,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MandateStatus,
         api_models::enums::PaymentExperience,
         api_models::enums::BankNames,
+        api_models::enums::BankType,
+        api_models::enums::BankHolderType,
         api_models::enums::CardNetwork,
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
@@ -450,6 +469,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::ast::ValueType,
         api_models::routing::ast::MetadataValue,
         api_models::routing::ast::NumberComparison,
+        api_models::routing::RoutingAlgorithmId,
         api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::payments::PaymentLinkStatus,
         api_models::blocklist::BlocklistRequest,
@@ -470,6 +490,24 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetailsResponse,
         api_models::payments::OpenBankingData,
         api_models::payments::OpenBankingSessionToken,
+        api_models::payments::additional_info::CardTokenAdditionalData,
+        api_models::payments::additional_info::BankDebitAdditionalData,
+        api_models::payments::additional_info::AchBankDebitAdditionalData,
+        api_models::payments::additional_info::BacsBankDebitAdditionalData,
+        api_models::payments::additional_info::BecsBankDebitAdditionalData,
+        api_models::payments::additional_info::SepaBankDebitAdditionalData,
+        api_models::payments::additional_info::BankRedirectAdditionalData,
+        api_models::payments::additional_info::BankRedirectDetails,
+        api_models::payments::additional_info::BancontactBankRedirectAdditionalData,
+        api_models::payments::additional_info::BlikBankRedirectAdditionalData,
+        api_models::payments::additional_info::GiropayBankRedirectAdditionalData,
+        api_models::payments::additional_info::BankTransferAdditionalData,
+        api_models::payments::additional_info::PixBankTransferAdditionalData,
+        api_models::payments::additional_info::LocalBankTransferAdditionalData,
+        api_models::payments::additional_info::GiftCardAdditionalData,
+        api_models::payments::additional_info::GivexGiftCardAdditionalData,
+        api_models::payments::additional_info::UpiAdditionalData,
+        api_models::payments::additional_info::UpiCollectAdditionalData,
     )),
     modifiers(&SecurityAddon)
 )]
