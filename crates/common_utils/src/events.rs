@@ -48,9 +48,6 @@ pub enum ApiEventsType {
         connector: String,
         payment_id: Option<String>,
     },
-    RoutingAlgorithmIds {
-        routing_id: id_type::RoutingId,
-    },
     Routing,
     ResourceListAPI,
     PaymentRedirectionResponse {
