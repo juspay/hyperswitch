@@ -220,6 +220,14 @@ pub mod routes {
                                 .service(
                                     web::resource("filters/disputes")
                                         .route(web::post().to(get_profile_dispute_filters)),
+                                )
+                                .service(
+                                    web::resource("connector_event_logs")
+                                        .route(web::get().to(get_profile_connector_events)),
+                                )
+                                service(
+                                    web::resource("outgoing_webhook_event_logs")
+                                        .route(web::get().to(get_profile_outgoing_webhook_events)),
                                 ),
                         ),
                 )
@@ -1046,6 +1054,41 @@ pub mod routes {
         .await
     }
 
+    pub async fn get_profile_outgoing_webhook_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<
+            api_models::analytics::outgoing_webhook_event::OutgoingWebhookLogsRequest,
+        >,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetOutgoingWebhookEvents;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::UnknownError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
+                };
+                outgoing_webhook_events_core(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     pub async fn get_sdk_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1441,6 +1484,39 @@ pub mod routes {
                 let org_id = auth.merchant_account.get_org_id();
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
+                };
+                connector_events_core(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_connector_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetConnectorEvents;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::UnknownError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
                 };
                 connector_events_core(&state.pool, req, &auth)
                     .await
