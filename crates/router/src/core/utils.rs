@@ -1364,19 +1364,19 @@ impl GetProfileId for diesel_models::Refund {
 }
 
 impl GetProfileId for api_models::routing::RoutingConfigRequest {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
     }
 }
 
 impl GetProfileId for api_models::routing::RoutingRetrieveLinkQuery {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
     }
 }
 
 impl GetProfileId for domain::BusinessProfile {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)
     }
 }

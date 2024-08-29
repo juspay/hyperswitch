@@ -88,7 +88,7 @@ impl RoutingAlgorithmUpdate {
 pub async fn retrieve_merchant_routing_dictionary(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    authentication_profile_id: Option<String>,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     query_params: RoutingRetrieveQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
@@ -133,7 +133,7 @@ pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    authentication_profile_id: Option<String>,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -203,7 +203,7 @@ pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    authentication_profile_id: Option<String>,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -373,7 +373,7 @@ pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    authentication_profile_id: Option<String>,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: String,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -452,7 +452,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    authentication_profile_id: Option<String>,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: String,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -488,7 +488,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    authentication_profile_id: Option<String>,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: String,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -591,7 +591,7 @@ pub async fn unlink_routing_config(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
-    authentication_profile_id: Option<String>,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);

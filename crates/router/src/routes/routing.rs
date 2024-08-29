@@ -220,7 +220,7 @@ pub async fn list_routing_configs_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingRetrieveDictionary;
@@ -436,11 +436,12 @@ pub async fn routing_retrieve_default_config(
     req: HttpRequest,
     path: web::Path<common_utils::id_type::ProfileId>,
 ) -> impl Responder {
+    let path = path.into_inner();
     Box::pin(oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
         state,
         &req,
-        path.into_inner(),
+        path.clone(),
         |state, auth: auth::AuthenticationData, profile_id, _| {
             routing::retrieve_default_fallback_algorithm_for_profile(
                 state,
@@ -453,14 +454,14 @@ pub async fn routing_retrieve_default_config(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuthProfileFromRoute {
-                profile_id: path.into_inner(),
+                profile_id: path,
                 required_permission: Permission::RoutingRead,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuthProfileFromRoute {
-            profile_id: path.into_inner(),
+            profile_id: path,
             required_permission: Permission::RoutingRead,
         },
         api_locking::LockAction::NotApplicable,

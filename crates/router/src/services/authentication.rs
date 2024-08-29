@@ -1317,7 +1317,7 @@ where
 }
 
 pub struct JWTAuthProfileFromRoute {
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
 }
 
