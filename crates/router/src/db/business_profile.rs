@@ -333,7 +333,7 @@ impl BusinessProfileInterface for MockDb {
         current_state: domain::BusinessProfile,
         business_profile_update: domain::BusinessProfileUpdate,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
-        let profile_id = current_state.get_id();
+        let profile_id = current_state.get_id().to_owned();
         self.business_profiles
             .lock()
             .await
