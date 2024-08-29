@@ -21,7 +21,7 @@ use crate::{
     errors,
     routes::{app::StorageInterface, SessionState},
     services,
-    types::domain,
+    types::{api, domain},
 };
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -156,9 +156,31 @@ pub async fn initiate_payout_link(
                 .attach_printable_lazy(|| {
                     format!("customer [{}] not found", payout_link.primary_reference)
                 })?;
+            let address = payout
+                .address_id
+                .as_ref()
+                .async_map(|address_id| async {
+                    db.find_address_by_address_id(&(&state).into(), address_id, &key_store)
+                        .await
+                })
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed while fetching address [id - {:?}] for payout [id - {}]",
+                        payout.address_id, payout.payout_id
+                    )
+                })?;
 
-            let enabled_payout_methods =
-                filter_payout_methods(&state, &merchant_account, &key_store, &payout).await?;
+            let enabled_payout_methods = filter_payout_methods(
+                &state,
+                &merchant_account,
+                &key_store,
+                &payout,
+                address.as_ref(),
+            )
+            .await?;
             // Fetch default enabled_payout_methods
             let mut default_enabled_payout_methods: Vec<link_utils::EnabledPaymentMethod> = vec![];
             for (payment_method, payment_method_types) in
@@ -188,9 +210,14 @@ pub async fn initiate_payout_link(
                 _ => Ordering::Equal,
             });
 
+            let required_field_override = api::RequiredFieldsOverrideRequest {
+                billing: address.as_ref().map(|a| From::from(a)),
+            };
+
             let enabled_payment_methods_with_required_fields = ForeignFrom::foreign_from((
                 &state.conf.payouts.required_fields,
                 enabled_payment_methods.clone(),
+                required_field_override,
             ));
 
             let js_data = payouts::PayoutLinkDetails {
@@ -294,6 +321,7 @@ pub async fn filter_payout_methods(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
+    address: Option<&domain::Address>,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
     use masking::ExposeInterface;
 
@@ -315,22 +343,6 @@ pub async fn filter_payout_methods(
         &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,
     );
-    let address = payout
-        .address_id
-        .as_ref()
-        .async_map(|address_id| async {
-            db.find_address_by_address_id(key_manager_state, address_id, key_store)
-                .await
-        })
-        .await
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed while fetching address [id - {:?}] for payout [id - {}]",
-                payout.address_id, payout.payout_id
-            )
-        })?;
 
     let mut response: Vec<link_utils::EnabledPaymentMethod> = vec![];
     let mut payment_method_list_hm: HashMap<

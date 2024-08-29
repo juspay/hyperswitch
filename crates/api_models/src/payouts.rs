@@ -6,6 +6,7 @@ use common_utils::{
 };
 use indexmap::IndexMap;
 use masking::Secret;
+use router_derive::FlattenStructKeys;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -416,7 +417,7 @@ pub struct PayoutCreateResponse {
     pub payout_type: Option<api_enums::PayoutType>,
 
     /// The billing address for the payout
-    #[schema(value_type = Option<Object>, example = json!(r#"{
+    #[schema(value_type = Option<Address>, example = json!(r#"{
         "address": {
             "line1": "1467",
             "line2": "Harrison Street",
@@ -801,6 +802,11 @@ pub struct PayoutEnabledPaymentMethodsInfo {
 pub struct PaymentMethodTypeInfo {
     pub payment_method_type: common_enums::PaymentMethodType,
     pub required_fields: Option<IndexMap<String, RequiredFieldInfo>>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, FlattenStructKeys)]
+pub struct RequiredFieldsOverrideRequest {
+    pub billing: Option<payments::Address>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

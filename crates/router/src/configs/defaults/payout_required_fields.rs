@@ -40,7 +40,7 @@ fn get_adyen_fields(
     let mut common_fields = get_billing_details();
     match payment_method_type {
         PaymentMethodType::Debit => {
-            common_fields.extend(get_card_fields().into_iter());
+            common_fields.extend(get_card_fields());
             (
                 payment_method_type,
                 ConnectorFields {
@@ -56,7 +56,7 @@ fn get_adyen_fields(
             )
         }
         PaymentMethodType::Credit => {
-            common_fields.extend(get_card_fields().into_iter());
+            common_fields.extend(get_card_fields());
             (
                 payment_method_type,
                 ConnectorFields {
@@ -72,7 +72,7 @@ fn get_adyen_fields(
             )
         }
         PaymentMethodType::Sepa => {
-            common_fields.extend(get_sepa_fields().into_iter());
+            common_fields.extend(get_sepa_fields());
             (
                 payment_method_type,
                 ConnectorFields {

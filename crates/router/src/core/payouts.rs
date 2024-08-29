@@ -11,11 +11,9 @@ use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
 use common_enums::PayoutRetryType;
 use common_utils::{
     consts,
-    crypto::Encryptable,
     ext_traits::{AsyncExt, ValueExt},
     id_type::CustomerId,
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
-    pii,
     types::MinorUnit,
 };
 use diesel_models::{
@@ -2139,29 +2137,7 @@ pub async fn response_handler(
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
-
-    let address = billing_address.as_ref().map(|a| {
-        let phone_details = payment_api_types::PhoneDetails {
-            number: a.phone_number.to_owned().map(Encryptable::into_inner),
-            country_code: a.country_code.to_owned(),
-        };
-        let address_details = payment_api_types::AddressDetails {
-            city: a.city.to_owned(),
-            country: a.country.to_owned(),
-            line1: a.line1.to_owned().map(Encryptable::into_inner),
-            line2: a.line2.to_owned().map(Encryptable::into_inner),
-            line3: a.line3.to_owned().map(Encryptable::into_inner),
-            zip: a.zip.to_owned().map(Encryptable::into_inner),
-            first_name: a.first_name.to_owned().map(Encryptable::into_inner),
-            last_name: a.last_name.to_owned().map(Encryptable::into_inner),
-            state: a.state.to_owned().map(Encryptable::into_inner),
-        };
-        api::payments::Address {
-            phone: Some(phone_details),
-            address: Some(address_details),
-            email: a.email.to_owned().map(pii::Email::from),
-        }
-    });
+    let billing = billing_address.as_ref().map(|a| From::from(a));
 
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),
@@ -2170,7 +2146,7 @@ pub async fn response_handler(
         currency: payouts.destination_currency.to_owned(),
         connector: payout_attempt.connector.to_owned(),
         payout_type: payouts.payout_type.to_owned(),
-        billing: address,
+        billing,
         auto_fulfill: payouts.auto_fulfill,
         customer_id,
         email: customer_details.as_ref().and_then(|c| c.email.clone()),

@@ -1,10 +1,7 @@
 //! Utility macros for the `router` crate.
 #![warn(missing_docs)]
-
-use syn::parse_macro_input;
-
 use crate::macros::diesel::DieselEnumMeta;
-
+use syn::parse_macro_input;
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
@@ -614,4 +611,81 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
     macros::try_get_enum::try_get_enum_variant(input)
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
+}
+
+/// Uses the [`Serialize`] implementation of a type to derive a function
+/// implementation.
+///
+/// Causes a compilation error if the type doesn't implement the [`Debug`][Debug] trait.
+///
+/// [Debug]: ::core::fmt::Debug
+/// [Display]: ::core::fmt::Display
+///
+/// # Example
+///
+/// ```
+/// use router_derive::DebugAsDisplay;
+///
+/// #[derive(Debug, DebugAsDisplay)]
+/// struct Point {
+///     x: f32,
+///     y: f32,
+/// }
+///
+/// #[derive(Debug, DebugAsDisplay)]
+/// enum Color {
+///     Red,
+///     Green,
+///     Blue,
+/// }
+/// ```
+#[proc_macro_derive(FlattenStructKeys)]
+pub fn flatten_struct_keys_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    let name = &input.ident;
+
+    let expanded = quote::quote! {
+        impl #name {
+            pub fn flatten_struct_keys(&self) -> std::collections::HashMap<String, String> {
+                use serde_json::Value;
+                use std::collections::HashMap;
+
+                fn flatten_value(
+                    value: &Value,
+                    prefix: &str,
+                    result: &mut HashMap<String, String>
+                ) {
+                    match value {
+                        Value::Object(map) => {
+                            for (key, val) in map {
+                                let new_key = if prefix.is_empty() {
+                                    key.to_string()
+                                } else {
+                                    format!("{}.{}", prefix, key)
+                                };
+                                flatten_value(val, &new_key, result);
+                            }
+                        }
+                        Value::String(s) => {
+                            result.insert(prefix.to_string(), s.clone());
+                        }
+                        Value::Number(n) => {
+                            result.insert(prefix.to_string(), n.to_string());
+                        }
+                        Value::Bool(b) => {
+                            result.insert(prefix.to_string(), b.to_string());
+                        }
+                        _ => {}
+                    }
+                }
+
+                let mut result = HashMap::new();
+                let value = serde_json::to_value(self).unwrap();
+                flatten_value(&value, "", &mut result);
+                result
+            }
+        }
+    };
+
+    proc_macro::TokenStream::from(expanded)
 }
