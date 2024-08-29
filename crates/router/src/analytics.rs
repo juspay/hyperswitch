@@ -188,10 +188,15 @@ pub mod routes {
                                 ),
                         )
                         .service(
-                            web::scope("/profile").service(
-                                web::resource("metrics/payments")
-                                    .route(web::post().to(get_profile_payment_metrics)),
-                            ),
+                            web::scope("/profile")
+                                .service(
+                                    web::resource("metrics/payments")
+                                        .route(web::post().to(get_profile_payment_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/payments")
+                                        .route(web::post().to(get_profile_payment_filters)),
+                                ),
                         ),
                 )
                 .service(
@@ -689,6 +694,39 @@ pub mod routes {
                 let org_id = auth.merchant_account.get_org_id();
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
+                };
+                analytics::payments::get_filters(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_payment_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetPaymentFiltersRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::UnknownError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
                 };
                 analytics::payments::get_filters(&state.pool, req, &auth)
                     .await
