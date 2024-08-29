@@ -186,7 +186,10 @@ pub mod routes {
                                     web::resource("outgoing_webhook_event_logs")
                                         .route(web::get().to(get_org_outgoing_webhook_events)),
                                 ),
-                        ),
+                        )
+                        .service(web::scope("/profile").service(
+                            web::resource("{domain}/info").route(web::get().to(get_info)),
+                        )),
                 )
                 .service(
                     web::scope("/v2")
