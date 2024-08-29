@@ -145,7 +145,7 @@ pub async fn check_if_profile_id_is_present_in_payment_intent(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let payment_id_type = PaymentIdType::PaymentIntentId(payment_id);
     let payment_intent = find_payment_intent_from_payment_id_type(
-        &state,
+        state,
         payment_id_type,
         &auth_data.merchant_account,
         &auth_data.key_store,

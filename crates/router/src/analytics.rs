@@ -66,15 +66,15 @@ pub mod routes {
                         .service(web::resource("{domain}/info").route(web::get().to(get_info)))
                         .service(
                             web::resource("report/dispute")
-                                .route(web::post().to(generate_dispute_report)),
+                                .route(web::post().to(generate_merchant_dispute_report)),
                         )
                         .service(
                             web::resource("report/refunds")
-                                .route(web::post().to(generate_refund_report)),
+                                .route(web::post().to(generate_merchant_refund_report)),
                         )
                         .service(
                             web::resource("report/payments")
-                                .route(web::post().to(generate_payment_report)),
+                                .route(web::post().to(generate_merchant_payment_report)),
                         )
                         .service(
                             web::resource("metrics/sdk_events")
@@ -162,15 +162,15 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("report/dispute")
-                                        .route(web::post().to(generate_dispute_report)),
+                                        .route(web::post().to(generate_merchant_dispute_report)),
                                 )
                                 .service(
                                     web::resource("report/refunds")
-                                        .route(web::post().to(generate_refund_report)),
+                                        .route(web::post().to(generate_merchant_refund_report)),
                                 )
                                 .service(
                                     web::resource("report/payments")
-                                        .route(web::post().to(generate_payment_report)),
+                                        .route(web::post().to(generate_merchant_payment_report)),
                                 )
                                 .service(
                                     web::resource("metrics/sdk_events")
@@ -261,6 +261,18 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/api_events")
                                         .route(web::post().to(get_org_api_events_metrics)),
+                                )
+                                .service(
+                                    web::resource("report/dispute")
+                                        .route(web::post().to(generate_org_dispute_report)),
+                                )
+                                .service(
+                                    web::resource("report/refunds")
+                                        .route(web::post().to(generate_org_refund_report)),
+                                )
+                                .service(
+                                    web::resource("report/payments")
+                                        .route(web::post().to(generate_org_payment_report)),
                                 ),
                         )
                         .service(
@@ -304,6 +316,18 @@ pub mod routes {
                                 .service(
                                     web::resource("outgoing_webhook_event_logs")
                                         .route(web::get().to(get_profile_outgoing_webhook_events)),
+                                )
+                                .service(
+                                    web::resource("report/dispute")
+                                        .route(web::post().to(generate_profile_dispute_report)),
+                                )
+                                .service(
+                                    web::resource("report/refunds")
+                                        .route(web::post().to(generate_profile_refund_report)),
+                                )
+                                .service(
+                                    web::resource("report/payments")
+                                        .route(web::post().to(generate_profile_payment_report)),
                                 ),
                         ),
                 )
@@ -1189,7 +1213,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn generate_refund_report(
+    pub async fn generate_merchant_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
@@ -1209,9 +1233,15 @@ pub mod routes {
                     .change_context(AnalyticsError::UnknownError)?
                     .get_secret();
 
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
                 let lambda_req = GenerateReportRequest {
                     request: payload,
-                    merchant_id: auth.merchant_account.get_id().to_owned(),
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    },
                     email: user_email,
                 };
 
@@ -1231,7 +1261,106 @@ pub mod routes {
         .await
     }
 
-    pub async fn generate_dispute_report(
+    pub async fn generate_org_refund_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRefundReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: None,
+                    auth: AuthInfo::OrgLevel {
+                        org_id: org_id.clone(),
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.refund_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::GenerateReport),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn generate_profile_refund_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRefundReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        profile_ids: vec![profile_id.clone()],
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.refund_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::GenerateReport),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn generate_merchant_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
@@ -1251,9 +1380,15 @@ pub mod routes {
                     .change_context(AnalyticsError::UnknownError)?
                     .get_secret();
 
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
                 let lambda_req = GenerateReportRequest {
                     request: payload,
-                    merchant_id: auth.merchant_account.get_id().to_owned(),
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    },
                     email: user_email,
                 };
 
@@ -1273,7 +1408,106 @@ pub mod routes {
         .await
     }
 
-    pub async fn generate_payment_report(
+    pub async fn generate_org_dispute_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateDisputeReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: None,
+                    auth: AuthInfo::OrgLevel {
+                        org_id: org_id.clone(),
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.dispute_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::GenerateReport),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn generate_profile_dispute_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateDisputeReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        profile_ids: vec![profile_id.clone()],
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.dispute_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::GenerateReport),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn generate_merchant_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<ReportRequest>,
@@ -1293,9 +1527,113 @@ pub mod routes {
                     .change_context(AnalyticsError::UnknownError)?
                     .get_secret();
 
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
                 let lambda_req = GenerateReportRequest {
                     request: payload,
-                    merchant_id: auth.merchant_account.get_id().to_owned(),
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::GenerateReport),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn generate_org_payment_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GeneratePaymentReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+
+                let org_id = auth.merchant_account.get_org_id();
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: None,
+                    auth: AuthInfo::OrgLevel {
+                        org_id: org_id.clone(),
+                    },
+                    email: user_email,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+                invoke_lambda(
+                    &state.conf.report_download_config.payment_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await
+                .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::GenerateReport),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn generate_profile_payment_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GeneratePaymentReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+
+                let user_email = UserEmail::from_pii_email(user.email)
+                    .change_context(AnalyticsError::UnknownError)?
+                    .get_secret();
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(merchant_id.clone()),
+                    auth: AuthInfo::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        profile_ids: vec![profile_id.clone()],
+                    },
                     email: user_email,
                 };
 
