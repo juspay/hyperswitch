@@ -31,7 +31,7 @@ impl UserRole {
             .get_results_async(conn)
             .await
             .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error while inserting payment intents")
+            .attach_printable("Error while inserting user_roles")
     }
 
     pub async fn find_by_user_id(

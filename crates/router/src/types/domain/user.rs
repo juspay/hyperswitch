@@ -1421,7 +1421,7 @@ where
     ) -> UserResult<UserRole> {
         let inserted_roles = state
             .store
-            .insert_user_role(InsertUserRolePayload::V1AndV2([v1_role, v2_role]))
+            .insert_user_role(InsertUserRolePayload::V1AndV2(Box::new([v1_role, v2_role])))
             .await
             .change_context(UserErrors::InternalServerError)?;
 

@@ -13,11 +13,11 @@ use crate::{
 pub enum InsertUserRolePayload {
     OnlyV1(storage::UserRoleNew),
     OnlyV2(storage::UserRoleNew),
-    V1AndV2([storage::UserRoleNew; 2]),
+    V1AndV2(Box<[storage::UserRoleNew; 2]>),
 }
 
 impl InsertUserRolePayload {
-    fn to_vec(self) -> Vec<storage::UserRoleNew> {
+    fn convert_to_vec(self) -> Vec<storage::UserRoleNew> {
         match self {
             Self::OnlyV1(user_role) | Self::OnlyV2(user_role) => vec![user_role],
             Self::V1AndV2(user_roles) => user_roles.to_vec(),
@@ -118,7 +118,7 @@ impl UserRoleInterface for Store {
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        storage::UserRole::insert_multiple_user_roles(&conn, user_role.to_vec())
+        storage::UserRole::insert_multiple_user_roles(&conn, user_role.convert_to_vec())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -294,7 +294,7 @@ impl UserRoleInterface for MockDb {
         let mut db_user_roles = self.user_roles.lock().await;
 
         user_role
-            .to_vec()
+            .convert_to_vec()
             .into_iter()
             .map(|user_role| {
                 if db_user_roles
