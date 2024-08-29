@@ -96,7 +96,8 @@ pub mod routes {
                             web::resource("metrics/frm").route(web::post().to(get_frm_metrics)),
                         )
                         .service(
-                            web::resource("api_event_logs").route(web::get().to(get_profile_api_events)),
+                            web::resource("api_event_logs")
+                                .route(web::get().to(get_profile_api_events)),
                         )
                         .service(
                             web::resource("sdk_event_logs")
