@@ -25,6 +25,8 @@ ALTER TABLE payment_methods DROP COLUMN IF EXISTS payment_method_issuer_code;
 
 DROP TYPE IF EXISTS "PaymentMethodIssuerCode";
 
+ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS locker_fingerprint_id VARCHAR(64);
+
 ALTER TABLE payment_methods DROP COLUMN IF EXISTS id;
 ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS id VARCHAR(64);
 UPDATE payment_methods SET id = payment_method_id;

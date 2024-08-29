@@ -949,6 +949,8 @@ diesel::table! {
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
         #[max_length = 64]
+        locker_fingerprint_id -> Nullable<Varchar>,
+        #[max_length = 64]
         id -> Varchar,
     }
 }

@@ -72,6 +72,7 @@ pub struct PaymentMethod {
     pub client_secret: Option<String>,
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
+    pub locker_fingerprint_id: Option<String>,
     pub id: String,
 }
 
@@ -275,6 +276,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .payment_method_billing_address
                 .map(|val| val.into()),
             updated_by: self.updated_by,
+            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 
@@ -333,6 +335,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     })
                     .await?,
                 updated_by: item.updated_by,
+                locker_fingerprint_id: item.locker_fingerprint_id,
             })
         }
         .await
@@ -363,6 +366,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .payment_method_billing_address
                 .map(|val| val.into()),
             updated_by: self.updated_by,
+            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 }

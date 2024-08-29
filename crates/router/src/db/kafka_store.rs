@@ -1818,6 +1818,19 @@ impl PaymentMethodInterface for KafkaStore {
             )
             .await
     }
+
+    // Soft delete, Check if KV stuff is needed here
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn delete_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method: domain::PaymentMethod,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .delete_payment_method(state, key_store, payment_method)
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]

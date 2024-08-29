@@ -79,6 +79,14 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError>;
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn delete_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method: domain::PaymentMethod,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError>;
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
@@ -761,6 +769,34 @@ mod storage {
             .await
             .change_context(errors::StorageError::DecryptionError)
         }
+
+        // Soft delete, Check if KV stuff is needed here
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        async fn delete_payment_method(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            payment_method: domain::PaymentMethod,
+        ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+            let payment_method = Conversion::convert(payment_method)
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+            let conn = connection::pg_connection_write(self).await?;
+            let payment_method_update = storage_types::PaymentMethodUpdate::StatusUpdate {
+                status: Some(common_enums::PaymentMethodStatus::Inactive),
+            };
+            payment_method
+                .update_with_id(&conn, payment_method_update.into())
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
     }
 }
 
@@ -1069,6 +1105,33 @@ mod storage {
             .await
             .change_context(errors::StorageError::DecryptionError)
         }
+
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        async fn delete_payment_method(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            payment_method: domain::PaymentMethod,
+        ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+            let payment_method = Conversion::convert(payment_method)
+                .await
+                .change_context(errors::StorageError::DecryptionError)?;
+            let conn = connection::pg_connection_write(self).await?;
+            let payment_method_update = storage_types::PaymentMethodUpdate::StatusUpdate {
+                status: Some(common_enums::PaymentMethodStatus::Inactive),
+            };
+            payment_method
+                .update_with_id(&conn, payment_method_update.into())
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
     }
 }
 
@@ -1299,6 +1362,47 @@ impl PaymentMethodInterface for MockDb {
         payment_method_update: storage_types::PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        let pm_update_res = self
+            .payment_methods
+            .lock()
+            .await
+            .iter_mut()
+            .find(|pm| pm.get_id() == payment_method.get_id())
+            .map(|pm| {
+                let payment_method_updated =
+                    PaymentMethodUpdateInternal::from(payment_method_update)
+                        .create_payment_method(pm.clone());
+                *pm = payment_method_updated.clone();
+                payment_method_updated
+            });
+
+        match pm_update_res {
+            Some(result) => Ok(result
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)?),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method to update".to_string(),
+            )
+            .into()),
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn delete_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method: domain::PaymentMethod,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        let payment_method_update = storage_types::PaymentMethodUpdate::StatusUpdate {
+            status: Some(common_enums::PaymentMethodStatus::Inactive),
+        };
+
         let pm_update_res = self
             .payment_methods
             .lock()
