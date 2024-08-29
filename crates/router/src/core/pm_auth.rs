@@ -307,7 +307,7 @@ async fn store_bank_details_in_payment_methods(
     state: SessionState,
     bank_account_details_resp: pm_auth_types::BankAccountCredentialsResponse,
     connector_details: (&str, Secret<String>),
-    mca_id: String,
+    mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> RouterResult<()> {
     let key = key_store.key.get_inner().peek();
     let db = &*state.clone().store;
@@ -753,7 +753,12 @@ pub async fn retrieve_payment_method_from_auth_service(
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: auth_token.connector_details.mca_id.clone(),
+            id: auth_token
+                .connector_details
+                .mca_id
+                .get_string_repr()
+                .to_string()
+                .clone(),
         })
         .attach_printable(
             "error while fetching merchant_connector_account from merchant_id and connector name",

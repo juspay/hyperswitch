@@ -3,7 +3,7 @@ use std::{
     fmt,
     num::NonZeroI64,
 };
-
+pub mod additional_info;
 use cards::CardNumber;
 use common_utils::{
     consts::default_payments_list_limit,
@@ -15,9 +15,9 @@ use common_utils::{
     types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
-use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
 use router_derive::Setter;
+use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
     ser::Serializer,
@@ -480,7 +480,8 @@ pub struct PaymentsRequest {
 
     /// The business profile to be used for this payment, if not passed the default business profile associated with the merchant account will be used. It is mandatory in case multiple business profiles have been set up.
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<RequestSurchargeDetails>)]
@@ -968,7 +969,7 @@ pub struct VerifyRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum MandateTransactionType {
     NewMandateTransaction,
@@ -1991,6 +1992,8 @@ pub enum AdditionalPaymentData {
     Card(Box<AdditionalCardInfo>),
     BankRedirect {
         bank_name: Option<common_enums::BankNames>,
+        #[serde(flatten)]
+        additional_details: Option<additional_info::BankRedirectDetails>,
     },
     Wallet {
         apple_pay: Option<ApplepayPaymentMethod>,
@@ -1998,18 +2001,18 @@ pub enum AdditionalPaymentData {
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
     },
-    BankTransfer {},
-    Crypto {},
-    BankDebit {},
+    BankTransfer(additional_info::BankTransferAdditionalData),
+    Crypto(CryptoData),
+    BankDebit(additional_info::BankDebitAdditionalData),
     MandatePayment {},
     Reward {},
-    RealTimePayment {},
-    Upi {},
-    GiftCard {},
-    Voucher {},
-    CardRedirect {},
-    CardToken {},
-    OpenBanking {},
+    RealTimePayment(RealTimePaymentData),
+    Upi(additional_info::UpiAdditionalData),
+    GiftCard(additional_info::GiftCardAdditionalData),
+    Voucher(VoucherData),
+    CardRedirect(CardRedirectData),
+    CardToken(additional_info::CardTokenAdditionalData),
+    OpenBanking(OpenBankingData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2976,22 +2979,21 @@ where
         {
             match payment_method_data {
                 PaymentMethodDataResponse::Reward {} => serializer.serialize_str("reward"),
-                PaymentMethodDataResponse::BankDebit {}
-                | PaymentMethodDataResponse::BankRedirect {}
+                PaymentMethodDataResponse::BankDebit(_)
+                | PaymentMethodDataResponse::BankRedirect(_)
                 | PaymentMethodDataResponse::Card(_)
-                | PaymentMethodDataResponse::CardRedirect {}
-                | PaymentMethodDataResponse::CardToken {}
-                | PaymentMethodDataResponse::Crypto {}
+                | PaymentMethodDataResponse::CardRedirect(_)
+                | PaymentMethodDataResponse::CardToken(_)
+                | PaymentMethodDataResponse::Crypto(_)
                 | PaymentMethodDataResponse::MandatePayment {}
-                | PaymentMethodDataResponse::GiftCard {}
+                | PaymentMethodDataResponse::GiftCard(_)
                 | PaymentMethodDataResponse::PayLater(_)
-                | PaymentMethodDataResponse::Paypal {}
-                | PaymentMethodDataResponse::RealTimePayment {}
-                | PaymentMethodDataResponse::Upi {}
+                | PaymentMethodDataResponse::RealTimePayment(_)
+                | PaymentMethodDataResponse::Upi(_)
                 | PaymentMethodDataResponse::Wallet {}
-                | PaymentMethodDataResponse::BankTransfer {}
-                | PaymentMethodDataResponse::OpenBanking {}
-                | PaymentMethodDataResponse::Voucher {} => {
+                | PaymentMethodDataResponse::BankTransfer(_)
+                | PaymentMethodDataResponse::OpenBanking(_)
+                | PaymentMethodDataResponse::Voucher(_) => {
                     payment_method_data_response.serialize(serializer)
                 }
             }
@@ -3007,24 +3009,28 @@ where
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
-    #[serde(rename = "card")]
     Card(Box<CardResponse>),
-    BankTransfer {},
+    #[schema(value_type = BankTransferAdditionalData)]
+    BankTransfer(additional_info::BankTransferAdditionalData),
     Wallet {},
     PayLater(Box<PaylaterResponse>),
-    Paypal {},
-    BankRedirect {},
-    Crypto {},
-    BankDebit {},
+    #[schema(value_type = BankRedirectAdditionalData)]
+    BankRedirect(additional_info::BankRedirectAdditionalData),
+    Crypto(CryptoData),
+    #[schema(value_type = BankDebitAdditionalData)]
+    BankDebit(additional_info::BankDebitAdditionalData),
     MandatePayment {},
     Reward {},
-    RealTimePayment {},
-    Upi {},
-    Voucher {},
-    GiftCard {},
-    CardRedirect {},
-    CardToken {},
-    OpenBanking {},
+    RealTimePayment(RealTimePaymentData),
+    #[schema(value_type = UpiAdditionalData)]
+    Upi(additional_info::UpiAdditionalData),
+    Voucher(VoucherData),
+    #[schema(value_type = GiftCardAdditionalData)]
+    GiftCard(additional_info::GiftCardAdditionalData),
+    CardRedirect(CardRedirectData),
+    #[schema(value_type = CardTokenAdditionalData)]
+    CardToken(additional_info::CardTokenAdditionalData),
+    OpenBanking(OpenBankingData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3556,16 +3562,7 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
-#[derive(
-    Setter,
-    Clone,
-    Default,
-    Debug,
-    PartialEq,
-    serde::Serialize,
-    ToSchema,
-    router_derive::PolymorphicSchema,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
 
 pub struct PaymentsResponse {
@@ -3576,12 +3573,12 @@ pub struct PaymentsResponse {
         max_length = 30,
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
-    pub payment_id: Option<String>,
+    pub payment_id: String,
 
     /// This is an identifier for the merchant account. This is inferred from the API key
     /// provided during the request
-    #[schema(max_length = 255, example = "merchant_1668273825", value_type = Option<String>)]
-    pub merchant_id: Option<id_type::MerchantId>,
+    #[schema(max_length = 255, example = "merchant_1668273825", value_type = String)]
+    pub merchant_id: id_type::MerchantId,
 
     #[schema(value_type = IntentStatus, example = "failed", default = "requires_confirmation")]
     pub status: api_enums::IntentStatus,
@@ -3597,10 +3594,10 @@ pub struct PaymentsResponse {
 
     /// The maximum amount that could be captured from the payment
     #[schema(value_type = i64, minimum = 100, example = 6540)]
-    pub amount_capturable: Option<MinorUnit>,
+    pub amount_capturable: MinorUnit,
 
     /// The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.
-    #[schema(value_type = i64, example = 6540)]
+    #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_received: Option<MinorUnit>,
 
     /// The connector used for the payment
@@ -3660,7 +3657,6 @@ pub struct PaymentsResponse {
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
-    #[auth_based]
     pub mandate_data: Option<MandateData>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
@@ -3684,12 +3680,10 @@ pub struct PaymentsResponse {
 
     /// The payment method that is to be used
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
-    #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// The payment method information provided for making a payment
     #[schema(value_type = Option<PaymentMethodDataResponseWithBilling>, example = "bank_transfer")]
-    #[auth_based]
     #[serde(serialize_with = "serialize_payment_method_data_response")]
     pub payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
 
@@ -3822,7 +3816,8 @@ pub struct PaymentsResponse {
     /// Details for Payment link
     pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
 
     /// Details of surcharge applied on this payment
     pub surcharge_details: Option<RequestSurchargeDetails>,
@@ -3834,7 +3829,8 @@ pub struct PaymentsResponse {
     pub merchant_decision: Option<String>,
 
     /// Identifier of the connector ( merchant connector account ) which was chosen to make the payment
-    pub merchant_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// If true, incremental authorization can be performed on this payment, in case the funds authorized initially fall short.
     pub incremental_authorization_allowed: Option<bool>,
@@ -4038,7 +4034,7 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     /// The identifier for customer
     pub customer_id: Option<id_type::CustomerId>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
@@ -4064,7 +4060,7 @@ pub struct PaymentListFilterConstraints {
     /// The list of authentication types to filter payments list
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     /// The list of merchant connector ids to filter payments list for selected label
-    pub merchant_connector_id: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     /// The order in which payments list should be sorted
     #[serde(default)]
     pub order: Order,
@@ -4285,19 +4281,27 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             },
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
-            AdditionalPaymentData::BankRedirect { .. } => Self::BankRedirect {},
-            AdditionalPaymentData::Crypto {} => Self::Crypto {},
-            AdditionalPaymentData::BankDebit {} => Self::BankDebit {},
+            AdditionalPaymentData::BankRedirect {
+                bank_name,
+                additional_details,
+            } => Self::BankRedirect(additional_info::BankRedirectAdditionalData {
+                bank_name,
+                additional_details,
+            }),
+            AdditionalPaymentData::Crypto(crypto) => Self::Crypto(crypto),
+            AdditionalPaymentData::BankDebit(bank_debit) => Self::BankDebit(bank_debit),
             AdditionalPaymentData::MandatePayment {} => Self::MandatePayment {},
             AdditionalPaymentData::Reward {} => Self::Reward {},
-            AdditionalPaymentData::RealTimePayment {} => Self::RealTimePayment {},
-            AdditionalPaymentData::Upi {} => Self::Upi {},
-            AdditionalPaymentData::BankTransfer {} => Self::BankTransfer {},
-            AdditionalPaymentData::Voucher {} => Self::Voucher {},
-            AdditionalPaymentData::GiftCard {} => Self::GiftCard {},
-            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect {},
-            AdditionalPaymentData::CardToken {} => Self::CardToken {},
-            AdditionalPaymentData::OpenBanking {} => Self::OpenBanking {},
+            AdditionalPaymentData::RealTimePayment(realtime_payment) => {
+                Self::RealTimePayment(realtime_payment)
+            }
+            AdditionalPaymentData::Upi(upi) => Self::Upi(upi),
+            AdditionalPaymentData::BankTransfer(bank_transfer) => Self::BankTransfer(bank_transfer),
+            AdditionalPaymentData::Voucher(voucher) => Self::Voucher(voucher),
+            AdditionalPaymentData::GiftCard(gift_card) => Self::GiftCard(gift_card),
+            AdditionalPaymentData::CardRedirect(card_redirect) => Self::CardRedirect(card_redirect),
+            AdditionalPaymentData::CardToken(card_token) => Self::CardToken(card_token),
+            AdditionalPaymentData::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
         }
     }
 }
@@ -5054,6 +5058,29 @@ pub struct PaymentsManualUpdateRequest {
     pub error_message: Option<String>,
     /// Error reason of the connector
     pub error_reason: Option<String>,
+    /// A unique identifier for a payment provided by the connector
+    pub connector_transaction_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualUpdateResponse {
+    /// The identifier for the payment
+    pub payment_id: String,
+    /// The identifier for the payment attempt
+    pub attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the attempt
+    pub attempt_status: enums::AttemptStatus,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// Error reason of the connector
+    pub error_reason: Option<String>,
+    /// A unique identifier for a payment provided by the connector
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

@@ -115,7 +115,7 @@ pub struct MandateListConstraints {
 }
 
 /// Details required for recurring payment
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RecurringDetails {
     MandateId(String),
@@ -124,10 +124,11 @@ pub enum RecurringDetails {
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ProcessorPaymentToken {
     pub processor_payment_token: String,
     #[schema(value_type = Connector, example = "stripe")]
     pub connector: api_enums::Connector,
-    pub merchant_connector_id: String,
+    #[schema(value_type = String)]
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 }

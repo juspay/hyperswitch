@@ -433,12 +433,13 @@ impl<'a> MerchantReferenceIdForCustomer<'a> {
 pub async fn retrieve_customer(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    _profile_id: Option<id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+
     let response = db
         .find_customer_by_customer_id_merchant_id(
             key_manager_state,
@@ -462,24 +463,70 @@ pub async fn retrieve_customer(
     ))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip(state))]
+pub async fn retrieve_customer(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: customers::GlobalId,
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let response = db
+        .find_customer_by_global_id(
+            key_manager_state,
+            &req.id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::foreign_from(response),
+    ))
+}
+
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    _profile_id_list: Option<Vec<String>>,
+    _profile_id_list: Option<Vec<id_type::ProfileId>>,
     key_store: domain::MerchantKeyStore,
+    request: customers::CustomerListRequest,
 ) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
     let db = state.store.as_ref();
 
+    let customer_list_constraints = crate::db::customers::CustomerListConstraints {
+        limit: request
+            .limit
+            .unwrap_or(crate::consts::DEFAULT_LIST_API_LIMIT),
+        offset: request.offset,
+    };
+
     let domain_customers = db
-        .list_customers_by_merchant_id(&(&state).into(), &merchant_id, &key_store)
+        .list_customers_by_merchant_id(
+            &(&state).into(),
+            &merchant_id,
+            &key_store,
+            customer_list_constraints,
+        )
         .await
         .switch()?;
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customers = domain_customers
         .into_iter()
         .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
+        .collect();
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customers = domain_customers
+        .into_iter()
+        .map(customers::CustomerResponse::foreign_from)
         .collect();
 
     Ok(services::ApplicationResponse::Json(customers))

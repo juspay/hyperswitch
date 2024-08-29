@@ -61,7 +61,7 @@ pub async fn routing_create_config(
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<routing_types::RoutingAlgorithmId>,
+    path: web::Path<String>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingLinkConfig;
@@ -70,13 +70,13 @@ pub async fn routing_link_config(
         state,
         &req,
         path.into_inner(),
-        |state, auth: auth::AuthenticationData, algorithm_id, _| {
+        |state, auth: auth::AuthenticationData, algorithm, _| {
             routing::link_routing_config(
                 state,
                 auth.merchant_account,
                 auth.key_store,
                 auth.profile_id,
-                algorithm_id.0,
+                algorithm,
                 transaction_type,
             )
         },
@@ -98,7 +98,7 @@ pub async fn routing_link_config(
 pub async fn routing_link_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<routing_types::RoutingAlgorithmId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
@@ -119,7 +119,7 @@ pub async fn routing_link_config(
                 auth.merchant_account,
                 auth.key_store,
                 wrapper.profile_id,
-                wrapper.algorithm_id.0,
+                wrapper.algorithm_id.routing_algorithm_id,
                 transaction_type,
             )
         },
@@ -147,7 +147,7 @@ pub async fn routing_link_config(
 pub async fn routing_retrieve_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<routing_types::RoutingAlgorithmId>,
+    path: web::Path<String>,
 ) -> impl Responder {
     let algorithm_id = path.into_inner();
     let flow = Flow::RoutingRetrieveConfig;
@@ -157,7 +157,7 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            routing::retrieve_active_routing_config(
+            routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -263,7 +263,7 @@ pub async fn list_routing_configs_for_profile(
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingUnlinkConfig;
@@ -352,7 +352,7 @@ pub async fn routing_unlink_config(
 pub async fn routing_update_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
 ) -> impl Responder {
     let wrapper = routing_types::ProfileDefaultRoutingConfig {
@@ -434,7 +434,7 @@ pub async fn routing_update_default_config(
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
 ) -> impl Responder {
     Box::pin(oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
@@ -777,7 +777,7 @@ pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     use crate::services::authentication::AuthenticationData;
@@ -862,7 +862,7 @@ pub async fn routing_retrieve_default_config_for_profiles(
 pub async fn routing_update_default_config_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {

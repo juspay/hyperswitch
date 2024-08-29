@@ -133,7 +133,7 @@ pub struct PaymentIntentNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
@@ -151,6 +151,7 @@ pub struct PaymentIntentNew {
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -745,8 +746,8 @@ pub struct PaymentIntentListParams {
     pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
     pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
     pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
-    pub merchant_connector_id: Option<Vec<String>>,
-    pub profile_id: Option<String>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<String>,
     pub ending_before_id: Option<String>,

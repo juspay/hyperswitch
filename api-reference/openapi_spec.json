@@ -3487,7 +3487,7 @@
         ]
       }
     },
-    "/routing/{algorithm_id}/activate": {
+    "/routing/{routing_algorithm_id}/activate": {
       "post": {
         "tags": [
           "Routing"
@@ -3497,7 +3497,7 @@
         "operationId": "Activate a routing config",
         "parameters": [
           {
-            "name": "algorithm_id",
+            "name": "routing_algorithm_id",
             "in": "path",
             "description": "The unique identifier for a config",
             "required": true,
@@ -3537,7 +3537,7 @@
         ]
       }
     },
-    "/routing/{algorithm_id}": {
+    "/routing/{routing_algorithm_id}": {
       "get": {
         "tags": [
           "Routing"
@@ -3547,7 +3547,7 @@
         "operationId": "Retrieve a routing config",
         "parameters": [
           {
-            "name": "algorithm_id",
+            "name": "routing_algorithm_id",
             "in": "path",
             "description": "The unique identifier for a config",
             "required": true,
@@ -4488,7 +4488,7 @@
         ]
       }
     },
-    "/api_keys/{merchant_id)": {
+    "/api_keys/{merchant_id}": {
       "post": {
         "tags": [
           "API Key"
@@ -4645,9 +4645,7 @@
             "admin_api_key": []
           }
         ]
-      }
-    },
-    "/api_keys/{merchant_id)/{key_id}": {
+      },
       "delete": {
         "tags": [
           "API Key"
@@ -5076,6 +5074,55 @@
         ],
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "AchBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "routing_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for ach bank debit payment",
+            "example": "0001****3456"
+          },
+          "routing_number": {
+            "type": "string",
+            "description": "Partially masked routing number for ach bank debit payment",
+            "example": "110***000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_holder_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankHolderType"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "AchBankTransfer": {
@@ -5656,6 +5703,31 @@
           "unresolved"
         ]
       },
+      "BacsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "sort_code"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Bacs payment method",
+            "example": "0001****3456"
+          },
+          "sort_code": {
+            "type": "string",
+            "description": "Partially masked sort code for Bacs payment method",
+            "example": "108800"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
       "BacsBankTransfer": {
         "type": "object",
         "required": [
@@ -5717,6 +5789,35 @@
           }
         }
       },
+      "BancontactBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "example": "4242",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          }
+        }
+      },
       "Bank": {
         "oneOf": [
           {
@@ -5730,6 +5831,54 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          }
+        ]
+      },
+      "BankDebitAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "$ref": "#/components/schemas/AchBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "$ref": "#/components/schemas/BacsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "becs"
+            ],
+            "properties": {
+              "becs": {
+                "$ref": "#/components/schemas/BecsBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -5940,6 +6089,13 @@
           }
         ]
       },
+      "BankHolderType": {
+        "type": "string",
+        "enum": [
+          "personal",
+          "business"
+        ]
+      },
       "BankNames": {
         "type": "string",
         "description": "Name of banks supported by Hyperswitch",
@@ -6089,6 +6245,31 @@
           "yoursafe",
           "n26",
           "nationale_nederlanden"
+        ]
+      },
+      "BankRedirectAdditionalData": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankRedirectDetails"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bank_name": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
         ]
       },
       "BankRedirectBilling": {
@@ -6541,6 +6722,201 @@
           }
         ]
       },
+      "BankRedirectDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "BancontactCard"
+            ],
+            "properties": {
+              "BancontactCard": {
+                "$ref": "#/components/schemas/BancontactBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Blik"
+            ],
+            "properties": {
+              "Blik": {
+                "$ref": "#/components/schemas/BlikBankRedirectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Giropay"
+            ],
+            "properties": {
+              "Giropay": {
+                "$ref": "#/components/schemas/GiropayBankRedirectAdditionalData"
+              }
+            }
+          }
+        ]
+      },
+      "BankTransferAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sepa"
+            ],
+            "properties": {
+              "sepa": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bacs"
+            ],
+            "properties": {
+              "bacs": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "multibanco"
+            ],
+            "properties": {
+              "multibanco": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "permata"
+            ],
+            "properties": {
+              "permata": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bca"
+            ],
+            "properties": {
+              "bca": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bni_va"
+            ],
+            "properties": {
+              "bni_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bri_va"
+            ],
+            "properties": {
+              "bri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "cimb_va"
+            ],
+            "properties": {
+              "cimb_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "danamon_va"
+            ],
+            "properties": {
+              "danamon_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mandiri_va"
+            ],
+            "properties": {
+              "mandiri_va": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix"
+            ],
+            "properties": {
+              "pix": {
+                "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pse"
+            ],
+            "properties": {
+              "pse": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "local_bank_transfer"
+            ],
+            "properties": {
+              "local_bank_transfer": {
+                "$ref": "#/components/schemas/LocalBankTransferAdditionalData"
+              }
+            }
+          }
+        ]
+      },
       "BankTransferData": {
         "oneOf": [
           {
@@ -6920,6 +7296,48 @@
           }
         ]
       },
+      "BankType": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "savings"
+        ]
+      },
+      "BecsBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "bsb_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Becs payment method",
+            "example": "0001****3456"
+          },
+          "bsb_number": {
+            "type": "string",
+            "description": "Bank-State-Branch (bsb) number",
+            "example": "000000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "BlikBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "blik_code": {
+            "type": "string",
+            "example": "3GD9MO",
+            "nullable": true
+          }
+        }
+      },
       "BlocklistDataKind": {
         "type": "string",
         "enum": [
@@ -7174,7 +7592,15 @@
             "$ref": "#/components/schemas/BusinessGenericLinkConfig"
           },
           {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "payout_test_mode": {
+                "type": "boolean",
+                "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
+                "default": false,
+                "nullable": true
+              }
+            }
           }
         ]
       },
@@ -7291,14 +7717,28 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
@@ -7320,6 +7760,15 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         },
         "additionalProperties": false
@@ -7331,7 +7780,8 @@
           "profile_id",
           "profile_name",
           "enable_payment_response_hash",
-          "redirect_to_merchant_with_http_post"
+          "redirect_to_merchant_with_http_post",
+          "is_tax_connector_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -7342,7 +7792,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "description": "The identifier for business profile. This must be used for creating merchant accounts, payments and payouts",
             "example": "pro_abcdefghijklmnopqrstuvwxyz",
             "maxLength": 64
           },
@@ -7458,14 +7908,28 @@
           },
           "collect_shipping_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
             "default": false,
             "example": false,
             "nullable": true
           },
           "collect_billing_details_from_wallet_connector": {
             "type": "boolean",
-            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet connector (Eg. Apple Pay, Google Pay, etc.)",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector only if it is required field for connector (Eg. Apple Pay, Google Pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_shipping_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer shipping details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
+            "default": false,
+            "example": false,
+            "nullable": true
+          },
+          "always_collect_billing_details_from_wallet_connector": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if customer billing details needs to be collected from wallet\nconnector irrespective of connector required fields (Eg. Apple pay, Google pay etc)",
             "default": false,
             "example": false,
             "nullable": true
@@ -7487,6 +7951,15 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request.",
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         }
       },
@@ -7980,6 +8453,19 @@
           }
         }
       },
+      "CardTokenAdditionalData": {
+        "type": "object",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          }
+        }
+      },
       "CashappQr": {
         "type": "object"
       },
@@ -8078,6 +8564,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",
@@ -10316,6 +10803,32 @@
           }
         }
       },
+      "GiftCardAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GivexGiftCardAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "GiftCardData": {
         "oneOf": [
           {
@@ -10356,6 +10869,42 @@
           "cvc": {
             "type": "string",
             "description": "The card verification code."
+          }
+        }
+      },
+      "GiropayBankRedirectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bic": {
+            "type": "string",
+            "description": "Masked bank account bic code",
+            "nullable": true
+          },
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "nullable": true
+          },
+          "country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GivexGiftCardAdditionalData": {
+        "type": "object",
+        "required": [
+          "last4"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the gift card number",
+            "example": "4242"
           }
         }
       },
@@ -11202,6 +11751,17 @@
           }
         }
       },
+      "LocalBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "bank_code": {
+            "type": "string",
+            "description": "Partially masked bank code",
+            "example": "**** OA2312",
+            "nullable": true
+          }
+        }
+      },
       "MandateAmountData": {
         "type": "object",
         "required": [
@@ -11957,7 +12517,7 @@
           },
           "default_profile": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
             "nullable": true,
             "maxLength": 64
           },
@@ -11995,7 +12555,8 @@
           "profile_id": {
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 64
           },
           "connector_account_details": {
             "allOf": [
@@ -12639,6 +13200,14 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14809,7 +15378,7 @@
             ],
             "properties": {
               "bank_transfer": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankTransferAdditionalData"
               }
             }
           },
@@ -14838,22 +15407,11 @@
           {
             "type": "object",
             "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "type": "object"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "bank_redirect"
             ],
             "properties": {
               "bank_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankRedirectAdditionalData"
               }
             }
           },
@@ -14864,7 +15422,7 @@
             ],
             "properties": {
               "crypto": {
-                "type": "object"
+                "$ref": "#/components/schemas/CryptoData"
               }
             }
           },
@@ -14875,7 +15433,7 @@
             ],
             "properties": {
               "bank_debit": {
-                "type": "object"
+                "$ref": "#/components/schemas/BankDebitAdditionalData"
               }
             }
           },
@@ -14908,7 +15466,7 @@
             ],
             "properties": {
               "real_time_payment": {
-                "type": "object"
+                "$ref": "#/components/schemas/RealTimePaymentData"
               }
             }
           },
@@ -14919,7 +15477,7 @@
             ],
             "properties": {
               "upi": {
-                "type": "object"
+                "$ref": "#/components/schemas/UpiAdditionalData"
               }
             }
           },
@@ -14930,7 +15488,7 @@
             ],
             "properties": {
               "voucher": {
-                "type": "object"
+                "$ref": "#/components/schemas/VoucherData"
               }
             }
           },
@@ -14941,7 +15499,7 @@
             ],
             "properties": {
               "gift_card": {
-                "type": "object"
+                "$ref": "#/components/schemas/GiftCardAdditionalData"
               }
             }
           },
@@ -14952,7 +15510,7 @@
             ],
             "properties": {
               "card_redirect": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardRedirectData"
               }
             }
           },
@@ -14963,7 +15521,7 @@
             ],
             "properties": {
               "card_token": {
-                "type": "object"
+                "$ref": "#/components/schemas/CardTokenAdditionalData"
               }
             }
           },
@@ -14974,7 +15532,7 @@
             ],
             "properties": {
               "open_banking": {
-                "type": "object"
+                "$ref": "#/components/schemas/OpenBankingData"
               }
             }
           }
@@ -16275,11 +16833,12 @@
       "PaymentsCreateResponseOpenApi": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -16289,7 +16848,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -16297,7 +16855,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -16331,7 +16888,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -17328,11 +17886,12 @@
       "PaymentsResponse": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -17342,7 +17901,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -17350,7 +17908,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -17384,7 +17941,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -18698,6 +19256,12 @@
                 "description": "List of payout methods shown on collect UI",
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
                 "nullable": true
+              },
+              "test_mode": {
+                "type": "boolean",
+                "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
+                "example": false,
+                "nullable": true
               }
             }
           }
@@ -19849,6 +20413,29 @@
           }
         }
       },
+      "PixBankTransferAdditionalData": {
+        "type": "object",
+        "properties": {
+          "pix_key": {
+            "type": "string",
+            "description": "Partially masked unique key for pix transfer",
+            "example": "a1f4102e ****** 6fa48899c1d1",
+            "nullable": true
+          },
+          "cpf": {
+            "type": "string",
+            "description": "Partially masked CPF - CPF is a Brazilian tax identification number",
+            "example": "**** 124689",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string",
+            "description": "Partially masked CNPJ - CNPJ is a Brazilian company tax identification number",
+            "example": "**** 417312",
+            "nullable": true
+          }
+        }
+      },
       "PollConfigResponse": {
         "type": "object",
         "required": [
@@ -20804,6 +21391,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",
@@ -21190,6 +21778,25 @@
             "type": "string",
             "description": "The billing name for SEPA and BACS billing",
             "example": "Jane Doe",
+            "nullable": true
+          }
+        }
+      },
+      "SepaBankDebitAdditionalData": {
+        "type": "object",
+        "required": [
+          "iban"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "Partially masked international bank account number (iban) for SEPA",
+            "example": "DE8937******013000"
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -21819,6 +22426,42 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpiAdditionalData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "upi_collect"
+            ],
+            "properties": {
+              "upi_collect": {
+                "$ref": "#/components/schemas/UpiCollectAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "upi_intent"
+            ],
+            "properties": {
+              "upi_intent": {
+                "$ref": "#/components/schemas/UpiIntentData"
+              }
+            }
+          }
+        ]
+      },
+      "UpiCollectAdditionalData": {
+        "type": "object",
+        "properties": {
+          "vpa_id": {
+            "type": "string",
+            "description": "Masked VPA ID",
+            "nullable": true
+          }
+        }
       },
       "UpiCollectData": {
         "type": "object",
