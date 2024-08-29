@@ -46,7 +46,8 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Fiservemea,
+    // Novalnet,
+    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -97,6 +98,8 @@ pub enum Connector {
     Dlocal,
     Ebanx,
     Fiserv,
+    Fiservemea,
+    // Fiuu,
     Forte,
     Globalpay,
     Globepay,
@@ -209,8 +212,10 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Novalnet
+			// | Self::Nexixpay
+			// | Self::Fiuu
 			// | Self::Taxjar
-			// | Self::Fiservemea
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -229,6 +234,7 @@ impl Connector {
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
+			| Self::Fiservemea
             | Self::Forte
             | Self::Globalpay
             | Self::Globepay

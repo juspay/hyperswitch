@@ -1327,7 +1327,7 @@ async fn authorize_verify_select<Op>(
     state: app::SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
@@ -1598,7 +1598,7 @@ pub async fn payments_manual_update(
         &req,
         payload,
         |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
-        &auth::AdminApiAuthWithMerchantId::default(),
+        &auth::AdminApiAuthWithMerchantIdFromHeader,
         locking_action,
     ))
     .await

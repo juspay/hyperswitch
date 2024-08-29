@@ -119,6 +119,7 @@ cards = [
     "ebanx",
     "fiserv",
     "fiservemea",
+    "fiuu",
     "forte",
     "globalpay",
     "globepay",
@@ -131,8 +132,10 @@ cards = [
     "multisafepay",
     "netcetera",
     "nexinets",
+    "nexixpay",
     "nmi",
     "noon",
+    "novalnet",
     "nuvei",
     "opayo",
     "opennode",
@@ -185,7 +188,8 @@ checksum_auth_key = "54455354"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
-adyen.secondary_base_url = "https://pal-test.adyen.com/"
+adyen.payout_base_url = "https://pal-test.adyen.com/"
+adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -209,7 +213,9 @@ dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
-fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2"
+fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
+fiuu.base_url = "https://sandbox.merchant.razer.com/"
+fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -225,8 +231,10 @@ mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
+nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
+novalnet.base_url = "https://payport.novalnet.de/v2"
 noon.key_mode = "Test"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
@@ -430,10 +438,10 @@ google_pay = { currency = "USD" }
 
 
 [pm_filters.cybersource]
-credit = { currency = "USD" }
-debit = { currency = "USD" }
-apple_pay = { currency = "USD" }
-google_pay = { currency = "USD" }
+credit = { currency = "USD,GBP,EUR" }
+debit = { currency = "USD,GBP,EUR" }
+apple_pay = { currency = "USD,GBP,EUR" }
+google_pay = { currency = "USD,GBP,EUR" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }

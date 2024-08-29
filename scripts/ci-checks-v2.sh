@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-crates_to_check=\
-'api_models
+crates_to_check='api_models
 diesel_models
 hyperswitch_domain_models
 storage_impl'
 
-v2_feature_set='v2,merchant_account_v2,payment_v2,customer_v2,routing_v2,business_profile_v2'
+v2_feature_set='v2,merchant_account_v2,payment_v2,customer_v2,routing_v2,business_profile_v2,payment_methods_v2'
 
 packages_checked=()
 packages_skipped=()
@@ -54,7 +53,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
 
 else
   # If we are doing this locally or on merge queue, then check for all the V2 crates
-  all_commands+=("cargo hack clippy --features 'v2,payment_v2' -p storage_impl")
+  all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2' -p storage_impl")
   common_command="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 '"
   while IFS= read -r crate; do
     if [[ "${crate}" != "storage_impl" ]]; then

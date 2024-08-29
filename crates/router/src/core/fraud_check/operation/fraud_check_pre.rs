@@ -135,6 +135,22 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
 
 #[async_trait]
 impl<F: Send + Clone> Domain<F> for FraudCheckPre {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn post_payment_frm<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _req_state: ReqState,
+        _payment_data: &mut payments::PaymentData<F>,
+        _frm_data: &mut FrmData,
+        _merchant_account: &domain::MerchantAccount,
+        _customer: &Option<domain::Customer>,
+        _key_store: domain::MerchantKeyStore,
+    ) -> RouterResult<Option<FrmRouterData>> {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,

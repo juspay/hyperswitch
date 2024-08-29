@@ -32,6 +32,7 @@ mod dummyconnector;
 mod ebanx;
 mod fiserv;
 mod fiservemea;
+mod fiuu;
 mod forte;
 mod globalpay;
 mod globepay;
@@ -45,8 +46,10 @@ mod mollie;
 mod multisafepay;
 mod netcetera;
 mod nexinets;
+mod nexixpay;
 mod nmi;
 mod noon;
+mod novalnet;
 mod nuvei;
 #[cfg(feature = "dummy_connector")]
 mod opayo;
