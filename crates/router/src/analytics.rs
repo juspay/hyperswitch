@@ -1519,13 +1519,14 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                let org_id = auth.merchant_account.get_org_id();
-                let merchant_id = auth.merchant_account.get_id();
-                let auth: AuthInfo = AuthInfo::MerchantLevel {
-                    org_id: org_id.clone(),
-                    merchant_ids: vec![merchant_id.clone()],
-                };
-                connector_events_core(&state.pool, req, &auth)
+                utils::check_if_profile_id_is_present_in_payment_intent(
+                    req.payment_id.to_string(),
+                    &state,
+                    &auth,
+                )
+                .await
+                .change_context(AnalyticsError::AccessForbiddenError)?;
+                connector_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },

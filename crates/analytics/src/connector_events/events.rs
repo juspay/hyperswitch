@@ -4,14 +4,13 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo,
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, GroupByClause, QueryBuilder, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
 pub trait ConnectorEventLogAnalytics: LoadRow<ConnectorEventsResult> {}
 
 pub async fn get_connector_events<T>(
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
     query_param: ConnectorEventsRequest,
     pool: &T,
 ) -> FiltersResult<Vec<ConnectorEventsResult>>
@@ -27,7 +26,9 @@ where
         QueryBuilder::new(AnalyticsCollection::ConnectorEvents);
     query_builder.add_select_column("*").switch()?;
 
-    auth.set_filter_clause(&mut query_builder).switch()?;
+    query_builder
+        .add_filter_clause("merchant_id", merchant_id)
+        .switch()?;
 
     query_builder
         .add_filter_clause("payment_id", query_param.payment_id)
