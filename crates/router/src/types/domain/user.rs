@@ -865,7 +865,7 @@ impl UserFromStorage {
     pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
         state
             .store
-            .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
+            .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
             .await
             .change_context(UserErrors::InternalServerError)
     }
@@ -946,7 +946,7 @@ impl UserFromStorage {
         } else {
             state
                 .store
-                .list_user_roles_by_user_id(&self.0.user_id, UserRoleVersion::V1)
+                .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
                 .await?
                 .into_iter()
                 .find(|role| role.status == UserStatus::Active)

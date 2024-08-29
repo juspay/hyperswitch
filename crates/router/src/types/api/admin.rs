@@ -106,7 +106,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
         })
     }
 }
-
+#[cfg(feature = "v1")]
 impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
@@ -154,23 +154,83 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                 .collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector: item
                 .collect_billing_details_from_wallet_connector,
+            always_collect_billing_details_from_wallet_connector: item
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: item
+                .always_collect_shipping_details_from_wallet_connector,
             is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
             outgoing_webhook_custom_http_headers,
+            tax_connector_id: item.tax_connector_id,
+            is_tax_connector_enabled: item.is_tax_connector_enabled,
         })
     }
 }
 
 #[cfg(feature = "v2")]
-pub async fn create_business_profile(
-    _state: &SessionState,
-    _request: BusinessProfileCreate,
-    _key_store: &MerchantKeyStore,
-) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
-    todo!()
+impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+        let outgoing_webhook_custom_http_headers = item
+            .outgoing_webhook_custom_http_headers
+            .map(|headers| {
+                headers
+                    .into_inner()
+                    .expose()
+                    .parse_value::<HashMap<String, Secret<String>>>(
+                        "HashMap<String, Secret<String>>",
+                    )
+            })
+            .transpose()?;
+
+        let order_fulfillment_time = item
+            .order_fulfillment_time
+            .map(api_models::admin::OrderFulfillmentTime::new)
+            .transpose()
+            .change_context(errors::ParsingError::IntegerOverflow)?;
+
+        Ok(Self {
+            merchant_id: item.merchant_id,
+            id: item.profile_id,
+            profile_name: item.profile_name,
+            return_url: item.return_url,
+            enable_payment_response_hash: item.enable_payment_response_hash,
+            payment_response_hash_key: item.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+            webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
+            metadata: item.metadata,
+            applepay_verified_domains: item.applepay_verified_domains,
+            payment_link_config: item.payment_link_config.map(ForeignInto::foreign_into),
+            session_expiry: item.session_expiry,
+            authentication_connector_details: item
+                .authentication_connector_details
+                .map(ForeignInto::foreign_into),
+            payout_link_config: item.payout_link_config.map(ForeignInto::foreign_into),
+            use_billing_as_payment_method_billing: item.use_billing_as_payment_method_billing,
+            extended_card_info_config: item
+                .extended_card_info_config
+                .map(|config| config.expose().parse_value("ExtendedCardInfoConfig"))
+                .transpose()?,
+            collect_shipping_details_from_wallet_connector_if_required: item
+                .collect_shipping_details_from_wallet_connector,
+            collect_billing_details_from_wallet_connector_if_required: item
+                .collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: item
+                .always_collect_shipping_details_from_wallet_connector,
+            always_collect_billing_details_from_wallet_connector: item
+                .always_collect_billing_details_from_wallet_connector,
+            is_connector_agnostic_mit_enabled: item.is_connector_agnostic_mit_enabled,
+            outgoing_webhook_custom_http_headers,
+            order_fulfillment_time,
+            order_fulfillment_time_origin: item.order_fulfillment_time_origin,
+            tax_connector_id: item.tax_connector_id,
+            is_tax_connector_enabled: item.is_tax_connector_enabled,
+        })
+    }
 }
 
 #[cfg(feature = "v1")]
-pub async fn create_business_profile(
+pub async fn create_business_profile_from_merchant_account(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
     request: BusinessProfileCreate,
@@ -181,7 +241,7 @@ pub async fn create_business_profile(
     use crate::core;
 
     // Generate a unique profile id
-    let profile_id = common_utils::generate_id_with_default_len("pro");
+    let profile_id = common_utils::generate_profile_id_of_default_length();
     let merchant_id = merchant_account.get_id().to_owned();
 
     let current_time = common_utils::date_time::now();
@@ -193,7 +253,7 @@ pub async fn create_business_profile(
         .or(merchant_account.payment_response_hash_key)
         .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
-    let payment_link_config_value = request.payment_link_config.map(ForeignInto::foreign_into);
+    let payment_link_config = request.payment_link_config.map(ForeignInto::foreign_into);
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| {
@@ -235,10 +295,7 @@ pub async fn create_business_profile(
             .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
         webhook_details: webhook_details.or(merchant_account.webhook_details),
         metadata: request.metadata,
-        routing_algorithm: Some(serde_json::json!({
-            "algorithm_id": null,
-            "timestamp": 0
-        })),
+        routing_algorithm: None,
         intent_fulfillment_time: request
             .intent_fulfillment_time
             .map(i64::from)
@@ -255,7 +312,7 @@ pub async fn create_business_profile(
         payout_routing_algorithm: None,
         is_recon_enabled: merchant_account.is_recon_enabled,
         applepay_verified_domains: request.applepay_verified_domains,
-        payment_link_config: payment_link_config_value,
+        payment_link_config,
         session_expiry: request
             .session_expiry
             .map(i64::from)
@@ -276,6 +333,14 @@ pub async fn create_business_profile(
         collect_billing_details_from_wallet_connector: request
             .collect_billing_details_from_wallet_connector
             .or(Some(false)),
+        always_collect_billing_details_from_wallet_connector: request
+            .always_collect_billing_details_from_wallet_connector
+            .or(Some(false)),
+        always_collect_shipping_details_from_wallet_connector: request
+            .always_collect_shipping_details_from_wallet_connector
+            .or(Some(false)),
         outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
+        tax_connector_id: request.tax_connector_id,
+        is_tax_connector_enabled: request.is_tax_connector_enabled,
     })
 }

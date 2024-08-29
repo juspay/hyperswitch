@@ -36,7 +36,8 @@ pub struct RoutingConfigRequest {
     pub name: String,
     pub description: String,
     pub algorithm: RoutingAlgorithm,
-    pub profile_id: String,
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
@@ -45,12 +46,14 @@ pub struct RoutingConfigRequest {
     pub name: Option<String>,
     pub description: Option<String>,
     pub algorithm: Option<RoutingAlgorithm>,
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ProfileDefaultRoutingConfig {
-    pub profile_id: String,
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
     pub connectors: Vec<RoutableConnectorChoice>,
 }
 
@@ -58,15 +61,18 @@ pub struct ProfileDefaultRoutingConfig {
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
-
-    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingRetrieveLinkQueryWrapper {
+    pub routing_query: RoutingRetrieveQuery,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 /// Response of the retrieved routing configs for a merchant account
 pub struct RoutingRetrieveResponse {
@@ -84,7 +90,8 @@ pub enum LinkedRoutingConfigRetrieveResponse {
 /// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
     pub id: String,
-    pub profile_id: String,
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,
     pub description: String,
     pub algorithm: RoutingAlgorithm,
@@ -166,7 +173,8 @@ pub struct RoutableConnectorChoice {
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
-    pub merchant_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -181,7 +189,7 @@ pub enum RoutableChoiceSerde {
     OnlyConnector(Box<RoutableConnectors>),
     FullStruct {
         connector: RoutableConnectors,
-        merchant_connector_id: Option<String>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
 }
 
@@ -254,10 +262,9 @@ pub enum RoutingAlgorithmKind {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-
 pub struct RoutingPayloadWrapper {
     pub updated_config: Vec<RoutableConnectorChoice>,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -450,8 +457,8 @@ impl RoutingAlgorithmRef {
 
 pub struct RoutingDictionaryRecord {
     pub id: String,
-
-    pub profile_id: String,
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,
     pub kind: RoutingAlgorithmKind,
     pub description: String,
@@ -475,13 +482,13 @@ pub enum RoutingKind {
     RoutingAlgorithm(Vec<RoutingDictionaryRecord>),
 }
 
-#[repr(transparent)]
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(transparent)]
-pub struct RoutingAlgorithmId(pub String);
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct RoutingAlgorithmId {
+    pub routing_algorithm_id: String,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingLinkWrapper {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub algorithm_id: RoutingAlgorithmId,
 }

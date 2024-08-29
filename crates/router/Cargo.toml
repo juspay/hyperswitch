@@ -34,10 +34,10 @@ recon = ["email", "api_models/recon"]
 retry = []
 v2 = ["common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2"]
 v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1"]
-# business_profile_v2 = ["api_models/business_profile_v2", "diesel_models/business_profile_v2", "hyperswitch_domain_models/business_profile_v2"]
+business_profile_v2 = ["api_models/business_profile_v2", "diesel_models/business_profile_v2", "hyperswitch_domain_models/business_profile_v2"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
 merchant_account_v2 = ["api_models/merchant_account_v2", "diesel_models/merchant_account_v2", "hyperswitch_domain_models/merchant_account_v2"]
-payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2"]
+payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2", "storage_impl/payment_v2"]
 payment_methods_v2 = ["api_models/payment_methods_v2"]
 routing_v2 = ["api_models/routing_v2"]
 merchant_connector_account_v2 = ["api_models/merchant_connector_account_v2", "kgraph_utils/merchant_connector_account_v2", "hyperswitch_domain_models/merchant_connector_account_v2", "diesel_models/merchant_connector_account_v2"]
@@ -58,14 +58,13 @@ async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = 
 async-trait = "0.1.79"
 base64 = "0.22.0"
 bb8 = "0.8"
-bigdecimal = "0.3.1"
 blake3 = "1.5.1"
 bytes = "1.6.0"
 clap = { version = "4.4.18", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.0", features = ["toml"] }
 cookie = "0.18.1"
 csv = "1.3.0"
-diesel = { version = "2.1.5", features = ["postgres"] }
+diesel = { version = "2.2.3", features = ["postgres"] }
 digest = "0.10.7"
 dyn-clone = "1.0.17"
 encoding_rs = "0.8.33"
@@ -85,8 +84,9 @@ mimalloc = { version = "0.1", optional = true }
 mime = "0.3.17"
 nanoid = "0.4.0"
 num_cpus = "1.16.0"
+num-traits = "0.2.19"
 once_cell = "1.19.0"
-openidconnect = "3.5.0"                                                                                                      # TODO: remove reqwest
+openidconnect = "3.5.0" # TODO: remove reqwest
 openssl = "0.10.64"
 qrcode = "0.14.0"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
@@ -94,10 +94,11 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 rdkafka = "0.36.2"
 regex = "1.10.4"
-reqwest = { version = "0.11.27", features = ["json", "native-tls", "__rustls", "gzip", "multipart"] }
+reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
 ring = "0.17.8"
 roxmltree = "0.19.0"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
+rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -162,7 +163,6 @@ time = { version = "0.3.35", features = ["macros"] }
 tokio = "1.37.0"
 wiremock = "0.6.0"
 
-
 # First party dev-dependencies
 test_utils = { version = "0.1.0", path = "../test_utils" }
 
@@ -173,3 +173,6 @@ path = "src/bin/router.rs"
 [[bin]]
 name = "scheduler"
 path = "src/bin/scheduler.rs"
+
+[lints]
+workspace = true

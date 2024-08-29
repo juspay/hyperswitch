@@ -31,8 +31,8 @@ pub struct KafkaDisputeEvent<'a> {
     pub modified_at: OffsetDateTime,
     pub connector: &'a String,
     pub evidence: &'a Secret<serde_json::Value>,
-    pub profile_id: Option<&'a String>,
-    pub merchant_connector_id: Option<&'a String>,
+    pub profile_id: Option<&'a common_utils::id_type::ProfileId>,
+    pub merchant_connector_id: Option<&'a common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl<'a> KafkaDisputeEvent<'a> {

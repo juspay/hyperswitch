@@ -14,6 +14,7 @@ function normalise(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
+    paybox: "Paybox",
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
     // Add more known exceptions here
@@ -563,6 +564,17 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntentOffSession: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
     "3DSManualCapture": getCustomExchange({
       Request: {
         payment_method: "card",
@@ -787,6 +799,50 @@ export const connectorDetails = {
             user_agent: "amet irure esse",
           },
         },
+      },
+    }),
+    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    SaveCardUseNo3DSManualCaptureOffSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+    }),
+    SaveCardConfirmAutoCaptureOffSession: getCustomExchange({
+      Request: {
+        setup_future_usage: "off_session",
+      },
+    }),
+    SaveCardConfirmManualCaptureOffSession: getCustomExchange({
+      Request: {
+        setup_future_usage: "off_session",
       },
     }),
     SaveCardUseNo3DSManualCapture: getCustomExchange({

@@ -170,7 +170,6 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2"))]
 #[cfg(feature = "v2")]
 pub async fn update_merchant_active_algorithm_ref(
     _state: &SessionState,
@@ -178,9 +177,14 @@ pub async fn update_merchant_active_algorithm_ref(
     _config_key: cache::CacheKind<'_>,
     _algorithm_id: routing_types::RoutingAlgorithmRef,
 ) -> RouterResult<()> {
+    // TODO: handle updating the active routing algorithm for v2 in merchant account
     todo!()
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
@@ -200,8 +204,9 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let routing_cache_key = cache::CacheKind::Routing(
         format!(
-            "routing_config_{}_{profile_id}",
-            merchant_id.get_string_repr()
+            "routing_config_{}_{}",
+            merchant_id.get_string_repr(),
+            profile_id.get_string_repr(),
         )
         .into(),
     );
@@ -243,7 +248,12 @@ pub struct RoutingAlgorithmHelpers<'h> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, &'a String)>);
+pub struct ConnectNameAndMCAIdForProfile<'a>(
+    pub  FxHashSet<(
+        &'a String,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+);
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
@@ -293,13 +303,13 @@ impl MerchantConnectorAccounts {
 
     pub fn filter_by_profile<'a, T>(
         &'a self,
-        profile_id: &'a str,
+        profile_id: &'a common_utils::id_type::ProfileId,
         func: impl Fn(&'a MerchantConnectorAccount) -> T,
     ) -> FxHashSet<T>
     where
         T: std::hash::Hash + Eq,
     {
-        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
+        self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
     }
 }
 
@@ -311,10 +321,10 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
     ) -> RouterResult<()> {
         if let Some(ref mca_id) = choice.merchant_connector_id {
             error_stack::ensure!(
-                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id)),
+                    self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
-                            "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                            "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
                             choice.connector,
                             mca_id,
                         )
@@ -389,7 +399,7 @@ pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &common_utils::id_type::MerchantId,
-    profile_id: &str,
+    profile_id: &common_utils::id_type::ProfileId,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
     let all_mcas = &*state
@@ -406,13 +416,13 @@ pub async fn validate_connectors_in_routing_config(
         })?;
     let name_mca_id_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id.as_deref() == Some(profile_id))
+        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
@@ -422,7 +432,7 @@ pub async fn validate_connectors_in_routing_config(
                 name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
                         choice.connector,
                         mca_id,
                     )

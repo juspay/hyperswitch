@@ -134,7 +134,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(
                 errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.to_string(),
+                    id: profile_id.get_string_repr().to_owned(),
                 },
             )?
         };
@@ -164,7 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
-            mandate_type.clone(),
+            mandate_type,
             merchant_account,
             merchant_key_store,
             None,
@@ -833,7 +833,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request.get_customer_id(),
+                request.customer_id.as_ref(),
             )?;
         }
 
@@ -877,7 +877,7 @@ impl PaymentCreate {
         payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
-        profile_id: String,
+        profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -1077,7 +1077,7 @@ impl PaymentCreate {
         payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
-        profile_id: String,
+        profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
@@ -1127,9 +1127,8 @@ impl PaymentCreate {
             .charges
             .as_ref()
             .map(|charges| {
-                charges.encode_to_value().map_err(|err| {
+                charges.encode_to_value().inspect_err(|err| {
                     logger::warn!("Failed to serialize PaymentCharges - {}", err);
-                    err
                 })
             })
             .transpose()
@@ -1159,7 +1158,7 @@ impl PaymentCreate {
             .attach_printable("Unable to encrypt shipping details")?;
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.get_customer_id().is_none()
+        let raw_customer_details = if request.customer_id.is_none()
             && (request.name.is_some()
                 || request.email.is_some()
                 || request.phone.is_some()
@@ -1288,7 +1287,7 @@ async fn create_payment_link(
     db: &dyn StorageInterface,
     amount: api::Amount,
     description: Option<String>,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     domain_name: String,
     session_expiry: PrimitiveDateTime,
     locale: Option<String>,

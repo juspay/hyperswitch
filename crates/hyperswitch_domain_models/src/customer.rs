@@ -62,20 +62,6 @@ pub struct Customer {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
-        self.customer_id.clone()
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl Customer {
-    pub fn get_customer_id(&self) -> id_type::CustomerId {
-        todo!()
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Customer {
     type DstType = diesel_models::customers::Customer;
@@ -290,6 +276,9 @@ pub enum CustomerUpdate {
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
         connector_customer: Option<pii::SecretSerdeValue>,
+        default_billing_address: Option<Encryption>,
+        default_shipping_address: Option<Encryption>,
+        default_payment_method_id: Option<Option<String>>,
     },
     ConnectorCustomer {
         connector_customer: Option<pii::SecretSerdeValue>,
@@ -311,6 +300,9 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
+                default_billing_address,
+                default_shipping_address,
+                default_payment_method_id,
             } => Self {
                 name: name.map(Encryption::from),
                 email: email.map(Encryption::from),
@@ -320,20 +312,24 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata,
                 connector_customer,
                 modified_at: date_time::now(),
-                default_payment_method_id: None,
+                default_billing_address,
+                default_shipping_address,
+                default_payment_method_id,
                 updated_by: None,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
-                modified_at: date_time::now(),
                 name: None,
                 email: None,
                 phone: None,
                 description: None,
                 phone_country_code: None,
                 metadata: None,
+                modified_at: date_time::now(),
                 default_payment_method_id: None,
                 updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
             },
             CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id,
@@ -348,6 +344,8 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata: None,
                 connector_customer: None,
                 updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
             },
         }
     }

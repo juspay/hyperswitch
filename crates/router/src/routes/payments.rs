@@ -262,6 +262,12 @@ pub async fn payments_retrieve(
         expand_captures: json_payload.expand_captures,
         ..Default::default()
     };
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
 
     tracing::Span::current().record("payment_id", path.to_string());
     tracing::Span::current().record("flow", flow.to_string());
@@ -291,7 +297,7 @@ pub async fn payments_retrieve(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                HeaderPayload::default(),
+                header_payload.clone(),
             )
         },
         auth::auth_type(
@@ -997,6 +1003,63 @@ pub async fn payments_list(
     ))
     .await
 }
+/// Business Profile level Payments - List
+///
+/// To list the payments
+#[utoipa::path(
+    get,
+    path = "/payments/list",
+    params(
+        ("customer_id" = String, Query, description = "The identifier for the customer"),
+        ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
+        ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
+        ("limit" = i64, Query, description = "Limit on the number of objects to return"),
+        ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
+        ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
+        ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
+        ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
+        ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
+    ),
+    responses(
+        (status = 200, description = "Received payment list"),
+        (status = 404, description = "No payments found")
+    ),
+    tag = "Payments",
+    operation_id = "List all Payments for the Profile",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn profile_payments_list(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::PaymentListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payments::list_payments(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.key_store,
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::PaymentRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payments_list_by_filter(
@@ -1025,6 +1088,36 @@ pub async fn payments_list_by_filter(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn profile_payments_list_by_filter(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<payment_types::PaymentListFilterConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::apply_filters_on_payments(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.key_store,
+                req,
+            )
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_payments(
@@ -1062,6 +1155,54 @@ pub async fn get_payment_filters(
         (),
         |state, auth: auth::AuthenticationData, _, _| {
             payments::get_payment_filters(state, auth.merchant_account, None)
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsFilters))]
+#[cfg(feature = "olap")]
+pub async fn get_payment_filters_profile(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PaymentsFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            payments::get_payment_filters(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
+        &auth::JWTAuth(Permission::PaymentRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_payments_aggregates(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::TimeRange>,
+) -> impl Responder {
+    let flow = Flow::PaymentsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::get_aggregates_for_payments(state, auth.merchant_account, req)
         },
         &auth::JWTAuth(Permission::PaymentRead),
         api_locking::LockAction::NotApplicable,
@@ -1186,7 +1327,7 @@ async fn authorize_verify_select<Op>(
     state: app::SessionState,
     req_state: ReqState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
@@ -1457,7 +1598,7 @@ pub async fn payments_manual_update(
         &req,
         payload,
         |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
-        &auth::AdminApiAuth,
+        &auth::AdminApiAuthWithMerchantIdFromHeader,
         locking_action,
     ))
     .await

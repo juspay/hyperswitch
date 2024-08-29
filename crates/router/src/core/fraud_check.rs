@@ -128,7 +128,7 @@ pub async fn should_call_frm<F: Send + Clone>(
 ) -> RouterResult<(
     bool,
     Option<FrmRoutingAlgorithm>,
-    Option<String>,
+    Option<common_utils::id_type::ProfileId>,
     Option<FrmConfigsObject>,
 )> {
     // Frm routing algorithm is not present in the merchant account
@@ -145,7 +145,7 @@ pub async fn should_call_frm<F: Send + Clone>(
 ) -> RouterResult<(
     bool,
     Option<FrmRoutingAlgorithm>,
-    Option<String>,
+    Option<common_utils::id_type::ProfileId>,
     Option<FrmConfigsObject>,
 )> {
     use common_utils::ext_traits::OptionExt;
@@ -171,10 +171,7 @@ pub async fn should_call_frm<F: Send + Clone>(
                 .attach_printable("profile_id is not set in payment_intent")?
                 .clone();
 
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     &state.into(),
@@ -183,12 +180,28 @@ pub async fn should_call_frm<F: Send + Clone>(
                     &key_store,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_account.get_id().get_string_repr().to_owned(),
+                .map_err(|error| {
+                    logger::error!(
+                        "{:?}",
+                        error.change_context(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                id: merchant_account.get_id().get_string_repr().to_owned(),
+                            }
+                        )
+                    )
                 })
                 .ok();
+            let enabled_merchant_connector_account_from_db_option =
+                merchant_connector_account_from_db_option.and_then(|mca| {
+                    if mca.disabled.unwrap_or(false) {
+                        logger::info!("No eligible connector found for FRM");
+                        None
+                    } else {
+                        Some(mca)
+                    }
+                });
 
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             let merchant_connector_account_from_db_option: Option<
                 domain::MerchantConnectorAccount,
             > = {
@@ -198,7 +211,7 @@ pub async fn should_call_frm<F: Send + Clone>(
                 todo!()
             };
 
-            match merchant_connector_account_from_db_option {
+            match enabled_merchant_connector_account_from_db_option {
                 Some(merchant_connector_account_from_db) => {
                     let frm_configs_option = merchant_connector_account_from_db
                         .frm_configs
@@ -311,7 +324,7 @@ pub async fn should_call_frm<F: Send + Clone>(
                             Ok((
                                 is_frm_enabled,
                                 Some(frm_routing_algorithm_struct),
-                                Some(profile_id.to_string()),
+                                Some(profile_id),
                                 Some(frm_configs_object),
                             ))
                         }
@@ -338,7 +351,7 @@ pub async fn make_frm_data_and_fraud_check_operation<'a, F>(
     merchant_account: &domain::MerchantAccount,
     payment_data: payments::PaymentData<F>,
     frm_routing_algorithm: FrmRoutingAlgorithm,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     frm_configs: FrmConfigsObject,
     _customer: &Option<domain::Customer>,
 ) -> RouterResult<FrmInfo<F>>

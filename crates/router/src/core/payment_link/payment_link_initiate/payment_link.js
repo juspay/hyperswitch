@@ -617,28 +617,36 @@ function renderDynamicMerchantDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
-  if (Object.keys(paymentDetails.transaction_details).length === 0) {
+  if (!(typeof paymentDetails.transaction_details === "string" && paymentDetails.transaction_details.length > 0)) {
     return;
   }
 
-  // render a horizontal line above dynamic merchant details
-  let horizontalLineContainer = document.getElementById("hyper-checkout-payment-horizontal-line-container");
-  let horizontalLine = document.createElement("hr");
-  horizontalLine.className = "hyper-checkout-payment-horizontal-line";
-  horizontalLineContainer.append(horizontalLine);
+  try {
+    let merchantDetailsObject = JSON.parse(paymentDetails.transaction_details);
 
-  // max number of items to show in the merchant details
-  let maxItemsInDetails = 5;
-  let merchantDetailsObject = JSON.parse(paymentDetails.transaction_details);
-  for(const key in merchantDetailsObject) {
-    var merchantData = document.createElement("div");
-    merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
-    merchantData.innerHTML = key+": "+merchantDetailsObject[key].bold();
+    if (Object.keys(merchantDetailsObject).length > 0) {
+      // render a horizontal line above dynamic merchant details
+      var horizontalLineContainer = document.getElementById("hyper-checkout-payment-horizontal-line-container");
+      var horizontalLine = document.createElement("hr");
+      horizontalLine.className = "hyper-checkout-payment-horizontal-line";
+      horizontalLineContainer.append(horizontalLine);
 
-    merchantDynamicDetails.append(merchantData);
-    if(--maxItemsInDetails === 0) {
-      break;
+      // max number of items to show in the merchant details
+      let maxItemsInDetails = 5;
+      for (var key in merchantDetailsObject) {
+        var merchantData = document.createElement("div");
+        merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
+        merchantData.innerHTML = key+": "+merchantDetailsObject[key].bold();
+
+        merchantDynamicDetails.append(merchantData);
+        if (--maxItemsInDetails === 0) {
+          break;
+        }
+      }
     }
+  }
+  catch (error) {
+    console.error("Error parsing merchant details", error);
   }
 }
 

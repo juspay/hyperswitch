@@ -156,9 +156,11 @@ pub struct RefundResponse {
     #[schema(example = "stripe")]
     pub connector: String,
     /// The id of business profile for this refund
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The merchant_connector_id of the processor through which this payment went through
-    pub merchant_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<ChargeRefunds>)]
     pub charges: Option<ChargeRefunds>,
@@ -171,7 +173,8 @@ pub struct RefundListRequest {
     /// The identifier for the refund
     pub refund_id: Option<String>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
     /// The starting point within a list of objects
@@ -184,7 +187,8 @@ pub struct RefundListRequest {
     /// The list of connectors to filter refunds list
     pub connector: Option<Vec<String>>,
     /// The list of merchant connector ids to filter the refunds list for selected label
-    pub merchant_connector_id: Option<Vec<String>>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     /// The list of currencies to filter refunds list
     #[schema(value_type = Option<Vec<Currency>>)]
     pub currency: Option<Vec<enums::Currency>>,

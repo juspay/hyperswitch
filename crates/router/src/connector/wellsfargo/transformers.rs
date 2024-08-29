@@ -814,7 +814,6 @@ fn build_bill_to(
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let phone_number = get_phone_number(address_details);
-    println!(" ADESSS {:?}", address_details.clone());
     let default_address = BillTo {
         first_name: None,
         last_name: None,

@@ -1548,6 +1548,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "x-merchant-id",
+                "value": "{{merchant_id}}"
               }
             ],
             "url": {
@@ -1667,6 +1671,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "x-merchant-id",
+                "value": "{{merchant_id}}"
               }
             ],
             "body": {
@@ -1755,6 +1763,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "x-merchant-id",
+                "value": "{{merchant_id}}"
               }
             ],
             "url": {
@@ -2599,6 +2611,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "x-merchant-id",
+                "value": "{{merchant_id}}"
               }
             ],
             "body": {

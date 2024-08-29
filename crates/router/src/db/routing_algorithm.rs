@@ -20,7 +20,7 @@ pub trait RoutingAlgorithmInterface {
 
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         algorithm_id: &str,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
@@ -33,15 +33,15 @@ pub trait RoutingAlgorithmInterface {
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
         algorithm_id: &str,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<routing_storage::RoutingProfileMetadata>;
 
     async fn list_routing_algorithm_metadata_by_profile_id(
         &self,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         limit: i64,
         offset: i64,
-    ) -> StorageResult<Vec<routing_storage::RoutingAlgorithmMetadata>>;
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>>;
 
     async fn list_routing_algorithm_metadata_by_merchant_id(
         &self,
@@ -76,7 +76,7 @@ impl RoutingAlgorithmInterface for Store {
     #[instrument(skip_all)]
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         algorithm_id: &str,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         let conn = connection::pg_connection_write(self).await?;
@@ -109,7 +109,7 @@ impl RoutingAlgorithmInterface for Store {
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
         algorithm_id: &str,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<routing_storage::RoutingProfileMetadata> {
         let conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::find_metadata_by_algorithm_id_profile_id(
@@ -124,10 +124,10 @@ impl RoutingAlgorithmInterface for Store {
     #[instrument(skip_all)]
     async fn list_routing_algorithm_metadata_by_profile_id(
         &self,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         limit: i64,
         offset: i64,
-    ) -> StorageResult<Vec<routing_storage::RoutingAlgorithmMetadata>> {
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
         let conn = connection::pg_connection_write(self).await?;
         routing_storage::RoutingAlgorithm::list_metadata_by_profile_id(
             &conn, profile_id, limit, offset,
@@ -185,7 +185,7 @@ impl RoutingAlgorithmInterface for MockDb {
 
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
-        _profile_id: &str,
+        _profile_id: &common_utils::id_type::ProfileId,
         _algorithm_id: &str,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         Err(errors::StorageError::MockDbError)?
@@ -202,17 +202,17 @@ impl RoutingAlgorithmInterface for MockDb {
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
         _algorithm_id: &str,
-        _profile_id: &str,
+        _profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<routing_storage::RoutingProfileMetadata> {
         Err(errors::StorageError::MockDbError)?
     }
 
     async fn list_routing_algorithm_metadata_by_profile_id(
         &self,
-        _profile_id: &str,
+        _profile_id: &common_utils::id_type::ProfileId,
         _limit: i64,
         _offset: i64,
-    ) -> StorageResult<Vec<routing_storage::RoutingAlgorithmMetadata>> {
+    ) -> StorageResult<Vec<routing_storage::RoutingProfileMetadata>> {
         Err(errors::StorageError::MockDbError)?
     }
 

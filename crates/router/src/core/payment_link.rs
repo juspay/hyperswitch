@@ -7,10 +7,11 @@ use api_models::{
 use common_utils::{
     consts::{
         DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
-        DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY, DEFAULT_TRANSACTION_DETAILS,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
+        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
+        DEFAULT_TRANSACTION_DETAILS,
     },
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{AsyncExt, OptionExt, ValueExt},
     types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
@@ -20,8 +21,12 @@ use masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
-use super::errors::{self, RouterResult, StorageErrorExt};
+use super::{
+    errors::{self, RouterResult, StorageErrorExt},
+    payments::helpers,
+};
 use crate::{
+    consts,
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
     headers::ACCEPT_LANGUAGE,
@@ -124,7 +129,7 @@ pub async fn form_payment_link_data(
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_string(),
+            id: profile_id.get_string_repr().to_owned(),
         })?;
 
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url.clone() {
@@ -221,6 +226,8 @@ pub async fn form_payment_link_data(
             return_url: return_url.clone(),
             locale: locale.clone(),
             transaction_details: payment_link_config.transaction_details.clone(),
+            unified_code: payment_attempt.unified_code,
+            unified_message: payment_attempt.unified_message,
         };
 
         return Ok((
@@ -342,6 +349,7 @@ pub async fn initiate_secure_payment_link_flow(
             let link_data = GenericLinks {
                 allowed_domains,
                 data: GenericLinksData::SecurePaymentLink(payment_link_data),
+                locale: DEFAULT_LOCALE.to_string(),
             };
             logger::info!(
                 "payment link data, for building secure payment link {:?}",
@@ -746,7 +754,7 @@ pub async fn get_payment_link_status(
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_string(),
+            id: profile_id.get_string_repr().to_owned(),
         })?;
 
     let return_url = if let Some(payment_create_return_url) = payment_intent.return_url.clone() {
@@ -758,6 +766,31 @@ pub async fn get_payment_link_status(
                 field_name: "return_url",
             })?
     };
+    let (unified_code, unified_message) = if let Some((code, message)) = payment_attempt
+        .unified_code
+        .as_ref()
+        .zip(payment_attempt.unified_message.as_ref())
+    {
+        (code.to_owned(), message.to_owned())
+    } else {
+        (
+            consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+            consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+        )
+    };
+    let unified_translated_message = locale
+        .as_ref()
+        .async_and_then(|locale_str| async {
+            helpers::get_unified_translation(
+                &state,
+                unified_code.to_owned(),
+                unified_message.to_owned(),
+                locale_str.to_owned(),
+            )
+            .await
+        })
+        .await
+        .or(Some(unified_message));
 
     let payment_details = api_models::payments::PaymentLinkStatusDetails {
         amount,
@@ -774,6 +807,8 @@ pub async fn get_payment_link_status(
         return_url,
         locale,
         transaction_details: payment_link_config.transaction_details,
+        unified_code: Some(unified_code),
+        unified_message: unified_translated_message,
     };
     let js_script = get_js_script(&PaymentLinkData::PaymentLinkStatusDetails(Box::new(
         payment_details,

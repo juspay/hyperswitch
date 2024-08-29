@@ -10,7 +10,10 @@ readme = "README.md"
 
 [dependencies]
 clap = { version = "4.1.8", features = ["derive"] }
-diesel = { version = "2.1.6", features = ["postgres"] }
+diesel = { version = "2.2.3", features = ["postgres"] }
 diesel_migrations = "2.1.0"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.5"
+
+[lints]
+workspace = true
