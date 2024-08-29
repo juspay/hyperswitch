@@ -21,8 +21,6 @@ describe("Rule Based Routing Test", () => {
       let res_data = data["Response"];
 
       cy.createJWTToken(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
     });
 
     it("merchant retrieve call", () => {
