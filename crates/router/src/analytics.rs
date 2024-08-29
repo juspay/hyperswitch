@@ -251,11 +251,10 @@ pub mod routes {
                             ),
                         )
                         .service(
-                            web::scope("/profile")
-                                .service(
-                                    web::resource("/metrics/payments")
-                                        .route(web::post().to(get_profile_payment_intent_metrics)),
-                                ),
+                            web::scope("/profile").service(
+                                web::resource("/metrics/payments")
+                                    .route(web::post().to(get_profile_payment_intent_metrics)),
+                            ),
                         ),
                 )
         }
