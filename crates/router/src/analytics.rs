@@ -9,6 +9,7 @@ pub mod routes {
         AnalyticsFlow,
     };
     use api_models::analytics::{
+        api_event::QueryType,
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
         },
@@ -95,7 +96,7 @@ pub mod routes {
                             web::resource("metrics/frm").route(web::post().to(get_frm_metrics)),
                         )
                         .service(
-                            web::resource("api_event_logs").route(web::get().to(get_api_events)),
+                            web::resource("api_event_logs").route(web::get().to(get_profile_api_events)),
                         )
                         .service(
                             web::resource("sdk_event_logs")
@@ -192,7 +193,7 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("api_event_logs")
-                                        .route(web::get().to(get_api_events)),
+                                        .route(web::get().to(get_profile_api_events)),
                                 )
                                 .service(
                                     web::resource("sdk_event_logs")
@@ -1097,7 +1098,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_api_events(
+    pub async fn get_profile_api_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Query<api_models::analytics::api_event::ApiLogsRequest>,
@@ -1109,6 +1110,14 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                let payment_id = match req.query_param.clone() {
+                    QueryType::Payment { payment_id } => payment_id,
+                    QueryType::Refund { payment_id, .. } => payment_id,
+                    QueryType::Dispute { payment_id, .. } => payment_id,
+                };
+                utils::check_if_profile_id_is_present_in_payment_intent(payment_id, &state, &auth)
+                    .await
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 api_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
