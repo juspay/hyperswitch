@@ -157,8 +157,6 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::ApplePay,
             PaymentMethodDataType::GooglePay,
             PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::BacsBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
             PaymentMethodDataType::SepaBankDebit,
             PaymentMethodDataType::Sofort,
             PaymentMethodDataType::Ideal,
