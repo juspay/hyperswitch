@@ -133,6 +133,7 @@ pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<String>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -149,6 +150,8 @@ pub async fn create_routing_algorithm_under_profile(
     )
     .await?
     .get_required_value("BusinessProfile")?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     let all_mcas = helpers::MerchantConnectorAccounts::get_all_mcas(
         merchant_account.get_id(),
@@ -200,6 +203,7 @@ pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<String>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -242,14 +246,17 @@ pub async fn create_routing_algorithm_under_profile(
         })
         .attach_printable("Profile_id not provided")?;
 
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
         Some(&profile_id),
         merchant_account.get_id(),
     )
-    .await?;
+    .await?
+    .get_required_value("BusinessProfile")?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     helpers::validate_connectors_in_routing_config(
         &state,
@@ -584,6 +591,7 @@ pub async fn unlink_routing_config(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
+    authentication_profile_id: Option<String>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -598,6 +606,7 @@ pub async fn unlink_routing_config(
             field_name: "profile_id",
         })
         .attach_printable("Profile_id not provided")?;
+
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
@@ -606,8 +615,10 @@ pub async fn unlink_routing_config(
         merchant_account.get_id(),
     )
     .await?;
+
     match business_profile {
         Some(business_profile) => {
+            core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
             let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
                 enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
                 #[cfg(feature = "payouts")]
@@ -1025,25 +1036,10 @@ pub async fn update_default_routing_config_for_profile(
     key_store: domain::MerchantKeyStore,
     updated_config: Vec<routing_types::RoutableConnectorChoice>,
     profile_id: String,
-    authentication_profile_id: Option<String>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
 
-    if let Some(authentication_profile_id) = authentication_profile_id {
-        if profile_id != authentication_profile_id {
-            return Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Profile id authentication failed. Please use the correct JWT token"
-                    .to_string(),
-            }
-            .into());
-        }
-    } else {
-        return Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: "Couldn't find profile_id in record for authentication".to_string(),
-        }
-        .into());
-    };
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
