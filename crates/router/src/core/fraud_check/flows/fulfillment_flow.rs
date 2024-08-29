@@ -58,7 +58,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         flow: std::marker::PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector,
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,

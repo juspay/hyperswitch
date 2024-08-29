@@ -14,7 +14,7 @@ pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,
     pub payment_method: common_enums::PaymentMethod,
@@ -55,7 +55,7 @@ pub struct PaymentFlowData {
 pub struct RefundFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,
     pub payment_method: common_enums::PaymentMethod,
@@ -89,7 +89,7 @@ pub struct PayoutFlowData {
 #[derive(Debug, Clone)]
 pub struct FrmFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: String,
     pub attempt_id: String,
     pub payment_method: common_enums::enums::PaymentMethod,
     pub connector_request_reference_id: String,
@@ -112,7 +112,7 @@ pub struct ExternalAuthenticationFlowData {
 #[derive(Debug, Clone)]
 pub struct DisputesFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: String,
     pub attempt_id: String,
     pub payment_method: common_enums::enums::PaymentMethod,
     pub return_url: Option<String>,
@@ -129,7 +129,7 @@ pub struct DisputesFlowData {
 pub struct MandateRevokeFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: common_utils::id_type::CustomerId,
-    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    pub payment_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -143,7 +143,7 @@ pub struct AccessTokenFlowData {}
 #[derive(Debug, Clone)]
 pub struct FilesFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: String,
     pub attempt_id: String,
     pub return_url: Option<String>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,

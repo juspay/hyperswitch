@@ -47,7 +47,7 @@ pub async fn store_data_in_redis(
 
 pub async fn get_payment_data_from_payment_id(
     state: &SessionState,
-    payment_id: common_utils::id_type::PaymentId,
+    payment_id: String,
 ) -> types::DummyConnectorResult<types::DummyConnectorPaymentData> {
     let redis_conn = state
         .store

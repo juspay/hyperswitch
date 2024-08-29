@@ -97,7 +97,9 @@ impl VerifyConnectorData {
             payment_method_status: None,
             connector_request_reference_id: attempt_id,
             address: types::PaymentAddress::new(None, None, None, None),
-            payment_id: common_utils::id_type::PaymentId::default(),
+            payment_id: common_utils::id_type::PaymentId::default()
+                .get_string_repr()
+                .to_owned(),
             #[cfg(feature = "payouts")]
             payout_method_data: None,
             #[cfg(feature = "payouts")]

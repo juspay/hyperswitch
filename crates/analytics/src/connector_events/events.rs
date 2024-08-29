@@ -57,7 +57,7 @@ where
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorEventsResult {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: String,
     pub connector_name: Option<String>,
     pub request_id: Option<String>,
     pub flow: String,

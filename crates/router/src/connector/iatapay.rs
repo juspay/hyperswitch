@@ -705,7 +705,7 @@ impl api::IncomingWebhook for Iatapay {
                     }
                     None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                         api_models::payments::PaymentIdType::ConnectorTransactionId(
-                            wh_body.iata_payment_id.get_string_repr().to_owned(),
+                            wh_body.iata_payment_id.to_owned(),
                         ),
                     )),
                 }

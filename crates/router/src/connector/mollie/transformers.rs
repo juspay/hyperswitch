@@ -579,7 +579,7 @@ pub struct RefundResponse {
     status: MollieRefundStatus,
     description: Option<String>,
     metadata: Option<MollieMetadata>,
-    payment_id: common_utils::id_type::PaymentId,
+    payment_id: String,
     #[serde(rename = "_links")]
     links: Links,
 }

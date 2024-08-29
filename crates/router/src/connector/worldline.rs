@@ -228,7 +228,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let auth: worldline::WorldlineAuthType =
             worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id.expose();
-        let payment_id = req.request.connector_transaction_id.as_ref();
+        let payment_id = &req.request.connector_transaction_id;
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}/cancel",
         ))

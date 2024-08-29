@@ -32,9 +32,13 @@ pub async fn construct_mandate_revoke_router_data(
         customer_id: Some(mandate.customer_id),
         connector_customer: None,
         connector: mandate.connector,
-        payment_id: mandate.original_payment_id.unwrap_or_else(|| {
-            common_utils::id_type::PaymentId::get_irrelevant_id("mandate_revoke")
-        }),
+        payment_id: mandate
+            .original_payment_id
+            .unwrap_or_else(|| {
+                common_utils::id_type::PaymentId::get_irrelevant_id("mandate_revoke")
+            })
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),

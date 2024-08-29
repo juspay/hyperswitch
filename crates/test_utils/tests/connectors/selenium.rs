@@ -957,7 +957,7 @@ pub struct HsWebhookContent {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HsWebhookObject {
-    payment_id: common_utils::id_type::PaymentId,
+    payment_id: String,
     status: String,
     connector: String,
 }

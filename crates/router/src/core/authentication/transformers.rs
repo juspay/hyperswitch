@@ -143,7 +143,9 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         customer_id: None,
         connector_customer: None,
         connector: authentication_connector_name,
-        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication"),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,

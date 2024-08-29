@@ -987,7 +987,9 @@ impl api::IncomingWebhook for Trustpay {
         let connector_dispute_id = payment_info
             .references
             .payment_id
-            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+            .get_string_repr()
+            .to_owned();
         Ok(api::disputes::DisputePayload {
             amount: payment_info.amount.amount.to_string(),
             currency: payment_info.amount.currency,

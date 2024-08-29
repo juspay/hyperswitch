@@ -77,7 +77,7 @@ pub struct DummyConnectorPaymentAttempt {
 impl From<DummyConnectorPaymentRequest> for DummyConnectorPaymentAttempt {
     fn from(payment_request: DummyConnectorPaymentRequest) -> Self {
         let timestamp = common_utils::date_time::now();
-        let payment_id = generate_id_with_default_len(consts::PAYMENT_ID_PREFIX);
+        let payment_id = common_utils::id_type::PaymentId::default();
         let attempt_id = generate_id_with_default_len(consts::ATTEMPT_ID_PREFIX);
         Self {
             timestamp,
@@ -311,7 +311,7 @@ impl From<DummyConnectorPaymentData> for DummyConnectorPaymentResponse {
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorPaymentRetrieveRequest {
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: String,
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
