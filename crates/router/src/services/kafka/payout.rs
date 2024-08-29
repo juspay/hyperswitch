@@ -37,7 +37,7 @@ pub struct KafkaPayout<'a> {
     pub error_code: Option<&'a String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
-    pub merchant_connector_id: Option<&'a String>,
+    pub merchant_connector_id: Option<&'a id_type::MerchantConnectorAccountId>,
 }
 
 impl<'a> KafkaPayout<'a> {

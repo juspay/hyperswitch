@@ -4488,7 +4488,7 @@
         ]
       }
     },
-    "/api_keys/{merchant_id)": {
+    "/api_keys/{merchant_id}": {
       "post": {
         "tags": [
           "API Key"
@@ -4645,9 +4645,7 @@
             "admin_api_key": []
           }
         ]
-      }
-    },
-    "/api_keys/{merchant_id)/{key_id}": {
+      },
       "delete": {
         "tags": [
           "API Key"
@@ -8566,6 +8564,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",
@@ -21392,6 +21391,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",

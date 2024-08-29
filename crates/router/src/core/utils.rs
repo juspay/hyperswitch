@@ -44,7 +44,21 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_payouts_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+pub async fn construct_payout_router_data<'a, F>(
+    _connector_data: &api::ConnectorData,
+    _merchant_account: &domain::MerchantAccount,
+    _payout_data: &mut PayoutData,
+) -> RouterResult<types::PayoutsRouterData<F>> {
+    todo!()
+}
+
+#[cfg(all(
+    feature = "payouts",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     connector_data: &api::ConnectorData,
@@ -130,7 +144,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
-        customer_id: customer_details.to_owned().map(|c| c.get_customer_id()),
+        customer_id: customer_details.to_owned().map(|c| c.customer_id),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
@@ -163,7 +177,7 @@ pub async fn construct_payout_router_data<'a, F>(
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
-                    customer_id: Some(c.get_customer_id()),
+                    customer_id: Some(c.customer_id),
                     name: c.name.map(Encryptable::into_inner),
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),

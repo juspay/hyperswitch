@@ -170,7 +170,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
-            mandate_type.clone(),
+            mandate_type,
             merchant_account,
             merchant_key_store,
             None,
@@ -839,7 +839,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request.get_customer_id(),
+                request.customer_id.as_ref(),
             )?;
         }
 
@@ -1163,7 +1163,7 @@ impl PaymentCreate {
             .attach_printable("Unable to encrypt shipping details")?;
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.get_customer_id().is_none()
+        let raw_customer_details = if request.customer_id.is_none()
             && (request.name.is_some()
                 || request.email.is_some()
                 || request.phone.is_some()

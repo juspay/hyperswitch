@@ -180,7 +180,7 @@ pub async fn create_new_authentication(
     token: String,
     profile_id: common_utils::id_type::ProfileId,
     payment_id: Option<common_utils::id_type::PaymentId>,
-    merchant_connector_id: String,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);

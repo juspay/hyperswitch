@@ -64,7 +64,7 @@ pub struct PaymentAttemptBatchNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,

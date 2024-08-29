@@ -322,7 +322,7 @@ impl PaymentAttempt {
         payment_method: Option<Vec<enums::PaymentMethod>>,
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
-        merchant_connector_id: Option<Vec<String>>,
+        merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()

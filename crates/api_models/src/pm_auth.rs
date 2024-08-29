@@ -1,7 +1,7 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
-    impl_api_event_type,
+    id_type, impl_api_event_type,
 };
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -46,7 +46,7 @@ pub struct PaymentMethodAuthConnectorChoice {
     pub payment_method: PaymentMethod,
     pub payment_method_type: PaymentMethodType,
     pub connector_name: String,
-    pub mca_id: String,
+    pub mca_id: id_type::MerchantConnectorAccountId,
 }
 
 impl_api_event_type!(
