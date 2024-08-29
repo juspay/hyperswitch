@@ -39,7 +39,7 @@ describe("Volume Based Routing Test", () => {
       });
     });
 
-    afterEach("flush global state", () => {
+    after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
@@ -166,7 +166,7 @@ describe("Volume Based Routing Test", () => {
       });
     });
 
-    afterEach("flush global state", () => {
+    after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
     it("list-mca-by-mid", () => {
