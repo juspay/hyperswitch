@@ -29,3 +29,5 @@ SET id = profile_id;
 
 ALTER TABLE business_profile
 ADD PRIMARY KEY (id);
+
+ALTER TABLE business_profile DROP COLUMN profile_id;

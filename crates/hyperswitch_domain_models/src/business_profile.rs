@@ -1,5 +1,3 @@
-// #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-// use common_enums::OrderFulfillmentTimeOrigin;
 use common_utils::{
     crypto::OptionalEncryptableValue,
     date_time,
@@ -15,7 +13,10 @@ use diesel_models::business_profile::{
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
+use crate::{
+    consts,
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -55,6 +56,7 @@ pub struct BusinessProfile {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: bool,
+    pub api_version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -139,6 +141,7 @@ impl From<BusinessProfileSetter> for BusinessProfile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
+            api_version: consts::API_VERSION,
         }
     }
 }
@@ -436,6 +439,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
+            api_version: self.api_version,
         })
     }
 
@@ -499,6 +503,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                     .await?,
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
+                api_version: item.api_version,
             })
         }
         .await
@@ -547,6 +552,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 .always_collect_shipping_details_from_wallet_connector,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
+            api_version: self.api_version,
         })
     }
 }
@@ -588,6 +594,7 @@ pub struct BusinessProfile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: bool,
+    pub api_version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -670,6 +677,7 @@ impl From<BusinessProfileSetter> for BusinessProfile {
             default_fallback_routing: value.default_fallback_routing,
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
+            api_version: consts::API_VERSION,
         }
     }
 }
@@ -994,6 +1002,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             default_fallback_routing: self.default_fallback_routing,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
+            api_version: self.api_version,
         })
     }
 
@@ -1059,6 +1068,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 default_fallback_routing: item.default_fallback_routing,
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
+                api_version: item.api_version,
             })
         }
         .await
@@ -1109,6 +1119,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             default_fallback_routing: self.default_fallback_routing,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
+            api_version: self.api_version,
         })
     }
 }

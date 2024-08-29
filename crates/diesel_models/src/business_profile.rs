@@ -58,6 +58,7 @@ pub struct BusinessProfile {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub api_version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -100,6 +101,7 @@ pub struct BusinessProfileNew {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub api_version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -229,6 +231,7 @@ impl BusinessProfileUpdateInternal {
                     .or(source.always_collect_shipping_details_from_wallet_connector),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
             is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
+            api_version: source.api_version,
         }
     }
 }
@@ -277,6 +280,7 @@ pub struct BusinessProfile {
     pub id: common_utils::id_type::ProfileId,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub api_version: common_enums::ApiVersion,
 }
 
 impl BusinessProfile {
@@ -333,6 +337,7 @@ pub struct BusinessProfileNew {
     pub id: common_utils::id_type::ProfileId,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub api_version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -464,6 +469,7 @@ impl BusinessProfileUpdateInternal {
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
             is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
+            api_version: source.api_version,
         }
     }
 }
@@ -513,6 +519,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             default_fallback_routing: new.default_fallback_routing,
             tax_connector_id: new.tax_connector_id,
             is_tax_connector_enabled: new.is_tax_connector_enabled,
+            api_version: new.api_version,
         }
     }
 }

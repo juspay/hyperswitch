@@ -18,6 +18,9 @@ DROP TYPE "OrderFulfillmentTimeOrigin";
 
 DROP INDEX IF EXISTS business_profile_id_index;
 
+ALTER TABLE business_profile
+ADD COLUMN profile_id VARCHAR(64);
+
 UPDATE business_profile
 SET profile_id = id;
 

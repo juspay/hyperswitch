@@ -117,6 +117,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+        let profile_id = item.get_id().to_owned();
         let outgoing_webhook_custom_http_headers = item
             .outgoing_webhook_custom_http_headers
             .map(|headers| {
@@ -128,8 +129,6 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
                     )
             })
             .transpose()?;
-
-        let profile_id = item.get_id().to_owned();
 
         Ok(Self {
             merchant_id: item.merchant_id,
