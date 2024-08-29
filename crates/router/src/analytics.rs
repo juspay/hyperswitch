@@ -98,7 +98,8 @@ pub mod routes {
                             web::resource("api_event_logs").route(web::get().to(get_api_events)),
                         )
                         .service(
-                            web::resource("sdk_event_logs").route(web::post().to(get_sdk_events)),
+                            web::resource("sdk_event_logs")
+                                .route(web::post().to(get_profile_sdk_events)),
                         )
                         .service(
                             web::resource("connector_event_logs")
@@ -195,7 +196,7 @@ pub mod routes {
                                 )
                                 .service(
                                     web::resource("sdk_event_logs")
-                                        .route(web::post().to(get_sdk_events)),
+                                        .route(web::post().to(get_profile_sdk_events)),
                                 )
                                 .service(
                                     web::resource("metrics/api_events")
@@ -1132,13 +1133,14 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
-                let org_id = auth.merchant_account.get_org_id();
-                let merchant_id = auth.merchant_account.get_id();
-                let auth: AuthInfo = AuthInfo::MerchantLevel {
-                    org_id: org_id.clone(),
-                    merchant_ids: vec![merchant_id.clone()],
-                };
-                outgoing_webhook_events_core(&state.pool, req, &auth)
+                utils::check_if_profile_id_is_present_in_payment_intent(
+                    req.payment_id.to_string(),
+                    &state,
+                    &auth,
+                )
+                .await
+                .change_context(AnalyticsError::AccessForbiddenError)?;
+                outgoing_webhook_events_core(&state.pool, req, auth.merchant_account.get_id())
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -1148,7 +1150,7 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_sdk_events(
+    pub async fn get_profile_sdk_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<api_models::analytics::sdk_events::SdkEventsRequest>,

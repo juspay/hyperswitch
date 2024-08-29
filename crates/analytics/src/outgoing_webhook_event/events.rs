@@ -4,14 +4,13 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo,
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, GroupByClause, QueryBuilder, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
 pub trait OutgoingWebhookLogsFilterAnalytics: LoadRow<OutgoingWebhookLogsResult> {}
 
 pub async fn get_outgoing_webhook_event<T>(
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
     query_param: OutgoingWebhookLogsRequest,
     pool: &T,
 ) -> FiltersResult<Vec<OutgoingWebhookLogsResult>>
@@ -27,7 +26,9 @@ where
         QueryBuilder::new(AnalyticsCollection::OutgoingWebhookEvent);
     query_builder.add_select_column("*").switch()?;
 
-    auth.set_filter_clause(&mut query_builder).switch()?;
+    query_builder
+        .add_filter_clause("merchant_id", merchant_id)
+        .switch()?;
 
     query_builder
         .add_filter_clause("payment_id", query_param.payment_id)
