@@ -8,8 +8,6 @@ use crate::{
     core::{errors, payments::helpers},
     types::{self, domain, PaymentAddress},
 };
-const IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW: &str =
-    "irrelevant_payment_id_in_mandate_revoke_flow";
 
 const IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW: &str =
     "irrelevant_attempt_id_in_mandate_revoke_flow";

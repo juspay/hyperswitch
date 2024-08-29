@@ -13,8 +13,6 @@ use crate::{
     types::{self, api, domain, PaymentAddress},
 };
 
-const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
-    "irrelevant_payment_id_in_source_verification_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_attempt_id_in_source_verification_flow";
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
