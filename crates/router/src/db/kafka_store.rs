@@ -1713,14 +1713,13 @@ impl PaymentMethodInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_payment_method_by_global_id_merchant_id_list(
+    async fn find_payment_method_list_by_global_id(
         &self,
         id: &String,
-        merchant_id: &id_type::MerchantId,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_global_id_merchant_id_list(id, merchant_id, limit)
+            .find_payment_method_list_by_global_id(id, limit)
             .await
     }
 

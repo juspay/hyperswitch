@@ -31,10 +31,9 @@ pub trait PaymentMethodInterface {
 
     // Need to fix this once we start moving to v2 for payment method
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_payment_method_by_global_id_merchant_id_list(
+    async fn find_payment_method_list_by_global_id(
         &self,
         id: &String,
-        merchant_id: &id_type::MerchantId,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
@@ -391,21 +390,15 @@ mod storage {
 
         // Need to fix this once we start moving to v2 for payment method
         #[cfg(all(feature = "v2", feature = "customer_v2"))]
-        async fn find_payment_method_by_global_id_merchant_id_list(
+        async fn find_payment_method_list_by_global_id(
             &self,
             id: &String,
-            merchant_id: &id_type::MerchantId,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage_types::PaymentMethod::find_by_global_id_merchant_id(
-                &conn,
-                id,
-                merchant_id,
-                limit,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            storage_types::PaymentMethod::find_by_global_id(&conn, id, limit)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
@@ -589,21 +582,15 @@ mod storage {
         // Need to fix this once we move to payment method for customer
         #[cfg(all(feature = "v2", feature = "customer_v2"))]
         #[instrument(skip_all)]
-        async fn find_payment_method_by_global_id_merchant_id_list(
+        async fn find_payment_method_list_by_global_id(
             &self,
             customer_id: &String,
-            merchant_id: &id_type::MerchantId,
             limit: Option<i64>,
         ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            storage_types::PaymentMethod::find_by_global_id_merchant_id(
-                &conn,
-                id,
-                merchant_id,
-                limit,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            storage_types::PaymentMethod::find_by_global_id(&conn, id, limit)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
         #[instrument(skip_all)]
@@ -772,30 +759,12 @@ impl PaymentMethodInterface for MockDb {
 
     // Need to fix this once we complete v2 payment method
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_payment_method_by_global_id_merchant_id_list(
+    async fn find_payment_method_list_by_global_id(
         &self,
-        id: &String,
-        merchant_id: &id_type::MerchantId,
+        _id: &String,
         _limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
-        let payment_methods = self.payment_methods.lock().await;
-        let payment_methods_found: Vec<storage_types::PaymentMethod> = payment_methods
-            .iter()
-            .filter(|pm| {
-                let customer_id = pm.customer_id.get_string_repr().to_owned();
-                customer_id == *id && pm.merchant_id == *merchant_id
-            })
-            .cloned()
-            .collect();
-
-        if payment_methods_found.is_empty() {
-            Err(
-                errors::StorageError::ValueNotFound("cannot find payment method".to_string())
-                    .into(),
-            )
-        } else {
-            Ok(payment_methods_found)
-        }
+        todo!()
     }
 
     async fn find_payment_method_by_customer_id_merchant_id_status(

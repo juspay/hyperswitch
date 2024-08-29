@@ -544,7 +544,7 @@ pub async fn delete_customer(
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    req.generate_delete_customer_response_fetch_domain_model_and_update(
+    req.fetch_domain_model_and_update_and_generate_delete_customer_response(
         db,
         &key_store,
         &merchant_account,
@@ -557,7 +557,7 @@ pub async fn delete_customer(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for customers::GlobalId {
-    async fn generate_delete_customer_response_fetch_domain_model_and_update<'a>(
+    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
@@ -587,11 +587,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
         }
 
         match db
-            .find_payment_method_by_global_id_merchant_id_list(
-                &self.id,
-                merchant_account.get_id(),
-                None,
-            )
+            .find_payment_method_list_by_global_id(&self.id, None)
             .await
         {
             // check this in review
@@ -690,7 +686,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
 
 #[async_trait::async_trait]
 trait CustomerDeleteBridge {
-    async fn generate_delete_customer_response_fetch_domain_model_and_update<'a>(
+    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
@@ -710,7 +706,7 @@ pub async fn delete_customer(
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    req.generate_delete_customer_response_fetch_domain_model_and_update(
+    req.fetch_domain_model_and_update_and_generate_delete_customer_response(
         db,
         &key_store,
         &merchant_account,
@@ -723,7 +719,7 @@ pub async fn delete_customer(
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for customers::CustomerId {
-    async fn generate_delete_customer_response_fetch_domain_model_and_update<'a>(
+    async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         key_store: &'a domain::MerchantKeyStore,
