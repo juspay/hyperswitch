@@ -531,7 +531,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                                         .clone(),
                                     shipping_preference: if item
                                         .router_data
-                                        ..get_optional_shipping_country()
+                                        .get_optional_shipping_country()
                                         .is_some()
                                     {
                                         ShippingPreference::SetProvidedAddress
