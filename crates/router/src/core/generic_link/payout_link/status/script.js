@@ -167,7 +167,7 @@ function redirectToEndUrl(returnUrl) {
           ? "{{i18n_redirecting_text}}"
           : "{{i18n_redirecting_in_text}} " +
             secondsLeft +
-            " {{i18n_seconds_text}} ...";
+            " {{i18n_seconds_text}}";
       if (statusRedirectTextNode instanceof HTMLDivElement) {
         statusRedirectTextNode.innerText = innerText;
       }

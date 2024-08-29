@@ -37,6 +37,7 @@ pub struct ConnectorAuthentication {
     pub ebanx: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub fiservemea: Option<HeaderKey>,
+    pub fiuu: Option<HeaderKey>,
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,

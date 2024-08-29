@@ -99,6 +99,7 @@ pub enum Connector {
     Ebanx,
     Fiserv,
     Fiservemea,
+    // Fiuu,
     Forte,
     Globalpay,
     Globepay,
@@ -213,6 +214,7 @@ impl Connector {
             // Add Separate authentication support for connectors
 			// | Self::Novalnet
 			// | Self::Nexixpay
+			// | Self::Fiuu
 			// | Self::Taxjar
             | Self::Adyen
             | Self::Adyenplatform
