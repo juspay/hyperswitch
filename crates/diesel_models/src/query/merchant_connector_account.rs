@@ -51,7 +51,7 @@ impl MerchantConnectorAccount {
     pub async fn delete_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -78,7 +78,7 @@ impl MerchantConnectorAccount {
 
     pub async fn find_by_profile_id_connector_name(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_name: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -115,7 +115,7 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &str,
+        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -182,12 +182,18 @@ impl MerchantConnectorAccount {
         }
     }
 
-    pub async fn delete_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<bool> {
+    pub async fn delete_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
+    ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::id.eq(id.to_owned()))
             .await
     }
 
-    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),

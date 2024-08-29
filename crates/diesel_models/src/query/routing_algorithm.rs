@@ -34,7 +34,7 @@ impl RoutingAlgorithm {
     pub async fn find_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -48,7 +48,7 @@ impl RoutingAlgorithm {
     pub async fn find_metadata_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
         algorithm_id: &str,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<RoutingProfileMetadata> {
         Self::table()
             .select((
@@ -68,7 +68,7 @@ impl RoutingAlgorithm {
             )
             .limit(1)
             .load_async::<(
-                String,
+                common_utils::id_type::ProfileId,
                 String,
                 String,
                 Option<String>,
@@ -109,7 +109,7 @@ impl RoutingAlgorithm {
 
     pub async fn list_metadata_by_profile_id(
         conn: &PgPooledConn,
-        profile_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<RoutingProfileMetadata>> {
@@ -129,7 +129,7 @@ impl RoutingAlgorithm {
             .offset(offset)
             .load_async::<(
                 String,
-                String,
+                common_utils::id_type::ProfileId,
                 String,
                 Option<String>,
                 enums::RoutingAlgorithmKind,
@@ -188,7 +188,7 @@ impl RoutingAlgorithm {
             .offset(offset)
             .order(dsl::modified_at.desc())
             .load_async::<(
-                String,
+                common_utils::id_type::ProfileId,
                 String,
                 String,
                 Option<String>,
@@ -250,7 +250,7 @@ impl RoutingAlgorithm {
             .offset(offset)
             .order(dsl::modified_at.desc())
             .load_async::<(
-                String,
+                common_utils::id_type::ProfileId,
                 String,
                 String,
                 Option<String>,

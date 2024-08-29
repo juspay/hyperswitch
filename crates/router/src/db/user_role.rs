@@ -30,7 +30,7 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id_and_version(
         &self,
         user_id: &str,
         version: enums::UserRoleVersion,
@@ -47,7 +47,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
@@ -56,7 +56,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
@@ -66,19 +66,32 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
-    async fn list_user_roles(
+    async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
+
+    async fn list_user_roles_by_org_id<'a>(
+        &self,
+        payload: ListUserRolesByOrgIdPayload<'a>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
+}
+
+pub struct ListUserRolesByOrgIdPayload<'a> {
+    pub user_id: Option<&'a String>,
+    pub org_id: &'a id_type::OrganizationId,
+    pub merchant_id: Option<&'a id_type::MerchantId>,
+    pub profile_id: Option<&'a id_type::ProfileId>,
+    pub version: Option<enums::UserRoleVersion>,
 }
 
 #[async_trait::async_trait]
@@ -126,7 +139,7 @@ impl UserRoleInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id_and_version(
         &self,
         user_id: &str,
         version: enums::UserRoleVersion,
@@ -155,7 +168,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -177,7 +190,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
@@ -201,7 +214,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -217,17 +230,17 @@ impl UserRoleInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    async fn list_user_roles(
+    async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::UserRole::generic_user_roles_list(
+        storage::UserRole::generic_user_roles_list_for_user(
             &conn,
             user_id.to_owned(),
             org_id.cloned(),
@@ -235,6 +248,23 @@ impl UserRoleInterface for Store {
             profile_id.cloned(),
             entity_id.cloned(),
             version,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_user_roles_by_org_id<'a>(
+        &self,
+        payload: ListUserRolesByOrgIdPayload<'a>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::UserRole::generic_user_roles_list_for_org_and_extra(
+            &conn,
+            payload.user_id.cloned(),
+            payload.org_id.to_owned(),
+            payload.merchant_id.cloned(),
+            payload.profile_id.cloned(),
+            payload.version,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -328,7 +358,7 @@ impl UserRoleInterface for MockDb {
         .into())
     }
 
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id_and_version(
         &self,
         user_id: &str,
         version: enums::UserRoleVersion,
@@ -377,7 +407,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
@@ -416,7 +446,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         update: storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
@@ -470,7 +500,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
@@ -505,12 +535,12 @@ impl UserRoleInterface for MockDb {
         }
     }
 
-    async fn list_user_roles(
+    async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&String>,
+        profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
@@ -548,6 +578,50 @@ impl UserRoleInterface for MockDb {
                 filter_condition.then(|| role.to_owned())
             })
             .collect();
+
+        Ok(filtered_roles)
+    }
+
+    async fn list_user_roles_by_org_id<'a>(
+        &self,
+        payload: ListUserRolesByOrgIdPayload<'a>,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let user_roles = self.user_roles.lock().await;
+
+        let mut filtered_roles = Vec::new();
+
+        for role in user_roles.iter() {
+            let role_org_id = role
+                .org_id
+                .as_ref()
+                .ok_or(report!(errors::StorageError::MockDbError))?;
+
+            let mut filter_condition = role_org_id == payload.org_id;
+
+            if let Some(user_id) = payload.user_id {
+                filter_condition = filter_condition && user_id == &role.user_id
+            }
+
+            role.merchant_id.as_ref().zip(payload.merchant_id).inspect(
+                |(role_merchant_id, merchant_id)| {
+                    filter_condition = filter_condition && role_merchant_id == merchant_id
+                },
+            );
+
+            role.profile_id.as_ref().zip(payload.profile_id).inspect(
+                |(role_profile_id, profile_id)| {
+                    filter_condition = filter_condition && role_profile_id == profile_id
+                },
+            );
+
+            payload
+                .version
+                .inspect(|ver| filter_condition = filter_condition && ver == &role.version);
+
+            if filter_condition {
+                filtered_roles.push(role.clone())
+            }
+        }
 
         Ok(filtered_roles)
     }

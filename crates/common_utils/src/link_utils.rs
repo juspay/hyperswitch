@@ -167,6 +167,8 @@ pub struct PayoutLinkData {
     pub currency: enums::Currency,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: HashSet<String>,
+    /// `test_mode` can be used for testing payout links without any restrictions
+    pub test_mode: Option<bool>,
 }
 
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);
