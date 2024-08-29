@@ -688,8 +688,6 @@ impl NewUser {
             Some(UserRoleVersion::V2) => org_user_role.insert_in_v2(&state).await,
             None => org_user_role.insert_in_v1_and_v2(&state).await,
         }
-
-        // Returning V1 role so merchant_id will always be present user_role
     }
 }
 
