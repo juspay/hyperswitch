@@ -249,6 +249,13 @@ pub mod routes {
                                 web::resource("/metrics/payments")
                                     .route(web::post().to(get_org_payment_intent_metrics)),
                             ),
+                        )
+                        .service(
+                            web::scope("/profile")
+                                .service(
+                                    web::resource("/metrics/payments")
+                                        .route(web::post().to(get_profile_payment_intent_metrics)),
+                                ),
                         ),
                 )
         }
@@ -456,6 +463,49 @@ pub mod routes {
                 let org_id = auth.merchant_account.get_org_id();
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
+                };
+                analytics::payment_intents::get_metrics(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetPaymentIntentMetricRequest` element.
+    pub async fn get_profile_payment_intent_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetPaymentIntentMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetPaymentIntentMetricRequest");
+        let flow = AnalyticsFlow::GetPaymentIntentMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::UnknownError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
                 };
                 analytics::payment_intents::get_metrics(&state.pool, &auth, req)
                     .await
