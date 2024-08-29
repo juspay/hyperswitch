@@ -19,7 +19,7 @@ pub mod routes {
         GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
         GetSdkEventMetricRequest, ReportRequest,
     };
-    use common_utils::id_type::OrganizationId;
+    use common_utils::id_type::{OrganizationId, ProfileId};
     use error_stack::ResultExt;
 
     use crate::{
@@ -828,7 +828,9 @@ pub mod routes {
                     .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
                     .map(|(i, _)| *i)
                     .collect();
-                let profile_id: String = "pro_ZTGBrEwlRmTyzKFpnV9Z".to_string();
+                let profile_id: ProfileId =
+                    ProfileId::try_from(std::borrow::Cow::from("pro_ZTGBrEwlRmTyzKFpnV9Z"))
+                        .unwrap();
                 let org_id: OrganizationId =
                     OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
                         .unwrap();
@@ -894,7 +896,9 @@ pub mod routes {
                     .find(|i| i.1.iter().any(|p| permissions.contains(p)))
                     .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
 
-                let profile_id: String = "pro_ZTGBrEwlRmTyzKFpnV9Z".to_string();
+                let profile_id: ProfileId =
+                    ProfileId::try_from(std::borrow::Cow::from("pro_ZTGBrEwlRmTyzKFpnV9Z"))
+                        .unwrap();
                 let org_id: OrganizationId =
                     OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
                         .unwrap();

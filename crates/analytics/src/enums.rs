@@ -22,6 +22,6 @@ pub enum UserLevel {
     ProfileLevel {
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
-        profile_ids: Vec<String>,
+        profile_ids: Vec<id_type::ProfileId>,
     },
 }

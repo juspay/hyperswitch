@@ -35,13 +35,6 @@ pub async fn msearch_results(
         search_params,
     );
 
-    // query_builder
-    //     .add_filter_clause(
-    //         "merchant_id.keyword".to_string(),
-    //         vec![merchant_id.get_string_repr().to_owned()],
-    //     )
-    //     .switch()?;
-
     if let Some(filters) = req.filters {
         if let Some(currency) = filters.currency {
             if !currency.is_empty() {
@@ -167,13 +160,6 @@ pub async fn search_results(
         search_req.query,
         search_params,
     );
-
-    // query_builder
-    //     .add_filter_clause(
-    //         "merchant_id.keyword".to_string(),
-    //         vec![merchant_id.get_string_repr().to_owned()],
-    //     )
-    //     .switch()?;
 
     if let Some(filters) = search_req.filters {
         if let Some(currency) = filters.currency {
