@@ -3626,6 +3626,10 @@ pub async fn list_payment_methods(
         });
     }
     let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
+    let skip_external_tax_calculation = payment_intent
+        .as_ref()
+        .and_then(|intent| intent.skip_external_tax_calculation)
+        .unwrap_or(false);
     let request_external_three_ds_authentication = payment_intent
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
@@ -3670,6 +3674,11 @@ pub async fn list_payment_methods(
             business_profile.collect_billing_details_from_wallet_connector
         }));
 
+    let is_tax_connector_enabled = business_profile
+        .as_ref()
+        .map(|business_profile| business_profile.is_tax_connector_enabled)
+        .unwrap_or(false);
+
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
             redirect_url: business_profile
@@ -3710,6 +3719,7 @@ pub async fn list_payment_methods(
             request_external_three_ds_authentication,
             collect_shipping_details_from_wallets,
             collect_billing_details_from_wallets,
+            is_tax_calculation_enabled: is_tax_connector_enabled && skip_external_tax_calculation,
         },
     ))
 }

@@ -560,6 +560,8 @@ pub struct PaymentsRequest {
         example = "Custom_Order_id_123"
     )]
     pub merchant_order_reference_id: Option<String>,
+
+    pub skip_external_tax_calculation: Option<bool>,
 }
 
 /// Checks if the inner values of two options are equal

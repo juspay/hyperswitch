@@ -15071,7 +15071,8 @@
           "payment_methods",
           "mandate_payment",
           "show_surcharge_breakup_screen",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "is_tax_connector_enabled"
         ],
         "properties": {
           "redirect_url": {
@@ -15133,6 +15134,9 @@
             "type": "boolean",
             "description": "flag that indicates whether to collect billing details from wallets or from the customer",
             "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean"
           }
         }
       },

@@ -1350,6 +1350,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let key_manager_state = state.into();
         let is_payment_processor_token_flow =
             payment_data.payment_intent.is_payment_processor_token_flow;
+        let skip_external_tax_calculation=payment_data.payment_intent.skip_external_tax_calculation;
 
         let payment_intent_fut = tokio::spawn(
             async move {
@@ -1384,6 +1385,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         shipping_details,
                         is_payment_processor_token_flow,
                         tax_details: None,
+                        skip_external_tax_calculation,
                     })),
                     &m_key_store,
                     storage_scheme,
