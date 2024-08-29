@@ -4238,7 +4238,7 @@ pub async fn get_apple_pay_retryable_connectors<F>(
 where
     F: Send + Clone,
 {
-    let profile_id = &business_profile.profile_id;
+    let profile_id = business_profile.get_id();
 
     let pre_decided_connector_data_first = pre_routing_connector_data_list
         .first()
@@ -5072,7 +5072,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 &business_profile.merchant_id,
                 None,
                 key_store,
-                &business_profile.profile_id,
+                business_profile.get_id(),
                 connector_data.connector_name.to_string().as_str(),
                 connector_data.merchant_connector_id.as_ref(),
             )

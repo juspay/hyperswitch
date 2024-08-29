@@ -45,7 +45,7 @@ pub async fn list_initial_delivery_attempts(
                 .await,
                 MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => store
                 .list_initial_events_by_profile_id_primary_object_id(key_manager_state,
-                    &business_profile.profile_id,
+                    business_profile.get_id(),
                     &object_id,
                     &key_store,
                 )
@@ -85,7 +85,7 @@ pub async fn list_initial_delivery_attempts(
                 .await,
                 MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => store
                 .list_initial_events_by_profile_id_constraints(key_manager_state,
-                    &business_profile.profile_id,
+                    business_profile.get_id(),
                     created_after,
                     created_before,
                     limit,
@@ -208,7 +208,7 @@ pub async fn retry_delivery_attempt(
         primary_object_type: event_to_retry.primary_object_type,
         created_at: now,
         merchant_id: Some(business_profile.merchant_id.clone()),
-        business_profile_id: Some(business_profile.profile_id.clone()),
+        business_profile_id: Some(business_profile.get_id().to_owned()),
         primary_object_created_at: event_to_retry.primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id),
         initial_attempt_id: event_to_retry.initial_attempt_id,

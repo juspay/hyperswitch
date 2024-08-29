@@ -103,7 +103,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             primary_object_type: initial_event.primary_object_type,
             created_at: now,
             merchant_id: Some(business_profile.merchant_id.clone()),
-            business_profile_id: Some(business_profile.profile_id.clone()),
+            business_profile_id: Some(business_profile.get_id().to_owned()),
             primary_object_created_at: initial_event.primary_object_created_at,
             idempotent_event_id: Some(idempotent_event_id),
             initial_attempt_id: Some(initial_event.event_id.clone()),

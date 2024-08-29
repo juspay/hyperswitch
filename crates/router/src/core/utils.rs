@@ -1094,7 +1094,7 @@ pub async fn validate_and_get_business_profile(
             // Check if the merchant_id of business profile is same as the current merchant_id
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
-                    resource: business_profile.profile_id.get_string_repr().to_owned(),
+                    resource: business_profile.get_id().get_string_repr().to_owned(),
                 }
                 .into())
             } else {
@@ -1190,7 +1190,7 @@ pub async fn get_profile_id_from_business_details(
                         id: profile_name,
                     })?;
 
-                Ok(business_profile.profile_id)
+                Ok(business_profile.get_id().to_owned())
             }
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "profile_id or business_country, business_label"

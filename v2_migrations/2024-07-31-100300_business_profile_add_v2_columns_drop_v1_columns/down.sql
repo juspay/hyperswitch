@@ -15,3 +15,16 @@ ALTER TABLE business_profile DROP COLUMN routing_algorithm_id,
     DROP COLUMN default_fallback_routing;
 
 DROP TYPE "OrderFulfillmentTimeOrigin";
+
+DROP INDEX IF EXISTS business_profile_id_index;
+
+UPDATE business_profile
+SET profile_id = id;
+
+ALTER TABLE business_profile DROP COLUMN IF EXISTS id;
+
+ALTER TABLE business_profile
+ADD COLUMN IF NOT EXISTS id SERIAL;
+
+ALTER TABLE business_profile
+ADD PRIMARY KEY (merchant_connector_id);

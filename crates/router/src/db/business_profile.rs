@@ -268,7 +268,7 @@ impl BusinessProfileInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|business_profile| business_profile.profile_id == *profile_id)
+            .find(|business_profile| business_profile.get_id() == profile_id)
             .cloned()
             .async_map(|business_profile| async {
                 business_profile
@@ -303,7 +303,7 @@ impl BusinessProfileInterface for MockDb {
             .iter()
             .find(|business_profile| {
                 business_profile.merchant_id == *merchant_id
-                    && business_profile.profile_id == *profile_id
+                    && business_profile.get_id() == profile_id
             })
             .cloned()
             .async_map(|business_profile| async {
@@ -333,12 +333,12 @@ impl BusinessProfileInterface for MockDb {
         current_state: domain::BusinessProfile,
         business_profile_update: domain::BusinessProfileUpdate,
     ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
-        let profile_id = current_state.profile_id.clone();
+        let profile_id = current_state.get_id();
         self.business_profiles
             .lock()
             .await
             .iter_mut()
-            .find(|business_profile| business_profile.profile_id == profile_id)
+            .find(|business_profile| business_profile.get_id() == current_state.get_id())
             .async_map(|business_profile| async {
                 let business_profile_updated =
                     storage::BusinessProfileUpdateInternal::from(business_profile_update)
@@ -362,7 +362,7 @@ impl BusinessProfileInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No business profile found for profile_id = {profile_id:?}"
+                    "No business profile found for profile_id = {profile_id:?}",
                 ))
                 .into(),
             )
@@ -377,7 +377,7 @@ impl BusinessProfileInterface for MockDb {
         let index = business_profiles
             .iter()
             .position(|business_profile| {
-                business_profile.profile_id == *profile_id
+                business_profile.get_id() == profile_id
                     && business_profile.merchant_id == *merchant_id
             })
             .ok_or::<errors::StorageError>(errors::StorageError::ValueNotFound(format!(
