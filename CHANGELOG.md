@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.23.0-hotfix2
+
+### Refactors
+
+- **customers:** Add offset and limit to customers list ([#5741](https://github.com/juspay/hyperswitch/pull/5741)) ([`d03a0b3`](https://github.com/juspay/hyperswitch/commit/d03a0b36c754a2c93fdbb376e3b697bceb960555))
+
+- - -
+
 ## 2024.08.23.0-hotfix1
 
 ### Refactors
