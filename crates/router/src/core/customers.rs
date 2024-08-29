@@ -578,7 +578,7 @@ pub async fn delete_customer(
                         network_tokenization::delete_network_token_from_locker_and_token_service(
                             &state,
                             &req.customer_id,
-                        merchant_account.get_id(),
+                            merchant_account.get_id(),
                             pm.payment_method_id.clone(),
                             pm.network_token_locker_id,
                             network_token_ref_id,
