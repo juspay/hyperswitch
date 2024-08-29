@@ -91,7 +91,7 @@ pub enum AuthenticationType {
     MerchantJwtWithProfileId {
         merchant_id: id_type::MerchantId,
         profile_id: Option<id_type::ProfileId>,
-        user_id: Option<String>,
+        user_id: String,
     },
     UserJwt {
         user_id: String,
@@ -1191,7 +1191,7 @@ where
             AuthenticationType::MerchantJwtWithProfileId {
                 merchant_id: auth.merchant_account.get_id().clone(),
                 profile_id: auth.profile_id.clone(),
-                user_id: Some(payload.user_id),
+                user_id: payload.user_id,
             },
         ))
     }
