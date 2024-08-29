@@ -5,6 +5,7 @@ use diesel::{
     BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
+use router_env::logger;
 
 use crate::{
     enums::UserRoleVersion, errors, query::generics, schema::user_roles::dsl, user_role::*,
@@ -18,6 +19,21 @@ impl UserRoleNew {
 }
 
 impl UserRole {
+    pub async fn insert_multiple_user_roles(
+        conn: &PgPooledConn,
+        user_roles: Vec<UserRoleNew>,
+    ) -> StorageResult<Vec<Self>> {
+        let query = diesel::insert_into(<Self>::table()).values(user_roles);
+
+        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        query
+            .get_results_async(conn)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error while inserting payment intents")
+    }
+
     pub async fn find_by_user_id(
         conn: &PgPooledConn,
         user_id: String,

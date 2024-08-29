@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Not,
+};
 
 use api_models::{
     payments::RedirectionResponse,
@@ -776,6 +779,39 @@ async fn handle_existing_user_invitation(
     auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let now = common_utils::date_time::now();
+
+    if state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            invitee_user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V1,
+        )
+        .await
+        .is_err_and(|err| err.current_context().is_db_not_found())
+        .not()
+    {
+        return Err(UserErrors::UserExists.into());
+    }
+
+    if state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            invitee_user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V2,
+        )
+        .await
+        .is_err_and(|err| err.current_context().is_db_not_found())
+        .not()
+    {
+        return Err(UserErrors::UserExists.into());
+    }
+
     let user_role = domain::NewUserRole {
         user_id: invitee_user_from_db.get_user_id().to_owned(),
         role_id: request.role_id.clone(),
@@ -796,14 +832,7 @@ async fn handle_existing_user_invitation(
         },
     }
     .insert_in_v1_and_v2(state)
-    .await
-    .map_err(|e| {
-        if e.current_context().is_db_unique_violation() {
-            e.change_context(UserErrors::UserExists)
-        } else {
-            e.change_context(UserErrors::InternalServerError)
-        }
-    })?;
+    .await?;
 
     let is_email_sent;
     #[cfg(feature = "email")]
@@ -880,14 +909,7 @@ async fn handle_new_user_invitation(
         },
     }
     .insert_in_v1_and_v2(state)
-    .await
-    .map_err(|e| {
-        if e.current_context().is_db_unique_violation() {
-            e.change_context(UserErrors::UserExists)
-        } else {
-            e.change_context(UserErrors::InternalServerError)
-        }
-    })?;
+    .await?;
 
     let is_email_sent;
     // TODO: Adding this to avoid clippy lints, remove this once the token only flow is being used

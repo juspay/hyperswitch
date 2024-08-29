@@ -30,9 +30,13 @@ use crate::{
         admin,
         errors::{self, UserErrors, UserResult},
     },
-    db::GlobalStorageInterface,
+    db::{user_role::InsertUserRolePayload, GlobalStorageInterface},
     routes::SessionState,
-    services::{self, authentication as auth, authentication::UserFromToken, authorization::info},
+    services::{
+        self,
+        authentication::{self as auth, UserFromToken},
+        authorization::info,
+    },
     types::transformers::ForeignFrom,
     utils::{self, user::password},
 };
@@ -680,29 +684,9 @@ impl NewUser {
             });
 
         match version {
-            Some(UserRoleVersion::V1) => org_user_role
-                .insert_in_v1(&state)
-                .await
-                .change_context(UserErrors::InternalServerError),
-
-            Some(UserRoleVersion::V2) => org_user_role
-                .insert_in_v2(&state)
-                .await
-                .change_context(UserErrors::InternalServerError),
-
-            None => {
-                org_user_role
-                    .clone()
-                    .insert_in_v2(&state)
-                    .await
-                    .change_context(UserErrors::InternalServerError)?;
-
-                // Returning V1 role so that merchant_id will not be null
-                org_user_role
-                    .insert_in_v1(&state)
-                    .await
-                    .change_context(UserErrors::InternalServerError)
-            }
+            Some(UserRoleVersion::V1) => org_user_role.insert_in_v1(&state).await,
+            Some(UserRoleVersion::V2) => org_user_role.insert_in_v2(&state).await,
+            None => org_user_role.insert_in_v1_and_v2(&state).await,
         }
 
         // Returning V1 role so merchant_id will always be present user_role
@@ -1429,25 +1413,44 @@ where
             version: UserRoleVersion::V2,
         }
     }
+
+    async fn insert_v1_and_v2_in_db_and_get_v1(
+        state: &SessionState,
+        v1_role: UserRoleNew,
+        v2_role: UserRoleNew,
+    ) -> UserResult<UserRole> {
+        let inserted_roles = state
+            .store
+            .insert_user_role(InsertUserRolePayload::V1AndV2([v1_role, v2_role]))
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        // Returning v1 role so other code which was not migrated doesn't break
+        inserted_roles
+            .into_iter()
+            .find(|role| role.version == UserRoleVersion::V1)
+            .ok_or(report!(UserErrors::InternalServerError))
+    }
 }
 
 impl NewUserRole<OrganizationLevel> {
-    pub async fn insert_in_v1(
-        self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
+    pub async fn insert_in_v1(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
 
         let new_v1_role = self
             .clone()
             .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-        state.store.insert_user_role(new_v1_role).await
+
+        state
+            .store
+            .insert_user_role(InsertUserRolePayload::OnlyV1(new_v1_role))
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .pop()
+            .ok_or(report!(UserErrors::InternalServerError))
     }
 
-    pub async fn insert_in_v2(
-        self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
+    pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
 
         let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
@@ -1457,21 +1460,41 @@ impl NewUserRole<OrganizationLevel> {
             entity_id: entity.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
         });
-        state.store.insert_user_role(new_v2_role).await
+        state
+            .store
+            .insert_user_role(InsertUserRolePayload::OnlyV2(new_v2_role))
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .pop()
+            .ok_or(report!(UserErrors::InternalServerError))
     }
-}
 
-impl NewUserRole<MerchantLevel> {
-    pub async fn insert_in_v1_and_v2(
-        self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
+    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
 
         let new_v1_role = self
             .clone()
             .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-        let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
+
+        let new_v2_role = self.clone().convert_to_new_v2_role(EntityInfo {
+            org_id: entity.org_id.clone(),
+            merchant_id: None,
+            profile_id: None,
+            entity_id: entity.org_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Organization,
+        });
+
+        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
+    }
+}
+
+impl NewUserRole<MerchantLevel> {
+    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
+        let entity = self.entity.clone();
+
+        let new_v1_role = self
+            .clone()
+            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
 
         let new_v2_role = self.clone().convert_to_new_v2_role(EntityInfo {
             org_id: entity.org_id.clone(),
@@ -1480,18 +1503,13 @@ impl NewUserRole<MerchantLevel> {
             entity_id: entity.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
         });
-        state.store.insert_user_role(new_v2_role).await?;
 
-        // Returning v1 role so other code which was not migrated doesn't break
-        Ok(db_v1_role)
+        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
     }
 }
 
 impl NewUserRole<InternalLevel> {
-    pub async fn insert_in_v1_and_v2(
-        self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
+    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
         let internal_merchant_id = id_type::MerchantId::get_internal_user_merchant_id(
             consts::user_role::INTERNAL_USER_MERCHANT_ID,
@@ -1500,7 +1518,6 @@ impl NewUserRole<InternalLevel> {
         let new_v1_role = self
             .clone()
             .convert_to_new_v1_role(entity.org_id.clone(), internal_merchant_id.clone());
-        let db_v1_role = state.store.insert_user_role(new_v1_role).await?;
 
         let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
             org_id: entity.org_id.clone(),
@@ -1509,18 +1526,13 @@ impl NewUserRole<InternalLevel> {
             entity_id: internal_merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Internal,
         });
-        state.store.insert_user_role(new_v2_role).await?;
 
-        // Returning v1 role so other code which was not migrated doesn't break
-        Ok(db_v1_role)
+        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
     }
 }
 
 impl NewUserRole<ProfileLevel> {
-    pub async fn insert_in_v2(
-        self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
+    pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
 
         let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
@@ -1530,6 +1542,12 @@ impl NewUserRole<ProfileLevel> {
             entity_id: entity.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
         });
-        state.store.insert_user_role(new_v2_role).await
+        state
+            .store
+            .insert_user_role(InsertUserRolePayload::OnlyV2(new_v2_role))
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .pop()
+            .ok_or(report!(UserErrors::InternalServerError))
     }
 }
