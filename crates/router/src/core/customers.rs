@@ -578,10 +578,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
 
         let merchant_reference_id = customer_orig.merchant_reference_id.clone();
 
-        let customer_mandates = db
-            .find_mandate_by_merchant_id_global_id(merchant_account.get_id(), &self.id)
-            .await
-            .switch()?;
+        let customer_mandates = db.find_mandate_by_global_id(&self.id).await.switch()?;
 
         for mandate in customer_mandates.into_iter() {
             if mandate.mandate_status == enums::MandateStatus::Active {

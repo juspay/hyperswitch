@@ -825,14 +825,11 @@ impl MandateInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    async fn find_mandate_by_merchant_id_global_id(
+    async fn find_mandate_by_global_id(
         &self,
-        merchant_id: &id_type::MerchantId,
         id: &String,
     ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
-        self.diesel_store
-            .find_mandate_by_merchant_id_global_id(merchant_id, id)
-            .await
+        self.diesel_store.find_mandate_by_global_id(id).await
     }
 
     async fn find_mandate_by_merchant_id_customer_id(
