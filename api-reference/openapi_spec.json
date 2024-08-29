@@ -20505,19 +20505,19 @@
         "type": "object",
         "description": "Processor payment token for MIT payments where payment_method_data is not available",
         "required": [
-          "processor_payment_token",
-          "connector",
-          "merchant_connector_id"
+          "processor_payment_token"
         ],
         "properties": {
           "processor_payment_token": {
             "type": "string"
           },
-          "connector": {
-            "$ref": "#/components/schemas/Connector"
-          },
           "merchant_connector_id": {
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_utils.id_type.MerchantConnectorAccountId"
+              }
+            ],
+            "nullable": true
           }
         }
       },
