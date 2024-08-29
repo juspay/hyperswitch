@@ -618,7 +618,10 @@ pub async fn unlink_routing_config(
 
     match business_profile {
         Some(business_profile) => {
-            core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
+            core_utils::validate_profile_id_from_auth_layer(
+                authentication_profile_id,
+                &business_profile,
+            )?;
             let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
                 enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
                 #[cfg(feature = "payouts")]

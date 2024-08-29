@@ -1362,23 +1362,23 @@ where
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         if let Some(ref payload_profile_id) = payload.profile_id {
-                if *payload_profile_id != self.profile_id {
-                    return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
-                } else {
-                    // if both of them are same then proceed with the profile id present in the request
-                    let auth = AuthenticationData {
-                        merchant_account: merchant,
-                        key_store,
-                        profile_id: Some(self.profile_id.clone()),
-                    };
-                    Ok((
-                        auth.clone(),
-                        AuthenticationType::MerchantJwt {
-                            merchant_id: auth.merchant_account.get_id().clone(),
-                            user_id: Some(payload.user_id),
-                        },
-                    ))
-                }
+            if *payload_profile_id != self.profile_id {
+                return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+            } else {
+                // if both of them are same then proceed with the profile id present in the request
+                let auth = AuthenticationData {
+                    merchant_account: merchant,
+                    key_store,
+                    profile_id: Some(self.profile_id.clone()),
+                };
+                Ok((
+                    auth.clone(),
+                    AuthenticationType::MerchantJwt {
+                        merchant_id: auth.merchant_account.get_id().clone(),
+                        user_id: Some(payload.user_id),
+                    },
+                ))
+            }
         } else {
             // if profile_id is not present in the auth_layer itself then no change in behaviour
             let auth = AuthenticationData {

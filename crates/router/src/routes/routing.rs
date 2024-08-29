@@ -720,7 +720,7 @@ pub async fn routing_retrieve_linked_config(
                     transaction_type,
                 )
             },
-            #[cfg(not(feature = "release"))] 
+            #[cfg(not(feature = "release"))]
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuthProfileFromRoute {
@@ -752,7 +752,7 @@ pub async fn routing_retrieve_linked_config(
                     transaction_type,
                 )
             },
-            #[cfg(not(feature = "release"))] 
+            #[cfg(not(feature = "release"))]
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth(Permission::RoutingRead),
