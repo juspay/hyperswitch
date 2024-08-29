@@ -117,12 +117,12 @@ pub mod routes {
                                         .route(web::get().to(get_merchant_outgoing_webhook_events)),
                                 )
                                 .service(
-                                    web::resource("filters/api_events")
-                                        .route(web::post().to(get_merchant_api_event_filters)),
-                                )
-                                .service(
                                     web::resource("metrics/api_events")
                                         .route(web::post().to(get_merchant_api_events_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/api_events")
+                                        .route(web::post().to(get_merchant_api_event_filters)),
                                 )
                                 .service(
                                     web::resource("search")
@@ -204,6 +204,14 @@ pub mod routes {
                                 .service(
                                     web::resource("filters/refunds")
                                         .route(web::post().to(get_profile_refund_filters)),
+                                )
+                                .service(
+                                    web::resource("metrics/api_events")
+                                        .route(web::post().to(get_profile_api_events_metrics)),
+                                )
+                                .service(
+                                    web::resource("filters/api_events")
+                                        .route(web::post().to(get_profile_api_event_filters)),
                                 ),
                         ),
                 )
@@ -1252,6 +1260,49 @@ pub mod routes {
         .await
     }
 
+    /// # Panics
+    ///
+    /// Panics if `json_payload` array does not contain one `GetApiEventMetricRequest` element.
+    pub async fn get_profile_api_events_metrics(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<[GetApiEventMetricRequest; 1]>,
+    ) -> impl Responder {
+        // safety: This shouldn't panic owing to the data type
+        #[allow(clippy::expect_used)]
+        let payload = json_payload
+            .into_inner()
+            .to_vec()
+            .pop()
+            .expect("Couldn't get GetApiEventMetricRequest");
+        let flow = AnalyticsFlow::GetApiEventMetrics;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::UnknownError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
+                };
+                analytics::api_event::get_api_event_metrics(&state.pool, &auth, req)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
     pub async fn get_merchant_api_event_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1295,6 +1346,39 @@ pub mod routes {
                 let org_id = auth.merchant_account.get_org_id();
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
+                };
+                analytics::api_event::get_filters(&state.pool, req, &auth)
+                    .await
+                    .map(ApplicationResponse::Json)
+            },
+            &auth::JWTAuth(Permission::Analytics),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_api_event_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetApiEventFiltersRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetApiEventFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.merchant_account.get_org_id();
+                let merchant_id = auth.merchant_account.get_id();
+                let profile_id = auth
+                    .profile_id
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::UnknownError)?;
+                let auth: AuthInfo = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id.clone()],
                 };
                 analytics::api_event::get_filters(&state.pool, req, &auth)
                     .await
