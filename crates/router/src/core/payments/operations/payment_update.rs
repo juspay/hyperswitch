@@ -537,10 +537,26 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing business_profile.tax_connector_id")?;
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "merchant_connector_account_v2")
+        ))]
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 key_manager_state,
                 &business_profile.merchant_id,
+                merchant_connector_id,
+                key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.get_string_repr().to_string(),
+            })?;
+
+        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        let mca = db
+            .find_merchant_connector_account_by_id(
+                key_manager_state,
                 merchant_connector_id,
                 key_store,
             )

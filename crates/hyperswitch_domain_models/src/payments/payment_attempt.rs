@@ -543,6 +543,8 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
     async fn convert_back(
@@ -625,6 +627,8 @@ impl behaviour::Conversion for PaymentIntent {
                     .async_lift(inner_decrypt)
                     .await?,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
+                shipping_cost: storage_model.shipping_cost,
+                tax_details: storage_model.tax_details,
             })
         }
         .await
@@ -683,6 +687,8 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            shipping_cost: self.shipping_cost,
+            tax_details: self.tax_details,
         })
     }
 }

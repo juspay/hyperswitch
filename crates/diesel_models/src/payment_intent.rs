@@ -70,6 +70,8 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub tax_details: Option<TaxDetails>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]

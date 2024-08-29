@@ -91,7 +91,15 @@ where
         state,
         customer_data: customer,
     };
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    let customer_id = customer
+        .to_owned()
+        .map(|customer| customer.merchant_reference_id)
+        .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)?;
 
     let unified_address =
         if let Some(payment_method_info) = payment_data.payment_method_info.clone() {

@@ -9,7 +9,11 @@ use api_models::{
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::AsyncExt,
+    types::{keymanager::KeyManagerState, MinorUnit},
+};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
@@ -876,7 +880,12 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
     let payment_intent = &payment_data.payment_intent.clone();
     let payment_attempt = &payment_data.payment_attempt.clone();
 
-    let key_manager_state = &state.into();
+    let key_manager_state: &KeyManagerState = &state.into();
+    // If profile id is not passed, get it from the business_country and business_label
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let profile_id = get_profile_id_from_business_details(
         key_manager_state,
         key_store,
@@ -890,6 +899,14 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("profile_id is not set in payment_intent")?;
+
+    // Profile id will be mandatory in v2 in the request / headers
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let profile_id = payment_intent
+        .profile_id
+        .clone()
+        .get_required_value("profile_id")
+        .attach_printable("Profile id is a mandatory parameter")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -1214,7 +1231,7 @@ pub fn get_connector_request_reference_id(
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
-    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     profile_id: Option<&common_utils::id_type::ProfileId>,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -1294,7 +1311,7 @@ pub fn get_connector_label(
 /// or return a `MissingRequiredField` error
 #[allow(clippy::too_many_arguments)]
 pub async fn get_profile_id_from_business_details(
-    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
