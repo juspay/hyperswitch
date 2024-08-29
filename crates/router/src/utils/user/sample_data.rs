@@ -171,8 +171,7 @@ pub async fn generate_sample_data(
             .change_context(SampleDataError::InternalServerError)?;
 
     for num in 1..=sample_data_size {
-        let payment_id =
-            id_type::PaymentId::generate_test_payment_id_for_sample_data();
+        let payment_id = id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let attempt_id = payment_id.get_attempt_id(1);
         let client_secret = payment_id.generate_client_secret();
         let amount = thread_rng().gen_range(min_amount..=max_amount);

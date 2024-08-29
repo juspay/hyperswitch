@@ -313,10 +313,8 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let payment_id = id_type::PaymentId::try_from(Cow::Borrowed(
-        "pay_mbabizu24mvu3mela5njyhpit10",
-    ))
-    .unwrap();
+    let payment_id =
+        id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
     let req = api::PaymentsRequest {
         payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
@@ -551,10 +549,8 @@ async fn payments_create_core_adyen_no_redirect() {
         .get_session_state("public", || {})
         .unwrap();
 
-    let payment_id = id_type::PaymentId::try_from(Cow::Borrowed(
-        "pay_mbabizu24mvu3mela5njyhpit10",
-    ))
-    .unwrap();
+    let payment_id =
+        id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();

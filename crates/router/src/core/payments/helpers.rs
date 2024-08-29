@@ -2857,11 +2857,11 @@ pub async fn verify_payment_intent_time_and_client_secret(
         .async_map(|cs| async move {
             let payment_id = get_payment_id_from_client_secret(&cs)?;
 
-            let payment_id =
-                id_type::PaymentId::try_from(Cow::Owned(payment_id))
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_id",
-                    })?;
+            let payment_id = id_type::PaymentId::try_from(Cow::Owned(payment_id)).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_id",
+                },
+            )?;
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -2933,10 +2933,7 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
-            payment_id: id_type::PaymentId::try_from(Cow::Borrowed(
-                "23",
-            ))
-            .unwrap(),
+            payment_id: id_type::PaymentId::try_from(Cow::Borrowed("23")).unwrap(),
             merchant_id: id_type::MerchantId::default(),
             status: storage_enums::IntentStatus::RequiresCapture,
             amount: MinorUnit::new(200),
@@ -3002,10 +2999,7 @@ mod tests {
         let created_at =
             common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
         let payment_intent = PaymentIntent {
-            payment_id: id_type::PaymentId::try_from(Cow::Borrowed(
-                "23",
-            ))
-            .unwrap(),
+            payment_id: id_type::PaymentId::try_from(Cow::Borrowed("23")).unwrap(),
             merchant_id: id_type::MerchantId::default(),
             status: storage_enums::IntentStatus::RequiresCapture,
             amount: MinorUnit::new(200),
@@ -3067,10 +3061,7 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
-            payment_id: id_type::PaymentId::try_from(Cow::Borrowed(
-                "23",
-            ))
-            .unwrap(),
+            payment_id: id_type::PaymentId::try_from(Cow::Borrowed("23")).unwrap(),
             merchant_id: id_type::MerchantId::default(),
             status: storage_enums::IntentStatus::RequiresCapture,
             amount: MinorUnit::new(200),

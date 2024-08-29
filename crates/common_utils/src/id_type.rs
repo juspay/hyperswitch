@@ -24,7 +24,6 @@ pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
 pub use payment::PaymentId;
-
 pub use profile::ProfileId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

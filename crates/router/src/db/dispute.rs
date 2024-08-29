@@ -424,9 +424,9 @@ mod tests {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: common_utils::id_type::PaymentId::try_from(
-                        Cow::Borrowed("payment_1"),
-                    )
+                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                        "payment_1",
+                    ))
                     .unwrap(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -460,9 +460,9 @@ mod tests {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: common_utils::id_type::PaymentId::try_from(
-                        Cow::Borrowed("payment_1"),
-                    )
+                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                        "payment_1",
+                    ))
                     .unwrap(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
@@ -474,9 +474,9 @@ mod tests {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: common_utils::id_type::PaymentId::try_from(
-                        Cow::Borrowed("payment_1"),
-                    )
+                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                        "payment_1",
+                    ))
                     .unwrap(),
                     connector_dispute_id: "connector_dispute_2".into(),
                 }))
@@ -486,10 +486,8 @@ mod tests {
             let found_dispute = mockdb
                 .find_by_merchant_id_payment_id_connector_dispute_id(
                     &merchant_id,
-                    &common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
-                        "payment_1",
-                    ))
-                    .unwrap(),
+                    &common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1"))
+                        .unwrap(),
                     "connector_dispute_1",
                 )
                 .await
@@ -506,8 +504,7 @@ mod tests {
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
             let payment_id =
-                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1"))
-                    .unwrap();
+                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
@@ -549,8 +546,7 @@ mod tests {
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_2")).unwrap();
 
             let payment_id =
-                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1"))
-                    .unwrap();
+                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
@@ -609,8 +605,7 @@ mod tests {
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
             let payment_id =
-                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1"))
-                    .unwrap();
+                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
@@ -672,10 +667,8 @@ mod tests {
                 let merchant_id =
                     common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
-                let payment_id = common_utils::id_type::PaymentId::try_from(
-                    Cow::Borrowed("payment_1"),
-                )
-                .unwrap();
+                let payment_id =
+                    common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
@@ -758,10 +751,8 @@ mod tests {
                 let merchant_id =
                     common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
-                let payment_id = common_utils::id_type::PaymentId::try_from(
-                    Cow::Borrowed("payment_1"),
-                )
-                .unwrap();
+                let payment_id =
+                    common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
@@ -839,10 +830,8 @@ mod tests {
                 let merchant_id =
                     common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
-                let payment_id = common_utils::id_type::PaymentId::try_from(
-                    Cow::Borrowed("payment_1"),
-                )
-                .unwrap();
+                let payment_id =
+                    common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
 
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
