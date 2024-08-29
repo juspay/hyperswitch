@@ -13,7 +13,7 @@ use super::{
     health_check::HealthCheck,
     payment_intents::{filters::PaymentIntentFilterRow, metrics::PaymentIntentMetricRow},
     payments::{
-        distribution::PaymentDistributionRow, filters::FilterRow, metrics::PaymentMetricRow,
+        distribution::PaymentDistributionRow, filters::PaymentFilterRow, metrics::PaymentMetricRow,
     },
     query::{Aggregate, ToSql, Window},
     refunds::{filters::RefundFilterRow, metrics::RefundMetricRow},
@@ -244,10 +244,10 @@ impl TryInto<PaymentDistributionRow> for serde_json::Value {
     }
 }
 
-impl TryInto<FilterRow> for serde_json::Value {
+impl TryInto<PaymentFilterRow> for serde_json::Value {
     type Error = Report<ParsingError>;
 
-    fn try_into(self) -> Result<FilterRow, Self::Error> {
+    fn try_into(self) -> Result<PaymentFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse FilterRow in clickhouse results",
         ))

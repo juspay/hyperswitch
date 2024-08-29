@@ -19,7 +19,7 @@ use router_env::{
 
 use super::{
     distribution::PaymentDistributionRow,
-    filters::{get_payment_filter_for_dimension, FilterRow},
+    filters::{get_payment_filter_for_dimension, PaymentFilterRow},
     metrics::PaymentMetricRow,
     PaymentMetricsAccumulator,
 };
@@ -286,7 +286,7 @@ pub async fn get_filters(
         }
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
-        .filter_map(|fil: FilterRow| match dim {
+        .filter_map(|fil: PaymentFilterRow| match dim {
             PaymentDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
             PaymentDimensions::PaymentStatus => fil.status.map(|i| i.as_ref().to_string()),
             PaymentDimensions::Connector => fil.connector,

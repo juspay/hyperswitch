@@ -430,7 +430,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::distribution::PaymentDistributi
     }
 }
 
-impl<'a> FromRow<'a, PgRow> for super::payments::filters::FilterRow {
+impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
     fn from_row(row: &'a PgRow) -> sqlx::Result<Self> {
         let currency: Option<DBEnumWrapper<Currency>> =
             row.try_get("currency").or_else(|e| match e {

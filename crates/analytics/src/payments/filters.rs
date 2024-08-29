@@ -13,14 +13,14 @@ use crate::{
     },
 };
 
-pub trait PaymentFilterAnalytics: LoadRow<FilterRow> {}
+pub trait PaymentFilterAnalytics: LoadRow<PaymentFilterRow> {}
 
 pub async fn get_payment_filter_for_dimension<T>(
     dimension: PaymentDimensions,
     auth: &AuthInfo,
     time_range: &TimeRange,
     pool: &T,
-) -> FiltersResult<Vec<FilterRow>>
+) -> FiltersResult<Vec<PaymentFilterRow>>
 where
     T: AnalyticsDataSource + PaymentFilterAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -42,14 +42,14 @@ where
     query_builder.set_distinct();
 
     query_builder
-        .execute_query::<FilterRow, _>(pool)
+        .execute_query::<PaymentFilterRow, _>(pool)
         .await
         .change_context(FiltersError::QueryBuildingError)?
         .change_context(FiltersError::QueryExecutionFailure)
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
-pub struct FilterRow {
+pub struct PaymentFilterRow {
     pub currency: Option<DBEnumWrapper<Currency>>,
     pub status: Option<DBEnumWrapper<AttemptStatus>>,
     pub connector: Option<String>,
