@@ -32,6 +32,7 @@ mod dummyconnector;
 mod ebanx;
 mod fiserv;
 mod fiservemea;
+mod fiuu;
 mod forte;
 mod globalpay;
 mod globepay;
