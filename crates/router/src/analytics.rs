@@ -23,7 +23,7 @@ pub mod routes {
 
     use crate::{
         consts::opensearch::OPENSEARCH_INDEX_PERMISSIONS,
-        core::{api_locking, errors::user::UserErrors},
+        core::{api_locking, errors::user::UserErrors, verification::utils},
         db::user::UserInterface,
         routes::AppState,
         services::{
@@ -456,7 +456,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -573,7 +573,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -690,7 +690,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -919,7 +919,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -1032,7 +1032,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -1160,6 +1160,13 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
+                utils::check_if_profile_id_is_present_in_payment_intent(
+                    req.payment_id.to_string(),
+                    &state,
+                    &auth,
+                )
+                .await
+                .change_context(AnalyticsError::AccessForbiddenError)?;
                 sdk_events_core(&state.pool, req, &auth.merchant_account.publishable_key)
                     .await
                     .map(ApplicationResponse::Json)
@@ -1397,7 +1404,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -1484,7 +1491,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -1653,7 +1660,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
@@ -1760,7 +1767,7 @@ pub mod routes {
                 let profile_id = auth
                     .profile_id
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::UnknownError)?;
+                    .change_context(AnalyticsError::AccessForbiddenError)?;
                 let auth: AuthInfo = AuthInfo::ProfileLevel {
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
