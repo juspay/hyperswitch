@@ -225,7 +225,7 @@ pub mod routes {
                                     web::resource("connector_event_logs")
                                         .route(web::get().to(get_profile_connector_events)),
                                 )
-                                service(
+                                .service(
                                     web::resource("outgoing_webhook_event_logs")
                                         .route(web::get().to(get_profile_outgoing_webhook_events)),
                                 ),
