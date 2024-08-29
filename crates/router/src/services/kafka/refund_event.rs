@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::{id_type, types::MinorUnit};
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
@@ -8,7 +8,7 @@ pub struct KafkaRefundEvent<'a> {
     pub internal_reference_id: &'a String,
     pub refund_id: &'a String, //merchant_reference id
     pub payment_id: &'a String,
-    pub merchant_id: &'a common_utils::id_type::MerchantId,
+    pub merchant_id: &'a id_type::MerchantId,
     pub connector_transaction_id: &'a String,
     pub connector: &'a String,
     pub connector_refund_id: Option<&'a String>,
@@ -29,6 +29,8 @@ pub struct KafkaRefundEvent<'a> {
     pub attempt_id: &'a String,
     pub refund_reason: Option<&'a String>,
     pub refund_error_code: Option<&'a String>,
+    pub profile_id: Option<&'a id_type::ProfileId>,
+    pub organization_id: &'a id_type::OrganizationId,
 }
 
 impl<'a> KafkaRefundEvent<'a> {
@@ -56,6 +58,8 @@ impl<'a> KafkaRefundEvent<'a> {
             attempt_id: &refund.attempt_id,
             refund_reason: refund.refund_reason.as_ref(),
             refund_error_code: refund.refund_error_code.as_ref(),
+            profile_id: refund.profile_id.as_ref(),
+            organization_id: &refund.organization_id,
         }
     }
 }
