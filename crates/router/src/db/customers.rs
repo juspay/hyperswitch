@@ -1,4 +1,5 @@
 use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
+use diesel_models::query::customers::CustomerListConstraints as DieselCustomerListConstraints;
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::customer;
@@ -16,6 +17,20 @@ use crate::{
         storage::{self as storage_types, enums::MerchantStorageScheme},
     },
 };
+
+pub struct CustomerListConstraints {
+    pub limit: u16,
+    pub offset: Option<u32>,
+}
+
+impl From<CustomerListConstraints> for DieselCustomerListConstraints {
+    fn from(value: CustomerListConstraints) -> Self {
+        Self {
+            limit: i64::from(value.limit),
+            offset: value.offset.map(i64::from),
+        }
+    }
+}
 
 #[async_trait::async_trait]
 pub trait CustomerInterface
@@ -88,6 +103,7 @@ where
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
+        constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<customer::Customer>, errors::StorageError>;
 
     async fn insert_customer(
@@ -514,13 +530,20 @@ mod storage {
             state: &KeyManagerState,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
+            constraints: super::CustomerListConstraints,
         ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
 
-            let encrypted_customers =
-                storage_types::Customer::list_by_merchant_id(&conn, merchant_id)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+            let customer_list_constraints =
+                diesel_models::query::customers::CustomerListConstraints::from(constraints);
+
+            let encrypted_customers = storage_types::Customer::list_by_merchant_id(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
@@ -1055,13 +1078,20 @@ mod storage {
             state: &KeyManagerState,
             merchant_id: &id_type::MerchantId,
             key_store: &domain::MerchantKeyStore,
+            constraints: super::CustomerListConstraints,
         ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
 
-            let encrypted_customers =
-                storage_types::Customer::list_by_merchant_id(&conn, merchant_id)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))?;
+            let customer_list_constraints =
+                diesel_models::query::customers::CustomerListConstraints::from(constraints);
+
+            let encrypted_customers = storage_types::Customer::list_by_merchant_id(
+                &conn,
+                merchant_id,
+                customer_list_constraints,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
             let customers = try_join_all(encrypted_customers.into_iter().map(
                 |encrypted_customer| async {
@@ -1227,6 +1257,7 @@ impl CustomerInterface for MockDb {
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
+        constraints: CustomerListConstraints,
     ) -> CustomResult<Vec<customer::Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
 
@@ -1234,6 +1265,8 @@ impl CustomerInterface for MockDb {
             customers
                 .iter()
                 .filter(|customer| customer.merchant_id == *merchant_id)
+                .take(usize::from(constraints.limit))
+                .skip(usize::try_from(constraints.offset.unwrap_or(0)).unwrap_or(0))
                 .map(|customer| async {
                     customer
                         .to_owned()
