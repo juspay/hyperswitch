@@ -112,20 +112,26 @@ pub async fn customers_retrieve(
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
-pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn customers_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<customers::CustomerListRequest>,
+) -> HttpResponse {
     let flow = Flow::CustomersList;
+    let payload = query.into_inner();
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, auth, _, _| {
+        payload,
+        |state, auth, request, _| {
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
                 None,
                 auth.key_store,
+                request,
             )
         },
         auth::auth_type(
