@@ -313,7 +313,7 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    let payment_id = id_type::PaymentId::try_from(Cow::Borrowed(
         "pay_mbabizu24mvu3mela5njyhpit10",
     ))
     .unwrap();
@@ -551,7 +551,7 @@ async fn payments_create_core_adyen_no_redirect() {
         .get_session_state("public", || {})
         .unwrap();
 
-    let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    let payment_id = id_type::PaymentId::try_from(Cow::Borrowed(
         "pay_mbabizu24mvu3mela5njyhpit10",
     ))
     .unwrap();

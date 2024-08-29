@@ -41,7 +41,7 @@ pub async fn payment_intents_create(
         payload
             .id
             .as_ref()
-            .map(|payment_id| payment_id.get_string_repr().clone())
+            .map(|payment_id| payment_id.get_string_repr())
             .unwrap_or_default(),
     );
 

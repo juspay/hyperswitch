@@ -1085,7 +1085,7 @@ pub async fn update_payouts_and_payout_attempt(
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id
     let payout_id_as_payment_id_type =
-        common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
+        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "payout_id contains invalid data".to_string(),
             })

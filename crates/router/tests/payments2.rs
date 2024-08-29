@@ -73,7 +73,7 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
-    let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    let payment_id = id_type::PaymentId::try_from(Cow::Borrowed(
         "pay_mbabizu24mvu3mela5njyhpit10",
     ))
     .unwrap();
@@ -320,7 +320,7 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
-    let payment_id = common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+    let payment_id = id_type::PaymentId::try_from(Cow::Borrowed(
         "pay_mbabizu24mvu3mela5njyhpit10",
     ))
     .unwrap();

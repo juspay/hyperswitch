@@ -2,7 +2,7 @@ pub mod helpers;
 pub mod utils;
 use api_models::payments;
 use common_utils::{ext_traits::Encode, id_type};
-use diesel_models::{enums as storage_enums, Mandate};
+use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};

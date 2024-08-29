@@ -131,7 +131,7 @@ impl AddressInterface for KafkaStore {
         state: &KeyManagerState,
         this: domain::PaymentAddress,
         address: domain::AddressUpdate,
-        payment_id: common_utils::id_type::PaymentId,
+        payment_id: id_type::PaymentId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
@@ -150,7 +150,7 @@ impl AddressInterface for KafkaStore {
     async fn insert_address_for_payments(
         &self,
         state: &KeyManagerState,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         address: domain::PaymentAddress,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -164,7 +164,7 @@ impl AddressInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -543,7 +543,7 @@ impl DisputeInterface for KafkaStore {
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         self.diesel_store
@@ -598,7 +598,7 @@ impl DisputeInterface for KafkaStore {
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
             .find_disputes_by_merchant_id_payment_id(merchant_id, payment_id)
@@ -1348,7 +1348,7 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
@@ -1379,7 +1379,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
@@ -1407,7 +1407,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
@@ -1422,7 +1422,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
@@ -1492,7 +1492,7 @@ impl PaymentAttemptInterface for KafkaStore {
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::PaymentAttempt>, errors::DataStorageError> {
         self.diesel_store
@@ -1560,7 +1560,7 @@ impl PaymentIntentInterface for KafkaStore {
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
@@ -2130,7 +2130,7 @@ impl CaptureInterface for KafkaStore {
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         authorized_attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Capture>, errors::StorageError> {
@@ -2164,7 +2164,7 @@ impl RefundInterface for KafkaStore {
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Refund>, errors::StorageError> {
@@ -3106,7 +3106,7 @@ impl AuthorizationInterface for KafkaStore {
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payment_id: &common_utils::id_type::PaymentId,
+        payment_id: &id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         self.diesel_store
             .find_all_authorizations_by_merchant_id_payment_id(merchant_id, payment_id)

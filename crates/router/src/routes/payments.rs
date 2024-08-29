@@ -16,7 +16,6 @@ use crate::{
     core::{
         errors::{self, http_not_implemented},
         payments::{self, PaymentRedirectFlow},
-        utils as core_utils,
     },
     routes::lock_utils,
     services::{api, authentication as auth},

@@ -25,7 +25,6 @@ use crate::{
     },
     services,
     types::{self, api, domain, storage},
-    utils,
 };
 
 #[instrument(skip_all)]

@@ -119,7 +119,7 @@ pub async fn create_or_update_address_for_payment_by_request(
     merchant_id: &id_type::MerchantId,
     customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: &common_utils::id_type::PaymentId,
+    payment_id: &id_type::PaymentId,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
@@ -256,7 +256,7 @@ pub async fn create_or_find_address_for_payment_by_request(
     merchant_id: &id_type::MerchantId,
     customer_id: Option<&id_type::CustomerId>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: &common_utils::id_type::PaymentId,
+    payment_id: &id_type::PaymentId,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
@@ -366,7 +366,7 @@ pub async fn get_address_by_id(
     state: &SessionState,
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
-    payment_id: &common_utils::id_type::PaymentId,
+    payment_id: &id_type::PaymentId,
     merchant_id: &id_type::MerchantId,
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
@@ -2477,7 +2477,7 @@ pub(super) fn validate_payment_list_request_for_joins(
 }
 
 pub fn get_handle_response_url(
-    payment_id: common_utils::id_type::PaymentId,
+    payment_id: id_type::PaymentId,
     business_profile: &domain::BusinessProfile,
     response: &api::PaymentsResponse,
     connector: String,
@@ -2593,7 +2593,7 @@ pub async fn delete_ephemeral_key(
 }
 
 pub fn make_pg_redirect_response(
-    payment_id: common_utils::id_type::PaymentId,
+    payment_id: id_type::PaymentId,
     response: &api::PaymentsResponse,
     connector: String,
 ) -> api::PgRedirectResponse {
@@ -2684,7 +2684,7 @@ pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
 #[allow(clippy::too_many_arguments)]
 pub fn generate_mandate(
     merchant_id: id_type::MerchantId,
-    payment_id: common_utils::id_type::PaymentId,
+    payment_id: id_type::PaymentId,
     connector: String,
     setup_mandate_details: Option<MandateData>,
     customer_id: &Option<id_type::CustomerId>,
@@ -2858,7 +2858,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let payment_id = get_payment_id_from_client_secret(&cs)?;
 
             let payment_id =
-                common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id))
+                id_type::PaymentId::try_from(Cow::Owned(payment_id))
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "payment_id",
                     })?;
@@ -2933,7 +2933,7 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_session_not_expired() {
         let payment_intent = PaymentIntent {
-            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+            payment_id: id_type::PaymentId::try_from(Cow::Borrowed(
                 "23",
             ))
             .unwrap(),
@@ -3002,7 +3002,7 @@ mod tests {
         let created_at =
             common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
         let payment_intent = PaymentIntent {
-            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+            payment_id: id_type::PaymentId::try_from(Cow::Borrowed(
                 "23",
             ))
             .unwrap(),
@@ -3067,7 +3067,7 @@ mod tests {
     #[test]
     fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
-            payment_id: common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+            payment_id: id_type::PaymentId::try_from(Cow::Borrowed(
                 "23",
             ))
             .unwrap(),
@@ -5112,7 +5112,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
 
 pub fn get_redis_key_for_extended_card_info(
     merchant_id: &id_type::MerchantId,
-    payment_id: &common_utils::id_type::PaymentId,
+    payment_id: &id_type::PaymentId,
 ) -> String {
     format!(
         "{}_{}_extended_card_info",

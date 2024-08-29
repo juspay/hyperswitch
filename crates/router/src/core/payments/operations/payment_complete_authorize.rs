@@ -15,7 +15,6 @@ use crate::{
             self, helpers, operations, CustomerAcceptance, CustomerDetails, PaymentAddress,
             PaymentData,
         },
-        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
