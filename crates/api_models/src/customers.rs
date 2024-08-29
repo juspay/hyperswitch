@@ -48,6 +48,16 @@ pub struct CustomerRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CustomerListRequest {
+    /// Offset
+    #[schema(example = 32)]
+    pub offset: Option<u32>,
+    /// Limit
+    #[schema(example = 32)]
+    pub limit: Option<u16>,
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl CustomerRequest {
     pub fn get_merchant_reference_id(&self) -> Option<id_type::CustomerId> {
