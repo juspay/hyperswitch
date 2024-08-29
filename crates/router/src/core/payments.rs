@@ -3808,7 +3808,33 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
             });
 
             Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
-        }
+        },
+        (
+            None,
+            None,
+            Some(RecurringDetails::ProcessorPaymentToken(_token)),
+            Some(true),
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        ) => {
+            if let Some(connector) = connectors.first() {
+                routing_data.routed_through = Some(connector.connector_name.clone().to_string());
+                routing_data
+                    .merchant_connector_id
+                    .clone_from(&connector.merchant_connector_id);
+                Ok(ConnectorCallType::PreDetermined(
+                    api::ConnectorData {
+                        connector: connector.connector.clone(),
+                        connector_name: connector.connector_name,
+                        get_token: connector.get_token.clone(),
+                        merchant_connector_id: connector.merchant_connector_id.clone(),
+                    }
+                ))
+            } else {
+                logger::error!("no eligible connector found for the ppt_mandate payment");
+                Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration.into())
+            }
+        },
+
         _ => {
             helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 
