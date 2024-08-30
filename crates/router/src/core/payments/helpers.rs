@@ -435,7 +435,7 @@ pub async fn get_token_pm_type_mandate_details(
                                     key_manager_state,
                                     merchant_account.get_id(),
                                     mca_id,
-                                    &merchant_key_store,
+                                    merchant_key_store,
                                 )
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
