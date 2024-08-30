@@ -9751,6 +9751,7 @@
         "type": "object",
         "required": [
           "dispute_id",
+          "payment_id",
           "attempt_id",
           "amount",
           "currency",
@@ -9768,8 +9769,7 @@
           },
           "payment_id": {
             "type": "string",
-            "description": "The identifier for payment_intent",
-            "nullable": true
+            "description": "The identifier for payment_intent"
           },
           "attempt_id": {
             "type": "string",
