@@ -352,8 +352,14 @@ pub enum Flow {
     VerifyPaymentConnector,
     /// Internal user signup
     InternalUserSignup,
+    /// Switch org
+    SwitchOrg,
     /// Switch merchant
     SwitchMerchant,
+    /// Switch merchant v2
+    SwitchMerchantV2,
+    /// Switch profile
+    SwitchProfile,
     /// Get permission info
     GetAuthorizationInfo,
     /// Get Roles info
@@ -366,8 +372,6 @@ pub enum Flow {
     GetRoleFromToken,
     /// Update user role
     UpdateUserRole,
-    /// Transfer organization ownership
-    TransferOrgOwnership,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
     /// Generate Sample Data
@@ -462,6 +466,8 @@ pub enum Flow {
     ListMerchantsForUserInOrg,
     /// List Profile for user in org and merchant
     ListProfileForUserInOrgAndMerchant,
+    /// List Users in Org
+    ListUsersInLineage,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event

@@ -1,4 +1,5 @@
 import captureBody from "./capture-flow-body.json";
+import configs from "./configs.json";
 import confirmBody from "./confirm-body.json";
 import apiKeyCreateBody from "./create-api-key-body.json";
 import createConfirmPaymentBody from "./create-confirm-body.json";
@@ -9,6 +10,7 @@ import mitConfirmBody from "./create-mandate-mit.json";
 import createPaymentBody from "./create-payment-body.json";
 import createPayoutBody from "./create-payout-confirm-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
+import gsmBody from "./gsm-body.json";
 import listRefundCall from "./list-refund-call-body.json";
 import merchantCreateBody from "./merchant-create-body.json";
 import merchantUpdateBody from "./merchant-update-body.json";
@@ -25,6 +27,7 @@ export {
   apiKeyUpdateBody,
   captureBody,
   citConfirmBody,
+  configs,
   confirmBody,
   createConfirmPaymentBody,
   createConnectorBody,
@@ -32,6 +35,7 @@ export {
   createPayoutBody,
   customerCreateBody,
   customerUpdateBody,
+  gsmBody,
   listRefundCall,
   merchantCreateBody,
   merchantUpdateBody,

@@ -170,7 +170,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
-            mandate_type.clone(),
+            mandate_type,
             merchant_account,
             merchant_key_store,
             None,
@@ -308,6 +308,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             merchant_id,
+            &merchant_account.organization_id,
             money,
             payment_method,
             payment_method_type,
@@ -839,7 +840,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request.get_customer_id(),
+                request.customer_id.as_ref(),
             )?;
         }
 
@@ -874,6 +875,7 @@ impl PaymentCreate {
     pub async fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &common_utils::id_type::MerchantId,
+        organization_id: &common_utils::id_type::OrganizationId,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
         payment_method_type: Option<enums::PaymentMethodType>,
@@ -1065,6 +1067,8 @@ impl PaymentCreate {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize customer_acceptance")?
                     .map(Secret::new),
+                organization_id: organization_id.clone(),
+                profile_id,
             },
             additional_pm_data,
         ))
@@ -1164,7 +1168,7 @@ impl PaymentCreate {
             .attach_printable("Unable to encrypt shipping details")?;
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.get_customer_id().is_none()
+        let raw_customer_details = if request.customer_id.is_none()
             && (request.name.is_some()
                 || request.email.is_some()
                 || request.phone.is_some()
@@ -1246,6 +1250,7 @@ impl PaymentCreate {
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
             shipping_details,
             is_payment_processor_token_flow,
+            organization_id: merchant_account.organization_id.clone(),
         })
     }
 
