@@ -8813,7 +8813,6 @@ impl Default for super::settings::RequiredFields {
                                                                 "KZ".to_string(),
                                                                 "KE".to_string(),
                                                                 "KI".to_string(),
-                                                                "XK".to_string(),
                                                                 "KW".to_string(),
                                                                 "KG".to_string(),
                                                                 "LA".to_string(),
