@@ -66,10 +66,8 @@ where
             .switch()?;
 
         filters.set_filter_clause(&mut query_builder).switch()?;
+
         auth.set_filter_clause(&mut query_builder).switch()?;
-        // query_builder
-        //     .add_filter_clause("merchant_id", merchant_id)
-        //     .switch()?;
 
         time_range
             .set_filter_clause(&mut query_builder)
