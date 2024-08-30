@@ -2960,7 +2960,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -2982,6 +2982,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3026,7 +3027,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3047,6 +3048,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3088,7 +3090,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3110,6 +3112,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3645,6 +3648,8 @@ impl AttemptType {
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
             customer_acceptance: old_payment_attempt.customer_acceptance,
+            organization_id: old_payment_attempt.organization_id,
+            profile_id: old_payment_attempt.profile_id,
         }
     }
 

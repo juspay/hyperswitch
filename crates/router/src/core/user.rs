@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Not,
+};
 
 use api_models::{
     payments::RedirectionResponse,
@@ -13,7 +16,6 @@ use diesel_models::{
     organization::OrganizationBridge,
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
-    user_role::UserRoleNew,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
@@ -60,10 +62,11 @@ pub async fn signup_with_merchant_id(
         .await?;
 
     let user_role = new_user
-        .insert_user_role_in_db(
+        .insert_org_level_user_role_in_db(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            None,
         )
         .await?;
 
@@ -132,10 +135,11 @@ pub async fn signup(
         .insert_user_and_merchant_in_db(state.clone())
         .await?;
     let user_role = new_user
-        .insert_user_role_in_db(
+        .insert_org_level_user_role_in_db(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            None,
         )
         .await?;
     utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
@@ -163,10 +167,11 @@ pub async fn signup_token_only_flow(
         .insert_user_and_merchant_in_db(state.clone())
         .await?;
     let user_role = new_user
-        .insert_user_role_in_db(
+        .insert_org_level_user_role_in_db(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            None,
         )
         .await?;
 
@@ -314,10 +319,11 @@ pub async fn connect_account(
             .insert_user_and_merchant_in_db(state.clone())
             .await?;
         let user_role = new_user
-            .insert_user_role_in_db(
+            .insert_org_level_user_role_in_db(
                 state.clone(),
                 common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
+                None,
             )
             .await?;
 
@@ -773,37 +779,60 @@ async fn handle_existing_user_invitation(
     auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
     let now = common_utils::date_time::now();
-    state
+
+    if state
         .store
-        .insert_user_role(UserRoleNew {
-            user_id: invitee_user_from_db.get_user_id().to_owned(),
-            merchant_id: Some(user_from_token.merchant_id.clone()),
-            role_id: request.role_id.clone(),
-            org_id: Some(user_from_token.org_id.clone()),
-            status: {
-                if cfg!(feature = "email") {
-                    UserStatus::InvitationSent
-                } else {
-                    UserStatus::Active
-                }
-            },
-            created_by: user_from_token.user_id.clone(),
-            last_modified_by: user_from_token.user_id.clone(),
-            created_at: now,
-            last_modified: now,
-            profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
-        })
+        .find_user_role_by_user_id_and_lineage(
+            invitee_user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V1,
+        )
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_unique_violation() {
-                e.change_context(UserErrors::UserExists)
+        .is_err_and(|err| err.current_context().is_db_not_found())
+        .not()
+    {
+        return Err(UserErrors::UserExists.into());
+    }
+
+    if state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            invitee_user_from_db.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V2,
+        )
+        .await
+        .is_err_and(|err| err.current_context().is_db_not_found())
+        .not()
+    {
+        return Err(UserErrors::UserExists.into());
+    }
+
+    let user_role = domain::NewUserRole {
+        user_id: invitee_user_from_db.get_user_id().to_owned(),
+        role_id: request.role_id.clone(),
+        status: {
+            if cfg!(feature = "email") {
+                UserStatus::InvitationSent
             } else {
-                e.change_context(UserErrors::InternalServerError)
+                UserStatus::Active
             }
-        })?;
+        },
+        created_by: user_from_token.user_id.clone(),
+        last_modified_by: user_from_token.user_id.clone(),
+        created_at: now,
+        last_modified: now,
+        entity: domain::MerchantLevel {
+            org_id: user_from_token.org_id.clone(),
+            merchant_id: user_from_token.merchant_id.clone(),
+        },
+    }
+    .insert_in_v1_and_v2(state)
+    .await?;
 
     let is_email_sent;
     #[cfg(feature = "email")]
@@ -865,31 +894,22 @@ async fn handle_new_user_invitation(
     };
 
     let now = common_utils::date_time::now();
-    state
-        .store
-        .insert_user_role(UserRoleNew {
-            user_id: new_user.get_user_id().to_owned(),
-            merchant_id: Some(user_from_token.merchant_id.clone()),
-            role_id: request.role_id.clone(),
-            org_id: Some(user_from_token.org_id.clone()),
-            status: invitation_status,
-            created_by: user_from_token.user_id.clone(),
-            last_modified_by: user_from_token.user_id.clone(),
-            created_at: now,
-            last_modified: now,
-            profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
-        })
-        .await
-        .map_err(|e| {
-            if e.current_context().is_db_unique_violation() {
-                e.change_context(UserErrors::UserExists)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
+
+    let user_role = domain::NewUserRole {
+        user_id: new_user.get_user_id().to_owned(),
+        role_id: request.role_id.clone(),
+        status: invitation_status,
+        created_by: user_from_token.user_id.clone(),
+        last_modified_by: user_from_token.user_id.clone(),
+        created_at: now,
+        last_modified: now,
+        entity: domain::MerchantLevel {
+            merchant_id: user_from_token.merchant_id.clone(),
+            org_id: user_from_token.org_id.clone(),
+        },
+    }
+    .insert_in_v1_and_v2(state)
+    .await?;
 
     let is_email_sent;
     // TODO: Adding this to avoid clippy lints, remove this once the token only flow is being used
@@ -1289,7 +1309,7 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id))?;
+    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
 
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
@@ -1308,12 +1328,16 @@ pub async fn create_internal_user(
         .map(domain::user::UserFromStorage::from)?;
 
     new_user
-        .insert_user_role_in_db(
-            state,
+        .get_no_level_user_role(
             common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             UserStatus::Active,
         )
-        .await?;
+        .add_entity(domain::InternalLevel {
+            org_id: internal_merchant.organization_id,
+        })
+        .insert_in_v1_and_v2(&state)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -1448,10 +1472,11 @@ pub async fn create_merchant_account(
         .await?;
 
     let role_insertion_res = new_user
-        .insert_user_role_in_db(
+        .insert_org_level_user_role_in_db(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            Some(UserRoleVersion::V1),
         )
         .await;
     if let Err(e) = role_insertion_res {
