@@ -30,4 +30,4 @@ ALTER TABLE business_profile
 ADD COLUMN IF NOT EXISTS id SERIAL;
 
 ALTER TABLE business_profile
-ADD PRIMARY KEY (merchant_connector_id);
+ADD PRIMARY KEY (profile_id);
