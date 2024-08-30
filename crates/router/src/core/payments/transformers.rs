@@ -593,8 +593,8 @@ where
         ))
     }
 
-    // Always use the customer details stored in the customer table because when a customer is 
-    // deleted, the customer details still exist in the payment intent table. In this case, 
+    // Always use the customer details stored in the customer table because when a customer is
+    // deleted, the customer details still exist in the payment intent table. In this case,
     // we should not populate the details from the payment intent instead, rely on the customers table.
     let customer_details_response: Option<CustomerDetailsResponse> =
         customer.as_ref().map(ForeignInto::foreign_into);
