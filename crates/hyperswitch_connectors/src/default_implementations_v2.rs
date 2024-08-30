@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostProcessing, PreProcessing, Reject, Session, SessionUpdate, SetupMandate, Void,
+            PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         webhooks::VerifyWebhookSource,
@@ -26,9 +26,9 @@ use hyperswitch_domain_models::{
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
-        PaymentsSessionUpdateData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
-        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
         UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -186,9 +186,9 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             TaxCalculationResponseData,
             > for $path::$connector{}
          impl ConnectorIntegrationV2<
-            SessionUpdate,
+            SdkSessionUpdate,
             PaymentFlowData,
-            PaymentsSessionUpdateData,
+            SdkPaymentsSessionUpdateData,
             PaymentsResponseData,
             > for $path::$connector{}
     )*

@@ -3287,8 +3287,8 @@ macro_rules! default_imp_for_session_update {
         $( impl api::PaymentSessionUpdate for $path::$connector {}
             impl
             services::ConnectorIntegration<
-                api::SessionUpdate,
-                types::PaymentsSessionUpdateData,
+                api::SdkSessionUpdate,
+                types::SdkPaymentsSessionUpdateData,
                 types::PaymentsResponseData
         > for $path::$connector
         {}
@@ -3300,8 +3300,8 @@ impl<const T: u8> api::PaymentSessionUpdate for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::SessionUpdate,
-        types::PaymentsSessionUpdateData,
+        api::SdkSessionUpdate,
+        types::SdkPaymentsSessionUpdateData,
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {

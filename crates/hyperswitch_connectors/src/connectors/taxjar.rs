@@ -39,7 +39,6 @@ use masking::{Mask, PeekInterface};
 use transformers as taxjar;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
-// use crate::utils::
 
 #[derive(Clone)]
 pub struct Taxjar {
@@ -229,7 +228,7 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
     ) -> CustomResult<PaymentsTaxCalculationRouterData, errors::ConnectorError> {
         let response: taxjar::TaxjarPaymentsResponse = res
             .response
-            .parse_struct("Taxjar PaymentsAuthorizeResponse")
+            .parse_struct("Taxjar PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

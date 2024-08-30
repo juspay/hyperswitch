@@ -134,7 +134,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
             | Flow::PaymentsManualUpdate
-            | Flow::PaymentsDynamicTaxCalculation => Self::Payments,
+            | Flow::SessionUpdateTaxCalculation => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve

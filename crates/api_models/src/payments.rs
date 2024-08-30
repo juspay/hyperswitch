@@ -4447,7 +4447,6 @@ pub struct PaymentsSessionRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-/// Request for calling tax jar API
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsDynamicTaxCalculationRequest {
     /// The unique identifier for the payment
@@ -4461,11 +4460,9 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     /// Payment method type
     pub payment_method_type: api_enums::PaymentMethodType,
 }
-/// Response for calling tax jar API
+
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsDynamicTaxCalculationResponse {
-    /// Amount of sales tax to collect.
-    // pub order_tax_amount: i64,
     /// net amount
     pub net_amount: MinorUnit,
 }

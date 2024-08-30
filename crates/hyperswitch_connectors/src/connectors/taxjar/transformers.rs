@@ -16,7 +16,6 @@ use crate::{
     utils::{self, AddressDetailsData, RouterData as _},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct TaxjarRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub shipping: FloatMajorUnit,
@@ -25,7 +24,6 @@ pub struct TaxjarRouterData<T> {
 
 impl<T> From<(FloatMajorUnit, FloatMajorUnit, T)> for TaxjarRouterData<T> {
     fn from((amount, shipping, item): (FloatMajorUnit, FloatMajorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             shipping,
@@ -34,7 +32,6 @@ impl<T> From<(FloatMajorUnit, FloatMajorUnit, T)> for TaxjarRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct TaxjarPaymentsRequest {
     from_country: enums::CountryAlpha2,
@@ -147,7 +144,6 @@ impl TryFrom<&ConnectorAuthType> for TaxjarAuthType {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TaxjarPaymentsResponse {
     tax: Tax,
@@ -155,8 +151,8 @@ pub struct TaxjarPaymentsResponse {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Tax {
-    order_total_amount: FloatMajorUnit,
-    amount_to_collect: FloatMajorUnit, //calculated_tax_amount
+    order_total_amount: FloatMajorUnit, //amount + shipping_cost
+    amount_to_collect: FloatMajorUnit,  //calculated_tax_amount
 }
 
 impl<F>

@@ -591,12 +591,12 @@ mod test {
 #[derive(Clone)]
 pub struct TaxCalculateConnectorData {
     pub connector: ConnectorEnum,
-    pub connector_name: enums::TaxCalculatorConnectors,
+    pub connector_name: enums::TaxConnectors,
 }
 
 impl TaxCalculateConnectorData {
     pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let connector_name = enums::TaxCalculatorConnectors::from_str(name)
+        let connector_name = enums::TaxConnectors::from_str(name)
             .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
             .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
         let connector = Self::convert_connector(connector_name)?;
@@ -607,10 +607,10 @@ impl TaxCalculateConnectorData {
     }
 
     fn convert_connector(
-        connector_name: enums::TaxCalculatorConnectors,
+        connector_name: enums::TaxConnectors,
     ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
         match connector_name {
-            enums::TaxCalculatorConnectors::Taxjar => {
+            enums::TaxConnectors::Taxjar => {
                 Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
             }
         }

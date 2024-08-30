@@ -804,7 +804,7 @@ pub struct PaymentsTaxCalculationData {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct PaymentsSessionUpdateData {
+pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
     pub net_amount: MinorUnit,
 }

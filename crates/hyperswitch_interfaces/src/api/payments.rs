@@ -4,15 +4,15 @@ use hyperswitch_domain_models::{
     router_flow_types::payments::{
         Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, Session, SessionUpdate, SetupMandate, Void,
+        PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSessionUpdateData, PaymentsSyncData,
-        PaymentsTaxCalculationData, SetupMandateRequestData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
@@ -121,7 +121,7 @@ pub trait PaymentTaxCalculation:
 
 /// trait SessionUpdate
 pub trait PaymentSessionUpdate:
-    api::ConnectorIntegration<SessionUpdate, PaymentsSessionUpdateData, PaymentsResponseData>
+    api::ConnectorIntegration<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>
 {
 }
 

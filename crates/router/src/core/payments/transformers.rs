@@ -519,10 +519,7 @@ where
             amount = amount + order_tax_amount;
         }
         Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                // order_tax_amount: payment_data.amount,
-                net_amount: amount,
-            },
+            Self { net_amount: amount },
             vec![],
         )))
     }
@@ -1886,7 +1883,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionUpdateData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessionUpdateData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {

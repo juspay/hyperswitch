@@ -19,7 +19,7 @@ use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
     CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
-    PostProcessing, PreProcessing, Reject, Session, SessionUpdate, SetupMandate, Void,
+    PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,

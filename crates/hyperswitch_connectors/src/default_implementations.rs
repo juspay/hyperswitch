@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PreProcessing,
-            Reject, SessionUpdate,
+            Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
     },
@@ -38,8 +38,8 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionUpdateData,
-        PaymentsTaxCalculationData, RetrieveFileRequestData, SubmitEvidenceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
         UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
@@ -130,8 +130,8 @@ macro_rules! default_imp_for_session_update {
         $( impl PaymentSessionUpdate for $path::$connector {}
             impl
             ConnectorIntegration<
-                SessionUpdate,
-                PaymentsSessionUpdateData,
+                SdkSessionUpdate,
+                SdkPaymentsSessionUpdateData,
                 PaymentsResponseData,
         > for $path::$connector
         {}

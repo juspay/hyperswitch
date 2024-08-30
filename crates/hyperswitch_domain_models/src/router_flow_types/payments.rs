@@ -54,4 +54,4 @@ pub struct PostProcessing;
 pub struct CalculateTax;
 
 #[derive(Debug, Clone)]
-pub struct SessionUpdate;
+pub struct SdkSessionUpdate;

@@ -604,14 +604,14 @@ pub async fn payments_capture(
     operation_id = "Create Tax Calculation for a Payment",
     security(("publishable_key" = []))
 )]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsDynamicTaxCalculation, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::SessionUpdateTaxCalculation, payment_id))]
 pub async fn payments_dynamic_tax_calculation(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsDynamicTaxCalculationRequest>,
     path: web::Path<String>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsDynamicTaxCalculation;
+    let flow = Flow::SessionUpdateTaxCalculation;
     let payment_id = path.into_inner();
     let payload = payment_types::PaymentsDynamicTaxCalculationRequest {
         payment_id,
@@ -636,7 +636,7 @@ pub async fn payments_dynamic_tax_calculation(
         payload,
         |state, auth, payload, req_state| {
             payments::payments_core::<
-                api_types::SessionUpdate,
+                api_types::SdkSessionUpdate,
                 payment_types::PaymentsDynamicTaxCalculationResponse,
                 _,
                 _,

@@ -14,10 +14,10 @@ use crate::{
 #[async_trait]
 impl
     ConstructFlowSpecificData<
-        api::SessionUpdate,
-        types::PaymentsSessionUpdateData,
+        api::SdkSessionUpdate,
+        types::SdkPaymentsSessionUpdateData,
         types::PaymentsResponseData,
-    > for PaymentData<api::SessionUpdate>
+    > for PaymentData<api::SdkSessionUpdate>
 {
     async fn construct_router_data<'a>(
         &self,
@@ -28,11 +28,11 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
-    ) -> RouterResult<types::SessionUpdateRouterData> {
+    ) -> RouterResult<types::SdkSessionUpdateRouterData> {
         Box::pin(
             transformers::construct_router_date_to_update_calculated_tax::<
-                api::SessionUpdate,
-                types::PaymentsSessionUpdateData,
+                api::SdkSessionUpdate,
+                types::SdkPaymentsSessionUpdateData,
             >(
                 state,
                 self.clone(),
@@ -59,10 +59,10 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::SessionUpdate, types::PaymentsSessionUpdateData>
+impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
     for types::RouterData<
-        api::SessionUpdate,
-        types::PaymentsSessionUpdateData,
+        api::SdkSessionUpdate,
+        types::SdkPaymentsSessionUpdateData,
         types::PaymentsResponseData,
     >
 {
@@ -77,8 +77,8 @@ impl Feature<api::SessionUpdate, types::PaymentsSessionUpdateData>
     ) -> RouterResult<Self> {
         if connector.connector_name == types::Connector::Klarna {
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                api::SessionUpdate,
-                types::PaymentsSessionUpdateData,
+                api::SdkSessionUpdate,
+                types::SdkPaymentsSessionUpdateData,
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
 
@@ -118,8 +118,8 @@ impl Feature<api::SessionUpdate, types::PaymentsSessionUpdateData>
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                    api::SessionUpdate,
-                    types::PaymentsSessionUpdateData,
+                    api::SdkSessionUpdate,
+                    types::SdkPaymentsSessionUpdateData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 

@@ -45,7 +45,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, tax_calculation_data, session_update_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, tax_calculation_data, sdk_session_update_data"
 )]
 pub struct PaymentResponse;
 
@@ -524,7 +524,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculatio
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionUpdateData>
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpdateData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -534,7 +534,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionUpdate
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
-            types::PaymentsSessionUpdateData,
+            types::SdkPaymentsSessionUpdateData,
             types::PaymentsResponseData,
         >,
         key_store: &domain::MerchantKeyStore,

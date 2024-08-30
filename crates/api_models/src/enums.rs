@@ -213,7 +213,6 @@ impl Connector {
             // Add Separate authentication support for connectors
 			// | Self::Novalnet
 			// | Self::Nexixpay
-			| Self::Taxjar
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -260,6 +259,7 @@ impl Connector {
             | Self::Shift4
             | Self::Square
             | Self::Stax
+            | Self::Taxjar
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
@@ -411,7 +411,6 @@ pub enum FrmConnectors {
     Riskified,
 }
 
-// #[cfg(feature = "tax_calculate")]
 #[derive(
     Clone,
     Copy,
@@ -428,7 +427,7 @@ pub enum FrmConnectors {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 
-pub enum TaxCalculatorConnectors {
+pub enum TaxConnectors {
     Taxjar,
 }
 
@@ -673,8 +672,8 @@ pub fn convert_authentication_connector(connector_name: &str) -> Option<Authenti
     AuthenticationConnectors::from_str(connector_name).ok()
 }
 
-pub fn convert_tax_connector(connector_name: &str) -> Option<TaxCalculatorConnectors> {
-    TaxCalculatorConnectors::from_str(connector_name).ok()
+pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
+    TaxConnectors::from_str(connector_name).ok()
 }
 
 #[derive(
