@@ -13,6 +13,8 @@ payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswit
 async-trait = "0.1.79"
 base64 = "0.22.0"
 error-stack = "0.4.1"
+hex = "0.4.3"
+rand = "0.8.5"
 ring = "0.17.8"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
