@@ -18472,7 +18472,8 @@
         ],
         "properties": {
           "payment_id": {
-            "$ref": "#/components/schemas/id_type.PaymentId"
+            "type": "string",
+            "description": "The identifier for the payment"
           },
           "client_secret": {
             "type": "string",
@@ -20668,11 +20669,8 @@
             "type": "object",
             "properties": {
               "payment_id": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/common_utils.id_type.PaymentId"
-                  }
-                ],
+                "type": "string",
+                "description": "The identifier for the payment",
                 "nullable": true
               },
               "refund_id": {
