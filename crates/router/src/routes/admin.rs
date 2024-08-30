@@ -1121,6 +1121,34 @@ pub async fn business_profiles_list(
         state,
         &req,
         merchant_id.clone(),
+        |state, _auth, merchant_id, _| list_business_profile(state, merchant_id, None),
+        auth::auth_type(
+            &auth::AdminApiAuthWithMerchantId::default(),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileList))]
+pub async fn business_profiles_list_at_profile_level(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileList;
+    let merchant_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        merchant_id.clone(),
         |state, auth, merchant_id, _| {
             list_business_profile(
                 state,
