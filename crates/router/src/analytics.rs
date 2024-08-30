@@ -150,10 +150,6 @@ pub mod routes {
                                         .route(web::post().to(get_merchant_payment_filters)),
                                 )
                                 .service(
-                                    web::resource("filters/frm")
-                                        .route(web::post().to(get_frm_filters)),
-                                )
-                                .service(
                                     web::resource("filters/refunds")
                                         .route(web::post().to(get_merchant_refund_filters)),
                                 )
@@ -173,48 +169,12 @@ pub mod routes {
                                         .route(web::post().to(generate_merchant_payment_report)),
                                 )
                                 .service(
-                                    web::resource("metrics/sdk_events")
-                                        .route(web::post().to(get_sdk_event_metrics)),
-                                )
-                                .service(
-                                    web::resource("metrics/active_payments")
-                                        .route(web::post().to(get_active_payments_metrics)),
-                                )
-                                .service(
-                                    web::resource("filters/sdk_events")
-                                        .route(web::post().to(get_sdk_event_filters)),
-                                )
-                                .service(
-                                    web::resource("metrics/auth_events")
-                                        .route(web::post().to(get_auth_event_metrics)),
-                                )
-                                .service(
-                                    web::resource("metrics/frm")
-                                        .route(web::post().to(get_frm_metrics)),
-                                )
-                                .service(
-                                    web::resource("api_event_logs")
-                                        .route(web::get().to(get_profile_api_events)),
-                                )
-                                .service(
-                                    web::resource("sdk_event_logs")
-                                        .route(web::post().to(get_profile_sdk_events)),
-                                )
-                                .service(
                                     web::resource("metrics/api_events")
                                         .route(web::post().to(get_merchant_api_events_metrics)),
                                 )
                                 .service(
                                     web::resource("filters/api_events")
                                         .route(web::post().to(get_merchant_api_event_filters)),
-                                )
-                                .service(
-                                    web::resource("search")
-                                        .route(web::post().to(get_global_search_results)),
-                                )
-                                .service(
-                                    web::resource("search/{domain}")
-                                        .route(web::post().to(get_search_results)),
                                 )
                                 .service(
                                     web::resource("metrics/disputes")
@@ -278,6 +238,9 @@ pub mod routes {
                         .service(
                             web::scope("/profile")
                                 .service(
+                                    web::resource("{domain}/info").route(web::get().to(get_info)),
+                                )
+                                .service(
                                     web::resource("metrics/payments")
                                         .route(web::post().to(get_profile_payment_metrics)),
                                 )
@@ -328,11 +291,27 @@ pub mod routes {
                                 .service(
                                     web::resource("report/payments")
                                         .route(web::post().to(generate_profile_payment_report)),
+                                )
+                                .service(
+                                    web::resource("api_event_logs")
+                                        .route(web::get().to(get_profile_api_events)),
+                                )
+                                .service(
+                                    web::resource("sdk_event_logs")
+                                        .route(web::post().to(get_profile_sdk_events)),
                                 ),
                         ),
                 )
                 .service(
                     web::scope("/v2")
+                        .service(
+                            web::resource("/metrics/payments")
+                                .route(web::post().to(get_merchant_payment_intent_metrics)),
+                        )
+                        .service(
+                            web::resource("/filters/payments")
+                                .route(web::post().to(get_payment_intents_filters)),
+                        )
                         .service(
                             web::scope("/merchant")
                                 .service(
