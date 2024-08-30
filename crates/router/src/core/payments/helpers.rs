@@ -2857,7 +2857,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
         .async_map(|cs| async move {
             let payment_id = get_payment_id_from_client_secret(&cs)?;
 
-            let payment_id = id_type::PaymentId::try_from(Cow::Owned(payment_id)).change_context(
+            let payment_id = id_type::PaymentId::wrap(payment_id).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "payment_id",
                 },

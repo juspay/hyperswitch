@@ -1,4 +1,5 @@
 use crate::{
+    errors::{CustomResult, ValidationError},
     generate_id_with_default_len,
     id_type::{AlphaNumericId, LengthId},
 };
@@ -58,6 +59,11 @@ impl PaymentId {
         let alphanumeric_id = AlphaNumericId::new_unchecked(id);
         let id = LengthId::new_unchecked(alphanumeric_id);
         Self(id)
+    }
+
+    /// Wrap a string inside PaymentId
+    pub fn wrap(payment_id_string: String) -> CustomResult<Self, ValidationError> {
+        Self::try_from(std::borrow::Cow::from(payment_id_string))
     }
 }
 
