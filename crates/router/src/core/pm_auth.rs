@@ -12,7 +12,7 @@ pub mod transformers;
 use common_utils::{
     consts,
     crypto::{HmacSha256, SignMessage},
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, ValueExt},
     generate_id,
     types::{self as util_types, AmountConvertor},
 };
@@ -349,11 +349,7 @@ async fn store_bank_details_in_payment_methods(
                 .payment_method_data
                 .clone()
                 .map(|x| x.into_inner().expose())
-                .map(|v| {
-                    serde_json::from_value::<payment_methods::PaymentMethodsData>(v)
-                        .change_context(errors::StorageError::DeserializationFailed)
-                        .attach_printable("Failed to deserialize Payment Method Auth config")
-                })
+                .map(|v| v.parse_value("PaymentMethodsData"))
                 .transpose()
                 .unwrap_or_else(|error| {
                     logger::error!(?error);
@@ -365,7 +361,8 @@ async fn store_bank_details_in_payment_methods(
                     }
                     _ => None,
                 })
-                .ok_or(ApiErrorResponse::InternalServerError)?;
+                .ok_or(ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to parse PaymentMethodsData")?;
 
             hash_to_payment_method.insert(
                 bank_details_pm_data.hash.clone(),
