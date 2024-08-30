@@ -1,3 +1,4 @@
+use api_models::webhooks;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
 use masking::Secret;
@@ -10,7 +11,7 @@ use crate::{
         utils::{self, PayoutsData, RouterData},
     },
     core::errors,
-    types::{self, api::payouts, storage::enums},
+    types::{self, api::payouts, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -251,7 +252,7 @@ impl<F> TryFrom<&AdyenPlatformRouterData<&types::PayoutsRouterData<F>>> for Adye
                     category: AdyenPayoutMethod::try_from(payout_type)?,
                     counterparty,
                     priority: AdyenPayoutPriority::from(priority),
-                    reference: request.payout_id.clone(),
+                    reference: item.router_data.connector_request_reference_id.clone(),
                     reference_for_beneficiary: request.payout_id,
                     description: item.router_data.description.clone(),
                 })
@@ -286,7 +287,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenTransferResponse>>
 impl From<AdyenTransferStatus> for enums::PayoutStatus {
     fn from(adyen_status: AdyenTransferStatus) -> Self {
         match adyen_status {
-            AdyenTransferStatus::Authorised => Self::Success,
+            AdyenTransferStatus::Authorised => Self::Initiated,
             AdyenTransferStatus::Refused => Self::Ineligible,
             AdyenTransferStatus::Error => Self::Failed,
         }
@@ -332,6 +333,97 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
                     connector: "Adyenplatform",
                 }))
             }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenplatformIncomingWebhook {
+    pub data: AdyenplatformIncomingWebhookData,
+    #[serde(rename = "type")]
+    pub webhook_type: AdyenplatformWebhookEventType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenplatformIncomingWebhookData {
+    pub status: AdyenplatformWebhookStatus,
+    pub reference: String,
+    pub priority: AdyenPayoutPriority,
+    pub tracking: Option<AdyenplatformInstantStatus>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenplatformInstantStatus {
+    status: InstantPriorityStatus,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum InstantPriorityStatus {
+    Pending,
+    Credited,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum AdyenplatformWebhookEventType {
+    #[serde(rename = "balancePlatform.transfer.created")]
+    PayoutCreated,
+    #[serde(rename = "balancePlatform.transfer.updated")]
+    PayoutUpdated,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AdyenplatformWebhookStatus {
+    Authorised,
+    Booked,
+    Pending,
+    Failed,
+    Returned,
+    Received,
+}
+
+impl
+    ForeignFrom<(
+        AdyenplatformWebhookEventType,
+        AdyenplatformWebhookStatus,
+        Option<AdyenplatformInstantStatus>,
+    )> for webhooks::IncomingWebhookEvent
+{
+    fn foreign_from(
+        (event_type, status, instant_status): (
+            AdyenplatformWebhookEventType,
+            AdyenplatformWebhookStatus,
+            Option<AdyenplatformInstantStatus>,
+        ),
+    ) -> Self {
+        match (event_type, status, instant_status) {
+            (AdyenplatformWebhookEventType::PayoutCreated, _, _) => Self::PayoutCreated,
+            (
+                AdyenplatformWebhookEventType::PayoutUpdated,
+                _,
+                Some(AdyenplatformInstantStatus {
+                    status: InstantPriorityStatus::Credited,
+                }),
+            ) => Self::PayoutSuccess,
+            (
+                AdyenplatformWebhookEventType::PayoutUpdated,
+                _,
+                Some(AdyenplatformInstantStatus {
+                    status: InstantPriorityStatus::Pending,
+                }),
+            ) => Self::PayoutProcessing,
+            (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
+                AdyenplatformWebhookStatus::Authorised
+                | AdyenplatformWebhookStatus::Booked
+                | AdyenplatformWebhookStatus::Received => Self::PayoutCreated,
+                AdyenplatformWebhookStatus::Pending => Self::PayoutProcessing,
+                AdyenplatformWebhookStatus::Failed => Self::PayoutFailure,
+                AdyenplatformWebhookStatus::Returned => Self::PayoutReversed,
+            },
         }
     }
 }
