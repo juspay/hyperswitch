@@ -111,7 +111,7 @@ impl<'de> Deserialize<'de> for ClientSecret {
                         .map_err(de::Error::custom)?;
 
                 Ok(ClientSecret {
-                    payment_id: payment_id,
+                    payment_id,
                     secret: secret.to_owned(),
                 })
             }
