@@ -9751,7 +9751,6 @@
         "type": "object",
         "required": [
           "dispute_id",
-          "payment_id",
           "attempt_id",
           "amount",
           "currency",
@@ -9768,7 +9767,9 @@
             "description": "The identifier for dispute"
           },
           "payment_id": {
-            "$ref": "#/components/schemas/common_utils.id_type.PaymentId"
+            "type": "string",
+            "description": "The identifier for payment_intent",
+            "nullable": true
           },
           "attempt_id": {
             "type": "string",
@@ -14615,57 +14616,6 @@
           "display_wait_screen"
         ]
       },
-      "PaymentIdType": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "PaymentIntentId"
-            ],
-            "properties": {
-              "PaymentIntentId": {
-                "$ref": "#/components/schemas/id_type.PaymentId"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "ConnectorTransactionId"
-            ],
-            "properties": {
-              "ConnectorTransactionId": {
-                "type": "string",
-                "description": "The identifier for connector transaction"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PaymentAttemptId"
-            ],
-            "properties": {
-              "PaymentAttemptId": {
-                "type": "string",
-                "description": "The identifier for payment attempt"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PreprocessingId"
-            ],
-            "properties": {
-              "PreprocessingId": {
-                "type": "string",
-                "description": "The identifier for preprocessing step"
-              }
-            }
-          }
-        ]
-      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -14780,7 +14730,7 @@
             "type": "string"
           },
           "payment_id": {
-            "$ref": "#/components/schemas/id_type.PaymentId"
+            "type": "string"
           }
         }
       },
@@ -14826,19 +14776,15 @@
             "minLength": 1
           },
           "starting_after": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.PaymentId"
-              }
-            ],
+            "type": "string",
+            "description": "A cursor for use in pagination, fetch the next list after some object",
+            "example": "pay_fafa124123",
             "nullable": true
           },
           "ending_before": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.PaymentId"
-              }
-            ],
+            "type": "string",
+            "description": "A cursor for use in pagination, fetch the previous list before some object",
+            "example": "pay_fafa124123",
             "nullable": true
           },
           "limit": {
@@ -16847,7 +16793,11 @@
         ],
         "properties": {
           "payment_id": {
-            "$ref": "#/components/schemas/id_type.PaymentId"
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
           },
           "merchant_id": {
             "type": "string",
@@ -17896,7 +17846,11 @@
         ],
         "properties": {
           "payment_id": {
-            "$ref": "#/components/schemas/id_type.PaymentId"
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
           },
           "merchant_id": {
             "type": "string",
@@ -18429,7 +18383,8 @@
         ],
         "properties": {
           "resource_id": {
-            "$ref": "#/components/schemas/PaymentIdType"
+            "type": "string",
+            "description": "The type of ID (ex: payment intent id, payment attempt id or connector txn id)"
           },
           "merchant_id": {
             "type": "string",
@@ -18484,7 +18439,8 @@
         ],
         "properties": {
           "payment_id": {
-            "$ref": "#/components/schemas/id_type.PaymentId"
+            "type": "string",
+            "description": "The identifier for the payment"
           },
           "client_secret": {
             "type": "string",
@@ -18528,27 +18484,6 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
-          }
-        }
-      },
-      "PaymentsStartRequest": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "merchant_id",
-          "attempt_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "$ref": "#/components/schemas/id_type.PaymentId"
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account."
-          },
-          "attempt_id": {
-            "type": "string",
-            "description": "The identifier for the payment transaction"
           }
         }
       },
@@ -20840,7 +20775,11 @@
         ],
         "properties": {
           "payment_id": {
-            "$ref": "#/components/schemas/common_utils.id_type.PaymentId"
+            "type": "string",
+            "description": "The payment id against which refund is to be initiated",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "maxLength": 30,
+            "minLength": 30
           },
           "refund_id": {
             "type": "string",
@@ -20921,7 +20860,8 @@
             "description": "Unique Identifier for the refund"
           },
           "payment_id": {
-            "$ref": "#/components/schemas/common_utils.id_type.PaymentId"
+            "type": "string",
+            "description": "The payment id against which refund is initiated"
           },
           "amount": {
             "type": "integer",

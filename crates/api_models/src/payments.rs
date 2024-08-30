@@ -4360,6 +4360,7 @@ pub struct PaymentsResponseForm {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsRetrieveRequest {
     /// The type of ID (ex: payment intent id, payment attempt id or connector txn id)
+    #[schema(value_type = String)]
     pub resource_id: PaymentIdType,
     /// The identifier for the Merchant Account.
     #[schema(value_type = Option<String>)]
