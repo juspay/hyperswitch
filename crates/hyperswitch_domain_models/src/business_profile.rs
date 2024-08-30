@@ -560,7 +560,7 @@ impl super::behaviour::Conversion for BusinessProfile {
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 #[derive(Clone, Debug)]
 pub struct BusinessProfile {
-    pub id: common_utils::id_type::ProfileId,
+    id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
