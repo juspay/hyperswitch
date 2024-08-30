@@ -158,6 +158,8 @@ impl PaymentAttemptInterface for MockDb {
             client_source: payment_attempt.client_source,
             client_version: payment_attempt.client_version,
             customer_acceptance: payment_attempt.customer_acceptance,
+            organization_id: payment_attempt.organization_id,
+            profile_id: payment_attempt.profile_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

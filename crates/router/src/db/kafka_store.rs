@@ -35,7 +35,7 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
-    user_role::{ListUserRolesByOrgIdPayload, UserRoleInterface},
+    user_role::{InsertUserRolePayload, ListUserRolesByOrgIdPayload, UserRoleInterface},
 };
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
@@ -2495,7 +2495,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
         profile_id: &id_type::ProfileId,
-        algorithm_id: &str,
+        algorithm_id: &id_type::RoutingId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
             .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
@@ -2504,7 +2504,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
 
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &id_type::RoutingId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
@@ -2514,7 +2514,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
 
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &id_type::RoutingId,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<storage::RoutingProfileMetadata, errors::StorageError> {
         self.diesel_store
@@ -2767,8 +2767,8 @@ impl RedisConnInterface for KafkaStore {
 impl UserRoleInterface for KafkaStore {
     async fn insert_user_role(
         &self,
-        user_role: user_storage::UserRoleNew,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
+        user_role: InsertUserRolePayload,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
     }
 

@@ -10,12 +10,35 @@ use crate::{
     services::Store,
 };
 
+pub enum InsertUserRolePayload {
+    OnlyV1(storage::UserRoleNew),
+    OnlyV2(storage::UserRoleNew),
+    V1AndV2(Box<[storage::UserRoleNew; 2]>),
+}
+
+impl InsertUserRolePayload {
+    fn convert_to_vec(self) -> Vec<storage::UserRoleNew> {
+        match self {
+            Self::OnlyV1(user_role) | Self::OnlyV2(user_role) => vec![user_role],
+            Self::V1AndV2(user_roles) => user_roles.to_vec(),
+        }
+    }
+}
+
+pub struct ListUserRolesByOrgIdPayload<'a> {
+    pub user_id: Option<&'a String>,
+    pub org_id: &'a id_type::OrganizationId,
+    pub merchant_id: Option<&'a id_type::MerchantId>,
+    pub profile_id: Option<&'a id_type::ProfileId>,
+    pub version: Option<enums::UserRoleVersion>,
+}
+
 #[async_trait::async_trait]
 pub trait UserRoleInterface {
     async fn insert_user_role(
         &self,
-        user_role: storage::UserRoleNew,
-    ) -> CustomResult<storage::UserRole, errors::StorageError>;
+        user_role: InsertUserRolePayload,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn find_user_role_by_user_id(
         &self,
@@ -86,24 +109,16 @@ pub trait UserRoleInterface {
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 }
 
-pub struct ListUserRolesByOrgIdPayload<'a> {
-    pub user_id: Option<&'a String>,
-    pub org_id: &'a id_type::OrganizationId,
-    pub merchant_id: Option<&'a id_type::MerchantId>,
-    pub profile_id: Option<&'a id_type::ProfileId>,
-    pub version: Option<enums::UserRoleVersion>,
-}
-
 #[async_trait::async_trait]
 impl UserRoleInterface for Store {
     #[instrument(skip_all)]
     async fn insert_user_role(
         &self,
-        user_role: storage::UserRoleNew,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
+        user_role: InsertUserRolePayload,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        user_role
-            .insert(&conn)
+
+        storage::UserRole::insert_multiple_user_roles(&conn, user_role.convert_to_vec())
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -138,7 +153,6 @@ impl UserRoleInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
     async fn list_user_roles_by_user_id_and_version(
         &self,
         user_id: &str,
@@ -275,37 +289,44 @@ impl UserRoleInterface for Store {
 impl UserRoleInterface for MockDb {
     async fn insert_user_role(
         &self,
-        user_role: storage::UserRoleNew,
-    ) -> CustomResult<storage::UserRole, errors::StorageError> {
-        let mut user_roles = self.user_roles.lock().await;
-        if user_roles
-            .iter()
-            .any(|user_role_inner| user_role_inner.user_id == user_role.user_id)
-        {
-            Err(errors::StorageError::DuplicateValue {
-                entity: "user_id",
-                key: None,
-            })?
-        }
-        let user_role = storage::UserRole {
-            id: i32::try_from(user_roles.len())
-                .change_context(errors::StorageError::MockDbError)?,
-            user_id: user_role.user_id,
-            merchant_id: user_role.merchant_id,
-            role_id: user_role.role_id,
-            status: user_role.status,
-            created_by: user_role.created_by,
-            created_at: user_role.created_at,
-            last_modified: user_role.last_modified,
-            last_modified_by: user_role.last_modified_by,
-            org_id: user_role.org_id,
-            profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: enums::UserRoleVersion::V1,
-        };
-        user_roles.push(user_role.clone());
-        Ok(user_role)
+        user_role: InsertUserRolePayload,
+    ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
+        let mut db_user_roles = self.user_roles.lock().await;
+
+        user_role
+            .convert_to_vec()
+            .into_iter()
+            .map(|user_role| {
+                if db_user_roles
+                    .iter()
+                    .any(|user_role_inner| user_role_inner.user_id == user_role.user_id)
+                {
+                    Err(errors::StorageError::DuplicateValue {
+                        entity: "user_id",
+                        key: None,
+                    })?
+                }
+                let user_role = storage::UserRole {
+                    id: i32::try_from(db_user_roles.len())
+                        .change_context(errors::StorageError::MockDbError)?,
+                    user_id: user_role.user_id,
+                    merchant_id: user_role.merchant_id,
+                    role_id: user_role.role_id,
+                    status: user_role.status,
+                    created_by: user_role.created_by,
+                    created_at: user_role.created_at,
+                    last_modified: user_role.last_modified,
+                    last_modified_by: user_role.last_modified_by,
+                    org_id: user_role.org_id,
+                    profile_id: None,
+                    entity_id: None,
+                    entity_type: None,
+                    version: enums::UserRoleVersion::V1,
+                };
+                db_user_roles.push(user_role.clone());
+                Ok(user_role)
+            })
+            .collect::<Result<Vec<_>, _>>()
     }
 
     async fn find_user_role_by_user_id(

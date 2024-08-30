@@ -902,6 +902,7 @@ async fn get_or_update_dispute_object(
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &common_utils::id_type::MerchantId,
+    organization_id: &common_utils::id_type::OrganizationId,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     event_type: webhooks::IncomingWebhookEvent,
     business_profile: &domain::BusinessProfile,
@@ -935,6 +936,7 @@ async fn get_or_update_dispute_object(
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
+                organization_id: organization_id.clone(),
             };
             state
                 .store
@@ -1377,6 +1379,7 @@ async fn disputes_incoming_webhook_flow(
             option_dispute,
             dispute_details,
             merchant_account.get_id(),
+            &merchant_account.organization_id,
             &payment_attempt,
             event_type,
             &business_profile,
