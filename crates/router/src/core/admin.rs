@@ -1802,10 +1802,7 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
         Ok(routable_connector)
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2",))
-))]
+#[cfg(feature = "v1")]
 struct MerchantDefaultConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
@@ -1814,10 +1811,7 @@ struct MerchantDefaultConfigUpdate<'a> {
     profile_id: &'a id_type::ProfileId,
     transaction_type: &'a api_enums::TransactionType,
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2",))
-))]
+#[cfg(feature = "v1")]
 impl<'a> MerchantDefaultConfigUpdate<'a> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
@@ -1866,11 +1860,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
         Ok(())
     }
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2",
-))]
+#[cfg(feature = "v2")]
 struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a common_utils::id_type::MerchantConnectorAccountId,
@@ -1879,11 +1869,7 @@ struct DefaultFallbackRoutingConfigUpdate<'a> {
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
@@ -2741,10 +2727,7 @@ pub async fn create_connector(
             },
         )?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(any(feature = "routing_v2", feature = "business_profile_v2",))
-    ))]
+    #[cfg(feature = "v1")]
     //update merchant default config
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
         routable_connector: &routable_connector,
@@ -2755,11 +2738,7 @@ pub async fn create_connector(
         transaction_type: &req.get_transaction_type(),
     };
 
-    #[cfg(all(
-        feature = "v2",
-        feature = "routing_v2",
-        feature = "business_profile_v2",
-    ))]
+    #[cfg(feature = "v2")]
     //update merchant default config
     let merchant_default_config_update = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &routable_connector,
@@ -3949,21 +3928,13 @@ pub async fn update_business_profile(
     ))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct BusinessProfileWrapper {
     pub profile: domain::BusinessProfile,
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 impl BusinessProfileWrapper {
     pub fn new(profile: domain::BusinessProfile) -> Self {
         Self { profile }

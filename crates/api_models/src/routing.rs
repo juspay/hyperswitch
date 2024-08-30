@@ -30,7 +30,7 @@ impl ConnectorSelection {
         }
     }
 }
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: String,
@@ -40,7 +40,7 @@ pub struct RoutingConfigRequest {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1",)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,

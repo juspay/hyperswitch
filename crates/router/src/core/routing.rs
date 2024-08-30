@@ -12,7 +12,7 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 use crate::{
     consts,
@@ -28,7 +28,7 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 use crate::{
     core::{admin, errors::RouterResult},
     db::StorageInterface,
@@ -42,10 +42,10 @@ where
     Payout(&'a payouts::PayoutData),
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 struct RoutingAlgorithmUpdate(RoutingAlgorithm);
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 impl RoutingAlgorithmUpdate {
     pub fn create_new_routing_algorithm(
         request: &routing_types::RoutingConfigRequest,
@@ -114,7 +114,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -181,7 +181,7 @@ pub async fn create_routing_algorithm_under_profile(
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -270,11 +270,7 @@ pub async fn create_routing_algorithm_under_profile(
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn link_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -344,10 +340,7 @@ pub async fn link_routing_config_under_profile(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -423,7 +416,7 @@ pub async fn link_routing_config(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2",))]
+#[cfg(feature = "v2")]
 pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -456,7 +449,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -494,11 +487,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn unlink_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -552,10 +541,7 @@ pub async fn unlink_routing_config_under_profile(
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn unlink_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -640,11 +626,7 @@ pub async fn unlink_routing_config(
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn update_default_fallback_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -720,10 +702,7 @@ pub async fn update_default_fallback_routing(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn update_default_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -776,11 +755,7 @@ pub async fn update_default_routing_config(
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn retrieve_default_fallback_algorithm_for_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -807,10 +782,7 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
     Ok(service_api::ApplicationResponse::Json(connectors_choice))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 
 pub async fn retrieve_default_routing_config(
     state: SessionState,
@@ -831,11 +803,7 @@ pub async fn retrieve_default_routing_config(
         service_api::ApplicationResponse::Json(conn_choice)
     })
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn retrieve_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -879,10 +847,7 @@ pub async fn retrieve_routing_config_under_profile(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

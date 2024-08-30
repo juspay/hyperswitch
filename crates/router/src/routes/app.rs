@@ -3,8 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(
     feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "routing_v2")
+feature = "v1"
 ))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
@@ -654,7 +653,7 @@ impl Forex {
 #[cfg(feature = "olap")]
 pub struct Routing;
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/routing_algorithm")
@@ -671,9 +670,7 @@ impl Routing {
     }
 }
 #[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "routing_v2")
+    feature = "olap",feature = "v1"
 ))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
@@ -1523,12 +1520,7 @@ impl PayoutLink {
 }
 
 pub struct BusinessProfile;
-#[cfg(all(
-    feature = "olap",
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
@@ -1585,11 +1577,7 @@ impl BusinessProfile {
             )
     }
 }
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")

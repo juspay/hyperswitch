@@ -51,11 +51,7 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
@@ -4295,10 +4291,7 @@ where
                 }
             }
         }
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(any(feature = "routing_v2", feature = "business_profile_v2"))
-        ))]
+        #[cfg(feature = "v1")]
         let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             profile_id.get_string_repr(),
@@ -4308,11 +4301,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
 
-        #[cfg(all(
-            feature = "v2",
-            feature = "routing_v2",
-            feature = "business_profile_v2"
-        ))]
+        #[cfg(feature = "v2")]
         let fallback_connetors_list = core_admin::BusinessProfileWrapper::new(business_profile)
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::ApiErrorResponse::InternalServerError)
