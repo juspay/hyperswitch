@@ -425,29 +425,30 @@ pub async fn get_token_pm_type_mandate_details(
                         if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
                             let db = &*state.store;
                             let key_manager_state = &state.into();
-                            let key_store = db
-                                .get_merchant_key_store_by_merchant_id(
-                                    key_manager_state,
-                                    merchant_account.get_id(),
-                                    &db.get_master_key().to_vec().into(),
-                                )
-                                .await
-                                .to_not_found_response(
-                                    errors::ApiErrorResponse::MerchantAccountNotFound,
-                                )?;
 
+                            #[cfg(all(
+                                any(feature = "v1", feature = "v2"),
+                                not(feature = "merchant_connector_account_v2")
+                            ))]
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                     key_manager_state,
                                     merchant_account.get_id(),
                                     mca_id,
-                                    &key_store,
+                                    &merchant_key_store,
                                 )
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                     id: mca_id.clone().get_string_repr().to_string(),
                                 })?.connector_name;
 
+                            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                            let connector_name = db
+                                .find_merchant_connector_account_by_id(key_manager_state, &mca_id, &merchant_key_store)
+                                .await
+                                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: mca_id.clone().get_string_repr().to_string(),
+                                })?.connector_name;
                             (
                                 None,
                                 request.payment_method,
