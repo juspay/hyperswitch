@@ -1,0 +1,63 @@
+-- This file contains queries to update the primary key constraints suitable to the v2 application.
+-- This also has queries to update other constraints and indexes on tables where applicable.
+-- Backfill for organization table
+UPDATE ORGANIZATION
+SET id = org_id
+WHERE id IS NULL;
+
+UPDATE ORGANIZATION
+SET organization_name = org_name
+WHERE organization_name IS NULL
+    AND org_name IS NOT NULL;
+
+-- Alter queries for organization table
+ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey;
+
+ALTER TABLE ORGANIZATION
+ADD CONSTRAINT organization_pkey_id PRIMARY KEY (id);
+
+-- The new primary key for v2 merchant account will be `id`
+ALTER TABLE merchant_account DROP CONSTRAINT merchant_account_pkey;
+
+-- In order to make id as primary key, it should be unique and not null
+-- We need to backfill the id, a simple strategy will be to copy the values of merchant_id to id
+-- Query to update the id column with values of merchant_id
+-- Note: This query will lock the table, so it should be run when there is no traffic
+UPDATE merchant_account
+SET id = merchant_id
+WHERE id IS NULL;
+
+-- Note: This command might not run successfully for the existing table
+-- This is because there will be some rows ( which are created via v1 application ) which will have id as empty
+-- A backfill might be required to run this query
+-- However if this is being run on a fresh database, this should succeed
+ALTER TABLE merchant_account
+ADD PRIMARY KEY (id);
+
+-- Backfill the id column with the merchant_connector_id to prevent null values
+UPDATE merchant_connector_account
+SET id = merchant_connector_id
+WHERE id IS NULL;
+
+ALTER TABLE merchant_connector_account DROP CONSTRAINT merchant_connector_account_pkey;
+
+ALTER TABLE merchant_connector_account
+ADD PRIMARY KEY (id);
+
+-- This migration is to make profile_id mandatory in mca table
+ALTER TABLE merchant_connector_account
+ALTER COLUMN profile_id
+SET NOT NULL;
+
+-- Run this query only when V1 is deprecated
+ALTER TABLE customers DROP CONSTRAINT IF EXISTS customers_pkey;
+
+-- Back filling before making it primary key
+-- This will fail when making `id` as primary key, if the `customer_id` column has duplicate values.
+-- Another option is to use a randomly generated ID instead.
+UPDATE customers
+SET id = customer_id
+WHERE id IS NULL;
+
+ALTER TABLE customers
+ADD PRIMARY KEY (id);
