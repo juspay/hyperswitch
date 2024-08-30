@@ -103,22 +103,12 @@ impl PaymentMethod {
 
     // Need to fix this function once we start moving to v2 for payment method
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_global_id_merchant_id(
-        conn: &PgPooledConn,
-        id: &String,
-        merchant_id: &common_utils::id_type::MerchantId,
-        limit: Option<i64>,
+    pub async fn find_by_global_id(
+        _conn: &PgPooledConn,
+        _id: &String,
+        _limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::customer_id
-                .eq(id.to_owned())
-                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-            limit,
-            None,
-            Some(dsl::last_used_at.desc()),
-        )
-        .await
+        todo!()
     }
 
     pub async fn get_count_by_customer_id_merchant_id_status(
