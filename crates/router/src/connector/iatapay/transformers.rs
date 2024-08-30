@@ -599,7 +599,7 @@ pub struct IatapayAccessTokenErrorResponse {
 pub struct IatapayPaymentWebhookBody {
     pub status: IatapayWebhookStatus,
     pub iata_payment_id: String,
-    pub merchant_payment_id: Option<common_utils::id_type::PaymentId>,
+    pub merchant_payment_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
     pub amount: FloatMajorUnit,
