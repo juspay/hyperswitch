@@ -2531,7 +2531,7 @@ type="Select"
 options=["account_data","connector_recipient_id","wallet_id"]
 [plaid.additional_merchant_data.account_data]
 name="account_data"
-label="Account Data"
+label="Bank scheme"
 placeholder="Enter account_data"
 required=true
 type="Select"
