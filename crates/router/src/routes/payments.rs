@@ -194,7 +194,7 @@ pub async fn payments_start(
     };
 
     let locking_action = payload.get_locking_input(flow.clone());
-    tracing::Span::current().record("payment_id", &payment_id.get_string_repr());
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
     Box::pin(api::server_wrap(
         flow,

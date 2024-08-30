@@ -2927,6 +2927,7 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
 
     use super::*;
 
