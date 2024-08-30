@@ -1363,9 +1363,17 @@ impl GetProfileId for diesel_models::Refund {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 impl GetProfileId for api_models::routing::RoutingConfigRequest {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl GetProfileId for api_models::routing::RoutingConfigRequest {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
     }
 }
 
