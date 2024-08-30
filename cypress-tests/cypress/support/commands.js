@@ -324,7 +324,6 @@ Cypress.Commands.add(
               "merchantConnectorId",
               response.body.merchant_connector_id
             );
-            globalState.set("connectorId", connectorName);
           } else {
             cy.task(
               "cli_log",
@@ -392,7 +391,6 @@ Cypress.Commands.add(
               "merchantConnectorId",
               response.body.merchant_connector_id
             );
-            globalState.set("connectorId", response.body.connector_name);
           } else {
             cy.task(
               "cli_log",
@@ -461,7 +459,6 @@ Cypress.Commands.add(
             expect(globalState.get("connectorId")).to.equal(
               response.body.connector_name
             );
-            globalState.set("connectorId", response.body.connector_name);
             globalState.set(
               "merchantConnectorId",
               response.body.merchant_connector_id
@@ -2124,7 +2121,6 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
 
       if (response.status === 200) {
-        globalState.set("connectorId", response.body.connector_name);
         expect(response.body).to.have.property("id");
         globalState.set("routingConfigId", response.body.id);
         for (const key in res_data.body) {
@@ -2184,10 +2180,6 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
 
       if (response.status === 200) {
-        if (globalState.get("connectorId") === undefined) {
-          globalState.set("connectorId", response.body.connector_name);
-        }
-
         expect(response.body.id).to.equal(routing_config_id);
         for (const key in res_data.body) {
           expect(res_data.body[key]).to.equal(response.body[key]);
