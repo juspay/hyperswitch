@@ -1372,6 +1372,18 @@ pub async fn get_customer_from_details<F: Clone>(
     todo!()
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn get_customer_details_even_for_redacted_customer<F: Clone>(
+    _state: &SessionState,
+    _customer_id: Option<id_type::CustomerId>,
+    _merchant_id: &id_type::MerchantId,
+    _payment_data: &mut PaymentData<F>,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+    todo!()
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_customer_from_details<F: Clone>(
     state: &SessionState,
@@ -1714,7 +1726,8 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
 // This function is to retrieve customer details. If the customer details are redacted, it returns
 // `None` instead of an error, as it is used only in the payment retrieval flow where customer details are not required.
-pub async fn get_customer_unredacted_customer<F: Clone>(
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+pub async fn get_customer_details_even_for_redacted_customer<F: Clone>(
     state: &SessionState,
     customer_id: Option<id_type::CustomerId>,
     merchant_id: &id_type::MerchantId,
@@ -1726,26 +1739,15 @@ pub async fn get_customer_unredacted_customer<F: Clone>(
         None => Ok(None),
         Some(customer_id) => {
             let db = &*state.store;
-            let customer_details_result = db
-                .find_customer_optional_by_customer_id_merchant_id(
+            let customer_details = db
+                .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     &state.into(),
                     &customer_id,
                     merchant_id,
                     merchant_key_store,
                     storage_scheme,
                 )
-                .await;
-
-            let customer_details = match customer_details_result {
-                Ok(customer_details) => Ok(customer_details),
-                Err(error) => match error.current_context() {
-                    storage_impl::errors::StorageError::CustomerRedacted => {
-                        logger::info!("The customer details being retrieved are redacted");
-                        Ok(None)
-                    }
-                    _ => Err(error),
-                },
-            }?;
+                .await?;
 
             payment_data.email = payment_data.email.clone().or_else(|| {
                 customer_details.as_ref().and_then(|inner| {
