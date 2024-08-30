@@ -33,6 +33,7 @@ use crate::{
             route_connector_v1, routing, CustomerDetails,
         },
         routing::TransactionData,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{metrics, SessionState},
@@ -192,6 +193,10 @@ pub async fn make_payout_method_data<'a>(
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn save_payout_data_to_locker(
     state: &SessionState,
     payout_data: &mut PayoutData,
@@ -604,6 +609,18 @@ pub async fn save_payout_data_to_locker(
     Ok(())
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn save_payout_data_to_locker(
+    _state: &SessionState,
+    _payout_data: &mut PayoutData,
+    _customer_id: &id_type::CustomerId,
+    _payout_method_data: &api::PayoutMethodData,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    todo!()
+}
+
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub(super) async fn get_or_create_customer_details(
     _state: &SessionState,
@@ -745,6 +762,17 @@ pub async fn decide_payout_connector(
         return Ok(api::ConnectorCallType::PreDetermined(connector_data));
     }
 
+    // Validate and get the business_profile from payout_attempt
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.store.as_ref(),
+        &(state).into(),
+        key_store,
+        Some(&payout_attempt.profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("BusinessProfile")?;
+
     // 2. Check routing algorithm passed in the request
     if let Some(routing_algorithm) = request_straight_through {
         let (mut connectors, check_eligibility) =
@@ -759,7 +787,7 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                Some(payout_attempt.profile_id.clone()),
+                &business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -807,7 +835,7 @@ pub async fn decide_payout_connector(
                 connectors,
                 &TransactionData::<()>::Payout(payout_data),
                 eligible_connectors,
-                Some(payout_attempt.profile_id.clone()),
+                &business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1015,6 +1043,18 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn update_payouts_and_payout_attempt(
+    _payout_data: &mut PayoutData,
+    _merchant_account: &domain::MerchantAccount,
+    _req: &payouts::PayoutCreateRequest,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn update_payouts_and_payout_attempt(
     payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
@@ -1049,7 +1089,7 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data
             .customer_details
             .as_ref()
-            .map(|customer| customer.get_customer_id())
+            .map(|customer| customer.customer_id.clone())
     } else {
         payout_data.payouts.customer_id.clone()
     };

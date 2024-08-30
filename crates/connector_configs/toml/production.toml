@@ -1032,6 +1032,9 @@ key1="Merchant ID"
 api_secret="Shared Secret"
 [cybersource.connector_webhook_details]
 merchant_secret="Source verification key"
+[cybersource.metadata]
+disable_avs = "Disable AVS check"
+disable_cvn = "Disable CVN check"
 
 [[cybersource.metadata.apple_pay]]
 name="certificate"
@@ -1101,6 +1104,25 @@ name="gateway_merchant_id"
 label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
+type="Text"
+
+[cybersource.metadata.acquirer_bin]
+name="acquirer_bin"
+label="Acquirer Bin"
+placeholder="Enter Acquirer Bin"
+required=false
+type="Text"
+[cybersource.metadata.acquirer_merchant_id]
+name="acquirer_merchant_id"
+label="Acquirer Merchant ID"
+placeholder="Enter Acquirer Merchant ID"
+required=false
+type="Text"
+[cybersource.metadata.acquirer_country_code]
+name="acquirer_country_code"
+label="Acquirer Country Code"
+placeholder="Enter Acquirer Country Code"
+required=false
 type="Text"
 
 [dlocal]
@@ -1198,6 +1220,47 @@ label="Terminal ID"
 placeholder="Enter Terminal ID"
 required=true
 type="Text"
+
+[fiservemea]
+[[fiservemea.credit]]
+  payment_method_type = "Mastercard"
+[[fiservemea.credit]]
+  payment_method_type = "Visa"
+[[fiservemea.credit]]
+  payment_method_type = "Interac"
+[[fiservemea.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiservemea.credit]]
+  payment_method_type = "JCB"
+[[fiservemea.credit]]
+  payment_method_type = "DinersClub"
+[[fiservemea.credit]]
+  payment_method_type = "Discover"
+[[fiservemea.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiservemea.credit]]
+  payment_method_type = "UnionPay"
+[[fiservemea.debit]]
+  payment_method_type = "Mastercard"
+[[fiservemea.debit]]
+  payment_method_type = "Visa"
+[[fiservemea.debit]]
+  payment_method_type = "Interac"
+[[fiservemea.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiservemea.debit]]
+  payment_method_type = "JCB"
+[[fiservemea.debit]]
+  payment_method_type = "DinersClub"
+[[fiservemea.debit]]
+  payment_method_type = "Discover"
+[[fiservemea.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiservemea.debit]]
+  payment_method_type = "UnionPay"
+[fiservemea.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"
 
 [forte]
 [[forte.credit]]
@@ -1351,9 +1414,11 @@ merchant_secret="Source verification key"
 [itaubank]
 [[itaubank.bank_transfer]]
   payment_method_type = "pix"
-[itaubank.connector_auth.BodyKey]
+[itaubank.connector_auth.MultiAuthKey]
 key1="Client Id"
 api_key="Client Secret"
+api_secret="Certificates"
+key2="Certificate Key"
 
 [klarna]
 [[klarna.pay_later]]
@@ -2639,6 +2704,53 @@ type="Text"
 api_key = "Key"
 key1 = "Merchant ID"
 
+[netcetera]
+[netcetera.connector_auth.CertificateAuth]
+certificate="Base64 encoded PEM formatted certificate chain"
+private_key="Base64 encoded PEM formatted private key"
+[netcetera.metadata]
+merchant_country_code="3 digit numeric country code"
+merchant_name="Name of the merchant"
+three_ds_requestor_name="ThreeDS requestor name"
+three_ds_requestor_id="ThreeDS request id"
+
+[netcetera.metadata.endpoint_prefix]
+name="endpoint_prefix"
+label="Live endpoint prefix"
+placeholder="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
+required=true
+type="Text"
+[netcetera.metadata.mcc]
+name="mcc"
+label="MCC"
+placeholder="Enter MCC"
+required=true
+type="Text"
+[netcetera.metadata.merchant_country_code]
+name="merchant_country_code"
+label="3 digit numeric country code"
+placeholder="Enter 3 digit numeric country code"
+required=true
+type="Text"
+[netcetera.metadata.merchant_name]
+name="merchant_name"
+label="Name of the merchant"
+placeholder="Enter Name of the merchant"
+required=true
+type="Text"
+[netcetera.metadata.three_ds_requestor_name]
+name="three_ds_requestor_name"
+label="ThreeDS requestor name"
+placeholder="Enter ThreeDS requestor name"
+required=true
+type="Text"
+[netcetera.metadata.three_ds_requestor_id]
+name="three_ds_requestor_id"
+label="ThreeDS request id"
+placeholder="Enter ThreeDS request id"
+required=true
+type="Text"
+
 [billwerk]
 [[billwerk.credit]]
   payment_method_type = "Mastercard"
@@ -2798,10 +2910,6 @@ key1 = "datatrans MerchantId"
   payment_method_type = "CartesBancaires"
 [[wellsfargo.debit]]
   payment_method_type = "UnionPay"
-[[wellsfargo.wallet]]
-  payment_method_type = "apple_pay"
-[[wellsfargo.wallet]]
-  payment_method_type = "google_pay"
 [wellsfargo.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"

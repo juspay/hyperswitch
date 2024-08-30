@@ -398,6 +398,7 @@ mod storage {
                         updated_by: new.updated_by.clone(),
                         merchant_connector_id: new.merchant_connector_id.clone(),
                         charges: new.charges.clone(),
+                        organization_id: new.organization_id.clone(),
                     };
 
                     let field = format!(
@@ -859,6 +860,7 @@ impl RefundInterface for MockDb {
             updated_by: new.updated_by,
             merchant_connector_id: new.merchant_connector_id,
             charges: new.charges,
+            organization_id: new.organization_id,
         };
         refunds.push(refund.clone());
         Ok(refund)

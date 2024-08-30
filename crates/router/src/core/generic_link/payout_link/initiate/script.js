@@ -1,6 +1,10 @@
 // @ts-check
 
 // Top level checks
+// @ts-ignore
+var payoutDetails = window.__PAYOUT_DETAILS;
+var isTestMode = payoutDetails.test_mode;
+
 var isFramed = false;
 try {
   isFramed = window.parent.location !== window.location;
@@ -12,7 +16,7 @@ try {
 }
 
 // Remove the script from DOM incase it's not iframed
-if (!isFramed) {
+if (!isTestMode && !isFramed) {
   function initializePayoutSDK() {
     var errMsg = "{{i18n_not_allowed}}";
     var contentElement = document.getElementById("payout-link");
@@ -132,7 +136,7 @@ if (!isFramed) {
     var appearance = {
       variables: {
         colorPrimary: payoutDetails?.theme?.primary_color || "rgb(0, 109, 249)",
-        fontFamily: "Work Sans, sans-serif",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'",
         fontSizeBase: "16px",
         colorText: "rgb(51, 65, 85)",
       },

@@ -71,7 +71,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         || webhook_url_result.as_ref().is_ok_and(String::is_empty)
     {
         logger::debug!(
-            business_profile_id=%business_profile.profile_id,
+            business_profile_id=?business_profile.profile_id,
             %idempotent_event_id,
             "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
              could not be obtained; skipping outgoing webhooks for event"
@@ -96,7 +96,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to construct outgoing webhook request content")?;
 
-    let event_metadata = storage::EventMetadata::foreign_from((&content, &primary_object_id));
+    let event_metadata = storage::EventMetadata::foreign_from(&content);
     let key_manager_state = &(&state).into();
     let new_event = domain::Event {
         event_id: event_id.clone(),
@@ -905,14 +905,11 @@ async fn error_response_handler(
     Err(error)
 }
 
-impl ForeignFrom<(&api::OutgoingWebhookContent, &str)> for storage::EventMetadata {
-    fn foreign_from((content, primary_object_id): (&api::OutgoingWebhookContent, &str)) -> Self {
+impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
+    fn foreign_from(content: &api::OutgoingWebhookContent) -> Self {
         match content {
             webhooks::OutgoingWebhookContent::PaymentDetails(payments_response) => Self::Payment {
-                payment_id: payments_response
-                    .payment_id
-                    .clone()
-                    .unwrap_or_else(|| primary_object_id.to_owned()),
+                payment_id: payments_response.payment_id.clone(),
             },
             webhooks::OutgoingWebhookContent::RefundDetails(refund_response) => Self::Refund {
                 payment_id: refund_response.payment_id.clone(),
@@ -941,7 +938,7 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
     event_metadata.map(|metadata| match metadata {
         diesel_models::EventMetadata::Payment { payment_id } => {
             OutgoingWebhookEventContent::Payment {
-                payment_id: Some(payment_id),
+                payment_id,
                 content: serde_json::Value::Null,
             }
         }
