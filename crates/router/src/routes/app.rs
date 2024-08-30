@@ -1405,7 +1405,27 @@ impl Poll {
 
 pub struct ApiKeys;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "v2", feature = "olap", feature = "merchant_account_v2"))]
+impl ApiKeys {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/api_keys")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(api_key_create)))
+            .service(web::resource("/list").route(web::get().to(api_key_list)))
+            .service(
+                web::resource("/{key_id}")
+                    .route(web::get().to(api_key_retrieve))
+                    .route(web::put().to(api_key_update))
+                    .route(web::delete().to(api_key_revoke)),
+            )
+    }
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
         web::scope("/api_keys/{merchant_id}")
@@ -1721,6 +1741,19 @@ impl User {
                 ),
         );
 
+        route = route.service(
+            web::scope("/switch")
+                .service(web::resource("/org").route(web::post().to(switch_org_for_user)))
+                .service(
+                    web::resource("/merchant")
+                        .route(web::post().to(switch_merchant_for_user_in_org)),
+                )
+                .service(
+                    web::resource("/profile")
+                        .route(web::post().to(switch_profile_for_user_in_org_and_merchant)),
+                ),
+        );
+
         // Two factor auth routes
         route = route.service(
             web::scope("/2fa")
@@ -1800,6 +1833,7 @@ impl User {
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
+                .service(web::resource("/v2/list").route(web::get().to(list_users_in_lineage)))
                 .service(
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
