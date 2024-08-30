@@ -142,3 +142,10 @@ pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
+
+/// Role ID for Org Admin
+pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
+/// Role ID for Internal View Only
+pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
+/// Role ID for Internal Admin
+pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
