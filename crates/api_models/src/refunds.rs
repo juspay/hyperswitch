@@ -19,7 +19,8 @@ pub struct RefundRequest {
     #[schema(
         max_length = 30,
         min_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
     )]
     pub payment_id: common_utils::id_type::PaymentId,
 
@@ -129,6 +130,7 @@ pub struct RefundResponse {
     /// Unique Identifier for the refund
     pub refund_id: String,
     /// The payment id against which refund is initiated
+    #[schema(value_type = String)]
     pub payment_id: common_utils::id_type::PaymentId,
     /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
     #[schema(value_type = i64 , minimum = 100, example = 6540)]

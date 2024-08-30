@@ -10,6 +10,7 @@ pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
     /// The identifier for payment_intent
+    #[schema(value_type = Option<String>)]
     pub payment_id: common_utils::id_type::PaymentId,
     /// The identifier for payment_attempt
     pub attempt_id: String,

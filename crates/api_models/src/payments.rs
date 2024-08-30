@@ -3595,7 +3595,8 @@ pub struct PaymentsResponse {
     #[schema(
         min_length = 30,
         max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
     )]
     pub payment_id: id_type::PaymentId,
 
@@ -3966,11 +3967,11 @@ pub struct PaymentListConstraints {
     pub customer_id: Option<id_type::CustomerId>,
 
     /// A cursor for use in pagination, fetch the next list after some object
-    #[schema(example = "pay_fafa124123")]
+    #[schema(example = "pay_fafa124123", value_type = Option<String>)]
     pub starting_after: Option<id_type::PaymentId>,
 
     /// A cursor for use in pagination, fetch the previous list before some object
-    #[schema(example = "pay_fafa124123")]
+    #[schema(example = "pay_fafa124123", value_type = Option<String>)]
     pub ending_before: Option<id_type::PaymentId>,
 
     /// limit on the number of objects to return
@@ -4453,6 +4454,7 @@ pub struct RedirectResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionRequest {
     /// The identifier for the payment
+    #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: String,
@@ -5182,13 +5184,12 @@ pub struct PaymentsRejectRequest {
     pub payment_id: id_type::PaymentId,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentsStartRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
     pub payment_id: id_type::PaymentId,
     /// The identifier for the Merchant Account.
-    #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
     /// The identifier for the payment transaction
     pub attempt_id: String,
@@ -5438,6 +5439,7 @@ pub struct RetrievePaymentLinkResponse {
 pub struct PaymentLinkInitiateRequest {
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
+    #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
 }
 
