@@ -20,6 +20,7 @@ pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
     merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
 ) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
@@ -252,6 +253,7 @@ pub async fn generate_sample_data(
             merchant_order_reference_id: Default::default(),
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: org_id.clone(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
@@ -329,6 +331,8 @@ pub async fn generate_sample_data(
             client_source: None,
             client_version: None,
             customer_acceptance: None,
+            profile_id: profile_id.clone(),
+            organization_id: org_id.clone(),
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -364,6 +368,7 @@ pub async fn generate_sample_data(
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 charges: None,
+                organization_id: org_id.clone(),
             })
         } else {
             None

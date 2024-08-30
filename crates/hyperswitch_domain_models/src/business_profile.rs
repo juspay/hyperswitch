@@ -586,11 +586,11 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
-    pub routing_algorithm_id: Option<String>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
-    pub payout_routing_algorithm_id: Option<String>,
+    pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: bool,
@@ -729,8 +729,8 @@ pub struct BusinessProfileGeneralUpdate {
 pub enum BusinessProfileUpdate {
     Update(Box<BusinessProfileGeneralUpdate>),
     RoutingAlgorithmUpdate {
-        routing_algorithm_id: Option<String>,
-        payout_routing_algorithm_id: Option<String>,
+        routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+        payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     },
     DefaultRoutingFallbackUpdate {
         default_fallback_routing: Option<pii::SecretSerdeValue>,

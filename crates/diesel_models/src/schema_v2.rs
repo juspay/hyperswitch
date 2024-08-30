@@ -386,6 +386,8 @@ diesel::table! {
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
         dispute_amount -> Int8,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
@@ -811,6 +813,12 @@ diesel::table! {
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
         customer_acceptance -> Nullable<Jsonb>,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 32]
+        organization_id -> Varchar,
+        #[max_length = 32]
+        card_network -> Nullable<Varchar>,
     }
 }
 
@@ -886,6 +894,8 @@ diesel::table! {
         merchant_order_reference_id -> Nullable<Varchar>,
         shipping_details -> Nullable<Bytea>,
         is_payment_processor_token_flow -> Nullable<Bool>,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
@@ -1132,6 +1142,8 @@ diesel::table! {
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
