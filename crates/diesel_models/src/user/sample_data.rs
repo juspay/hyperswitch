@@ -64,7 +64,7 @@ pub struct PaymentAttemptBatchNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
     pub unified_code: Option<String>,
@@ -80,6 +80,8 @@ pub struct PaymentAttemptBatchNew {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[allow(dead_code)]
@@ -117,6 +119,15 @@ impl PaymentAttemptBatchNew {
             connector_metadata: self.connector_metadata,
             payment_experience: self.payment_experience,
             payment_method_type: self.payment_method_type,
+            card_network: self
+                .payment_method_data
+                .as_ref()
+                .and_then(|data| data.as_object())
+                .and_then(|card| card.get("card"))
+                .and_then(|v| v.as_object())
+                .and_then(|v| v.get("card_network"))
+                .and_then(|network| network.as_str())
+                .map(|network| network.to_string()),
             payment_method_data: self.payment_method_data,
             business_sub_label: self.business_sub_label,
             straight_through_algorithm: self.straight_through_algorithm,
@@ -144,6 +155,8 @@ impl PaymentAttemptBatchNew {
             client_source: self.client_source,
             client_version: self.client_version,
             customer_acceptance: self.customer_acceptance,
+            profile_id: self.profile_id,
+            organization_id: self.organization_id,
         }
     }
 }

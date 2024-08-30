@@ -9,6 +9,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
+    db::domain,
     routes::{metrics, SessionState},
     services::{authentication, ApplicationResponse},
     types::{api, storage, transformers::ForeignInto},
@@ -112,22 +113,12 @@ impl PlaintextApiKey {
 pub async fn create_api_key(
     state: SessionState,
     api_key: api::CreateApiKeyRequest,
-    merchant_id: common_utils::id_type::MerchantId,
+    key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
     let api_key_config = state.conf.api_keys.get_inner();
     let store = state.store.as_ref();
-    // We are not fetching merchant account as the merchant key store is needed to search for a
-    // merchant account.
-    // Instead, we're only fetching merchant key store, as it is sufficient to identify
-    // non-existence of a merchant account.
-    store
-        .get_merchant_key_store_by_merchant_id(
-            &(&state).into(),
-            &merchant_id,
-            &store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_id = key_store.merchant_id.clone();
 
     let hash_key = api_key_config.get_hash_key()?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
@@ -266,12 +257,12 @@ pub async fn add_api_key_expiry_task(
 #[instrument(skip_all)]
 pub async fn retrieve_api_key(
     state: SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let store = state.store.as_ref();
     let api_key = store
-        .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
+        .find_api_key_by_merchant_id_key_id_optional(&merchant_id, key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
         .attach_printable("Failed to retrieve API key")?

@@ -170,6 +170,7 @@ impl DisputeInterface for MockDb {
             evidence,
             merchant_connector_id: dispute.merchant_connector_id,
             dispute_amount: dispute.dispute_amount,
+            organization_id: dispute.organization_id,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -404,9 +405,10 @@ mod tests {
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
                 connector: "connector".into(),
                 evidence: Some(Secret::from(Value::String("evidence".into()))),
-                profile_id: None,
+                profile_id: Some(common_utils::generate_profile_id_of_default_length()),
                 merchant_connector_id: None,
                 dispute_amount: 1040,
+                organization_id: common_utils::id_type::OrganizationId::default(),
             }
         }
 

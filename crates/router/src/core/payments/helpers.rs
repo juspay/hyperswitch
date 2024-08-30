@@ -99,41 +99,6 @@ use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
-pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: masking::Secret<String>,
-    encoded_certificate_key: masking::Secret<String>,
-) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
-    let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let decoded_certificate_key = BASE64_ENGINE
-        .decode(encoded_certificate_key.expose())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate = String::from_utf8(decoded_certificate)
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate_key = String::from_utf8(decoded_certificate_key)
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    reqwest::Identity::from_pkcs8_pem(certificate.as_bytes(), certificate_key.as_bytes())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)
-}
-
-pub fn create_certificate(
-    encoded_certificate: masking::Secret<String>,
-) -> Result<Vec<reqwest::Certificate>, error_stack::Report<errors::ApiClientError>> {
-    let decoded_certificate = BASE64_ENGINE
-        .decode(encoded_certificate.expose())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
-    let certificate = String::from_utf8(decoded_certificate)
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(errors::ApiClientError::CertificateDecodeFailed)
-}
-
 pub fn filter_mca_based_on_profile_and_connector_type(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
     profile_id: &id_type::ProfileId,
@@ -2778,7 +2743,7 @@ pub fn generate_mandate(
     network_txn_id: Option<String>,
     payment_method_data_option: Option<domain::payments::PaymentMethodData>,
     mandate_reference: Option<MandateReference>,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
     match (setup_mandate_details, customer_id) {
         (Some(data), Some(cus_id)) => {
@@ -3045,7 +3010,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3067,6 +3032,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3111,7 +3077,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3132,6 +3098,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3173,7 +3140,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
-            profile_id: None,
+            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
             merchant_decision: None,
             payment_confirm_source: None,
             surcharge_applicable: None,
@@ -3195,6 +3162,7 @@ mod tests {
             merchant_order_reference_id: None,
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: id_type::OrganizationId::default(),
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3290,7 +3258,7 @@ impl MerchantConnectorAccountType {
         None
     }
 
-    pub fn get_mca_id(&self) -> Option<String> {
+    pub fn get_mca_id(&self) -> Option<id_type::MerchantConnectorAccountId> {
         match self {
             Self::DbVal(db_val) => Some(db_val.get_id()),
             Self::CacheVal(_) => None,
@@ -3324,7 +3292,7 @@ pub async fn get_merchant_connector_account(
     key_store: &domain::MerchantKeyStore,
     profile_id: &id_type::ProfileId,
     connector_name: &str,
-    merchant_connector_id: Option<&String>,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
     let key_manager_state: &KeyManagerState = &state.into();
@@ -3417,7 +3385,7 @@ pub async fn get_merchant_connector_account(
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: merchant_connector_id.to_string(),
+                                id: merchant_connector_id.get_string_repr().to_string(),
                             },
                         )
                     }
@@ -3730,6 +3698,8 @@ impl AttemptType {
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
             customer_acceptance: old_payment_attempt.customer_acceptance,
+            organization_id: old_payment_attempt.organization_id,
+            profile_id: old_payment_attempt.profile_id,
         }
     }
 
@@ -4317,7 +4287,7 @@ pub async fn get_apple_pay_retryable_connectors<F>(
     payment_data: &mut PaymentData<F>,
     key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorData],
-    merchant_connector_id: Option<&String>,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     business_profile: domain::BusinessProfile,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
@@ -5101,6 +5071,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     business_profile: &domain::BusinessProfile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
+    mandate_type: Option<api_models::payments::MandateTransactionType>,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
     let authentication_id = payment_data.payment_attempt.authentication_id.clone();
     let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
@@ -5135,7 +5106,11 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         authentication_id.map(|authentication_id| {
             PaymentExternalAuthenticationFlow::PostAuthenticationFlow { authentication_id }
         })
-    } else if separate_authentication_requested && is_authentication_type_3ds {
+    } else if separate_authentication_requested
+        && is_authentication_type_3ds
+        && mandate_type
+            != Some(api_models::payments::MandateTransactionType::RecurringMandateTransaction)
+    {
         if let Some((connector_data, card_number)) =
             connector_supports_separate_authn.zip(card_number)
         {
@@ -5284,7 +5259,7 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_connector_account_details_hash_map: std::collections::HashMap<
-        String,
+        id_type::MerchantConnectorAccountId,
         domain::MerchantConnectorAccount,
     > = merchant_connector_account_list
         .iter()
@@ -5299,33 +5274,43 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     for (migrating_merchant_connector_id, migrating_connector_mandate_details) in
         connector_mandate_details.0.clone()
     {
-        match (card_network.clone() ,merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id)) {
-                        (Some(enums::CardNetwork::Discover),Some(merchant_connector_account_details)) => if let ("cybersource", None) = (
-                          merchant_connector_account_details.connector_name.as_str(),
-                        migrating_connector_mandate_details
-                            .original_payment_authorized_amount
-                            .zip(
-                                migrating_connector_mandate_details
-                                  .original_payment_authorized_currency,
-                             ),
-                      ) {
-                        Err(errors::ApiErrorResponse::MissingRequiredFields {
-                              field_names: vec![
-                                 "original_payment_authorized_currency",
-                                  "original_payment_authorized_amount",
-                          ],
-                         }).attach_printable(format!("Invalid connector_mandate_details provided for connector {migrating_merchant_connector_id}"))?
-                    },
-                    (_, Some(_)) => (),
-                        (_, None) => {
-                            Err(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "merchant_connector_id",
-                            })
-                            .attach_printable_lazy(|| {
-                                format!("{migrating_merchant_connector_id} invalid merchant connector id in connector_mandate_details")
-                            })?
-                        },
-                    }
+        match (
+            card_network.clone(),
+            merchant_connector_account_details_hash_map.get(&migrating_merchant_connector_id),
+        ) {
+            (Some(enums::CardNetwork::Discover), Some(merchant_connector_account_details)) => {
+                if let ("cybersource", None) = (
+                    merchant_connector_account_details.connector_name.as_str(),
+                    migrating_connector_mandate_details
+                        .original_payment_authorized_amount
+                        .zip(
+                            migrating_connector_mandate_details
+                                .original_payment_authorized_currency,
+                        ),
+                ) {
+                    Err(errors::ApiErrorResponse::MissingRequiredFields {
+                        field_names: vec![
+                            "original_payment_authorized_currency",
+                            "original_payment_authorized_amount",
+                        ],
+                    })
+                    .attach_printable(format!(
+                        "Invalid connector_mandate_details provided for connector {:?}",
+                        migrating_merchant_connector_id
+                    ))?
+                }
+            }
+            (_, Some(_)) => (),
+            (_, None) => Err(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_connector_id",
+            })
+            .attach_printable_lazy(|| {
+                format!(
+                    "{:?} invalid merchant connector id in connector_mandate_details",
+                    migrating_merchant_connector_id
+                )
+            })?,
+        }
     }
     Ok(())
 }
