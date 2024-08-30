@@ -95,6 +95,7 @@ default_imp_for_authorize_session_token!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -153,6 +154,7 @@ default_imp_for_incremental_authorization!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -182,6 +184,7 @@ default_imp_for_create_customer!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Taxjar
 );
 
@@ -211,6 +214,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -240,6 +244,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -269,6 +274,7 @@ default_imp_for_post_processing_steps!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -298,6 +304,7 @@ default_imp_for_approve!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -327,6 +334,7 @@ default_imp_for_reject!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -356,6 +364,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -386,6 +395,7 @@ default_imp_for_accept_dispute!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -415,6 +425,7 @@ default_imp_for_submit_evidence!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -444,6 +455,7 @@ default_imp_for_defend_dispute!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -482,6 +494,7 @@ default_imp_for_file_upload!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -513,6 +526,7 @@ default_imp_for_payouts_create!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -544,6 +558,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -575,6 +590,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -606,6 +622,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -637,6 +654,7 @@ default_imp_for_payouts_cancel!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -668,6 +686,7 @@ default_imp_for_payouts_quote!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -699,6 +718,7 @@ default_imp_for_payouts_recipient!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -730,6 +750,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -761,6 +782,7 @@ default_imp_for_frm_sale!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -792,6 +814,7 @@ default_imp_for_frm_checkout!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -823,6 +846,7 @@ default_imp_for_frm_transaction!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -854,6 +878,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -885,6 +910,7 @@ default_imp_for_frm_record_return!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
@@ -913,6 +939,7 @@ default_imp_for_revoking_mandates!(
     connectors::Helcim,
     connectors::Novalnet,
     connectors::Nexixpay,
+    connectors::Powertranz,
     connectors::Stax,
     connectors::Taxjar
 );
