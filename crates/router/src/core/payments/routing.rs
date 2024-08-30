@@ -114,7 +114,7 @@ impl Default for MerchantAccountRoutingAlgorithm {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum MerchantAccountRoutingAlgorithm {
-    V1(Option<String>),
+    V1(Option<common_utils::id_type::RoutingId>),
 }
 
 #[cfg(feature = "payouts")]
@@ -289,7 +289,7 @@ where
 pub async fn perform_static_routing_v1<F: Clone>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    algorithm_id: Option<String>,
+    algorithm_id: Option<common_utils::id_type::RoutingId>,
     business_profile: &domain::BusinessProfile,
     transaction_data: &routing::TransactionData<'_, F>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
@@ -352,7 +352,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
 async fn ensure_algorithm_cached_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    algorithm_id: &str,
+    algorithm_id: &common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
@@ -437,7 +437,7 @@ fn execute_dsl_and_get_connector_v1(
 pub async fn refresh_routing_cache_v1(
     state: &SessionState,
     key: String,
-    algorithm_id: &str,
+    algorithm_id: &common_utils::id_type::RoutingId,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
     let algorithm = {

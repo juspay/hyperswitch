@@ -35,7 +35,7 @@ use super::{
     user::{sample_data::BatchSampleDataInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
-    user_role::UserRoleInterface,
+    user_role::{InsertUserRolePayload, ListUserRolesByOrgIdPayload, UserRoleInterface},
 };
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
@@ -448,9 +448,10 @@ impl CustomerInterface for KafkaStore {
         state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         key_store: &domain::MerchantKeyStore,
+        constraints: super::customers::CustomerListConstraints,
     ) -> CustomResult<Vec<domain::Customer>, errors::StorageError> {
         self.diesel_store
-            .list_customers_by_merchant_id(state, merchant_id, key_store)
+            .list_customers_by_merchant_id(state, merchant_id, key_store, constraints)
             .await
     }
 
@@ -2548,7 +2549,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
     async fn find_routing_algorithm_by_profile_id_algorithm_id(
         &self,
         profile_id: &id_type::ProfileId,
-        algorithm_id: &str,
+        algorithm_id: &id_type::RoutingId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
             .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
@@ -2557,7 +2558,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
 
     async fn find_routing_algorithm_by_algorithm_id_merchant_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &id_type::RoutingId,
         merchant_id: &id_type::MerchantId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
@@ -2567,7 +2568,7 @@ impl RoutingAlgorithmInterface for KafkaStore {
 
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
         &self,
-        algorithm_id: &str,
+        algorithm_id: &id_type::RoutingId,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<storage::RoutingProfileMetadata, errors::StorageError> {
         self.diesel_store
@@ -2820,8 +2821,8 @@ impl RedisConnInterface for KafkaStore {
 impl UserRoleInterface for KafkaStore {
     async fn insert_user_role(
         &self,
-        user_role: user_storage::UserRoleNew,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
+        user_role: InsertUserRolePayload,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
     }
 
@@ -2846,13 +2847,13 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id_and_version(
         &self,
         user_id: &str,
         version: enums::UserRoleVersion,
     ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
         self.diesel_store
-            .list_user_roles_by_user_id(user_id, version)
+            .list_user_roles_by_user_id_and_version(user_id, version)
             .await
     }
 
@@ -2925,7 +2926,7 @@ impl UserRoleInterface for KafkaStore {
             .await
     }
 
-    async fn list_user_roles(
+    async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
         org_id: Option<&id_type::OrganizationId>,
@@ -2935,8 +2936,22 @@ impl UserRoleInterface for KafkaStore {
         version: Option<enums::UserRoleVersion>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         self.diesel_store
-            .list_user_roles(user_id, org_id, merchant_id, profile_id, entity_id, version)
+            .list_user_roles_by_user_id(
+                user_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                entity_id,
+                version,
+            )
             .await
+    }
+
+    async fn list_user_roles_by_org_id<'a>(
+        &self,
+        payload: ListUserRolesByOrgIdPayload<'a>,
+    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        self.diesel_store.list_user_roles_by_org_id(payload).await
     }
 }
 

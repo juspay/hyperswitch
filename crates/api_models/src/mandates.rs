@@ -127,8 +127,6 @@ pub enum RecurringDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ProcessorPaymentToken {
     pub processor_payment_token: String,
-    #[schema(value_type = Connector, example = "stripe")]
-    pub connector: api_enums::Connector,
-    #[schema(value_type = String)]
-    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }

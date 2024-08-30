@@ -263,7 +263,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DeleteUserRole
             | Flow::CreateRole
             | Flow::UpdateRole
-            | Flow::UserFromEmail => Self::UserRole,
+            | Flow::UserFromEmail
+            | Flow::ListUsersInLineage => Self::UserRole,
 
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding

@@ -136,7 +136,7 @@ if (!isTestMode && !isFramed) {
     var appearance = {
       variables: {
         colorPrimary: payoutDetails?.theme?.primary_color || "rgb(0, 109, 249)",
-        fontFamily: "Work Sans, sans-serif",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'",
         fontSizeBase: "16px",
         colorText: "rgb(51, 65, 85)",
       },

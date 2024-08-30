@@ -19,7 +19,13 @@ pub async fn generate_sample_data_for_user(
     req: SampleDataRequest,
     _req_state: ReqState,
 ) -> SampleDataApiResponse<()> {
-    let sample_data = generate_sample_data(&state, req, &user_from_token.merchant_id).await?;
+    let sample_data = generate_sample_data(
+        &state,
+        req,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await?;
 
     let key_store = state
         .store

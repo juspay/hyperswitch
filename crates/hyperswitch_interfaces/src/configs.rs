@@ -35,6 +35,7 @@ pub struct Connectors {
     pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
+    pub fiuu: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,

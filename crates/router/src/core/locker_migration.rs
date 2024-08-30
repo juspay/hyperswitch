@@ -48,6 +48,8 @@ pub async fn rust_locker_migration(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
+    use crate::db::customers::CustomerListConstraints;
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -66,8 +68,14 @@ pub async fn rust_locker_migration(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // Handle cases where the number of customers is greater than the limit
+    let constraints = CustomerListConstraints {
+        limit: u16::MAX,
+        offset: None,
+    };
+
     let domain_customers = db
-        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store, constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
