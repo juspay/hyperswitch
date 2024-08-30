@@ -286,3 +286,39 @@ pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest)
     ))
     .await
 }
+
+pub async fn list_roles_with_info(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ListRolesWithInfo;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_from_token, _, _| role_core::list_roles_with_info(state, user_from_token),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_roles_at_entity_level(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<role_api::ListRolesAtEntityLevelRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListRolesAtEntityLevel;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        query.into_inner(),
+        |state, user_from_token, req, _| {
+            role_core::list_roles_at_entity_level(state, user_from_token, req)
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

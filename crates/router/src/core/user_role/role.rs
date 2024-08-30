@@ -1,5 +1,5 @@
 use api_models::user_role::role::{self as role_api};
-use common_enums::RoleScope;
+use common_enums::{EntityType, RoleScope};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
@@ -320,5 +320,138 @@ pub async fn update_role(
             role_name: updated_role.role_name,
             role_scope: updated_role.scope,
         },
+    ))
+}
+
+pub async fn list_roles_with_info(
+    state: SessionState,
+    user_from_token: UserFromToken,
+) -> UserResponse<Vec<role_api::RoleInfoResponseNew>> {
+    let user_role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+
+    let predefined_roles_map = PREDEFINED_ROLES
+        .iter()
+        .filter(|(_, role_info)| user_role_info.get_entity_type() >= role_info.get_entity_type())
+        .map(|(role_id, role_info)| role_api::RoleInfoResponseNew {
+            role_id: role_id.to_string(),
+            role_name: role_info.get_role_name().to_string(),
+            entity_type: role_info.get_entity_type(),
+            groups: role_info.get_permission_groups().to_vec(),
+        });
+
+    let user_role_entity = user_role_info.get_entity_type();
+    let custom_roles = match user_role_entity {
+        EntityType::Organization => state
+            .store
+            .list_roles_for_org_by_parameters(&user_from_token.org_id, None, None, None)
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+        EntityType::Merchant => state
+            .store
+            .list_roles_for_org_by_parameters(
+                &user_from_token.org_id,
+                Some(&user_from_token.merchant_id),
+                None,
+                None,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+        _ => {
+            return Err(UserErrors::InvalidRoleOperationWithMessage(
+                "No custom roles roles found for the given entity level".to_string(),
+            )
+            .into())
+        }
+    };
+    let custom_roles_map = custom_roles.into_iter().filter_map(|role| {
+        let role_info = roles::RoleInfo::from(role);
+        (user_role_entity >= role_info.get_entity_type()).then_some(role_api::RoleInfoResponseNew {
+            role_id: role_info.get_role_id().to_string(),
+            role_name: role_info.get_role_name().to_string(),
+            groups: role_info.get_permission_groups().to_vec(),
+            entity_type: role_info.get_entity_type(),
+        })
+    });
+
+    Ok(ApplicationResponse::Json(
+        predefined_roles_map.chain(custom_roles_map).collect(),
+    ))
+}
+
+pub async fn list_roles_at_entity_level(
+    state: SessionState,
+    user_from_token: UserFromToken,
+    req: role_api::ListRolesAtEntityLevelRequest,
+) -> UserResponse<Vec<role_api::MinimalRoleInfo>> {
+    let user_entity_type = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?
+        .get_entity_type();
+
+    if req.entity_type > user_entity_type {
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User is attempting to request list roles above the current entity level".to_string(),
+        )
+        .into());
+    }
+
+    let predefined_roles_map = PREDEFINED_ROLES
+        .iter()
+        .filter(|(_, role_info)| {
+            role_info.is_invitable() && role_info.get_entity_type() == req.entity_type
+        })
+        .map(|(role_id, role_info)| role_api::MinimalRoleInfo {
+            role_id: role_id.to_string(),
+            role_name: role_info.get_role_name().to_string(),
+        });
+
+    let custom_roles = match req.entity_type {
+        EntityType::Organization => state
+            .store
+            .list_roles_for_org_by_parameters(
+                &user_from_token.org_id,
+                None,
+                Some(req.entity_type),
+                None,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+
+        EntityType::Merchant => state
+            .store
+            .list_roles_for_org_by_parameters(
+                &user_from_token.org_id,
+                Some(&user_from_token.merchant_id),
+                Some(req.entity_type),
+                None,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+        _ => {
+            return Err(UserErrors::InvalidRoleOperationWithMessage(
+                "No custom roles roles found for the given entity level".to_string(),
+            )
+            .into())
+        }
+    };
+
+    let custom_roles_map = custom_roles.into_iter().map(|role| {
+        let role_info = roles::RoleInfo::from(role);
+        role_api::MinimalRoleInfo {
+            role_id: role_info.get_role_id().to_string(),
+            role_name: role_info.get_role_name().to_string(),
+        }
+    });
+
+    Ok(ApplicationResponse::Json(
+        predefined_roles_map.chain(custom_roles_map).collect(),
     ))
 }

@@ -54,7 +54,26 @@ pub struct RoleInfoWithGroupsResponse {
     pub role_scope: RoleScope,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct RoleInfoResponseNew {
+    pub role_id: String,
+    pub role_name: String,
+    pub entity_type: EntityType,
+    pub groups: Vec<PermissionGroup>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetRoleRequest {
     pub role_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListRolesAtEntityLevelRequest {
+    pub entity_type: EntityType,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+pub struct MinimalRoleInfo {
+    pub role_id: String,
+    pub role_name: String,
 }

@@ -1724,7 +1724,9 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
-                ),
+                )
+                .service(web::resource("/role_info").route(web::get().to(list_roles_with_info)))
+                .service(web::resource("/role").route(web::get().to(list_roles_at_entity_level))),
         );
 
         route = route.service(

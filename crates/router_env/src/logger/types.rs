@@ -366,6 +366,10 @@ pub enum Flow {
     GetRolesInfo,
     /// List roles
     ListRoles,
+    /// List roles with info
+    ListRolesWithInfo,
+    /// List roles at enitity level
+    ListRolesAtEntityLevel,
     /// Get role
     GetRole,
     /// Get role from token

@@ -2,7 +2,7 @@ use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
-use crate::user_role::UserStatus;
+use crate::user_role::{role::MinimalRoleInfo, UserStatus};
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
@@ -423,10 +423,4 @@ pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
 pub struct ListUsersInEntityResponse {
     pub email: pii::Email,
     pub roles: Vec<MinimalRoleInfo>,
-}
-
-#[derive(Debug, serde::Serialize, Clone)]
-pub struct MinimalRoleInfo {
-    pub role_id: String,
-    pub role_name: String,
 }

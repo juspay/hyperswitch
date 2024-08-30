@@ -731,7 +731,7 @@ pub async fn list_users_in_lineage(
             .map(|role_info| {
                 (
                     user_role.role_id.clone(),
-                    user_api::MinimalRoleInfo {
+                    user_role_api::role::MinimalRoleInfo {
                         role_id: user_role.role_id.clone(),
                         role_name: role_info.get_role_name().to_string(),
                     },
