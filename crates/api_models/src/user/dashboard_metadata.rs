@@ -68,7 +68,7 @@ pub struct ConfiguredRouting {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TestPayment {
-    pub payment_id: common_utils::id_type::PaymentId,
+    pub payment_id: id_type::PaymentId,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

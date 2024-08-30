@@ -12,7 +12,7 @@ pub struct KafkaDispute<'a> {
     pub currency: &'a String,
     pub dispute_stage: &'a storage_enums::DisputeStage,
     pub dispute_status: &'a storage_enums::DisputeStatus,
-    pub payment_id: &'a common_utils::id_type::PaymentId,
+    pub payment_id: &'a id_type::PaymentId,
     pub attempt_id: &'a String,
     pub merchant_id: &'a id_type::MerchantId,
     pub connector_status: &'a String,
