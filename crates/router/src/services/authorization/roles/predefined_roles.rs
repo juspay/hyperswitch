@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::{PermissionGroup, RoleScope};
+use common_enums::{EntityType, PermissionGroup, RoleScope};
 use once_cell::sync::Lazy;
 
 use super::RoleInfo;
@@ -9,7 +9,7 @@ use crate::consts;
 pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
     let mut roles = HashMap::new();
     roles.insert(
-        consts::user_role::ROLE_ID_INTERNAL_ADMIN,
+        common_utils::consts::ROLE_ID_INTERNAL_ADMIN,
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
@@ -25,9 +25,10 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::OrganizationManage,
             ],
-            role_id: consts::user_role::ROLE_ID_INTERNAL_ADMIN.to_string(),
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_ADMIN.to_string(),
             role_name: "internal_admin".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Internal,
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
@@ -35,7 +36,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
         },
     );
     roles.insert(
-        consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER,
+        common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER,
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
@@ -45,9 +46,10 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
             ],
-            role_id: consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             role_name: "internal_view_only".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Internal,
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
@@ -56,7 +58,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
     );
 
     roles.insert(
-        consts::user_role::ROLE_ID_ORGANIZATION_ADMIN,
+        common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN,
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
@@ -72,9 +74,10 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::OrganizationManage,
             ],
-            role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            role_id: common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             role_name: "organization_admin".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Organization,
             is_invitable: false,
             is_deletable: false,
             is_updatable: false,
@@ -102,6 +105,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_id: consts::user_role::ROLE_ID_MERCHANT_ADMIN.to_string(),
             role_name: "admin".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -122,6 +126,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_id: consts::user_role::ROLE_ID_MERCHANT_VIEW_ONLY.to_string(),
             role_name: "view_only".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -141,6 +146,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_id: consts::user_role::ROLE_ID_MERCHANT_IAM_ADMIN.to_string(),
             role_name: "iam".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -161,6 +167,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_id: consts::user_role::ROLE_ID_MERCHANT_DEVELOPER.to_string(),
             role_name: "developer".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -182,6 +189,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_id: consts::user_role::ROLE_ID_MERCHANT_OPERATOR.to_string(),
             role_name: "operator".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
@@ -200,6 +208,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_id: consts::user_role::ROLE_ID_MERCHANT_CUSTOMER_SUPPORT.to_string(),
             role_name: "customer_support".to_string(),
             scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,

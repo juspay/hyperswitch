@@ -3,10 +3,10 @@ use common_utils::{
     encryption::Encryption,
     id_type,
     pii::{self, EmailStrategy},
-    types::keymanager::ToEncryptable,
+    types::{keymanager::ToEncryptable, Description},
 };
-use euclid::dssa::graph::euclid_graph_prelude::FxHashMap;
 use masking::{ExposeInterface, Secret, SwitchStrategy};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -33,8 +33,8 @@ pub struct CustomerRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
@@ -46,6 +46,16 @@ pub struct CustomerRequest {
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CustomerListRequest {
+    /// Offset
+    #[schema(example = 32)]
+    pub offset: Option<u32>,
+    /// Limit
+    #[schema(example = 32)]
+    pub limit: Option<u16>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -82,8 +92,8 @@ pub struct CustomerRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
@@ -217,8 +227,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The address for the customer
     #[schema(value_type = Option<AddressDetails>)]
     pub address: Option<payments::AddressDetails>,
@@ -262,8 +272,8 @@ pub struct CustomerResponse {
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
     /// An arbitrary string that you can attach to a customer object.
-    #[schema(max_length = 255, example = "First Customer")]
-    pub description: Option<String>,
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
     /// The default billing address for the customer
     #[schema(value_type = Option<AddressDetails>)]
     pub default_billing_address: Option<payments::AddressDetails>,
@@ -282,6 +292,8 @@ pub struct CustomerResponse {
     /// The identifier for the default payment method.
     #[schema(max_length = 64, example = "pm_djh2837dwduh890123")]
     pub default_payment_method_id: Option<String>,
+    /// Global id
+    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -305,6 +317,19 @@ impl CustomerId {
 
     pub fn new_customer_id_struct(cust: id_type::CustomerId) -> Self {
         Self { customer_id: cust }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GlobalId {
+    pub id: String,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl GlobalId {
+    pub fn new(id: String) -> Self {
+        Self { id }
     }
 }
 
@@ -341,4 +366,118 @@ pub struct CustomerDeleteResponse {
     /// Whether payment methods deleted or not
     #[schema(example = false)]
     pub payment_methods_deleted: bool,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CustomerUpdateRequest {
+    /// The identifier for the customer object
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub customer_id: Option<id_type::CustomerId>,
+    /// The identifier for the Merchant Account
+    #[schema(max_length = 255, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[serde(skip)]
+    pub merchant_id: id_type::MerchantId,
+    /// The customer's name
+    #[schema(max_length = 255, value_type = Option<String>, example = "Jon Test")]
+    pub name: Option<Secret<String>>,
+    /// The customer's email address
+    #[schema(value_type = Option<String>, max_length = 255, example = "JonTest@test.com")]
+    pub email: Option<pii::Email>,
+    /// The customer's phone number
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
+    pub phone: Option<Secret<String>>,
+    /// An arbitrary string that you can attach to a customer object.
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
+    /// The country code for the customer phone number
+    #[schema(max_length = 255, example = "+65")]
+    pub phone_country_code: Option<String>,
+    /// The address for the customer
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<payments::AddressDetails>,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
+    /// characters long. Metadata is useful for storing additional, structured information on an
+    /// object.
+    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+impl CustomerUpdateRequest {
+    pub fn get_merchant_reference_id(&self) -> Option<id_type::CustomerId> {
+        Some(
+            self.customer_id
+                .to_owned()
+                .unwrap_or_else(common_utils::generate_customer_id_of_default_length),
+        )
+    }
+    pub fn get_address(&self) -> Option<payments::AddressDetails> {
+        self.address.clone()
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
+pub struct CustomerUpdateRequest {
+    /// The merchant identifier for the customer object.
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_reference_id: Option<id_type::CustomerId>,
+    /// The customer's name
+    #[schema(max_length = 255, value_type = String, example = "Jon Test")]
+    pub name: Option<Secret<String>>,
+    /// The customer's email address
+    #[schema(value_type = String, max_length = 255, example = "JonTest@test.com")]
+    pub email: Option<pii::Email>,
+    /// The customer's phone number
+    #[schema(value_type = Option<String>, max_length = 255, example = "9123456789")]
+    pub phone: Option<Secret<String>>,
+    /// An arbitrary string that you can attach to a customer object.
+    #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
+    /// The country code for the customer phone number
+    #[schema(max_length = 255, example = "+65")]
+    pub phone_country_code: Option<String>,
+    /// The default billing address for the customer
+    #[schema(value_type = Option<AddressDetails>)]
+    pub default_billing_address: Option<payments::AddressDetails>,
+    /// The default shipping address for the customer
+    #[schema(value_type = Option<AddressDetails>)]
+    pub default_shipping_address: Option<payments::AddressDetails>,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
+    /// characters long. Metadata is useful for storing additional, structured information on an
+    /// object.
+    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+    /// The unique identifier of the payment method
+    #[schema(example = "card_rGK4Vi5iSW70MY7J2mIg")]
+    pub default_payment_method_id: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl CustomerUpdateRequest {
+    pub fn get_merchant_reference_id(&self) -> Option<id_type::CustomerId> {
+        self.merchant_reference_id.clone()
+    }
+
+    pub fn get_default_customer_billing_address(&self) -> Option<payments::AddressDetails> {
+        self.default_billing_address.clone()
+    }
+
+    pub fn get_default_customer_shipping_address(&self) -> Option<payments::AddressDetails> {
+        self.default_shipping_address.clone()
+    }
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct UpdateCustomerId(String);
+
+impl UpdateCustomerId {
+    pub fn get_global_id(&self) -> String {
+        self.0.clone()
+    }
+
+    pub fn new(id: String) -> Self {
+        Self(id)
+    }
 }

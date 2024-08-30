@@ -6,7 +6,7 @@ use std::{
 use actix_web::http::header;
 use api_models::payouts;
 use common_utils::{
-    ext_traits::{Encode, OptionExt},
+    ext_traits::{AsyncExt, Encode, OptionExt},
     link_utils,
     types::{AmountConvertor, StringMajorUnitForConnector},
 };
@@ -24,12 +24,26 @@ use crate::{
     types::domain,
 };
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn initiate_payout_link(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _req: payouts::PayoutLinkInitiateRequest,
+    _request_headers: &header::HeaderMap,
+    _locale: String,
+) -> RouterResponse<services::GenericLinkFormData> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn initiate_payout_link(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutLinkInitiateRequest,
     request_headers: &header::HeaderMap,
+    locale: String,
 ) -> RouterResponse<services::GenericLinkFormData> {
     let db: &dyn StorageInterface = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -65,7 +79,10 @@ pub async fn initiate_payout_link(
             message: "payout link not found".to_string(),
         })?;
 
-    validator::validate_payout_link_render_request(request_headers, &payout_link)?;
+    let allowed_domains = validator::validate_payout_link_render_request_and_get_allowed_domains(
+        request_headers,
+        &payout_link,
+    )?;
 
     // Check status and return form data accordingly
     let has_expired = common_utils::date_time::now() > payout_link.expiry;
@@ -106,8 +123,9 @@ pub async fn initiate_payout_link(
 
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: (link_data.allowed_domains),
+                    allowed_domains,
                     data: GenericLinksData::ExpiredLink(expired_link_data),
+                    locale,
                 },
             )))
         }
@@ -138,6 +156,7 @@ pub async fn initiate_payout_link(
                 .attach_printable_lazy(|| {
                     format!("customer [{}] not found", payout_link.primary_reference)
                 })?;
+
             let enabled_payout_methods =
                 filter_payout_methods(&state, &merchant_account, &key_store, &payout).await?;
             // Fetch default enabled_payout_methods
@@ -187,6 +206,8 @@ pub async fn initiate_payout_link(
                 enabled_payment_methods,
                 amount,
                 currency: payout.destination_currency,
+                locale: locale.clone(),
+                test_mode: link_data.test_mode.unwrap_or(false),
             };
 
             let serialized_css_content = String::new();
@@ -207,8 +228,9 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: (link_data.allowed_domains),
+                    allowed_domains,
                     data: GenericLinksData::PayoutLink(generic_form_data),
+                    locale,
                 },
             )))
         }
@@ -231,6 +253,7 @@ pub async fn initiate_payout_link(
                 error_code: payout_attempt.error_code,
                 error_message: payout_attempt.error_message,
                 ui_config: ui_config_data,
+                test_mode: link_data.test_mode.unwrap_or(false),
             };
 
             let serialized_css_content = String::new();
@@ -249,8 +272,9 @@ pub async fn initiate_payout_link(
             };
             Ok(services::ApplicationResponse::GenericLinkForm(Box::new(
                 GenericLinks {
-                    allowed_domains: (link_data.allowed_domains),
+                    allowed_domains,
                     data: GenericLinksData::PayoutLinkStatus(generic_status_data),
+                    locale,
                 },
             )))
         }
@@ -264,6 +288,8 @@ pub async fn filter_payout_methods(
     key_store: &domain::MerchantKeyStore,
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
+    use masking::ExposeInterface;
+
     let db = &*state.store;
     let key_manager_state = &state.into();
     //Fetch all merchant connector accounts
@@ -276,22 +302,26 @@ pub async fn filter_payout_methods(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    // fetch all mca based on profile id
-    let filtered_mca_on_profile =
-        helpers::filter_mca_based_on_business_profile(all_mcas, Some(payout.profile_id.clone()));
-    //Since we just need payout connectors here, filter mca based on connector type.
-    let filtered_mca = helpers::filter_mca_based_on_connector_type(
-        filtered_mca_on_profile.clone(),
+    // Filter MCAs based on profile_id and connector_type
+    let filtered_mcas = helpers::filter_mca_based_on_profile_and_connector_type(
+        all_mcas,
+        &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,
     );
-    let address = db
-        .find_address_by_address_id(key_manager_state, &payout.address_id.clone(), key_store)
+    let address = payout
+        .address_id
+        .as_ref()
+        .async_map(|address_id| async {
+            db.find_address_by_address_id(key_manager_state, address_id, key_store)
+                .await
+        })
         .await
+        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while fetching address with address id {}",
-                payout.address_id.clone()
+                "Failed while fetching address [id - {:?}] for payout [id - {}]",
+                payout.address_id, payout.payout_id
             )
         })?;
 
@@ -304,14 +334,14 @@ pub async fn filter_payout_methods(
     let mut card_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let mut wallet_hash_set: HashSet<common_enums::PaymentMethodType> = HashSet::new();
     let payout_filter_config = &state.conf.payout_method_filters.clone();
-    for mca in &filtered_mca {
+    for mca in &filtered_mcas {
         let payout_methods = match &mca.payment_methods_enabled {
             Some(pm) => pm,
             None => continue,
         };
         for payout_method in payout_methods.iter() {
             let parse_result = serde_json::from_value::<api_models::admin::PaymentMethodsEnabled>(
-                payout_method.clone(),
+                payout_method.clone().expose(),
             );
             if let Ok(payment_methods_enabled) = parse_result {
                 let payment_method = payment_methods_enabled.payment_method;
@@ -326,7 +356,10 @@ pub async fn filter_payout_methods(
                         payout_filter,
                         request_payout_method_type,
                         &payout.destination_currency,
-                        &address.country,
+                        address
+                            .as_ref()
+                            .and_then(|address| address.country)
+                            .as_ref(),
                     )?;
                     if currency_country_filter.unwrap_or(true) {
                         match payment_method {
@@ -381,7 +414,7 @@ pub fn check_currency_country_filters(
     payout_method_filter: Option<&PaymentMethodFilters>,
     request_payout_method_type: &api_models::payment_methods::RequestPaymentMethodTypes,
     currency: &common_enums::Currency,
-    country: &Option<common_enums::CountryAlpha2>,
+    country: Option<&common_enums::CountryAlpha2>,
 ) -> errors::RouterResult<Option<bool>> {
     if matches!(
         request_payout_method_type.payment_method_type,

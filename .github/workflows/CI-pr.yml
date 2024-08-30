@@ -91,6 +91,7 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: false
@@ -142,10 +143,6 @@ jobs:
         shell: bash
         run: .github/scripts/install-jq.sh
 
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
       - name: Cargo hack
         shell: bash
         env:
@@ -180,6 +177,7 @@ jobs:
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: false
@@ -249,16 +247,6 @@ jobs:
       #     tool: cargo-nextest
       #     checksum: true
 
-      # - name: Setup Embark Studios lint rules
-      #   shell: bash
-      #   run: |
-      #     mkdir -p .cargo
-      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
-
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
       - name: Run clippy
         shell: bash
         run: just clippy
@@ -291,10 +279,10 @@ jobs:
       - name: Spell check
         uses: crate-ci/typos@master
 
-
   check-v2:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -326,13 +314,17 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Deny warnings
+      - name: Run cargo-hack on v2 features in select crates
         shell: bash
-        run: |
-          sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-          # Allow the `clippy::todo` lint for v2 checks
-          sed -i --null-data 's/    "-Wclippy::todo",\n//' .cargo/config.toml
-
-      - name: Cargo hack_v2
-        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUSTFLAGS: "-D warnings -A clippy::todo"
         run: just hack_v2
+
+      - name: Run cargo check with v2 features enabled
+        shell: bash
+        # env:
+        #   # Not denying warnings for now.
+        #   # We only want to ensure successful compilation for now.
+        #   RUSTFLAGS: "-D warnings -A clippy::todo"
+        run: just check_v2

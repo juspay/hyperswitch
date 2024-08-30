@@ -667,42 +667,62 @@ pub struct SubmitEvidenceRequestData {
     pub connector_dispute_id: String,
     pub access_activity_log: Option<String>,
     pub billing_address: Option<String>,
+    //cancellation policy
     pub cancellation_policy: Option<Vec<u8>>,
+    pub cancellation_policy_file_type: Option<String>,
     pub cancellation_policy_provider_file_id: Option<String>,
     pub cancellation_policy_disclosure: Option<String>,
     pub cancellation_rebuttal: Option<String>,
+    //customer communication
     pub customer_communication: Option<Vec<u8>>,
+    pub customer_communication_file_type: Option<String>,
     pub customer_communication_provider_file_id: Option<String>,
     pub customer_email_address: Option<String>,
     pub customer_name: Option<String>,
     pub customer_purchase_ip: Option<String>,
+    //customer signature
     pub customer_signature: Option<Vec<u8>>,
+    pub customer_signature_file_type: Option<String>,
     pub customer_signature_provider_file_id: Option<String>,
+    //product description
     pub product_description: Option<String>,
+    //receipts
     pub receipt: Option<Vec<u8>>,
+    pub receipt_file_type: Option<String>,
     pub receipt_provider_file_id: Option<String>,
+    //refund policy
     pub refund_policy: Option<Vec<u8>>,
+    pub refund_policy_file_type: Option<String>,
     pub refund_policy_provider_file_id: Option<String>,
     pub refund_policy_disclosure: Option<String>,
     pub refund_refusal_explanation: Option<String>,
+    //service docs
     pub service_date: Option<String>,
     pub service_documentation: Option<Vec<u8>>,
+    pub service_documentation_file_type: Option<String>,
     pub service_documentation_provider_file_id: Option<String>,
+    //shipping details docs
     pub shipping_address: Option<String>,
     pub shipping_carrier: Option<String>,
     pub shipping_date: Option<String>,
     pub shipping_documentation: Option<Vec<u8>>,
+    pub shipping_documentation_file_type: Option<String>,
     pub shipping_documentation_provider_file_id: Option<String>,
     pub shipping_tracking_number: Option<String>,
+    //invoice details
     pub invoice_showing_distinct_transactions: Option<Vec<u8>>,
+    pub invoice_showing_distinct_transactions_file_type: Option<String>,
     pub invoice_showing_distinct_transactions_provider_file_id: Option<String>,
+    //subscription details
     pub recurring_transaction_agreement: Option<Vec<u8>>,
+    pub recurring_transaction_agreement_file_type: Option<String>,
     pub recurring_transaction_agreement_provider_file_id: Option<String>,
+    //uncategorized details
     pub uncategorized_file: Option<Vec<u8>>,
+    pub uncategorized_file_type: Option<String>,
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
 }
-
 #[derive(Clone, Debug)]
 pub struct RetrieveFileRequestData {
     pub provider_file_id: String,

@@ -1,6 +1,5 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(doc)))]
-#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 //!
@@ -34,8 +33,12 @@ mod bytes;
 #[cfg(feature = "bytes")]
 pub use self::bytes::SecretBytesMut;
 
+#[cfg(all(feature = "alloc", feature = "serde"))]
+pub mod masked_string;
+
 #[cfg(feature = "alloc")]
 mod string;
+
 #[cfg(feature = "alloc")]
 mod vec;
 

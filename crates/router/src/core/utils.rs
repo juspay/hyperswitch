@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
 use api_models::enums::{DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
@@ -8,9 +8,12 @@ use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt, types::MinorUnit};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{payment_address::PaymentAddress, router_data::ErrorResponse};
+use hyperswitch_domain_models::{
+    merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
+    router_data::ErrorResponse,
+};
 #[cfg(feature = "payouts")]
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -27,7 +30,7 @@ use crate::{
     db::StorageInterface,
     routes::SessionState,
     types::{
-        self, domain,
+        self, api, domain,
         storage::{self, enums},
         PollConfig,
     },
@@ -42,51 +45,32 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
 const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
-#[cfg(feature = "payouts")]
-#[instrument(skip_all)]
-pub async fn get_mca_for_payout<'a>(
-    state: &'a SessionState,
-    connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
-    payout_data: &PayoutData,
-) -> RouterResult<helpers::MerchantConnectorAccountType> {
-    match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok(mca),
-        None => {
-            let merchant_connector_account = helpers::get_merchant_connector_account(
-                state,
-                merchant_account.get_id(),
-                None,
-                key_store,
-                &payout_data.profile_id,
-                connector_id,
-                payout_data.payout_attempt.merchant_connector_id.as_ref(),
-            )
-            .await?;
-            Ok(merchant_connector_account)
-        }
-    }
-}
-
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
-    state: &'a SessionState,
-    connector_name: &api_models::enums::Connector,
+    _connector_data: &api::ConnectorData,
+    _merchant_account: &domain::MerchantAccount,
+    _payout_data: &mut PayoutData,
+) -> RouterResult<types::PayoutsRouterData<F>> {
+    todo!()
+}
+
+#[cfg(all(
+    feature = "payouts",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+#[instrument(skip_all)]
+pub async fn construct_payout_router_data<'a, F>(
+    connector_data: &api::ConnectorData,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let merchant_connector_account = get_mca_for_payout(
-        state,
-        &connector_name.to_string(),
-        merchant_account,
-        key_store,
-        payout_data,
-    )
-    .await?;
-    payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
+    let merchant_connector_account = payout_data
+        .merchant_connector_account
+        .clone()
+        .get_required_value("merchant_connector_account")?;
+    let connector_name = connector_data.connector_name;
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
@@ -124,12 +108,22 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
+    let connector_label = format!(
+        "{}_{}",
+        payout_data.profile_id.get_string_repr(),
+        connector_name
+    );
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
-        .and_then(|cc| cc.get(connector_label))
-        .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
+        .and_then(|connector_customer_value| {
+            connector_customer_value
+                .clone()
+                .expose()
+                .get(connector_label)
+                .cloned()
+        })
+        .and_then(|id| serde_json::from_value::<String>(id).ok());
 
     let vendor_details: Option<PayoutVendorAccountDetails> =
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
@@ -229,24 +223,19 @@ pub async fn construct_refund_router_data<'a, F>(
     creds_identifier: Option<String>,
     charges: Option<types::ChargeRefunds>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let profile_id = get_profile_id_from_business_details(
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.get_id(),
         creds_identifier,
         key_store,
-        &profile_id,
+        profile_id,
         connector_id,
         payment_attempt.merchant_connector_id.as_ref(),
     )
@@ -423,6 +412,7 @@ pub fn validate_uuid(uuid: String, key: &str) -> Result<String, errors::ApiError
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
     use super::*;
 
     #[test]
@@ -448,6 +438,78 @@ mod tests {
     fn test_generate_id() {
         let generated_id = generate_id(consts::ID_LENGTH, "ref");
         assert_eq!(generated_id.len(), consts::ID_LENGTH + 4)
+    }
+
+    #[test]
+    fn test_filter_objects_based_on_profile_id_list() {
+        #[derive(PartialEq, Debug, Clone)]
+        struct Object {
+            profile_id: Option<common_utils::id_type::ProfileId>,
+        }
+
+        impl Object {
+            pub fn new(profile_id: &'static str) -> Self {
+                Self {
+                    profile_id: Some(
+                        common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(
+                            profile_id,
+                        ))
+                        .expect("invalid profile ID"),
+                    ),
+                }
+            }
+        }
+
+        impl GetProfileId for Object {
+            fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+                self.profile_id.as_ref()
+            }
+        }
+
+        fn new_profile_id(profile_id: &'static str) -> common_utils::id_type::ProfileId {
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id))
+                .expect("invalid profile ID")
+        }
+
+        // non empty object_list and profile_id_list
+        let object_list = vec![
+            Object::new("p1"),
+            Object::new("p2"),
+            Object::new("p2"),
+            Object::new("p4"),
+            Object::new("p5"),
+        ];
+        let profile_id_list = vec![
+            new_profile_id("p1"),
+            new_profile_id("p2"),
+            new_profile_id("p3"),
+        ];
+        let filtered_list =
+            filter_objects_based_on_profile_id_list(Some(profile_id_list), object_list.clone());
+        let expected_result = vec![Object::new("p1"), Object::new("p2"), Object::new("p2")];
+        assert_eq!(filtered_list, expected_result);
+
+        // non empty object_list and empty profile_id_list
+        let empty_profile_id_list = vec![];
+        let filtered_list = filter_objects_based_on_profile_id_list(
+            Some(empty_profile_id_list),
+            object_list.clone(),
+        );
+        let expected_result = vec![];
+        assert_eq!(filtered_list, expected_result);
+
+        // non empty object_list and None profile_id_list
+        let profile_id_list_as_none = None;
+        let filtered_list =
+            filter_objects_based_on_profile_id_list(profile_id_list_as_none, object_list);
+        let expected_result = vec![
+            Object::new("p1"),
+            Object::new("p2"),
+            Object::new("p2"),
+            Object::new("p4"),
+            Object::new("p5"),
+        ];
+        assert_eq!(filtered_list, expected_result);
     }
 }
 
@@ -524,17 +586,13 @@ pub async fn construct_accept_dispute_router_data<'a>(
     key_store: &domain::MerchantKeyStore,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
-    let profile_id = get_profile_id_from_business_details(
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -623,17 +681,13 @@ pub async fn construct_submit_evidence_router_data<'a>(
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
     let connector_id = &dispute.connector;
-    let profile_id = get_profile_id_from_business_details(
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -716,21 +770,17 @@ pub async fn construct_upload_file_router_data<'a>(
     payment_attempt: &storage::PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    create_file_request: &types::api::CreateFileRequest,
+    create_file_request: &api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
 ) -> RouterResult<types::UploadFileRouterData> {
-    let profile_id = get_profile_id_from_business_details(
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -821,17 +871,13 @@ pub async fn construct_defend_dispute_router_data<'a>(
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
     let connector_id = &dispute.connector;
-    let profile_id = get_profile_id_from_business_details(
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -1025,16 +1071,22 @@ pub fn get_connector_request_reference_id(
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
     db: &dyn StorageInterface,
-    profile_id: Option<&String>,
+    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    merchant_key_store: &domain::MerchantKeyStore,
+    profile_id: Option<&common_utils::id_type::ProfileId>,
     merchant_id: &common_utils::id_type::MerchantId,
-) -> RouterResult<Option<storage::business_profile::BusinessProfile>> {
+) -> RouterResult<Option<domain::BusinessProfile>> {
     profile_id
         .async_map(|profile_id| async {
-            db.find_business_profile_by_profile_id(profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.to_owned(),
-                })
+            db.find_business_profile_by_profile_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })
         })
         .await
         .transpose()?
@@ -1042,7 +1094,7 @@ pub async fn validate_and_get_business_profile(
             // Check if the merchant_id of business profile is same as the current merchant_id
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
-                    resource: business_profile.profile_id,
+                    resource: business_profile.profile_id.get_string_repr().to_owned(),
                 }
                 .into())
             } else {
@@ -1090,23 +1142,32 @@ pub fn get_connector_label(
         })
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "merchant_account_v2")
+))]
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
 /// or return a `MissingRequiredField` error
+#[allow(clippy::too_many_arguments)]
 pub async fn get_profile_id_from_business_details(
+    key_manager_state: &common_utils::types::keymanager::KeyManagerState,
+    merchant_key_store: &domain::MerchantKeyStore,
     business_country: Option<api_models::enums::CountryAlpha2>,
     business_label: Option<&String>,
     merchant_account: &domain::MerchantAccount,
-    request_profile_id: Option<&String>,
+    request_profile_id: Option<&common_utils::id_type::ProfileId>,
     db: &dyn StorageInterface,
     should_validate: bool,
-) -> RouterResult<String> {
+) -> RouterResult<common_utils::id_type::ProfileId> {
     match request_profile_id.or(merchant_account.default_profile.as_ref()) {
         Some(profile_id) => {
             // Check whether this business profile belongs to the merchant
             if should_validate {
                 let _ = validate_and_get_business_profile(
                     db,
+                    key_manager_state,
+                    merchant_key_store,
                     Some(profile_id),
                     merchant_account.get_id(),
                 )
@@ -1119,6 +1180,8 @@ pub async fn get_profile_id_from_business_details(
                 let profile_name = format!("{business_country}_{business_label}");
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
+                        key_manager_state,
+                        merchant_key_store,
                         &profile_name,
                         merchant_account.get_id(),
                     )
@@ -1263,5 +1326,102 @@ pub fn get_incremental_authorization_allowed_value(
         Some(false)
     } else {
         incremental_authorization_allowed
+    }
+}
+
+pub(super) trait GetProfileId {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId>;
+}
+
+impl GetProfileId for MerchantConnectorAccount {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
+impl GetProfileId for storage::PaymentIntent {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.profile_id.as_ref()
+    }
+}
+
+impl<A> GetProfileId for (storage::PaymentIntent, A) {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.0.get_profile_id()
+    }
+}
+
+impl GetProfileId for diesel_models::Dispute {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.profile_id.as_ref()
+    }
+}
+
+impl GetProfileId for diesel_models::Refund {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.profile_id.as_ref()
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl GetProfileId for storage::Payouts {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+#[cfg(feature = "payouts")]
+impl<T, F> GetProfileId for (storage::Payouts, T, F) {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.0.get_profile_id()
+    }
+}
+
+/// Filter Objects based on profile ids
+pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
+    profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
+    object_list: Vec<T>,
+) -> Vec<T> {
+    if let Some(profile_id_list) = profile_id_list_auth_layer {
+        let profile_ids_to_filter: HashSet<_> = profile_id_list.iter().collect();
+        object_list
+            .into_iter()
+            .filter_map(|item| {
+                if item
+                    .get_profile_id()
+                    .is_some_and(|profile_id| profile_ids_to_filter.contains(profile_id))
+                {
+                    Some(item)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    } else {
+        object_list
+    }
+}
+
+pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
+    profile_id_auth_layer: Option<common_utils::id_type::ProfileId>,
+    object: &T,
+) -> RouterResult<()> {
+    match (profile_id_auth_layer, object.get_profile_id()) {
+        (Some(auth_profile_id), Some(object_profile_id)) => {
+            auth_profile_id.eq(object_profile_id).then_some(()).ok_or(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Profile id authentication failed. Please use the correct JWT token"
+                        .to_string(),
+                }
+                .into(),
+            )
+        }
+        (Some(_auth_profile_id), None) => RouterResult::Err(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Couldn't find profile_id in record for authentication".to_string(),
+            }
+            .into(),
+        )
+        .attach_printable(format!("Couldn't find profile_id in entity {:?}", object)),
+        (None, None) | (None, Some(_)) => Ok(()),
     }
 }

@@ -1,12 +1,28 @@
 #[cfg(feature = "olap")]
-use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::ext_traits::Encode;
+use api_models::enums::PayoutConnectors;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
+#[cfg(feature = "olap")]
+use common_utils::errors::ReportSwitchExt;
+use common_utils::ext_traits::Encode;
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel::JoinOnDsl;
+#[cfg(feature = "olap")]
+use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethods, QueryDsl};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
 #[cfg(feature = "olap")]
 use diesel_models::{
     customers::Customer as DieselCustomer,
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
+    enums as storage_enums,
     query::generics::db_metrics,
     schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
 };
@@ -35,6 +51,15 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
 use crate::connection;
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use crate::store::schema::{
+    customers::all_columns as cust_all_columns, payout_attempt::all_columns as poa_all_columns,
+    payouts::all_columns as po_all_columns,
+};
 use crate::{
     diesel_error_to_data_error,
     errors::RedisErrorExt,
@@ -66,7 +91,6 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 };
                 let key_str = key.to_string();
                 let field = format!("po_{}", new.payout_id);
-                let now = common_utils::date_time::now();
                 let created_payout = Payouts {
                     payout_id: new.payout_id.clone(),
                     merchant_id: new.merchant_id.clone(),
@@ -83,8 +107,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     return_url: new.return_url.clone(),
                     entity_type: new.entity_type,
                     metadata: new.metadata.clone(),
-                    created_at: new.created_at.unwrap_or(now),
-                    last_modified_at: new.last_modified_at.unwrap_or(now),
+                    created_at: new.created_at,
+                    last_modified_at: new.last_modified_at,
                     profile_id: new.profile_id.clone(),
                     status: new.status,
                     attempt_count: new.attempt_count,
@@ -307,7 +331,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, diesel_models::Customer)>, StorageError>
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
     {
         self.router_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
@@ -324,6 +348,39 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         self.router_store
             .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        active_payout_ids: &[String],
+        connector: Option<Vec<PayoutConnectors>>,
+        currency: Option<Vec<storage_enums::Currency>>,
+        status: Option<Vec<storage_enums::PayoutStatus>>,
+        payout_method: Option<Vec<storage_enums::PayoutType>>,
+    ) -> error_stack::Result<i64, StorageError> {
+        self.router_store
+            .get_total_count_of_filtered_payouts(
+                merchant_id,
+                active_payout_ids,
+                connector,
+                currency,
+                status,
+                payout_method,
+            )
+            .await
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PayoutFetchConstraints,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        self.router_store
+            .filter_active_payout_ids_by_constraints(merchant_id, constraints)
             .await
     }
 }
@@ -409,8 +466,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
-        use common_utils::errors::ReportSwitchExt;
-
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
@@ -473,18 +528,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
                 query = query.offset(params.offset.into());
 
-                query = match &params.currency {
-                    Some(currency) => {
-                        query.filter(po_dsl::destination_currency.eq_any(currency.clone()))
-                    }
-                    None => query,
-                };
-
-                query = match &params.status {
-                    Some(status) => query.filter(po_dsl::status.eq_any(status.clone())),
-                    None => query,
-                };
-
                 if let Some(currency) = &params.currency {
                     query = query.filter(po_dsl::destination_currency.eq_any(currency.clone()));
                 }
@@ -517,16 +560,19 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        feature = "olap",
+        not(feature = "customer_v2")
+    ))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, DieselCustomer)>, StorageError> {
-        use common_utils::errors::ReportSwitchExt;
-
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
+    {
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
@@ -534,9 +580,9 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 diesel_models::schema::payout_attempt::table
                     .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
             )
-            .inner_join(
+            .left_join(
                 diesel_models::schema::customers::table
-                    .on(cust_dsl::customer_id.eq(po_dsl::customer_id)),
+                    .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
@@ -628,7 +674,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         query
-            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, DieselCustomer)>(conn)
+            .select((po_all_columns, poa_all_columns, cust_all_columns.nullable()))
+            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, Option<DieselCustomer>)>(conn)
             .await
             .map(|results| {
                 results
@@ -651,6 +698,18 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             })
     }
 
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn filter_payouts_and_attempts(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _filters: &PayoutFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
+    {
+        todo!()
+    }
+
     #[cfg(feature = "olap")]
     #[instrument(skip_all)]
     async fn filter_payouts_by_time_range_constraints(
@@ -662,6 +721,136 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let payout_filters = (*time_range).into();
         self.filter_payouts_by_constraints(merchant_id, &payout_filters, storage_scheme)
             .await
+    }
+
+    #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
+    async fn get_total_count_of_filtered_payouts(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        active_payout_ids: &[String],
+        connector: Option<Vec<PayoutConnectors>>,
+        currency: Option<Vec<storage_enums::Currency>>,
+        status: Option<Vec<storage_enums::PayoutStatus>>,
+        payout_type: Option<Vec<storage_enums::PayoutType>>,
+    ) -> error_stack::Result<i64, StorageError> {
+        let conn = self
+            .db_store
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(StorageError::DatabaseConnectionError)?;
+        let connector_strings = connector.as_ref().map(|connectors| {
+            connectors
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<String>>()
+        });
+        DieselPayouts::get_total_count_of_payouts(
+            &conn,
+            merchant_id,
+            active_payout_ids,
+            connector_strings,
+            currency,
+            status,
+            payout_type,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(er.current_context());
+            er.change_context(new_err)
+        })
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        feature = "olap",
+        not(feature = "customer_v2")
+    ))]
+    #[instrument(skip_all)]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PayoutFetchConstraints,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        let conn = connection::pg_connection_read(self).await.switch()?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+        let mut query = DieselPayouts::table()
+            .inner_join(
+                diesel_models::schema::payout_attempt::table
+                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
+            )
+            .left_join(
+                diesel_models::schema::customers::table
+                    .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
+            )
+            .select(po_dsl::payout_id)
+            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(po_dsl::created_at.desc())
+            .into_boxed();
+
+        query = match constraints {
+            PayoutFetchConstraints::Single { payout_id } => {
+                query.filter(po_dsl::payout_id.eq(payout_id.to_owned()))
+            }
+            PayoutFetchConstraints::List(params) => {
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(po_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(po_dsl::profile_id.eq(profile_id.clone()));
+                }
+
+                query = match params.starting_at {
+                    Some(starting_at) => query.filter(po_dsl::created_at.ge(starting_at)),
+                    None => query,
+                };
+
+                query = match params.ending_at {
+                    Some(ending_at) => query.filter(po_dsl::created_at.le(ending_at)),
+                    None => query,
+                };
+
+                query = match &params.currency {
+                    Some(currency) => {
+                        query.filter(po_dsl::destination_currency.eq_any(currency.clone()))
+                    }
+                    None => query,
+                };
+
+                query = match &params.status {
+                    Some(status) => query.filter(po_dsl::status.eq_any(status.clone())),
+                    None => query,
+                };
+
+                query
+            }
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
+            query.get_results_async::<String>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .map_err(|er| {
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering payout records"),
+            )
+            .into()
+        })
+    }
+
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PayoutFetchConstraints,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        todo!()
     }
 }
 
@@ -746,10 +935,8 @@ impl DataModelExt for PayoutsNew {
             return_url: self.return_url,
             entity_type: self.entity_type,
             metadata: self.metadata,
-            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
-            last_modified_at: self
-                .last_modified_at
-                .unwrap_or_else(common_utils::date_time::now),
+            created_at: self.created_at,
+            last_modified_at: self.last_modified_at,
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
@@ -777,8 +964,8 @@ impl DataModelExt for PayoutsNew {
             return_url: storage_model.return_url,
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
-            created_at: Some(storage_model.created_at),
-            last_modified_at: Some(storage_model.last_modified_at),
+            created_at: storage_model.created_at,
+            last_modified_at: storage_model.last_modified_at,
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,
@@ -807,6 +994,8 @@ impl DataModelExt for PayoutsUpdate {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             } => DieselPayoutsUpdate::Update {
                 amount,
                 destination_currency,
@@ -821,6 +1010,8 @@ impl DataModelExt for PayoutsUpdate {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             },
             Self::PayoutMethodIdUpdate { payout_method_id } => {
                 DieselPayoutsUpdate::PayoutMethodIdUpdate { payout_method_id }

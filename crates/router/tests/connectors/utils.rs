@@ -47,7 +47,7 @@ pub fn construct_connector_data_old(
     connector: types::api::BoxedConnector,
     connector_name: types::Connector,
     get_token: types::api::GetToken,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> types::api::ConnectorData {
     types::api::ConnectorData {
         connector: ConnectorEnum::Old(connector),
@@ -481,7 +481,9 @@ pub trait ConnectorActions: Connector {
         req: Req,
         info: Option<PaymentInfo>,
     ) -> RouterData<Flow, Req, Res> {
-        let merchant_id = common_utils::id_type::MerchantId::from(self.get_name().into()).unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from(self.get_name()))
+                .unwrap();
 
         RouterData {
             flow: PhantomData,

@@ -47,20 +47,16 @@ pub trait Vaultable: Sized {
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError>;
 }
 
-impl Vaultable for api::Card {
+impl Vaultable for domain::Card {
     fn get_value1(
         &self,
         _customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value1 = api::TokenizedCardValue1 {
+        let value1 = domain::TokenizedCardValue1 {
             card_number: self.card_number.peek().clone(),
             exp_year: self.card_exp_year.peek().clone(),
             exp_month: self.card_exp_month.peek().clone(),
-            name_on_card: self
-                .card_holder_name
-                .as_ref()
-                .map(|name| name.peek().clone()),
-            nickname: None,
+            nickname: self.nick_name.as_ref().map(|name| name.peek().clone()),
             card_last_four: None,
             card_token: None,
         };
@@ -75,7 +71,7 @@ impl Vaultable for api::Card {
         &self,
         customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value2 = api::TokenizedCardValue2 {
+        let value2 = domain::TokenizedCardValue2 {
             card_security_code: Some(self.card_cvc.peek().clone()),
             card_fingerprint: None,
             external_id: None,
@@ -93,12 +89,12 @@ impl Vaultable for api::Card {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api::TokenizedCardValue1 = value1
+        let value1: domain::TokenizedCardValue1 = value1
             .parse_struct("TokenizedCardValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into card value1")?;
 
-        let value2: api::TokenizedCardValue2 = value2
+        let value2: domain::TokenizedCardValue2 = value2
             .parse_struct("TokenizedCardValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into card value2")?;
@@ -109,7 +105,6 @@ impl Vaultable for api::Card {
                 .attach_printable("Invalid card number format from the mock locker")?,
             card_exp_month: value1.exp_month.into(),
             card_exp_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.map(masking::Secret::new),
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
             card_issuer: None,
             card_network: None,
@@ -128,12 +123,12 @@ impl Vaultable for api::Card {
     }
 }
 
-impl Vaultable for api_models::payments::BankTransferData {
+impl Vaultable for domain::BankTransferData {
     fn get_value1(
         &self,
         _customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value1 = api_models::payment_methods::TokenizedBankTransferValue1 {
+        let value1 = domain::TokenizedBankTransferValue1 {
             data: self.to_owned(),
         };
 
@@ -147,7 +142,7 @@ impl Vaultable for api_models::payments::BankTransferData {
         &self,
         customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value2 = api_models::payment_methods::TokenizedBankTransferValue2 { customer_id };
+        let value2 = domain::TokenizedBankTransferValue2 { customer_id };
 
         value2
             .encode_to_string_of_json()
@@ -159,12 +154,12 @@ impl Vaultable for api_models::payments::BankTransferData {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api_models::payment_methods::TokenizedBankTransferValue1 = value1
+        let value1: domain::TokenizedBankTransferValue1 = value1
             .parse_struct("TokenizedBankTransferValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into bank transfer data")?;
 
-        let value2: api_models::payment_methods::TokenizedBankTransferValue2 = value2
+        let value2: domain::TokenizedBankTransferValue2 = value2
             .parse_struct("TokenizedBankTransferValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into supplementary bank transfer data")?;
@@ -180,12 +175,12 @@ impl Vaultable for api_models::payments::BankTransferData {
     }
 }
 
-impl Vaultable for api::WalletData {
+impl Vaultable for domain::WalletData {
     fn get_value1(
         &self,
         _customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value1 = api::TokenizedWalletValue1 {
+        let value1 = domain::TokenizedWalletValue1 {
             data: self.to_owned(),
         };
 
@@ -199,7 +194,7 @@ impl Vaultable for api::WalletData {
         &self,
         customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value2 = api::TokenizedWalletValue2 { customer_id };
+        let value2 = domain::TokenizedWalletValue2 { customer_id };
 
         value2
             .encode_to_string_of_json()
@@ -211,12 +206,12 @@ impl Vaultable for api::WalletData {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api::TokenizedWalletValue1 = value1
+        let value1: domain::TokenizedWalletValue1 = value1
             .parse_struct("TokenizedWalletValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value1")?;
 
-        let value2: api::TokenizedWalletValue2 = value2
+        let value2: domain::TokenizedWalletValue2 = value2
             .parse_struct("TokenizedWalletValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value2")?;
@@ -232,12 +227,12 @@ impl Vaultable for api::WalletData {
     }
 }
 
-impl Vaultable for api_models::payments::BankRedirectData {
+impl Vaultable for domain::BankRedirectData {
     fn get_value1(
         &self,
         _customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value1 = api_models::payment_methods::TokenizedBankRedirectValue1 {
+        let value1 = domain::TokenizedBankRedirectValue1 {
             data: self.to_owned(),
         };
 
@@ -251,7 +246,7 @@ impl Vaultable for api_models::payments::BankRedirectData {
         &self,
         customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value2 = api_models::payment_methods::TokenizedBankRedirectValue2 { customer_id };
+        let value2 = domain::TokenizedBankRedirectValue2 { customer_id };
 
         value2
             .encode_to_string_of_json()
@@ -263,12 +258,12 @@ impl Vaultable for api_models::payments::BankRedirectData {
         value1: String,
         value2: String,
     ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
-        let value1: api_models::payment_methods::TokenizedBankRedirectValue1 = value1
+        let value1: domain::TokenizedBankRedirectValue1 = value1
             .parse_struct("TokenizedBankRedirectValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into bank redirect data")?;
 
-        let value2: api_models::payment_methods::TokenizedBankRedirectValue2 = value2
+        let value2: domain::TokenizedBankRedirectValue2 = value2
             .parse_struct("TokenizedBankRedirectValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into supplementary bank redirect data")?;
@@ -293,7 +288,7 @@ pub enum VaultPaymentMethod {
     BankRedirect(String),
 }
 
-impl Vaultable for api::PaymentMethodData {
+impl Vaultable for domain::PaymentMethodData {
     fn get_value1(
         &self,
         customer_id: Option<id_type::CustomerId>,
@@ -356,11 +351,11 @@ impl Vaultable for api::PaymentMethodData {
 
         match (value1, value2) {
             (VaultPaymentMethod::Card(mvalue1), VaultPaymentMethod::Card(mvalue2)) => {
-                let (card, supp_data) = api::Card::from_values(mvalue1, mvalue2)?;
+                let (card, supp_data) = domain::Card::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Card(card), supp_data))
             }
             (VaultPaymentMethod::Wallet(mvalue1), VaultPaymentMethod::Wallet(mvalue2)) => {
-                let (wallet, supp_data) = api::WalletData::from_values(mvalue1, mvalue2)?;
+                let (wallet, supp_data) = domain::WalletData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::Wallet(wallet), supp_data))
             }
             (
@@ -368,7 +363,7 @@ impl Vaultable for api::PaymentMethodData {
                 VaultPaymentMethod::BankTransfer(mvalue2),
             ) => {
                 let (bank_transfer, supp_data) =
-                    api_models::payments::BankTransferData::from_values(mvalue1, mvalue2)?;
+                    domain::BankTransferData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankTransfer(Box::new(bank_transfer)), supp_data))
             }
             (
@@ -376,7 +371,7 @@ impl Vaultable for api::PaymentMethodData {
                 VaultPaymentMethod::BankRedirect(mvalue2),
             ) => {
                 let (bank_redirect, supp_data) =
-                    api_models::payments::BankRedirectData::from_values(mvalue1, mvalue2)?;
+                    domain::BankRedirectData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankRedirect(bank_redirect), supp_data))
             }
 
@@ -821,11 +816,11 @@ impl Vault {
         state: &routes::SessionState,
         lookup_key: &str,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
+    ) -> RouterResult<(Option<domain::PaymentMethodData>, SupplementaryVaultData)> {
         let de_tokenize =
             get_tokenized_data(state, lookup_key, true, merchant_key_store.key.get_inner()).await?;
         let (payment_method, customer_id) =
-            api::PaymentMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
+            domain::PaymentMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error parsing Payment Method from Values")?;
 
@@ -836,7 +831,7 @@ impl Vault {
     pub async fn store_payment_method_data_in_locker(
         state: &routes::SessionState,
         token_id: Option<String>,
-        payment_method: &api::PaymentMethodData,
+        payment_method: &domain::PaymentMethodData,
         customer_id: Option<id_type::CustomerId>,
         pm: enums::PaymentMethod,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -982,9 +977,9 @@ pub async fn create_tokenize(
             )
             .await
             .map(|_| lookup_key.clone())
-            .map_err(|err| {
+            .inspect_err(|error| {
                 metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
-                err
+                logger::error!(?error, "Failed to store tokenized data in Redis");
             })
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error from redis locker")

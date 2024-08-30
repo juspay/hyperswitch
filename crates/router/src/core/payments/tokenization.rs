@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use api_models::payment_methods::PaymentMethodsData;
 use common_enums::PaymentMethod;
 use common_utils::{
@@ -54,12 +58,16 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_payment_method<FData>(
     state: &SessionState,
     connector_name: String,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     save_payment_method_data: SavePaymentMethodData<FData>,
     customer_id: Option<id_type::CustomerId>,
     merchant_account: &domain::MerchantAccount,
@@ -69,7 +77,7 @@ pub async fn save_payment_method<FData>(
     currency: Option<storage_enums::Currency>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
-    business_profile: &storage::business_profile::BusinessProfile,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -180,14 +188,15 @@ where
             .attach_printable("Unable to serialize customer acceptance to value")?;
 
             let pm_id = if customer_acceptance.is_some() {
-                let payment_method_create_request = helpers::get_payment_method_create_request(
-                    Some(&save_payment_method_data.request.get_payment_method_data()),
-                    Some(save_payment_method_data.payment_method),
-                    payment_method_type,
-                    &customer_id.clone(),
-                    billing_name,
-                )
-                .await?;
+                let payment_method_create_request =
+                    payment_methods::get_payment_method_create_request(
+                        Some(&save_payment_method_data.request.get_payment_method_data()),
+                        Some(save_payment_method_data.payment_method),
+                        payment_method_type,
+                        &customer_id.clone(),
+                        billing_name,
+                    )
+                    .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let merchant_id = merchant_account.get_id();
                 let (mut resp, duplication_check) = if !state.conf.locker.locker_enabled {
@@ -321,7 +330,7 @@ where
                                             pm_data_encrypted.map(Into::into),
                                             key_store,
                                             connector_mandate_details,
-                                            None,
+                                            pm_status,
                                             network_transaction_id,
                                             merchant_account.storage_scheme,
                                             encrypted_payment_method_billing_address
@@ -406,21 +415,28 @@ where
                                     }
                                     Err(err) => {
                                         if err.current_context().is_db_not_found() {
-                                            payment_methods::cards::insert_payment_method(
+                                            payment_methods::cards::create_payment_method(
                                                 state,
-                                                &resp,
-                                                &payment_method_create_request.clone(),
-                                                key_store,
-                                                merchant_account.get_id(),
+                                                &payment_method_create_request,
                                                 &customer_id,
+                                                &resp.payment_method_id,
+                                                locker_id,
+                                                merchant_id,
                                                 resp.metadata.clone().map(|val| val.expose()),
                                                 customer_acceptance,
-                                                locker_id,
+                                                pm_data_encrypted.map(Into::into),
+                                                key_store,
                                                 connector_mandate_details,
+                                                pm_status,
                                                 network_transaction_id,
                                                 merchant_account.storage_scheme,
                                                 encrypted_payment_method_billing_address
                                                     .map(Into::into),
+                                                resp.card.and_then(|card| {
+                                                    card.card_network.map(|card_network| {
+                                                        card_network.to_string()
+                                                    })
+                                                }),
                                             )
                                             .await
                                         } else {
@@ -610,7 +626,7 @@ where
                                 pm_data_encrypted.map(Into::into),
                                 key_store,
                                 connector_mandate_details,
-                                None,
+                                pm_status,
                                 network_transaction_id,
                                 merchant_account.storage_scheme,
                                 encrypted_payment_method_billing_address.map(Into::into),
@@ -634,6 +650,35 @@ where
     }
 }
 
+// check in review
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn save_payment_method<FData>(
+    _state: &SessionState,
+    _connector_name: String,
+    _merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    _save_payment_method_data: SavePaymentMethodData<FData>,
+    _customer_id: Option<id_type::CustomerId>,
+    _merchant_account: &domain::MerchantAccount,
+    _payment_method_type: Option<storage_enums::PaymentMethodType>,
+    _key_store: &domain::MerchantKeyStore,
+    _amount: Option<i64>,
+    _currency: Option<storage_enums::Currency>,
+    _billing_name: Option<Secret<String>>,
+    _payment_method_billing_address: Option<&api::Address>,
+    _business_profile: &domain::BusinessProfile,
+) -> RouterResult<(Option<String>, Option<common_enums::PaymentMethodStatus>)>
+where
+    FData: mandate::MandateBehaviour + Clone,
+{
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 async fn skip_saving_card_in_locker(
     merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
@@ -722,6 +767,21 @@ async fn skip_saving_card_in_locker(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn skip_saving_card_in_locker(
+    merchant_account: &domain::MerchantAccount,
+    payment_method_request: api::PaymentMethodCreate,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn save_in_locker(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -770,6 +830,18 @@ pub async fn save_in_locker(
             Ok((payment_method_response, None))
         }
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn save_in_locker(
+    _state: &SessionState,
+    _merchant_account: &domain::MerchantAccount,
+    _payment_method_request: api::PaymentMethodCreate,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    todo!()
 }
 
 pub fn create_payment_method_metadata(
@@ -911,7 +983,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
 ) -> Option<storage::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
@@ -939,7 +1011,7 @@ pub fn update_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match payment_method.connector_mandate_details {

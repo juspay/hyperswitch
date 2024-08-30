@@ -27,8 +27,16 @@ pub enum ApiEventsType {
         payment_method: Option<PaymentMethod>,
         payment_method_type: Option<PaymentMethodType>,
     },
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    Customer {
+        id: String,
+    },
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     Customer {
         customer_id: id_type::CustomerId,
+    },
+    BusinessProfile {
+        profile_id: id_type::ProfileId,
     },
     User {
         user_id: String,
@@ -58,7 +66,7 @@ pub enum ApiEventsType {
         dispute_id: String,
     },
     Events {
-        merchant_id_or_profile_id: String,
+        merchant_id: id_type::MerchantId,
     },
     PaymentMethodCollectLink {
         link_id: String,
@@ -107,7 +115,7 @@ impl_api_event_type!(
         String,
         id_type::MerchantId,
         (id_type::MerchantId, String),
-        (&id_type::MerchantId, String),
+        (id_type::MerchantId, &String),
         (&id_type::MerchantId, &String),
         (&String, &String),
         (Option<i64>, Option<i64>, String),

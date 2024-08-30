@@ -273,6 +273,7 @@ impl MerchantAccountInterface for Store {
                 .change_context(errors::StorageError::DecryptionError)?,
 
             key_store,
+            profile_id: None,
         })
     }
 
@@ -579,16 +580,24 @@ async fn publish_and_redact_merchant_account_cache(
         .as_ref()
         .map(|publishable_key| CacheKind::Accounts(publishable_key.into()));
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "merchant_account_v2")
+    ))]
     let cgraph_key = merchant_account.default_profile.as_ref().map(|profile_id| {
         CacheKind::CGraph(
             format!(
                 "cgraph_{}_{}",
-                merchant_account.get_id().clone(),
-                profile_id,
+                merchant_account.get_id().get_string_repr(),
+                profile_id.get_string_repr(),
             )
             .into(),
         )
     });
+
+    // TODO: we will not have default profile in v2
+    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    let cgraph_key = None;
 
     let mut cache_keys = vec![CacheKind::Accounts(
         merchant_account.get_id().get_string_repr().into(),
