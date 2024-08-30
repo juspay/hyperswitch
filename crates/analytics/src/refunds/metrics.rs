@@ -29,6 +29,7 @@ pub struct RefundMetricRow {
     pub refund_status: Option<DBEnumWrapper<storage_enums::RefundStatus>>,
     pub connector: Option<String>,
     pub refund_type: Option<DBEnumWrapper<RefundType>>,
+    pub profile_id: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

@@ -193,6 +193,7 @@ pub async fn get_filters(
             RefundDimensions::RefundStatus => fil.refund_status.map(|i| i.as_ref().to_string()),
             RefundDimensions::Connector => fil.connector,
             RefundDimensions::RefundType => fil.refund_type.map(|i| i.as_ref().to_string()),
+            RefundDimensions::ProfileId => fil.profile_id,
         })
         .collect::<Vec<String>>();
         res.query_data.push(RefundFilterValue {

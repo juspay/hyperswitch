@@ -111,6 +111,7 @@ where
                         i.payment_method_type.clone(),
                         i.client_source.clone(),
                         i.client_version.clone(),
+                        i.profile_id.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

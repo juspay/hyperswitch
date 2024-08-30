@@ -30,6 +30,7 @@ use total_smart_retries::TotalSmartRetries;
 pub struct PaymentIntentMetricRow {
     pub status: Option<DBEnumWrapper<storage_enums::IntentStatus>>,
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
+    pub profile_id: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]

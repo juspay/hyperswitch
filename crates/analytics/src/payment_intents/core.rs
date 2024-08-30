@@ -216,6 +216,7 @@ pub async fn get_filters(
         .filter_map(|fil: PaymentIntentFilterRow| match dim {
             PaymentIntentDimensions::PaymentIntentStatus => fil.status.map(|i| i.as_ref().to_string()),
             PaymentIntentDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
+            PaymentIntentDimensions::ProfileId => fil.profile_id,
         })
         .collect::<Vec<String>>();
         res.query_data.push(PaymentIntentFilterValue {

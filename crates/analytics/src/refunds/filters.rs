@@ -55,4 +55,5 @@ pub struct RefundFilterRow {
     pub refund_status: Option<DBEnumWrapper<RefundStatus>>,
     pub connector: Option<String>,
     pub refund_type: Option<DBEnumWrapper<RefundType>>,
+    pub profile_id: Option<String>,
 }
