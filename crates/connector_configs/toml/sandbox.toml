@@ -2565,7 +2565,7 @@ required=true
 type="Text"
 [[plaid.additional_merchant_data.bacs]]
 name="account_number"
-label="Account number"
+label="Bank scheme"
 placeholder="Enter account number"
 required=true
 type="Text"
