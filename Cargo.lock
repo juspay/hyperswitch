@@ -3876,6 +3876,8 @@ dependencies = [
 name = "hyperswitch_connectors"
 version = "0.1.0"
 dependencies = [
+ "actix-http",
+ "actix-web",
  "api_models",
  "async-trait",
  "base64 0.22.0",
@@ -3884,10 +3886,13 @@ dependencies = [
  "common_utils",
  "error-stack",
  "hex",
+ "http 0.2.12",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "masking",
+ "once_cell",
  "rand",
+ "regex",
  "ring 0.17.8",
  "router_env",
  "serde",

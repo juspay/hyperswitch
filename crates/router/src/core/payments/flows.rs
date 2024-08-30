@@ -244,7 +244,6 @@ default_imp_for_complete_authorize!(
     connector::Wise,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -333,7 +332,6 @@ default_imp_for_webhook_source_verification!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -423,7 +421,6 @@ default_imp_for_create_customer!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -503,7 +500,6 @@ default_imp_for_connector_redirect_response!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zsl
 );
@@ -682,7 +678,6 @@ default_imp_for_accept_dispute!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -793,7 +788,6 @@ default_imp_for_file_upload!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -882,7 +876,6 @@ default_imp_for_submit_evidence!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -972,7 +965,6 @@ default_imp_for_defend_dispute!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1068,7 +1060,6 @@ default_imp_for_pre_processing_steps!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1143,7 +1134,6 @@ default_imp_for_post_processing_steps!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl,
@@ -1313,7 +1303,6 @@ default_imp_for_payouts_create!(
     connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1405,7 +1394,6 @@ default_imp_for_payouts_retrieve!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1498,7 +1486,6 @@ default_imp_for_payouts_eligibility!(
     connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1583,7 +1570,6 @@ default_imp_for_payouts_fulfill!(
     connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1672,7 +1658,6 @@ default_imp_for_payouts_cancel!(
     connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1763,7 +1748,6 @@ default_imp_for_payouts_quote!(
     connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1853,7 +1837,6 @@ default_imp_for_payouts_recipient!(
     connector::Volt,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -1948,7 +1931,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2040,7 +2022,6 @@ default_imp_for_approve!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2132,7 +2113,6 @@ default_imp_for_reject!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2311,7 +2291,6 @@ default_imp_for_frm_sale!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2403,7 +2382,6 @@ default_imp_for_frm_checkout!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2495,7 +2473,6 @@ default_imp_for_frm_transaction!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2587,7 +2564,6 @@ default_imp_for_frm_fulfillment!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2679,7 +2655,6 @@ default_imp_for_frm_record_return!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2769,7 +2744,6 @@ default_imp_for_incremental_authorization!(
     connector::Volt,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -2855,7 +2829,6 @@ default_imp_for_revoking_mandates!(
     connector::Trustpay,
     connector::Volt,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
@@ -3103,7 +3076,6 @@ default_imp_for_authorize_session_token!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldline,
     connector::Worldpay,
     connector::Zen,
     connector::Zsl
