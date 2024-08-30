@@ -192,7 +192,8 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_refund {
@@ -223,7 +224,8 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
@@ -249,7 +251,8 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -281,7 +284,8 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
@@ -312,7 +316,8 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
@@ -343,7 +348,8 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
@@ -384,7 +390,8 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -417,7 +424,8 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -450,7 +458,8 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -483,7 +492,8 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -516,7 +526,8 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -549,7 +560,8 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -582,7 +594,8 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -615,7 +628,8 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "payouts")]
@@ -648,7 +662,8 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -679,7 +694,8 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "frm")]
@@ -712,7 +728,8 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "frm")]
@@ -745,7 +762,8 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "frm")]
@@ -778,7 +796,8 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "frm")]
@@ -811,7 +830,8 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 #[cfg(feature = "frm")]
@@ -844,7 +864,8 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -874,5 +895,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Nexixpay,
     connectors::Powertranz,
     connectors::Stax,
-    connectors::Taxjar
+    connectors::Taxjar,
+    connectors::Tsys
 );
