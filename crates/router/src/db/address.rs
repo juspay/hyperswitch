@@ -131,7 +131,7 @@ mod storage {
             &self,
             state: &KeyManagerState,
             merchant_id: &id_type::MerchantId,
-            payment_id: &common_utils::id_type::PaymentId,
+            payment_id: &id_type::PaymentId,
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
@@ -185,7 +185,7 @@ mod storage {
             state: &KeyManagerState,
             this: domain::PaymentAddress,
             address_update: domain::AddressUpdate,
-            _payment_id: common_utils::id_type::PaymentId,
+            _payment_id: id_type::PaymentId,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
@@ -214,7 +214,7 @@ mod storage {
         async fn insert_address_for_payments(
             &self,
             state: &KeyManagerState,
-            _payment_id: &common_utils::id_type::PaymentId,
+            _payment_id: &id_type::PaymentId,
             address: domain::PaymentAddress,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
