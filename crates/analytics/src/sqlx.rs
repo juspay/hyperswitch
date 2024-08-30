@@ -562,8 +562,12 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        
-        Ok(Self { status, currency, profile_id })
+
+        Ok(Self {
+            status,
+            currency,
+            profile_id,
+        })
     }
 }
 
