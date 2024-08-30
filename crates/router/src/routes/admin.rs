@@ -974,7 +974,7 @@ pub async fn business_profiles_list(
         merchant_id.clone(),
         |state, _auth, merchant_id, _| list_business_profile(state, merchant_id, None),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantId::default(),
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
@@ -1008,7 +1008,7 @@ pub async fn business_profiles_list_at_profile_level(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantId::default(),
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
