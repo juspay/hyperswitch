@@ -3975,7 +3975,7 @@ pub async fn filter_payment_methods(
     _mca_id: String,
     _payment_methods: &[Secret<serde_json::Value>],
     _req: &mut api::PaymentMethodListRequest,
-    _resp: &mut Vec<ResponsePaymentMethodIntermediate>,
+    _resp: &mut [ResponsePaymentMethodIntermediate],
     _payment_intent: Option<&storage::PaymentIntent>,
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
