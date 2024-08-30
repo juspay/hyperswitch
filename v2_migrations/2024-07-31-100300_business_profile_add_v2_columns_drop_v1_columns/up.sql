@@ -16,16 +16,14 @@ ALTER TABLE business_profile DROP COLUMN routing_algorithm,
   DROP COLUMN payout_routing_algorithm;
 
 -- This migration is to modify the id column in business_profile table to be a VARCHAR(64) and to set the id column as primary key
-ALTER TABLE business_profile DROP COLUMN IF EXISTS id;
-
-ALTER TABLE business_profile DROP CONSTRAINT business_profile_pkey;
-
 ALTER TABLE business_profile
-ADD COLUMN IF NOT EXISTS id VARCHAR(64);
+ADD COLUMN id VARCHAR(64);
 
 -- Backfill the id column with the profile_id to prevent null values
 UPDATE business_profile
 SET id = profile_id;
+
+ALTER TABLE business_profile DROP CONSTRAINT business_profile_pkey;
 
 ALTER TABLE business_profile
 ADD PRIMARY KEY (id);
