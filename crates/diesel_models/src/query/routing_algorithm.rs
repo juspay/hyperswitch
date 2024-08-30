@@ -19,7 +19,7 @@ impl RoutingAlgorithm {
 
     pub async fn find_by_algorithm_id_merchant_id(
         conn: &PgPooledConn,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -33,7 +33,7 @@ impl RoutingAlgorithm {
 
     pub async fn find_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -47,7 +47,7 @@ impl RoutingAlgorithm {
 
     pub async fn find_metadata_by_algorithm_id_profile_id(
         conn: &PgPooledConn,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<RoutingProfileMetadata> {
         Self::table()
@@ -69,7 +69,7 @@ impl RoutingAlgorithm {
             .limit(1)
             .load_async::<(
                 common_utils::id_type::ProfileId,
-                String,
+                common_utils::id_type::RoutingId,
                 String,
                 Option<String>,
                 enums::RoutingAlgorithmKind,
@@ -128,7 +128,7 @@ impl RoutingAlgorithm {
             .limit(limit)
             .offset(offset)
             .load_async::<(
-                String,
+                common_utils::id_type::RoutingId,
                 common_utils::id_type::ProfileId,
                 String,
                 Option<String>,
@@ -189,7 +189,7 @@ impl RoutingAlgorithm {
             .order(dsl::modified_at.desc())
             .load_async::<(
                 common_utils::id_type::ProfileId,
-                String,
+                common_utils::id_type::RoutingId,
                 String,
                 Option<String>,
                 enums::RoutingAlgorithmKind,
@@ -251,7 +251,7 @@ impl RoutingAlgorithm {
             .order(dsl::modified_at.desc())
             .load_async::<(
                 common_utils::id_type::ProfileId,
-                String,
+                common_utils::id_type::RoutingId,
                 String,
                 Option<String>,
                 enums::RoutingAlgorithmKind,
