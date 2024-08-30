@@ -1,3 +1,4 @@
+#[cfg(feature = "payouts")]
 use api_models::webhooks;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
@@ -337,6 +338,7 @@ impl TryFrom<enums::PayoutType> for AdyenPayoutMethod {
     }
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformIncomingWebhook {
@@ -345,6 +347,7 @@ pub struct AdyenplatformIncomingWebhook {
     pub webhook_type: AdyenplatformWebhookEventType,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformIncomingWebhookData {
@@ -354,12 +357,14 @@ pub struct AdyenplatformIncomingWebhookData {
     pub tracking: Option<AdyenplatformInstantStatus>,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformInstantStatus {
     status: InstantPriorityStatus,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum InstantPriorityStatus {
@@ -367,6 +372,7 @@ pub enum InstantPriorityStatus {
     Credited,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum AdyenplatformWebhookEventType {
     #[serde(rename = "balancePlatform.transfer.created")]
@@ -375,6 +381,7 @@ pub enum AdyenplatformWebhookEventType {
     PayoutUpdated,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AdyenplatformWebhookStatus {
@@ -386,6 +393,7 @@ pub enum AdyenplatformWebhookStatus {
     Received,
 }
 
+#[cfg(feature = "payouts")]
 impl
     ForeignFrom<(
         AdyenplatformWebhookEventType,
