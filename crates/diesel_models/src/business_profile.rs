@@ -269,14 +269,14 @@ pub struct BusinessProfile {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
-    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -310,14 +310,14 @@ pub struct BusinessProfileNew {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
-    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -348,14 +348,14 @@ pub struct BusinessProfileUpdateInternal {
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
-    pub tax_connector_id: Option<String>,
-    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -385,14 +385,14 @@ impl BusinessProfileUpdateInternal {
             outgoing_webhook_custom_http_headers,
             always_collect_billing_details_from_wallet_connector,
             always_collect_shipping_details_from_wallet_connector,
+            tax_connector_id,
+            is_tax_connector_enabled,
             routing_algorithm_id,
             order_fulfillment_time,
             order_fulfillment_time_origin,
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
-            tax_connector_id,
-            is_tax_connector_enabled,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -439,6 +439,8 @@ impl BusinessProfileUpdateInternal {
             always_collect_shipping_details_from_wallet_connector:
                 always_collect_shipping_details_from_wallet_connector
                     .or(always_collect_shipping_details_from_wallet_connector),
+            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
+            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
             routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
             order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
             order_fulfillment_time_origin: order_fulfillment_time_origin
@@ -447,8 +449,6 @@ impl BusinessProfileUpdateInternal {
             payout_routing_algorithm_id: payout_routing_algorithm_id
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
-            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
-            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
         }
     }
 }
@@ -486,6 +486,8 @@ impl From<BusinessProfileNew> for BusinessProfile {
             collect_billing_details_from_wallet_connector: new
                 .collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
+            tax_connector_id: new.tax_connector_id,
+            is_tax_connector_enabled: new.is_tax_connector_enabled,
             routing_algorithm_id: new.routing_algorithm_id,
             always_collect_billing_details_from_wallet_connector: new
                 .always_collect_billing_details_from_wallet_connector,
@@ -496,8 +498,6 @@ impl From<BusinessProfileNew> for BusinessProfile {
             frm_routing_algorithm_id: new.frm_routing_algorithm_id,
             payout_routing_algorithm_id: new.payout_routing_algorithm_id,
             default_fallback_routing: new.default_fallback_routing,
-            tax_connector_id: new.tax_connector_id,
-            is_tax_connector_enabled: new.is_tax_connector_enabled,
         }
     }
 }
