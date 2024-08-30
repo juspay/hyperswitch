@@ -1648,8 +1648,6 @@ impl BusinessProfile {
             .service(web::scope("/profile").service(
                 web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
             ))
-        // web::scope("/account/{account_id}/business_profile")
-        //     .app_data(web::Data::new(state))
     }
 }
 
