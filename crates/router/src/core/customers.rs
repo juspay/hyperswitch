@@ -732,7 +732,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
                 key_manager_state,
                 &self.customer_id,
                 merchant_account.get_id(),
-                &key_store,
+                key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -762,7 +762,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.payment_method == Some(enums::PaymentMethod::Card) {
                         cards::delete_card_from_locker(
-                            &state,
+                            state,
                             &self.customer_id,
                             merchant_account.get_id(),
                             pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
@@ -834,7 +834,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
                 &self.customer_id,
                 merchant_account.get_id(),
                 update_address,
-                &key_store,
+                key_store,
             )
             .await
         {
@@ -878,7 +878,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
             merchant_account.get_id().to_owned(),
             customer_orig,
             updated_customer,
-            &key_store,
+            key_store,
             merchant_account.storage_scheme,
         )
         .await
