@@ -61,7 +61,6 @@ use super::{
     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
     files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
 };
-#[cfg(feature = "oltp")]
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
