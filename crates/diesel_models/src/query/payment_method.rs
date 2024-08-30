@@ -1,14 +1,12 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
-};
-
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
 use diesel::Table;
-
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
+};
 use error_stack::ResultExt;
 
 use super::generics;
