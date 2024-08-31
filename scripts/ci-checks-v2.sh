@@ -37,7 +37,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
     # A package must be checked if it has been modified
     if grep --quiet --extended-regexp "^crates/${package_name}" <<< "${files_modified}"; then
       if [[ "${package_name}" == "storage_impl" ]]; then
-        all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2' -p storage_impl")
+        all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2,payment_methods_v2' -p storage_impl")
       else
         valid_features="$(features_to_run "$package_name")"
         all_commands+=("cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 ' --include-features '${valid_features}' --package '${package_name}'")
@@ -53,7 +53,7 @@ if [[ "${GITHUB_EVENT_NAME:-}" == 'pull_request' ]]; then
 
 else
   # If we are doing this locally or on merge queue, then check for all the V2 crates
-  all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2' -p storage_impl")
+  all_commands+=("cargo hack clippy --features 'v2,payment_v2,customer_v2,payment_methods_v2' -p storage_impl")
   common_command="cargo hack clippy --feature-powerset --depth 2 --ignore-unknown-features --at-least-one-of 'v2 '"
   while IFS= read -r crate; do
     if [[ "${crate}" != "storage_impl" ]]; then
