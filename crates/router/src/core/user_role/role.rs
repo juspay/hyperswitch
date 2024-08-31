@@ -454,11 +454,19 @@ pub async fn list_roles_at_entity_level(
         }
     };
 
-    let custom_roles_map = custom_roles.into_iter().map(|role| {
+    let custom_roles_map = custom_roles.into_iter().filter_map(|role| {
         let role_info = roles::RoleInfo::from(role);
-        role_api::MinimalRoleInfo {
-            role_id: role_info.get_role_id().to_string(),
-            role_name: role_info.get_role_name().to_string(),
+
+        if match check_type {
+            role_api::RoleCheckType::Invite => role_info.is_invitable(),
+            role_api::RoleCheckType::Update => role_info.is_updatable(),
+        } {
+            Some(role_api::MinimalRoleInfo {
+                role_id: role_info.get_role_id().to_string(),
+                role_name: role_info.get_role_name().to_string(),
+            })
+        } else {
+            None
         }
     });
 
