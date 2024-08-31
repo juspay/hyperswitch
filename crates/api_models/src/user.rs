@@ -233,11 +233,6 @@ pub struct UpdateUserAccountDetailsRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct TokenOnlyQueryParam {
-    pub token_only: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SkipTwoFactorAuthQueryParam {
     pub skip_two_factor_auth: Option<bool>,
 }

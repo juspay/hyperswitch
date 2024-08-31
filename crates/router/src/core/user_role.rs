@@ -24,32 +24,6 @@ pub mod role;
 use common_enums::{EntityType, PermissionGroup};
 use strum::IntoEnumIterator;
 
-// TODO: To be deprecated once groups are stable
-pub async fn get_authorization_info_with_modules(
-    _state: SessionState,
-) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
-    Ok(ApplicationResponse::Json(
-        user_role_api::AuthorizationInfoResponse(
-            info::get_module_authorization_info()
-                .into_iter()
-                .map(|module_info| user_role_api::AuthorizationInfo::Module(module_info.into()))
-                .collect(),
-        ),
-    ))
-}
-
-pub async fn get_authorization_info_with_groups(
-    _state: SessionState,
-) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
-    Ok(ApplicationResponse::Json(
-        user_role_api::AuthorizationInfoResponse(
-            info::get_group_authorization_info()
-                .into_iter()
-                .map(user_role_api::AuthorizationInfo::Group)
-                .collect(),
-        ),
-    ))
-}
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {

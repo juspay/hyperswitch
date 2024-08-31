@@ -19,11 +19,6 @@ pub struct UpdateRoleRequest {
 #[derive(Debug, serde::Serialize)]
 pub struct ListRolesResponse(pub Vec<RoleInfoResponse>);
 
-#[derive(Debug, serde::Deserialize)]
-pub struct GetGroupsQueryParam {
-    pub groups: Option<bool>,
-}
-
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
 pub enum GetRoleFromTokenResponse {

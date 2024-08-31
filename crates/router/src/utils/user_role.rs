@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::user_role as user_role_api;
-use common_enums::PermissionGroup;
+use common_enums::{EntityType, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::UserRoleVersion,
@@ -233,4 +233,39 @@ pub async fn update_v1_and_v2_user_roles_in_db(
         });
 
     (updated_v1_role, updated_v2_role)
+}
+
+pub async fn get_single_merchant_id(
+    state: &SessionState,
+    user_role: &UserRole,
+) -> UserResult<id_type::MerchantId> {
+    match user_role.entity_type {
+        Some(EntityType::Organization) => Ok(state
+            .store
+            .list_merchant_accounts_by_organization_id(
+                &state.into(),
+                user_role
+                    .org_id
+                    .as_ref()
+                    .ok_or(UserErrors::InternalServerError)
+                    .attach_printable("org_id not found")?
+                    .get_string_repr(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get merchant list for org")?
+            .first()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("No merchants found for org_id")?
+            .get_id()
+            .clone()),
+        Some(EntityType::Merchant)
+        | Some(EntityType::Internal)
+        | Some(EntityType::Profile)
+        | None => user_role
+            .merchant_id
+            .clone()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("merchant_id not found"),
+    }
 }
