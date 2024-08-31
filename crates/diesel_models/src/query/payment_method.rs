@@ -105,7 +105,7 @@ impl PaymentMethod {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn find_by_global_id(
         _conn: &PgPooledConn,
-        _id: &String,
+        _id: &str,
         _limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
         todo!()
