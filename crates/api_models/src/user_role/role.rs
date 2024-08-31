@@ -1,7 +1,7 @@
-use super::Permission;
+pub use common_enums::PermissionGroup;
 use common_enums::{EntityType, RoleScope};
 
-pub use common_enums::PermissionGroup;
+use super::Permission;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateRoleRequest {
