@@ -13,8 +13,8 @@
   "body": {
     "mode": "raw",
     "raw_json_formatted": {
-      "email": "g@juspay.in",
-      "password": "dc10414f-b8b8-408b-b2b4-144549232b8fR$v4"
+      "email": "{{user_email}}",
+      "password": "{{user_password}}"
     }
   },
   "url": {

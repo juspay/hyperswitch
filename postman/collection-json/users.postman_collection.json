@@ -200,7 +200,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"email\": \"g@juspay.in\",\n    \"password\": \"dc10414f-b8b8-408b-b2b4-144549232b8fR$v4\"\n}"
+									"raw": "{\n    \"email\": \"{{user_email}}\",\n    \"password\": \"{{user_password}}\"\n}"
 								},
 								"url": {
 									"raw": "{{baseUrl}}/user/signin",
