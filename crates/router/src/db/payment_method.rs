@@ -87,6 +87,14 @@ pub trait PaymentMethodInterface {
         payment_method: domain::PaymentMethod,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError>;
 
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method_by_fingerprint_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        fingerprint_id: &str,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError>;
+
     #[cfg(all(
         any(feature = "v1", feature = "v2"),
         not(feature = "payment_methods_v2")
@@ -797,6 +805,27 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
+
+        // Check if KV stuff is needed here
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        async fn find_payment_method_by_fingerprint_id(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            fingerprint_id: &str,
+        ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::PaymentMethod::find_by_fingerprint_id(&conn, fingerprint_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
     }
 }
 
@@ -1132,6 +1161,26 @@ mod storage {
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
+
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        async fn find_payment_method_by_fingerprint_id(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            fingerprint_id: &str,
+        ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::PaymentMethod::find_by_fingerprint_id(&conn, fingerprint_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        }
     }
 }
 
@@ -1428,6 +1477,35 @@ impl PaymentMethodInterface for MockDb {
                 .change_context(errors::StorageError::DecryptionError)?),
             None => Err(errors::StorageError::ValueNotFound(
                 "cannot find payment method to update".to_string(),
+            )
+            .into()),
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method_by_fingerprint_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        fingerprint_id: &str,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let payment_method = payment_methods
+            .iter()
+            .find(|pm| pm.locker_fingerprint_id == Some(fingerprint_id.to_string()))
+            .cloned();
+
+        match payment_method {
+            Some(pm) => Ok(pm
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)?),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method".to_string(),
             )
             .into()),
         }
