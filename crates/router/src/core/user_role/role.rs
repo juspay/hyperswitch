@@ -341,7 +341,6 @@ pub async fn list_roles_with_info(
             entity_type: role_info.get_entity_type(),
             groups: role_info.get_permission_groups().to_vec(),
             scope: role_info.get_scope(),
-            merchant_id: None,
         });
 
     let user_role_entity = user_role_info.get_entity_type();
@@ -381,7 +380,6 @@ pub async fn list_roles_with_info(
             groups: role_info.get_permission_groups().to_vec(),
             entity_type: role_info.get_entity_type(),
             scope: role_info.get_scope(),
-            merchant_id: Some(merchant_id),
         })
     });
 

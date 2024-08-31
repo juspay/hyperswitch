@@ -1,5 +1,4 @@
 use common_enums::{EntityType, PermissionGroup, RoleScope};
-use common_utils::id_type;
 
 use super::Permission;
 
@@ -61,7 +60,6 @@ pub struct RoleInfoResponseNew {
     pub entity_type: EntityType,
     pub groups: Vec<PermissionGroup>,
     pub scope: RoleScope,
-    pub merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
