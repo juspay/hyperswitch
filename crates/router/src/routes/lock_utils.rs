@@ -253,8 +253,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles
-            | Flow::ListRolesWithInfo
-            | Flow::ListRolesAtEntityLevel
+            | Flow::ListRolesV2
+            | Flow::ListInvitableRolesAtEntityLevel
+            | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
             | Flow::GetRoleFromToken
             | Flow::UpdateUserRole

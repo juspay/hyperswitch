@@ -288,7 +288,7 @@ pub async fn list_users_in_lineage(state: web::Data<AppState>, req: HttpRequest)
 }
 
 pub async fn list_roles_with_info(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
-    let flow = Flow::ListRolesWithInfo;
+    let flow = Flow::ListRolesV2;
 
     Box::pin(api::server_wrap(
         flow,
@@ -307,7 +307,7 @@ pub async fn list_invitable_roles_at_entity_level(
     req: HttpRequest,
     query: web::Query<role_api::ListRolesAtEntityLevelRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ListRolesAtEntityLevel;
+    let flow = Flow::ListInvitableRolesAtEntityLevel;
 
     Box::pin(api::server_wrap(
         flow,
@@ -333,7 +333,7 @@ pub async fn list_updatable_roles_at_entity_level(
     req: HttpRequest,
     query: web::Query<role_api::ListRolesAtEntityLevelRequest>,
 ) -> HttpResponse {
-    let flow = Flow::ListRolesAtEntityLevel;
+    let flow = Flow::ListUpdatableRolesAtEntityLevel;
 
     Box::pin(api::server_wrap(
         flow,
