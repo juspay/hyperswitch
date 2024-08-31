@@ -220,13 +220,6 @@ pub async fn get_user_from_db_by_email(
         .map(UserFromStorage::from)
 }
 
-pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
-    match resp {
-        user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
-        user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
-    }
-}
-
 pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnectionPool>> {
     state
         .store

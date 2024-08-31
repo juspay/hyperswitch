@@ -124,7 +124,7 @@ pub async fn get_user_details(
 pub async fn signup_token_only_flow(
     state: SessionState,
     request: user_api::SignUpRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignUpResponse>> {
+) -> UserResponse<user_api::TokenResponse> {
     let new_user = domain::NewUser::try_from(request)?;
     new_user
         .get_new_merchant()
@@ -150,17 +150,17 @@ pub async fn signup_token_only_flow(
         .get_token_with_user_role(&state, &user_role)
         .await?;
 
-    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),
-    });
+    };
     auth::cookies::set_cookie_response(response, token)
 }
 
 pub async fn signin_token_only_flow(
     state: SessionState,
     request: user_api::SignInRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
+) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
         .find_user_by_email(&request.email)
@@ -175,10 +175,10 @@ pub async fn signin_token_only_flow(
 
     let token = next_flow.get_token(&state).await?;
 
-    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),
-    });
+    };
     auth::cookies::set_cookie_response(response, token)
 }
 
@@ -851,7 +851,7 @@ pub async fn accept_invite_from_email_token_only_flow(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     request: user_api::AcceptInviteFromEmailRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
+) -> UserResponse<user_api::TokenResponse> {
     let token = request.token.expose();
 
     let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
@@ -957,10 +957,10 @@ pub async fn accept_invite_from_email_token_only_flow(
         .get_token_with_user_role(&state, &user_role)
         .await?;
 
-    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),
-    });
+    };
     auth::cookies::set_cookie_response(response, token)
 }
 
@@ -1351,7 +1351,7 @@ pub async fn verify_email_token_only_flow(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_api::VerifyEmailRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::SignInResponse>> {
+) -> UserResponse<user_api::TokenResponse> {
     let token = req.token.clone().expose();
     let email_token = auth::decode_jwt::<email_types::EmailToken>(&token, &state)
         .await
@@ -1391,10 +1391,10 @@ pub async fn verify_email_token_only_flow(
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
 
-    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),
-    });
+    };
 
     auth::cookies::set_cookie_response(response, token)
 }
