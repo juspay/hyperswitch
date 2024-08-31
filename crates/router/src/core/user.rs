@@ -1199,7 +1199,7 @@ pub async fn list_merchants_for_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let merchant_accounts = state
+    let merchant_accounts_map = state
         .store
         .list_multiple_merchant_accounts(
             &(&state).into(),
@@ -1213,17 +1213,62 @@ pub async fn list_merchants_for_user(
                 .collect::<Result<Vec<_>, _>>()?,
         )
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .map(|merchant_account| (merchant_account.get_id().clone(), merchant_account))
+        .collect::<HashMap<_, _>>();
 
-    let roles =
-        utils::user_role::get_multiple_role_info_for_user_roles(&state, &user_roles).await?;
+    let roles_map = futures::future::try_join_all(user_roles.iter().map(|user_role| async {
+        let Some(merchant_id) = &user_role.merchant_id else {
+            return Err(report!(UserErrors::InternalServerError))
+                .attach_printable("merchant_id not found for user_role");
+        };
+        let Some(org_id) = &user_role.org_id else {
+            return Err(report!(UserErrors::InternalServerError)
+                .attach_printable("org_id not found in user_role"));
+        };
+        roles::RoleInfo::from_role_id(&state, &user_role.role_id, merchant_id, org_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Unable to find role info for user role")
+    }))
+    .await?
+    .into_iter()
+    .map(|role_info| (role_info.get_role_id().to_owned(), role_info))
+    .collect::<HashMap<_, _>>();
 
     Ok(ApplicationResponse::Json(
-        utils::user::get_multiple_merchant_details_with_status(
-            user_roles,
-            merchant_accounts,
-            roles,
-        )?,
+        user_roles
+            .into_iter()
+            .map(|user_role| {
+                let Some(merchant_id) = &user_role.merchant_id else {
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("merchant_id not found for user_role");
+                };
+                let Some(org_id) = &user_role.org_id else {
+                    return Err(report!(UserErrors::InternalServerError)
+                        .attach_printable("org_id not found in user_role"));
+                };
+                let merchant_account = merchant_accounts_map
+                    .get(merchant_id)
+                    .ok_or(UserErrors::InternalServerError)
+                    .attach_printable("Merchant account for user role doesn't exist")?;
+
+                let role_info = roles_map
+                    .get(&user_role.role_id)
+                    .ok_or(UserErrors::InternalServerError)
+                    .attach_printable("Role info for user role doesn't exist")?;
+
+                Ok(user_api::UserMerchantAccount {
+                    merchant_id: merchant_id.to_owned(),
+                    merchant_name: merchant_account.merchant_name.clone(),
+                    is_active: user_role.status == UserStatus::Active,
+                    role_id: user_role.role_id,
+                    role_name: role_info.get_role_name().to_string(),
+                    org_id: org_id.to_owned(),
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?,
     ))
 }
 
@@ -2476,24 +2521,7 @@ pub async fn switch_org_for_user(
         ))?
         .to_owned();
 
-    let merchant_id = if let Some(merchant_id) = &user_role.merchant_id {
-        merchant_id.clone()
-    } else {
-        state
-            .store
-            .list_merchant_accounts_by_organization_id(
-                key_manager_state,
-                request.org_id.get_string_repr(),
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to list merchant accounts by organization_id")?
-            .first()
-            .ok_or(UserErrors::InternalServerError)
-            .attach_printable("No merchant account found for the given organization_id")?
-            .get_id()
-            .clone()
-    };
+    let merchant_id = utils::user_role::get_single_merchant_id(&state, &user_role).await?;
 
     let profile_id = if let Some(profile_id) = &user_role.profile_id {
         profile_id.clone()
