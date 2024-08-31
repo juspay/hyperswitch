@@ -13,18 +13,17 @@
   "body": {
     "mode": "raw",
     "raw_json_formatted": {
-      "email": "{{user_email}}",
-      "password": "{{user_password}}"
+      "email": "g@juspay.in",
+      "password": "dc10414f-b8b8-408b-b2b4-144549232b8fR$v4"
     }
   },
   "url": {
-    "raw": "{{baseUrl}}/user/v2/signin",
+    "raw": "{{baseUrl}}/user/signin",
     "host": [
       "{{baseUrl}}"
     ],
     "path": [
       "user",
-      "v2",
       "signin"
     ]
   }

@@ -18,13 +18,12 @@
     }
   },
   "url": {
-    "raw": "{{baseUrl}}/user/v2/signin",
+    "raw": "{{baseUrl}}/user/signin",
     "host": [
       "{{baseUrl}}"
     ],
     "path": [
       "user",
-      "v2",
       "signin"
     ]
   }
