@@ -86,7 +86,7 @@ pub async fn create_role(
             org_id: user_from_token.org_id,
             groups: req.groups,
             scope: req.role_scope,
-            entity_type: req.entity_type,
+            entity_type: Some(EntityType::Merchant),
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id,
             created_at: now,
@@ -340,6 +340,8 @@ pub async fn list_roles_with_info(
             role_name: role_info.get_role_name().to_string(),
             entity_type: role_info.get_entity_type(),
             groups: role_info.get_permission_groups().to_vec(),
+            scope: role_info.get_scope(),
+            merchant_id: None,
         });
 
     let user_role_entity = user_role_info.get_entity_type();
@@ -361,20 +363,25 @@ pub async fn list_roles_with_info(
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get roles")?,
-        _ => {
+        // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
+        EntityType::Profile => Vec::new(),
+        EntityType::Internal => {
             return Err(UserErrors::InvalidRoleOperationWithMessage(
-                "No custom roles roles found for the given entity level".to_string(),
+                "Internal roles are not allowed for this operation".to_string(),
             )
-            .into())
+            .into());
         }
     };
     let custom_roles_map = custom_roles.into_iter().filter_map(|role| {
+        let merchant_id = role.merchant_id.clone();
         let role_info = roles::RoleInfo::from(role);
         (user_role_entity >= role_info.get_entity_type()).then_some(role_api::RoleInfoResponseNew {
             role_id: role_info.get_role_id().to_string(),
             role_name: role_info.get_role_name().to_string(),
             groups: role_info.get_permission_groups().to_vec(),
             entity_type: role_info.get_entity_type(),
+            scope: role_info.get_scope(),
+            merchant_id: Some(merchant_id),
         })
     });
 
@@ -387,6 +394,7 @@ pub async fn list_roles_at_entity_level(
     state: SessionState,
     user_from_token: UserFromToken,
     req: role_api::ListRolesAtEntityLevelRequest,
+    check_type: role_api::RoleCheckType,
 ) -> UserResponse<Vec<role_api::MinimalRoleInfo>> {
     let user_entity_type = user_from_token
         .get_role_info_from_db(&state)
@@ -404,7 +412,11 @@ pub async fn list_roles_at_entity_level(
     let predefined_roles_map = PREDEFINED_ROLES
         .iter()
         .filter(|(_, role_info)| {
-            role_info.is_invitable() && role_info.get_entity_type() == req.entity_type
+            let check_type = match check_type {
+                role_api::RoleCheckType::Invite => role_info.is_invitable(),
+                role_api::RoleCheckType::Update => role_info.is_updatable(),
+            };
+            check_type && role_info.get_entity_type() == req.entity_type
         })
         .map(|(role_id, role_info)| role_api::MinimalRoleInfo {
             role_id: role_id.to_string(),
@@ -435,11 +447,13 @@ pub async fn list_roles_at_entity_level(
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get roles")?,
-        _ => {
+        // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
+        EntityType::Profile => Vec::new(),
+        EntityType::Internal => {
             return Err(UserErrors::InvalidRoleOperationWithMessage(
-                "No custom roles roles found for the given entity level".to_string(),
+                "Internal roles are not allowed for this operation".to_string(),
             )
-            .into())
+            .into());
         }
     };
 

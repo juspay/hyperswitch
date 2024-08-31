@@ -1,4 +1,5 @@
 use common_enums::{EntityType, PermissionGroup, RoleScope};
+use common_utils::id_type;
 
 use super::Permission;
 
@@ -7,7 +8,6 @@ pub struct CreateRoleRequest {
     pub role_name: String,
     pub groups: Vec<PermissionGroup>,
     pub role_scope: RoleScope,
-    pub entity_type: Option<EntityType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -60,6 +60,8 @@ pub struct RoleInfoResponseNew {
     pub role_name: String,
     pub entity_type: EntityType,
     pub groups: Vec<PermissionGroup>,
+    pub scope: RoleScope,
+    pub merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -70,6 +72,12 @@ pub struct GetRoleRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListRolesAtEntityLevelRequest {
     pub entity_type: EntityType,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub enum RoleCheckType {
+    Invite,
+    Update,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]

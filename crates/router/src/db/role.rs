@@ -309,6 +309,7 @@ impl RoleInterface for MockDb {
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;
+        let limit_usize = limit.unwrap_or(u32::MAX).try_into().unwrap_or(usize::MAX);
         let roles_list: Vec<_> = roles
             .iter()
             .filter(|role| {
@@ -320,15 +321,8 @@ impl RoleInterface for MockDb {
                 matches_merchant && role.org_id == *org_id && role.entity_type == entity_type
             })
             .cloned()
-            .take(limit.unwrap_or(u32::MAX) as usize)
+            .take(limit_usize)
             .collect();
-
-        if roles_list.is_empty() {
-            return Err(errors::StorageError::ValueNotFound(format!(
-                "No roles found for the given parameters"
-            ))
-            .into());
-        }
 
         Ok(roles_list)
     }

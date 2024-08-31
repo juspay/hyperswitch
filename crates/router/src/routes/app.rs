@@ -1724,9 +1724,7 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
-                )
-                .service(web::resource("/role_info").route(web::get().to(list_roles_with_info)))
-                .service(web::resource("/role").route(web::get().to(list_roles_at_entity_level))),
+                ),
         );
 
         route = route.service(
@@ -1842,7 +1840,19 @@ impl User {
                         .route(web::get().to(get_role_from_token))
                         .route(web::post().to(create_role)),
                 )
-                .service(web::resource("/list").route(web::get().to(list_all_roles)))
+                .service(
+                    web::scope("/list")
+                        .service(web::resource("").route(web::get().to(list_all_roles)))
+                        .service(web::resource("/v2").route(web::get().to(list_roles_with_info)))
+                        .service(
+                            web::resource("/invite")
+                                .route(web::get().to(list_invitable_roles_at_entity_level)),
+                        )
+                        .service(
+                            web::resource("/update")
+                                .route(web::get().to(list_updatable_roles_at_entity_level)),
+                        ),
+                )
                 .service(
                     web::resource("/{role_id}")
                         .route(web::get().to(get_role))

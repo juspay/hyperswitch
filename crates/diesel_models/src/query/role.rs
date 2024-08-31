@@ -100,7 +100,11 @@ impl Role {
             .into_boxed();
 
         if let Some(merchant_id) = merchant_id {
-            query = query.filter(dsl::merchant_id.eq(merchant_id));
+            query = query.filter(
+                dsl::merchant_id
+                    .eq(merchant_id)
+                    .or(dsl::scope.eq(RoleScope::Organization)),
+            );
         }
 
         if let Some(entity_type) = entity_type {
