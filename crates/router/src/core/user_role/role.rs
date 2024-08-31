@@ -372,7 +372,6 @@ pub async fn list_roles_with_info(
         }
     };
     let custom_roles_map = custom_roles.into_iter().filter_map(|role| {
-        let merchant_id = role.merchant_id.clone();
         let role_info = roles::RoleInfo::from(role);
         (user_role_entity >= role_info.get_entity_type()).then_some(role_api::RoleInfoResponseNew {
             role_id: role_info.get_role_id().to_string(),
