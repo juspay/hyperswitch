@@ -34,6 +34,10 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError>;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &KeyManagerState,
@@ -55,6 +59,10 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError>;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -342,6 +350,10 @@ mod storage {
         }
 
         // not supported in kv
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
@@ -636,6 +648,10 @@ mod storage {
             .change_context(errors::StorageError::DecryptionError)
         }
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
@@ -920,6 +936,10 @@ mod storage {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn get_payment_method_count_by_customer_id_merchant_id_status(
             &self,
@@ -1029,6 +1049,10 @@ mod storage {
                 .change_context(errors::StorageError::DecryptionError)
         }
 
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_list(
             &self,
@@ -1248,6 +1272,10 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -1283,6 +1311,10 @@ impl PaymentMethodInterface for MockDb {
         Ok(payment_method)
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &KeyManagerState,

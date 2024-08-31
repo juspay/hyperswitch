@@ -390,6 +390,23 @@ pub async fn get_address_by_id(
     }
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn get_token_pm_type_mandate_details(
+    _state: &SessionState,
+    _request: &api::PaymentsRequest,
+    _mandate_type: Option<api::MandateTransactionType>,
+    _merchant_account: &domain::MerchantAccount,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _payment_method_id: Option<String>,
+    _payment_intent_customer_id: Option<&id_type::CustomerId>,
+) -> RouterResult<MandateGenericData> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,

@@ -195,51 +195,6 @@ impl PaymentMethod {
             .await
     }
 
-    pub async fn find_by_customer_id_merchant_id(
-        conn: &PgPooledConn,
-        customer_id: &common_utils::id_type::CustomerId,
-        merchant_id: &common_utils::id_type::MerchantId,
-        limit: Option<i64>,
-    ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::customer_id
-                .eq(customer_id.to_owned())
-                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-            limit,
-            None,
-            Some(dsl::last_used_at.desc()),
-        )
-        .await
-    }
-
-    pub async fn get_count_by_customer_id_merchant_id_status(
-        conn: &PgPooledConn,
-        customer_id: &common_utils::id_type::CustomerId,
-        merchant_id: &common_utils::id_type::MerchantId,
-        status: common_enums::PaymentMethodStatus,
-    ) -> StorageResult<i64> {
-        let filter = <Self as HasTable>::table()
-            .count()
-            .filter(
-                dsl::customer_id
-                    .eq(customer_id.to_owned())
-                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                    .and(dsl::status.eq(status.to_owned())),
-            )
-            .into_boxed();
-
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
-            generics::db_metrics::DatabaseOperation::Count,
-        )
-        .await
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Failed to get a count of payment methods")
-    }
-
     pub async fn find_by_customer_id_merchant_id_status(
         conn: &PgPooledConn,
         customer_id: &common_utils::id_type::CustomerId,

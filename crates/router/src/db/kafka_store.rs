@@ -1695,6 +1695,10 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
         state: &KeyManagerState,
@@ -1737,6 +1741,10 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
