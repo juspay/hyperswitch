@@ -86,7 +86,7 @@ pub async fn create_role(
 pub async fn list_invitable_roles_with_groups(
     state: SessionState,
     user_from_token: UserFromToken,
-) -> UserResponse<Vec<role_api::RoleInfoWithGroupsResponse>> {
+) -> UserResponse<role_api::ListRolesResponse> {
     let predefined_roles_map = PREDEFINED_ROLES
         .iter()
         .filter(|(_, role_info)| role_info.is_invitable())
@@ -117,9 +117,9 @@ pub async fn list_invitable_roles_with_groups(
                 })
         });
 
-    Ok(ApplicationResponse::Json(
+    Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
         predefined_roles_map.chain(custom_roles_map).collect(),
-    ))
+    )))
 }
 
 pub async fn get_role_with_groups(
