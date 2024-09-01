@@ -214,12 +214,37 @@ fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u
 
 /// Generate a customer id with default length, with prefix as `cus`
 pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
-    id_type::CustomerId::default()
+    use id_type::GenerateId;
+
+    id_type::CustomerId::generate()
 }
 
 /// Generate a organization id with default length, with prefix as `org`
 pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
-    id_type::OrganizationId::default()
+    use id_type::GenerateId;
+
+    id_type::OrganizationId::generate()
+}
+
+/// Generate a profile id with default length, with prefix as `pro`
+pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
+    use id_type::GenerateId;
+
+    id_type::ProfileId::generate()
+}
+
+/// Generate a routing id with default length, with prefix as `routing`
+pub fn generate_routing_id_of_default_length() -> id_type::RoutingId {
+    use id_type::GenerateId;
+
+    id_type::RoutingId::generate()
+}
+/// Generate a merchant_connector_account id with default length, with prefix as `mca`
+pub fn generate_merchant_connector_account_id_of_default_length(
+) -> id_type::MerchantConnectorAccountId {
+    use id_type::GenerateId;
+
+    id_type::MerchantConnectorAccountId::generate()
 }
 
 /// Generate a nanoid with the given prefix and a default length

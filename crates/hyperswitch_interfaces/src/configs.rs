@@ -10,11 +10,8 @@ use serde::Deserialize;
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
-    #[cfg(feature = "payouts")]
-    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
+    pub adyen: AdyenParamsWithThreeBaseUrls,
     pub adyenplatform: ConnectorParams,
-    #[cfg(not(feature = "payouts"))]
-    pub adyen: ConnectorParams,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
@@ -38,6 +35,7 @@ pub struct Connectors {
     pub ebanx: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub fiservemea: ConnectorParams,
+    pub fiuu: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
@@ -52,8 +50,10 @@ pub struct Connectors {
     pub multisafepay: ConnectorParams,
     pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
+    pub nexixpay: ConnectorParams,
     pub nmi: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
+    pub novalnet: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
@@ -143,6 +143,18 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
+/// struct ConnectorParamsWithThreeBaseUrls
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct AdyenParamsWithThreeBaseUrls {
+    /// base url
+    pub base_url: String,
+    /// secondary base url
+    #[cfg(feature = "payouts")]
+    pub payout_base_url: String,
+    /// third base url
+    pub dispute_base_url: String,
+}
 /// struct ConnectorParamsWithSecondaryBaseUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]

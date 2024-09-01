@@ -159,7 +159,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let payment_data = PaymentData {
@@ -378,7 +378,7 @@ where
 
         let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
             all_connector_accounts,
-            Some(&profile_id),
+            &profile_id,
             common_enums::ConnectorType::PaymentProcessor,
         );
 

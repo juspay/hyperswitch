@@ -1,6 +1,5 @@
 {
   "childrenOrder": [
-    "API Key - Create",
     "Payment Connector - Create",
     "Payment Connector - Retrieve",
     "Payment Connector - Update",

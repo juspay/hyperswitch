@@ -47,7 +47,7 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id: Option<String>,
+    _profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
@@ -374,7 +374,7 @@ where
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
@@ -383,7 +383,7 @@ where
     F: Fn(
         SessionState,
         domain::MerchantAccount,
-        Option<String>,
+        Option<common_utils::id_type::ProfileId>,
         domain::MerchantKeyStore,
         Req,
     ) -> Fut,
@@ -401,7 +401,7 @@ where
 pub async fn refund_retrieve_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
@@ -798,30 +798,34 @@ pub async fn validate_and_create_refund(
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
-
-    let refund_create_req = storage::RefundNew::default()
-        .set_refund_id(refund_id.to_string())
-        .set_internal_reference_id(utils::generate_id(consts::ID_LENGTH, "refid"))
-        .set_external_reference_id(Some(refund_id.clone()))
-        .set_payment_id(req.payment_id)
-        .set_merchant_id(merchant_account.get_id().clone())
-        .set_connector_transaction_id(connecter_transaction_id.to_string())
-        .set_connector(connector)
-        .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
-        .set_total_amount(payment_attempt.amount)
-        .set_refund_amount(refund_amount)
-        .set_currency(currency)
-        .set_created_at(common_utils::date_time::now())
-        .set_modified_at(common_utils::date_time::now())
-        .set_refund_status(enums::RefundStatus::Pending)
-        .set_metadata(req.metadata)
-        .set_description(req.reason.clone())
-        .set_attempt_id(payment_attempt.attempt_id.clone())
-        .set_refund_reason(req.reason)
-        .set_profile_id(payment_intent.profile_id.clone())
-        .set_merchant_connector_id(payment_attempt.merchant_connector_id.clone())
-        .set_charges(req.charges)
-        .to_owned();
+    let refund_create_req = storage::RefundNew {
+        refund_id: refund_id.to_string(),
+        internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
+        external_reference_id: Some(refund_id.clone()),
+        payment_id: req.payment_id,
+        merchant_id: merchant_account.get_id().clone(),
+        connector_transaction_id: connecter_transaction_id.to_string(),
+        connector,
+        refund_type: req.refund_type.unwrap_or_default().foreign_into(),
+        total_amount: payment_attempt.amount,
+        refund_amount,
+        currency,
+        created_at: common_utils::date_time::now(),
+        modified_at: common_utils::date_time::now(),
+        refund_status: enums::RefundStatus::Pending,
+        metadata: req.metadata,
+        description: req.reason.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        refund_reason: req.reason,
+        profile_id: payment_intent.profile_id.clone(),
+        merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+        charges: req.charges,
+        connector_refund_id: None,
+        sent_to_gateway: Default::default(),
+        refund_arn: None,
+        updated_by: Default::default(),
+        organization_id: merchant_account.organization_id.clone(),
+    };
 
     let refund = match db
         .insert_refund(refund_create_req, merchant_account.storage_scheme)
@@ -865,7 +869,7 @@ pub async fn validate_and_create_refund(
 pub async fn refund_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<String>>,
+    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
@@ -987,7 +991,7 @@ pub async fn refund_manual_update(
 pub async fn get_filters_for_refunds(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id_list: Option<Vec<String>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
 ) -> RouterResponse<api_models::refunds::RefundListFilters> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(

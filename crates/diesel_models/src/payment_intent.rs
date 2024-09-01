@@ -47,7 +47,7 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
@@ -69,6 +69,7 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -108,7 +109,7 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
@@ -130,6 +131,7 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(
@@ -170,7 +172,7 @@ pub struct PaymentIntentNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
@@ -190,6 +192,7 @@ pub struct PaymentIntentNew {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

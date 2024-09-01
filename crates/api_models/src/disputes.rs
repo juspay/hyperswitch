@@ -46,9 +46,11 @@ pub struct DisputeResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     /// The `profile_id` associated with the dispute
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
-    pub merchant_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
@@ -117,7 +119,8 @@ pub struct DisputeListConstraints {
     /// The starting point within a list of objects
     pub offset: Option<u32>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// Status of the dispute
     pub dispute_status: Option<Vec<DisputeStatus>>,
     /// Stage of the dispute

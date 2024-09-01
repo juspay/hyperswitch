@@ -19,6 +19,7 @@ use common_utils::{
     impl_api_event_type,
 };
 
+use crate::customers::CustomerListRequest;
 #[allow(unused_imports)]
 use crate::{
     admin::*,
@@ -131,7 +132,8 @@ impl_api_event_type!(
         GetDisputeMetricRequest,
         OrganizationResponse,
         OrganizationRequest,
-        OrganizationId
+        OrganizationId,
+        CustomerListRequest
     )
 );
 

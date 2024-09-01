@@ -704,11 +704,13 @@ mod tests {
 
     fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
+        let profile_id = common_utils::generate_profile_id_of_default_length();
+
         #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
-            id: "something".to_string(),
+            id: common_utils::generate_merchant_connector_account_id_of_default_length(),
             connector_label: Some("something".to_string()),
             connector_account_details: masking::Secret::new(serde_json::json!({})),
             disabled: None,
@@ -752,7 +754,7 @@ mod tests {
             }]),
             frm_configs: None,
             connector_webhook_details: None,
-            profile_id: "profile_id".to_string(),
+            profile_id,
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
@@ -765,7 +767,8 @@ mod tests {
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
-            merchant_connector_id: "something".to_string(),
+            merchant_connector_id:
+                common_utils::generate_merchant_connector_account_id_of_default_length(),
             business_country: Some(api_enums::CountryAlpha2::US),
             connector_label: Some("something".to_string()),
             business_label: Some("food".to_string()),
@@ -813,7 +816,7 @@ mod tests {
             }]),
             frm_configs: None,
             connector_webhook_details: None,
-            profile_id: "profile_id".to_string(),
+            profile_id,
             applepay_verified_domains: None,
             pm_auth_config: None,
             status: api_enums::ConnectorStatus::Inactive,
