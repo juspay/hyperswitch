@@ -108,6 +108,8 @@ pub struct DisputeEvidenceBlock {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeListConstraints {
+    /// used to skip certain number of objects
+    pub offset: Option<i64>,
     /// limit on the number of objects to return
     pub limit: Option<i64>,
     /// The identifier for business profile

@@ -61,6 +61,7 @@ pub async fn retrieve_dispute(
     path = "/disputes/list",
     params(
         ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
+        ("offset" = Option<i64>, Query, description = "Offset of the starting item"),
         ("dispute_status" = Option<DisputeStatus>, Query, description = "The status of dispute"),
         ("dispute_stage" = Option<DisputeStage>, Query, description = "The stage of dispute"),
         ("reason" = Option<String>, Query, description = "The reason for dispute"),
