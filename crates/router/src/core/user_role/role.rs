@@ -223,16 +223,10 @@ pub async fn list_roles_with_info(
         .await
         .attach_printable("Invalid role_id in JWT")?;
 
-    let predefined_roles_map = PREDEFINED_ROLES
+    let mut role_info_vec = PREDEFINED_ROLES
         .iter()
-        .filter(|(_, role_info)| user_role_info.get_entity_type() >= role_info.get_entity_type())
-        .map(|(role_id, role_info)| role_api::RoleInfoResponseNew {
-            role_id: role_id.to_string(),
-            role_name: role_info.get_role_name().to_string(),
-            entity_type: role_info.get_entity_type(),
-            groups: role_info.get_permission_groups().to_vec(),
-            scope: role_info.get_scope(),
-        });
+        .map(|(_, role_info)| role_info.clone())
+        .collect::<Vec<_>>();
 
     let user_role_entity = user_role_info.get_entity_type();
     let custom_roles = match user_role_entity {
@@ -262,20 +256,26 @@ pub async fn list_roles_with_info(
             .into());
         }
     };
-    let custom_roles_map = custom_roles.into_iter().filter_map(|role| {
-        let role_info = roles::RoleInfo::from(role);
-        (user_role_entity >= role_info.get_entity_type()).then_some(role_api::RoleInfoResponseNew {
-            role_id: role_info.get_role_id().to_string(),
-            role_name: role_info.get_role_name().to_string(),
-            groups: role_info.get_permission_groups().to_vec(),
-            entity_type: role_info.get_entity_type(),
-            scope: role_info.get_scope(),
-        })
-    });
 
-    Ok(ApplicationResponse::Json(
-        predefined_roles_map.chain(custom_roles_map).collect(),
-    ))
+    role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
+    let list_role_info_response = role_info_vec
+        .into_iter()
+        .filter_map(|role_info| {
+            if user_role_entity >= role_info.get_entity_type() {
+                Some(role_api::RoleInfoResponseNew {
+                    role_id: role_info.get_role_id().to_string(),
+                    role_name: role_info.get_role_name().to_string(),
+                    groups: role_info.get_permission_groups().to_vec(),
+                    entity_type: role_info.get_entity_type(),
+                    scope: role_info.get_scope(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Ok(ApplicationResponse::Json(list_role_info_response))
 }
 
 pub async fn list_roles_at_entity_level(
@@ -296,20 +296,10 @@ pub async fn list_roles_at_entity_level(
         )
         .into());
     }
-
-    let predefined_roles_map = PREDEFINED_ROLES
+    let mut role_info_vec = PREDEFINED_ROLES
         .iter()
-        .filter(|(_, role_info)| {
-            let check_type = match check_type {
-                role_api::RoleCheckType::Invite => role_info.is_invitable(),
-                role_api::RoleCheckType::Update => role_info.is_updatable(),
-            };
-            check_type && role_info.get_entity_type() == req.entity_type
-        })
-        .map(|(role_id, role_info)| role_api::MinimalRoleInfo {
-            role_id: role_id.to_string(),
-            role_name: role_info.get_role_name().to_string(),
-        });
+        .map(|(_, role_info)| role_info.clone())
+        .collect::<Vec<_>>();
 
     let custom_roles = match req.entity_type {
         EntityType::Organization => state
@@ -337,6 +327,7 @@ pub async fn list_roles_at_entity_level(
             .attach_printable("Failed to get roles")?,
         // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
         EntityType::Profile => Vec::new(),
+
         EntityType::Internal => {
             return Err(UserErrors::InvalidRoleOperationWithMessage(
                 "Internal roles are not allowed for this operation".to_string(),
@@ -345,23 +336,25 @@ pub async fn list_roles_at_entity_level(
         }
     };
 
-    let custom_roles_map = custom_roles.into_iter().filter_map(|role| {
-        let role_info = roles::RoleInfo::from(role);
+    role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
 
-        if match check_type {
-            role_api::RoleCheckType::Invite => role_info.is_invitable(),
-            role_api::RoleCheckType::Update => role_info.is_updatable(),
-        } {
-            Some(role_api::MinimalRoleInfo {
-                role_id: role_info.get_role_id().to_string(),
-                role_name: role_info.get_role_name().to_string(),
-            })
-        } else {
-            None
-        }
-    });
+    let list_minimal_role_info = role_info_vec
+        .into_iter()
+        .filter_map(|role_info| {
+            let check_type = match check_type {
+                role_api::RoleCheckType::Invite => role_info.is_invitable(),
+                role_api::RoleCheckType::Update => role_info.is_updatable(),
+            };
+            if check_type && role_info.get_entity_type() == req.entity_type {
+                Some(role_api::MinimalRoleInfo {
+                    role_id: role_info.get_role_id().to_string(),
+                    role_name: role_info.get_role_name().to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
 
-    Ok(ApplicationResponse::Json(
-        predefined_roles_map.chain(custom_roles_map).collect(),
-    ))
+    Ok(ApplicationResponse::Json(list_minimal_role_info))
 }

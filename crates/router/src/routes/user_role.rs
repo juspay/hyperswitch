@@ -253,7 +253,7 @@ pub async fn list_roles_with_info(state: web::Data<AppState>, req: HttpRequest) 
         &req,
         (),
         |state, user_from_token, _, _| role_core::list_roles_with_info(state, user_from_token),
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -279,7 +279,7 @@ pub async fn list_invitable_roles_at_entity_level(
                 role_api::RoleCheckType::Invite,
             )
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -305,7 +305,7 @@ pub async fn list_updatable_roles_at_entity_level(
                 role_api::RoleCheckType::Update,
             )
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))
     .await
