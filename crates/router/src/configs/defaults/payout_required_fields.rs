@@ -4,9 +4,9 @@ use crate::settings::{
 };
 use api_models::{
     enums::{
-        Connector, FieldType,
+        Connector, CountryAlpha2, FieldType,
         PaymentMethod::{BankTransfer, Card},
-        PaymentMethodType,
+        PaymentMethodType, PayoutConnectors,
     },
     payment_methods::RequiredFieldInfo,
 };
@@ -19,25 +19,35 @@ impl Default for PayoutRequiredFields {
                 Card,
                 PaymentMethodTypeInfo(HashMap::from([
                     // Adyen
-                    get_adyen_fields(PaymentMethodType::Debit),
-                    get_adyen_fields(PaymentMethodType::Credit),
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Adyenplatform,
+                        PaymentMethodType::Debit,
+                    ),
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Adyenplatform,
+                        PaymentMethodType::Credit,
+                    ),
                 ])),
             ),
             (
                 BankTransfer,
                 PaymentMethodTypeInfo(HashMap::from([
                     // Adyen
-                    get_adyen_fields(PaymentMethodType::Sepa),
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Adyenplatform,
+                        PaymentMethodType::Sepa,
+                    ),
                 ])),
             ),
         ]))
     }
 }
 
-fn get_adyen_fields(
+fn get_connector_payment_method_type_fields(
+    connector: PayoutConnectors,
     payment_method_type: PaymentMethodType,
 ) -> (PaymentMethodType, ConnectorFields) {
-    let mut common_fields = get_billing_details();
+    let mut common_fields = get_billing_details(connector);
     match payment_method_type {
         PaymentMethodType::Debit => {
             common_fields.extend(get_card_fields());
@@ -160,26 +170,39 @@ fn get_sepa_fields() -> HashMap<String, RequiredFieldInfo> {
     ])
 }
 
-fn get_billing_details() -> HashMap<String, RequiredFieldInfo> {
+fn get_countries_for_connector(connector: PayoutConnectors) -> Vec<CountryAlpha2> {
+    match connector {
+        PayoutConnectors::Adyenplatform => vec![
+            CountryAlpha2::ES,
+            CountryAlpha2::SK,
+            CountryAlpha2::AT,
+            CountryAlpha2::NL,
+            CountryAlpha2::DE,
+            CountryAlpha2::BE,
+            CountryAlpha2::FR,
+            CountryAlpha2::FI,
+            CountryAlpha2::PT,
+            CountryAlpha2::IE,
+            CountryAlpha2::EE,
+            CountryAlpha2::LT,
+            CountryAlpha2::LV,
+            CountryAlpha2::IT,
+            CountryAlpha2::CZ,
+            CountryAlpha2::DE,
+            CountryAlpha2::HU,
+            CountryAlpha2::NO,
+            CountryAlpha2::PL,
+            CountryAlpha2::SE,
+            CountryAlpha2::GB,
+            CountryAlpha2::CH,
+        ],
+        PayoutConnectors::Stripe => vec![CountryAlpha2::US],
+        _ => vec![],
+    }
+}
+
+fn get_billing_details(connector: PayoutConnectors) -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([
-        (
-            "billing.address.city".to_string(),
-            RequiredFieldInfo {
-                required_field: "billing.address.city".to_string(),
-                display_name: "billing_address_city".to_string(),
-                field_type: FieldType::Text,
-                value: None,
-            },
-        ),
-        (
-            "billing.address.country".to_string(),
-            RequiredFieldInfo {
-                required_field: "billing.address.country".to_string(),
-                display_name: "billing_address_country".to_string(),
-                field_type: FieldType::Text,
-                value: None,
-            },
-        ),
         (
             "billing.address.line1".to_string(),
             RequiredFieldInfo {
@@ -199,6 +222,15 @@ fn get_billing_details() -> HashMap<String, RequiredFieldInfo> {
             },
         ),
         (
+            "billing.address.city".to_string(),
+            RequiredFieldInfo {
+                required_field: "billing.address.city".to_string(),
+                display_name: "billing_address_city".to_string(),
+                field_type: FieldType::Text,
+                value: None,
+            },
+        ),
+        (
             "billing.address.zip".to_string(),
             RequiredFieldInfo {
                 required_field: "billing.address.zip".to_string(),
@@ -208,11 +240,16 @@ fn get_billing_details() -> HashMap<String, RequiredFieldInfo> {
             },
         ),
         (
-            "billing.address.state".to_string(),
+            "billing.address.country".to_string(),
             RequiredFieldInfo {
-                required_field: "billing.address.state".to_string(),
-                display_name: "billing_address_state".to_string(),
-                field_type: FieldType::Text,
+                required_field: "billing.address.country".to_string(),
+                display_name: "billing_address_country".to_string(),
+                field_type: FieldType::UserAddressCountry {
+                    options: get_countries_for_connector(connector)
+                        .iter()
+                        .map(|country| country.to_string())
+                        .collect::<Vec<String>>(),
+                },
                 value: None,
             },
         ),
@@ -230,24 +267,6 @@ fn get_billing_details() -> HashMap<String, RequiredFieldInfo> {
             RequiredFieldInfo {
                 required_field: "billing.address.last_name".to_string(),
                 display_name: "billing_address_last_name".to_string(),
-                field_type: FieldType::Text,
-                value: None,
-            },
-        ),
-        (
-            "billing.phone.number".to_string(),
-            RequiredFieldInfo {
-                required_field: "billing.phone.number".to_string(),
-                display_name: "billing_phone_number".to_string(),
-                field_type: FieldType::Text,
-                value: None,
-            },
-        ),
-        (
-            "billing.phone.country_code".to_string(),
-            RequiredFieldInfo {
-                required_field: "billing.phone.country_code".to_string(),
-                display_name: "billing_phone_country_code".to_string(),
                 field_type: FieldType::Text,
                 value: None,
             },

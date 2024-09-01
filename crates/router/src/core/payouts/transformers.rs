@@ -111,66 +111,6 @@ impl
     }
 }
 
-// impl ForeignFrom<(&PayoutRequiredFields, Vec<EnabledPaymentMethod>)>
-//     for Vec<api::PayoutEnabledPaymentMethodsInfo>
-// {
-//     fn foreign_from(
-//         (payout_required_fields, enabled_payout_methods): (
-//             &PayoutRequiredFields,
-//             Vec<EnabledPaymentMethod>,
-//         ),
-//     ) -> Self {
-//         enabled_payout_methods
-//             .into_iter()
-//             .map(|enabled_payout_method| {
-//                 let payment_method = enabled_payout_method.payment_method;
-//                 let payment_method_types_info = enabled_payout_method
-//                     .payment_method_types
-//                     .into_iter()
-//                     .filter_map(|pmt| {
-//                         payout_required_fields
-//                             .0
-//                             .get(&payment_method)
-//                             .and_then(|pmt_info| {
-//                                 pmt_info.0.get(&pmt).map(|connector_fields| {
-//                                     let mut required_fields = IndexMap::new();
-
-//                                     for required_field_final in connector_fields.fields.values() {
-//                                         required_fields.extend(required_field_final.common.clone());
-//                                         required_fields
-//                                             .extend(required_field_final.mandate.clone());
-//                                         required_fields
-//                                             .extend(required_field_final.non_mandate.clone());
-//                                     }
-
-//                                     api::PaymentMethodTypeInfo {
-//                                         payment_method_type: pmt,
-//                                         required_fields: if required_fields.is_empty() {
-//                                             None
-//                                         } else {
-//                                             Some(required_fields)
-//                                         },
-//                                     }
-//                                 })
-//                             })
-//                             .or_else(|| {
-//                                 Some(api::PaymentMethodTypeInfo {
-//                                     payment_method_type: pmt,
-//                                     required_fields: None,
-//                                 })
-//                             })
-//                     })
-//                     .collect();
-
-//                 api::PayoutEnabledPaymentMethodsInfo {
-//                     payment_method,
-//                     payment_method_types_info,
-//                 }
-//             })
-//             .collect()
-//     }
-// }
-
 impl
     ForeignFrom<(
         &PayoutRequiredFields,
@@ -186,7 +126,6 @@ impl
         ),
     ) -> Self {
         let value_overrides = value_overrides.flatten_struct_keys();
-        router_env::logger::debug!("[DEBUGG] \n{:?}", value_overrides.clone());
 
         enabled_payout_methods
             .into_iter()
@@ -219,12 +158,6 @@ impl
                                             },
                                         );
                                     }
-                                    // After replacing
-                                    router_env::logger::debug!(
-                                        "[DEBUGG] \n{:?}",
-                                        required_fields.clone()
-                                    );
-
                                     api::PaymentMethodTypeInfo {
                                         payment_method_type: pmt,
                                         required_fields: if required_fields.is_empty() {
