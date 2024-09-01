@@ -1687,6 +1687,7 @@ impl User {
 
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
+            .service(web::resource("/signin").route(web::post().to(user_signin)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             // signin/signup with sso using openidconnect
             .service(web::resource("/oidc").route(web::post().to(sso_sign)))
@@ -1802,6 +1803,7 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
+                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
                 .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
