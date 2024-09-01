@@ -109,7 +109,7 @@ pub fn parse_dispute_list_constraints(
         merchant_connector_id: None,
         time_range: None,
         dispute_status: None,
-        dispute_stage: None,    
+        dispute_stage: None,
         currency: None,
         connector: None,
     }
