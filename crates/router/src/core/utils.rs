@@ -1382,14 +1382,6 @@ impl GetProfileId for domain::BusinessProfile {
     }
 }
 
-#[derive(Debug)]
-pub struct ProfileIdWrapper(pub common_utils::id_type::ProfileId);
-impl GetProfileId for ProfileIdWrapper {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.0)
-    }
-}
-
 /// Filter Objects based on profile ids
 pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
