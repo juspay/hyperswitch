@@ -1,5 +1,6 @@
 use actix_multipart::{Field, Multipart};
-use actix_web::web::Bytes;
+use actix_web::web::{self, Bytes};
+use api_models::disputes::DisputeListConstraints;
 use common_utils::{errors::CustomResult, ext_traits::StringExt, fp_utils};
 use error_stack::ResultExt;
 use futures::{StreamExt, TryStreamExt};
@@ -93,4 +94,23 @@ pub async fn get_attach_evidence_request(
         evidence_type,
         create_file_request,
     })
+}
+
+pub fn parse_dispute_list_constraints(
+    query: web::Query<DisputeListConstraints>,
+) -> DisputeListConstraints {
+    DisputeListConstraints {
+        dispute_id: query.dispute_id.clone(),
+        payment_id: query.payment_id.clone(),
+        limit: query.limit,
+        offset: query.offset,
+        profile_id: query.profile_id.clone(),
+        reason: query.reason.clone(),
+        merchant_connector_id: None,
+        time_range: None,
+        dispute_status: None,
+        dispute_stage: None,    
+        currency: None,
+        connector: None,
+    }
 }

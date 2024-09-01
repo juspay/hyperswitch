@@ -83,15 +83,15 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<dispute_models::DisputeListConstraints>,
+    query: web::Query<dispute_models::DisputeListConstraints>,
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
-    let payload = payload.into_inner();
+    let parsed_payload = utils::parse_dispute_list_constraints(query);
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        parsed_payload,
         |state, auth, req, _| {
             disputes::retrieve_disputes_list(state, auth.merchant_account, None, req)
         },
