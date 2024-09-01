@@ -270,7 +270,7 @@ impl super::behaviour::Conversion for Customer {
 pub enum CustomerUpdate {
     Update {
         name: crypto::OptionalEncryptableName,
-        email: crypto::OptionalEncryptableEmail,
+        email: Box<crypto::OptionalEncryptableEmail>,
         phone: Box<crypto::OptionalEncryptablePhone>,
         description: Option<Description>,
         phone_country_code: Option<String>,
