@@ -160,7 +160,6 @@ pub async fn retrieve_disputes_list_profile(
     .await
 }
 
-
 /// Disputes - Disputes Filters
 #[utoipa::path(
     get,
