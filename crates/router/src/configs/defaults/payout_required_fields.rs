@@ -1,7 +1,5 @@
-use crate::settings::{
-    ConnectorFields, PaymentMethodType as PaymentMethodTypeInfo, PayoutRequiredFields,
-    RequiredFieldFinal,
-};
+use std::collections::HashMap;
+
 use api_models::{
     enums::{
         Connector, CountryAlpha2, FieldType,
@@ -10,7 +8,11 @@ use api_models::{
     },
     payment_methods::RequiredFieldInfo,
 };
-use std::collections::HashMap;
+
+use crate::settings::{
+    ConnectorFields, PaymentMethodType as PaymentMethodTypeInfo, PayoutRequiredFields,
+    RequiredFieldFinal,
+};
 
 impl Default for PayoutRequiredFields {
     fn default() -> Self {

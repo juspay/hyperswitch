@@ -1,18 +1,21 @@
-use crate::settings::PayoutRequiredFields;
+use common_utils::link_utils::EnabledPaymentMethod;
+use indexmap::IndexMap;
+
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2"),
     feature = "olap"
 ))]
 use crate::types::transformers::ForeignInto;
-use crate::types::{
-    api::{self, payments::Address},
-    transformers::ForeignFrom,
-};
 #[cfg(feature = "olap")]
 use crate::types::{domain, storage};
-use common_utils::link_utils::EnabledPaymentMethod;
-use indexmap::IndexMap;
+use crate::{
+    settings::PayoutRequiredFields,
+    types::{
+        api::{self, payments::Address},
+        transformers::ForeignFrom,
+    },
+};
 
 #[cfg(all(feature = "v2", feature = "customer_v2", feature = "olap"))]
 impl

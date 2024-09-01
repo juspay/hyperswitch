@@ -1,7 +1,8 @@
 //! Utility macros for the `router` crate.
 #![warn(missing_docs)]
-use crate::macros::diesel::DieselEnumMeta;
 use syn::parse_macro_input;
+
+use crate::macros::diesel::DieselEnumMeta;
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
