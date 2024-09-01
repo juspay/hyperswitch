@@ -1617,12 +1617,6 @@ impl BusinessProfile {
             .service(
                 web::scope("/business_profile")
                     .service(
-                        web::scope("/account/{merchant_id}").service(
-                            web::resource("/profile")
-                                .route(web::get().to(business_profiles_list_at_profile_level)),
-                        ),
-                    )
-                    .service(
                         web::resource("")
                             .route(web::post().to(business_profile_create))
                             .route(web::get().to(business_profiles_list)),
