@@ -24,20 +24,6 @@ pub mod role;
 use common_enums::{EntityType, PermissionGroup};
 use strum::IntoEnumIterator;
 
-// TODO: To be deprecated once groups are stable
-pub async fn get_authorization_info_with_modules(
-    _state: SessionState,
-) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
-    Ok(ApplicationResponse::Json(
-        user_role_api::AuthorizationInfoResponse(
-            info::get_module_authorization_info()
-                .into_iter()
-                .map(|module_info| user_role_api::AuthorizationInfo::Module(module_info.into()))
-                .collect(),
-        ),
-    ))
-}
-
 pub async fn get_authorization_info_with_groups(
     _state: SessionState,
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
@@ -50,6 +36,7 @@ pub async fn get_authorization_info_with_groups(
         ),
     ))
 }
+
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
@@ -309,85 +296,11 @@ pub async fn accept_invitation(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn merchant_select(
-    state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
-    req: user_role_api::MerchantSelectRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
-    let merchant_accounts = state
-        .store
-        .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let update_result =
-        futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
-            let (update_v1_result, update_v2_result) =
-                utils::user_role::update_v1_and_v2_user_roles_in_db(
-                    &state,
-                    user_token.user_id.as_str(),
-                    &merchant_account.organization_id,
-                    merchant_account.get_id(),
-                    None,
-                    UserRoleUpdate::UpdateStatus {
-                        status: UserStatus::Active,
-                        modified_by: user_token.user_id.clone(),
-                    },
-                )
-                .await;
-
-            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
-                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
-            {
-                Err(report!(UserErrors::InternalServerError))
-            } else {
-                Ok(())
-            }
-        }))
-        .await;
-
-    if update_result.iter().all(Result::is_err) {
-        return Err(UserErrors::MerchantIdNotFound.into());
-    }
-
-    if let Some(true) = req.need_dashboard_entry_response {
-        let user_from_db: domain::UserFromStorage = state
-            .global_store
-            .find_user_by_id(user_token.user_id.as_str())
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into();
-
-        let user_role = user_from_db
-            .get_preferred_or_active_user_role_from_db(&state)
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-
-        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
-
-        let token =
-            utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-                .await?;
-        let response = utils::user::get_dashboard_entry_response(
-            &state,
-            user_from_db,
-            user_role,
-            token.clone(),
-        )?;
-        return auth::cookies::set_cookie_response(
-            user_api::TokenOrPayloadResponse::Payload(response),
-            token,
-        );
-    }
-
-    Ok(ApplicationResponse::StatusOk)
-}
-
 pub async fn merchant_select_token_only_flow(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::MerchantSelectRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
+) -> UserResponse<user_api::TokenResponse> {
     let merchant_accounts = state
         .store
         .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
@@ -444,10 +357,10 @@ pub async fn merchant_select_token_only_flow(
         .get_token_with_user_role(&state, &user_role)
         .await?;
 
-    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),
-    });
+    };
     auth::cookies::set_cookie_response(response, token)
 }
 
