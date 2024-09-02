@@ -77,7 +77,7 @@ pub enum WebhookFlow {
 /// This enum tells about the affect a webhook had on an object
 pub enum WebhookResponseTracker {
     Payment {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         status: common_enums::IntentStatus,
     },
     #[cfg(feature = "payouts")]
@@ -86,13 +86,13 @@ pub enum WebhookResponseTracker {
         status: common_enums::PayoutStatus,
     },
     Refund {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         refund_id: String,
         status: common_enums::RefundStatus,
     },
     Dispute {
         dispute_id: String,
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         status: common_enums::DisputeStatus,
     },
     Mandate {
@@ -103,11 +103,11 @@ pub enum WebhookResponseTracker {
 }
 
 impl WebhookResponseTracker {
-    pub fn get_payment_id(&self) -> Option<String> {
+    pub fn get_payment_id(&self) -> Option<common_utils::id_type::PaymentId> {
         match self {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
-            | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
+            | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
             Self::NoEffect | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,

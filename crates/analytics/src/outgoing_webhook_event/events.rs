@@ -30,7 +30,7 @@ where
         .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
     query_builder
-        .add_filter_clause("payment_id", query_param.payment_id)
+        .add_filter_clause("payment_id", &query_param.payment_id)
         .switch()?;
 
     if let Some(event_id) = query_param.event_id {
@@ -76,7 +76,7 @@ pub struct OutgoingWebhookLogsResult {
     pub event_id: String,
     pub event_type: String,
     pub outgoing_webhook_event_type: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub refund_id: Option<String>,
     pub attempt_id: Option<String>,
     pub dispute_id: Option<String>,

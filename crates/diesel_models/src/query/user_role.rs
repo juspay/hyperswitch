@@ -5,9 +5,14 @@ use diesel::{
     BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
+use router_env::logger;
 
 use crate::{
-    enums::UserRoleVersion, errors, query::generics, schema::user_roles::dsl, user_role::*,
+    enums::{UserRoleVersion, UserStatus},
+    errors,
+    query::generics,
+    schema::user_roles::dsl,
+    user_role::*,
     PgPooledConn, StorageResult,
 };
 
@@ -18,6 +23,21 @@ impl UserRoleNew {
 }
 
 impl UserRole {
+    pub async fn insert_multiple_user_roles(
+        conn: &PgPooledConn,
+        user_roles: Vec<UserRoleNew>,
+    ) -> StorageResult<Vec<Self>> {
+        let query = diesel::insert_into(<Self>::table()).values(user_roles);
+
+        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        query
+            .get_results_async(conn)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error while inserting user_roles")
+    }
+
     pub async fn find_by_user_id(
         conn: &PgPooledConn,
         user_id: String,
@@ -185,6 +205,7 @@ impl UserRole {
             .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_user(
         conn: &PgPooledConn,
         user_id: String,
@@ -192,7 +213,9 @@ impl UserRole {
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
         entity_id: Option<String>,
+        status: Option<UserStatus>,
         version: Option<UserRoleVersion>,
+        limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
             .filter(dsl::user_id.eq(user_id))
@@ -216,6 +239,14 @@ impl UserRole {
 
         if let Some(version) = version {
             query = query.filter(dsl::version.eq(version));
+        }
+
+        if let Some(status) = status {
+            query = query.filter(dsl::status.eq(status));
+        }
+
+        if let Some(limit) = limit {
+            query = query.limit(limit.into());
         }
 
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
