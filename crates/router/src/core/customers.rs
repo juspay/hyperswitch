@@ -594,7 +594,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.payment_method == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_from_locker_by_global_id(
+                        cards::delete_card_from_locker_id(
                             &state,
                             &self.id,
                             merchant_account.get_id(),
