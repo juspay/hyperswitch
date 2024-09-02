@@ -391,13 +391,13 @@ impl api::IncomingWebhook for Adyenplatform {
                 .parse_struct("AdyenplatformIncomingWebhook")
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::PayoutAttemptId(webhook_body.data.reference),
-            ));
+            ))
         }
         #[cfg(not(feature = "payouts"))]
         {
-            return Err(report!(errors::ConnectorError::WebhooksNotImplemented));
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
         }
     }
 
@@ -413,15 +413,15 @@ impl api::IncomingWebhook for Adyenplatform {
                 .parse_struct("AdyenplatformIncomingWebhook")
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-            return Ok(IncomingWebhookEvent::foreign_from((
+            Ok(IncomingWebhookEvent::foreign_from((
                 webhook_body.webhook_type,
                 webhook_body.data.status,
                 webhook_body.data.tracking,
-            )));
+            )))
         }
         #[cfg(not(feature = "payouts"))]
         {
-            return Err(report!(errors::ConnectorError::WebhooksNotImplemented));
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
         }
     }
 
@@ -436,11 +436,11 @@ impl api::IncomingWebhook for Adyenplatform {
                 .body
                 .parse_struct("AdyenplatformIncomingWebhook")
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-            return Ok(Box::new(webhook_body));
+            Ok(Box::new(webhook_body))
         }
         #[cfg(not(feature = "payouts"))]
         {
-            return Err(report!(errors::ConnectorError::WebhooksNotImplemented));
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
         }
     }
 }
