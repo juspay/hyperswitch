@@ -3,7 +3,7 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::{EntityType, TokenPurpose};
+use common_enums::EntityType;
 use common_utils::{
     crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
@@ -32,13 +32,9 @@ use crate::{
     },
     db::{user_role::InsertUserRolePayload, GlobalStorageInterface},
     routes::SessionState,
-    services::{
-        self,
-        authentication::{self as auth, UserFromToken},
-        authorization::info,
-    },
+    services::{self, authentication::UserFromToken, authorization::info},
     types::transformers::ForeignFrom,
-    utils::{self, user::password},
+    utils::user::password,
 };
 
 pub mod dashboard_metadata;
@@ -1112,130 +1108,6 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::AccountCreate => Self::AccountCreate,
             info::PermissionModule::Payouts => Self::Payouts,
         }
-    }
-}
-
-pub enum SignInWithRoleStrategyType {
-    SingleRole(SignInWithSingleRoleStrategy),
-    MultipleRoles(SignInWithMultipleRolesStrategy),
-}
-
-impl SignInWithRoleStrategyType {
-    pub async fn decide_signin_strategy_by_user_roles(
-        user: UserFromStorage,
-        user_roles: Vec<UserRole>,
-    ) -> UserResult<Self> {
-        if user_roles.is_empty() {
-            return Err(UserErrors::InternalServerError.into());
-        }
-
-        if let Some(user_role) = user_roles
-            .iter()
-            .find(|role| role.status == UserStatus::Active)
-        {
-            Ok(Self::SingleRole(SignInWithSingleRoleStrategy {
-                user,
-                user_role: Box::new(user_role.clone()),
-            }))
-        } else {
-            Ok(Self::MultipleRoles(SignInWithMultipleRolesStrategy {
-                user,
-                user_roles,
-            }))
-        }
-    }
-
-    pub async fn get_signin_response(
-        self,
-        state: &SessionState,
-    ) -> UserResult<user_api::SignInResponse> {
-        match self {
-            Self::SingleRole(strategy) => strategy.get_signin_response(state).await,
-            Self::MultipleRoles(strategy) => strategy.get_signin_response(state).await,
-        }
-    }
-}
-
-pub struct SignInWithSingleRoleStrategy {
-    pub user: UserFromStorage,
-    pub user_role: Box<UserRole>,
-}
-
-impl SignInWithSingleRoleStrategy {
-    async fn get_signin_response(
-        self,
-        state: &SessionState,
-    ) -> UserResult<user_api::SignInResponse> {
-        let token = utils::user::generate_jwt_auth_token_without_profile(
-            state,
-            &self.user,
-            &self.user_role,
-        )
-        .await?;
-        utils::user_role::set_role_permissions_in_cache_by_user_role(state, &self.user_role).await;
-
-        let dashboard_entry_response =
-            utils::user::get_dashboard_entry_response(state, self.user, *self.user_role, token)?;
-
-        Ok(user_api::SignInResponse::DashboardEntry(
-            dashboard_entry_response,
-        ))
-    }
-}
-
-pub struct SignInWithMultipleRolesStrategy {
-    pub user: UserFromStorage,
-    pub user_roles: Vec<UserRole>,
-}
-
-impl SignInWithMultipleRolesStrategy {
-    async fn get_signin_response(
-        self,
-        state: &SessionState,
-    ) -> UserResult<user_api::SignInResponse> {
-        let merchant_accounts = state
-            .store
-            .list_multiple_merchant_accounts(
-                &state.into(),
-                self.user_roles
-                    .iter()
-                    .map(|role| {
-                        role.merchant_id
-                            .clone()
-                            .ok_or(UserErrors::InternalServerError)
-                    })
-                    .collect::<Result<Vec<_>, _>>()?,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-
-        let roles =
-            utils::user_role::get_multiple_role_info_for_user_roles(state, &self.user_roles)
-                .await?;
-
-        let merchant_details = utils::user::get_multiple_merchant_details_with_status(
-            self.user_roles,
-            merchant_accounts,
-            roles,
-        )?;
-
-        Ok(user_api::SignInResponse::MerchantSelect(
-            user_api::MerchantSelectResponse {
-                name: self.user.get_name(),
-                email: self.user.get_email(),
-                token: auth::SinglePurposeToken::new_token(
-                    self.user.get_user_id().to_string(),
-                    TokenPurpose::AcceptInvite,
-                    Origin::SignIn,
-                    &state.conf,
-                    vec![],
-                )
-                .await?
-                .into(),
-                merchants: merchant_details,
-                verification_days_left: utils::user::get_verification_days_left(state, &self.user)?,
-            },
-        ))
     }
 }
 

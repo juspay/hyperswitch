@@ -23,7 +23,7 @@ use crate::types::{
 
 #[derive(Clone, Default, Debug)]
 pub struct PaymentIntentCore {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Clone, Debug)]
