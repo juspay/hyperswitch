@@ -1,5 +1,5 @@
 use api_models::payments::PaymentIdType;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type::PaymentId};
 use error_stack::{Report, ResultExt};
 
 use crate::{
@@ -139,7 +139,7 @@ pub fn log_applepay_verification_response_if_error(
     });
 }
 pub async fn check_if_profile_id_is_present_in_payment_intent(
-    payment_id: String,
+    payment_id: PaymentId,
     state: &SessionState,
     auth_data: &AuthenticationData,
 ) -> CustomResult<(), errors::ApiErrorResponse> {

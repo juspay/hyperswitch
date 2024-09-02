@@ -1147,7 +1147,7 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
                 utils::check_if_profile_id_is_present_in_payment_intent(
-                    req.payment_id.to_string(),
+                    req.payment_id.clone(),
                     &state,
                     &auth,
                 )
@@ -1176,7 +1176,7 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
                 utils::check_if_profile_id_is_present_in_payment_intent(
-                    req.payment_id.to_string(),
+                    req.payment_id.clone(),
                     &state,
                     &auth,
                 )
@@ -1849,7 +1849,7 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: AuthenticationData, req, _| async move {
                 utils::check_if_profile_id_is_present_in_payment_intent(
-                    req.payment_id.to_string(),
+                    req.payment_id.clone(),
                     &state,
                     &auth,
                 )
