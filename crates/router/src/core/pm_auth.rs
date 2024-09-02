@@ -63,7 +63,7 @@ pub async fn create_link_token(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
+    let pm_auth_key = payload.payment_id.get_pm_auth_key();
 
     redis_conn
         .exists::<Vec<u8>>(&pm_auth_key)
@@ -307,7 +307,7 @@ async fn store_bank_details_in_payment_methods(
     state: SessionState,
     bank_account_details_resp: pm_auth_types::BankAccountCredentialsResponse,
     connector_details: (&str, Secret<String>),
-    mca_id: String,
+    mca_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> RouterResult<()> {
     let key = key_store.key.get_inner().peek();
     let db = &*state.clone().store;
@@ -678,7 +678,7 @@ async fn get_selected_config_from_redis(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
+    let pm_auth_key = payload.payment_id.get_pm_auth_key();
 
     redis_conn
         .exists::<Vec<u8>>(&pm_auth_key)
@@ -753,7 +753,12 @@ pub async fn retrieve_payment_method_from_auth_service(
         )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: auth_token.connector_details.mca_id.clone(),
+            id: auth_token
+                .connector_details
+                .mca_id
+                .get_string_repr()
+                .to_string()
+                .clone(),
         })
         .attach_printable(
             "error while fetching merchant_connector_account from merchant_id and connector name",

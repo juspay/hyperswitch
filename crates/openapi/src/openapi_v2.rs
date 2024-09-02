@@ -100,6 +100,12 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for routing
         routes::routing::routing_create_config,
         routes::routing::routing_retrieve_config,
+
+        // Routes for api keys
+        routes::api_keys::api_key_create,
+        routes::api_keys::api_key_retrieve,
+        routes::api_keys::api_key_update,
+        routes::api_keys::api_key_revoke,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -277,10 +283,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
-        api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
-        api_models::payments::PaymentIdType,
         api_models::payments::PaymentsCaptureRequest,
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,

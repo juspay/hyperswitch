@@ -501,7 +501,7 @@ pub struct AuthenticatePaymentFlowResponse {
 pub struct ConnectorResponse {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub amount: i64,
     pub connector_transaction_id: String,
     pub return_url: Option<String>,

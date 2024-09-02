@@ -74,7 +74,7 @@ use crate::types::api::routing;
 pub struct RoutingData {
     pub routed_through: Option<String>,
 
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 
     pub routing_info: PaymentRoutingInfo,
     pub algorithm: Option<api_models::routing::StraightThroughAlgorithm>,

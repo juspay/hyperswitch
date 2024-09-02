@@ -163,8 +163,8 @@ impl<E> ConnectorResponseExt
 }
 
 #[inline]
-pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
-    format!("{payment_id}_{attempt_count}")
+pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i16) -> String {
+    format!("{payout_id}_{attempt_count}")
 }
 #[derive(Debug)]
 pub struct QrImage {
@@ -384,7 +384,10 @@ pub async fn find_mca_from_authentication_id_type(
         .await
         .to_not_found_response(
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: authentication.merchant_connector_id.to_string(),
+                id: authentication
+                    .merchant_connector_id
+                    .get_string_repr()
+                    .to_string(),
             },
         )
     }
@@ -430,7 +433,7 @@ pub async fn get_mca_from_payment_intent(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }
@@ -528,7 +531,7 @@ pub async fn get_mca_from_payout_attempt(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id,
+                        id: merchant_connector_id.get_string_repr().to_string(),
                     },
                 )
             }
@@ -1171,7 +1174,7 @@ where
                             &cloned_key_store,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
-                            payment_id,
+                            payment_id.get_string_repr().to_owned(),
                             diesel_models::enums::EventObjectType::PaymentDetails,
                             webhooks::OutgoingWebhookContent::PaymentDetails(
                                 payments_response_json,

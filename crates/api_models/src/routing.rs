@@ -89,7 +89,8 @@ pub enum LinkedRoutingConfigRetrieveResponse {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 /// Routing Algorithm specific to merchants
 pub struct MerchantRoutingAlgorithm {
-    pub id: String,
+    #[schema(value_type = String)]
+    pub id: common_utils::id_type::RoutingId,
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,
@@ -173,7 +174,8 @@ pub struct RoutableConnectorChoice {
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
     pub connector: RoutableConnectors,
-    pub merchant_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -188,7 +190,7 @@ pub enum RoutableChoiceSerde {
     OnlyConnector(Box<RoutableConnectors>),
     FullStruct {
         connector: RoutableConnectors,
-        merchant_connector_id: Option<String>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     },
 }
 
@@ -421,14 +423,14 @@ impl RoutingAlgorithm {
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingAlgorithmRef {
-    pub algorithm_id: Option<String>,
+    pub algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub timestamp: i64,
     pub config_algo_id: Option<String>,
     pub surcharge_config_algo_id: Option<String>,
 }
 
 impl RoutingAlgorithmRef {
-    pub fn update_algorithm_id(&mut self, new_id: String) {
+    pub fn update_algorithm_id(&mut self, new_id: common_utils::id_type::RoutingId) {
         self.algorithm_id = Some(new_id);
         self.timestamp = common_utils::date_time::now_unix_timestamp();
     }
@@ -455,7 +457,8 @@ impl RoutingAlgorithmRef {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 
 pub struct RoutingDictionaryRecord {
-    pub id: String,
+    #[schema(value_type = String)]
+    pub id: common_utils::id_type::RoutingId,
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
     pub name: String,
@@ -483,7 +486,8 @@ pub enum RoutingKind {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct RoutingAlgorithmId {
-    pub routing_algorithm_id: String,
+    #[schema(value_type = String)]
+    pub routing_algorithm_id: common_utils::id_type::RoutingId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

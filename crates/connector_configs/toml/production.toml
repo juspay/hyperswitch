@@ -1221,6 +1221,47 @@ placeholder="Enter Terminal ID"
 required=true
 type="Text"
 
+[fiservemea]
+[[fiservemea.credit]]
+  payment_method_type = "Mastercard"
+[[fiservemea.credit]]
+  payment_method_type = "Visa"
+[[fiservemea.credit]]
+  payment_method_type = "Interac"
+[[fiservemea.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiservemea.credit]]
+  payment_method_type = "JCB"
+[[fiservemea.credit]]
+  payment_method_type = "DinersClub"
+[[fiservemea.credit]]
+  payment_method_type = "Discover"
+[[fiservemea.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiservemea.credit]]
+  payment_method_type = "UnionPay"
+[[fiservemea.debit]]
+  payment_method_type = "Mastercard"
+[[fiservemea.debit]]
+  payment_method_type = "Visa"
+[[fiservemea.debit]]
+  payment_method_type = "Interac"
+[[fiservemea.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiservemea.debit]]
+  payment_method_type = "JCB"
+[[fiservemea.debit]]
+  payment_method_type = "DinersClub"
+[[fiservemea.debit]]
+  payment_method_type = "Discover"
+[[fiservemea.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiservemea.debit]]
+  payment_method_type = "UnionPay"
+[fiservemea.connector_auth.BodyKey]
+api_key="API Key"
+key1="Secret Key"
+
 [forte]
 [[forte.credit]]
   payment_method_type = "Mastercard"
@@ -2869,10 +2910,6 @@ key1 = "datatrans MerchantId"
   payment_method_type = "CartesBancaires"
 [[wellsfargo.debit]]
   payment_method_type = "UnionPay"
-[[wellsfargo.wallet]]
-  payment_method_type = "apple_pay"
-[[wellsfargo.wallet]]
-  payment_method_type = "google_pay"
 [wellsfargo.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
