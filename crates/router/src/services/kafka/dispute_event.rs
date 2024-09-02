@@ -12,7 +12,7 @@ pub struct KafkaDisputeEvent<'a> {
     pub currency: &'a String,
     pub dispute_stage: &'a storage_enums::DisputeStage,
     pub dispute_status: &'a storage_enums::DisputeStatus,
-    pub payment_id: &'a String,
+    pub payment_id: &'a common_utils::id_type::PaymentId,
     pub attempt_id: &'a String,
     pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub connector_status: &'a String,
@@ -70,7 +70,7 @@ impl<'a> super::KafkaMessage for KafkaDisputeEvent<'a> {
         format!(
             "{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id,
+            self.payment_id.get_string_repr(),
             self.dispute_id
         )
     }

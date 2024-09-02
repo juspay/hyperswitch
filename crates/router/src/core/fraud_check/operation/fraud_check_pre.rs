@@ -175,7 +175,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         Ok(Some(FrmRouterData {
             merchant_id: router_data.merchant_id,
             connector: router_data.connector,
-            payment_id: router_data.payment_id,
+            payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
             request: FrmRequest::Transaction(FraudCheckTransactionData {
                 amount: router_data.request.amount,
@@ -213,7 +213,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPre {
         Ok(FrmRouterData {
             merchant_id: router_data.merchant_id,
             connector: router_data.connector,
-            payment_id: router_data.payment_id,
+            payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
             request: FrmRequest::Checkout(FraudCheckCheckoutData {
                 amount: router_data.request.amount,

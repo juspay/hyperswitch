@@ -18,7 +18,7 @@ pub trait DisputeInterface {
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError>;
 
@@ -37,7 +37,7 @@ pub trait DisputeInterface {
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
     async fn update_dispute(
@@ -65,7 +65,7 @@ impl DisputeInterface for Store {
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -107,7 +107,7 @@ impl DisputeInterface for Store {
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
@@ -180,7 +180,7 @@ impl DisputeInterface for MockDb {
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         Ok(self
@@ -190,7 +190,7 @@ impl DisputeInterface for MockDb {
             .iter()
             .find(|d| {
                 d.merchant_id == *merchant_id
-                    && d.payment_id == payment_id
+                    && d.payment_id == *payment_id
                     && d.connector_dispute_id == connector_dispute_id
             })
             .cloned())
@@ -285,13 +285,13 @@ impl DisputeInterface for MockDb {
     async fn find_disputes_by_merchant_id_payment_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
 
         Ok(locked_disputes
             .iter()
-            .filter(|d| d.merchant_id == *merchant_id && d.payment_id == payment_id)
+            .filter(|d| d.merchant_id == *merchant_id && d.payment_id == *payment_id)
             .cloned()
             .collect())
     }
@@ -380,7 +380,7 @@ mod tests {
 
         pub struct DisputeNewIds {
             dispute_id: String,
-            payment_id: String,
+            payment_id: common_utils::id_type::PaymentId,
             attempt_id: String,
             merchant_id: common_utils::id_type::MerchantId,
             connector_dispute_id: String,
@@ -426,7 +426,10 @@ mod tests {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                        "payment_1",
+                    ))
+                    .unwrap(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
@@ -459,7 +462,10 @@ mod tests {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                        "payment_1",
+                    ))
+                    .unwrap(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
@@ -470,7 +476,10 @@ mod tests {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: common_utils::id_type::PaymentId::try_from(Cow::Borrowed(
+                        "payment_1",
+                    ))
+                    .unwrap(),
                     connector_dispute_id: "connector_dispute_2".into(),
                 }))
                 .await
@@ -479,7 +488,8 @@ mod tests {
             let found_dispute = mockdb
                 .find_by_merchant_id_payment_id_connector_dispute_id(
                     &merchant_id,
-                    "payment_1",
+                    &common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1"))
+                        .unwrap(),
                     "connector_dispute_1",
                 )
                 .await
@@ -495,6 +505,9 @@ mod tests {
             let merchant_id =
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
+            let payment_id =
+                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -504,7 +517,7 @@ mod tests {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: payment_id.clone(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
@@ -515,7 +528,7 @@ mod tests {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: payment_id.clone(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
@@ -534,6 +547,9 @@ mod tests {
             let merchant_id =
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_2")).unwrap();
 
+            let payment_id =
+                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -543,7 +559,7 @@ mod tests {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: payment_id.clone(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
@@ -554,7 +570,7 @@ mod tests {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: payment_id.clone(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
@@ -590,6 +606,9 @@ mod tests {
             let merchant_id =
                 common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
+            let payment_id =
+                common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
+
             let mockdb = MockDb::new(&RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -599,7 +618,7 @@ mod tests {
                     dispute_id: "dispute_1".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: payment_id.clone(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
@@ -610,14 +629,14 @@ mod tests {
                     dispute_id: "dispute_2".into(),
                     attempt_id: "attempt_1".into(),
                     merchant_id: merchant_id.clone(),
-                    payment_id: "payment_1".into(),
+                    payment_id: payment_id.clone(),
                     connector_dispute_id: "connector_dispute_1".into(),
                 }))
                 .await
                 .unwrap();
 
             let found_disputes = mockdb
-                .find_disputes_by_merchant_id_payment_id(&merchant_id, "payment_1")
+                .find_disputes_by_merchant_id_payment_id(&merchant_id, &payment_id)
                 .await
                 .unwrap();
 
@@ -650,6 +669,9 @@ mod tests {
                 let merchant_id =
                     common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
+                let payment_id =
+                    common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -659,7 +681,7 @@ mod tests {
                         dispute_id: "dispute_1".into(),
                         attempt_id: "attempt_1".into(),
                         merchant_id: merchant_id.clone(),
-                        payment_id: "payment_1".into(),
+                        payment_id: payment_id.clone(),
                         connector_dispute_id: "connector_dispute_1".into(),
                     }))
                     .await
@@ -731,6 +753,9 @@ mod tests {
                 let merchant_id =
                     common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
+                let payment_id =
+                    common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -740,7 +765,7 @@ mod tests {
                         dispute_id: "dispute_1".into(),
                         attempt_id: "attempt_1".into(),
                         merchant_id: merchant_id.clone(),
-                        payment_id: "payment_1".into(),
+                        payment_id: payment_id.clone(),
                         connector_dispute_id: "connector_dispute_1".into(),
                     }))
                     .await
@@ -807,6 +832,9 @@ mod tests {
                 let merchant_id =
                     common_utils::id_type::MerchantId::try_from(Cow::from("merchant_1")).unwrap();
 
+                let payment_id =
+                    common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1")).unwrap();
+
                 let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                     .await
                     .expect("Failed to create Mock store");
@@ -816,7 +844,7 @@ mod tests {
                         dispute_id: "dispute_1".into(),
                         attempt_id: "attempt_1".into(),
                         merchant_id: merchant_id.clone(),
-                        payment_id: "payment_1".into(),
+                        payment_id: payment_id.clone(),
                         connector_dispute_id: "connector_dispute_1".into(),
                     }))
                     .await
