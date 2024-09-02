@@ -415,15 +415,7 @@ impl TryInto<ActivePaymentsMetricRow> for serde_json::Value {
 
 impl ToSql<ClickhouseClient> for PrimitiveDateTime {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
-        let format =
-            time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]")
-                .change_context(ParsingError::DateTimeParsingError)
-                .attach_printable("Failed to parse format description")?;
-        self.format(&format)
-            .change_context(ParsingError::EncodeError(
-                "failed to encode to clickhouse date-time format",
-            ))
-            .attach_printable("Failed to format date time")
+        Ok(self.assume_utc().unix_timestamp().to_string())
     }
 }
 
