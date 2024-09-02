@@ -1,5 +1,8 @@
 use common_utils::id_type;
-use diesel_models::{enums, user_role as storage};
+use diesel_models::{
+    enums::{self, UserStatus},
+    user_role as storage,
+};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -101,6 +104,8 @@ pub trait UserRoleInterface {
         profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
+        status: Option<UserStatus>,
+        limit: Option<u32>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn list_user_roles_by_org_id<'a>(
@@ -252,6 +257,8 @@ impl UserRoleInterface for Store {
         profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
+        status: Option<UserStatus>,
+        limit: Option<u32>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::generic_user_roles_list_for_user(
@@ -261,7 +268,9 @@ impl UserRoleInterface for Store {
             merchant_id.cloned(),
             profile_id.cloned(),
             entity_id.cloned(),
+            status,
             version,
+            limit,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -560,10 +569,12 @@ impl UserRoleInterface for MockDb {
         profile_id: Option<&id_type::ProfileId>,
         entity_id: Option<&String>,
         version: Option<enums::UserRoleVersion>,
+        status: Option<UserStatus>,
+        limit: Option<u32>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
-        let filtered_roles: Vec<_> = user_roles
+        let mut filtered_roles: Vec<_> = user_roles
             .iter()
             .filter_map(|role| {
                 let mut filter_condition = role.user_id == user_id;
@@ -591,11 +602,17 @@ impl UserRoleInterface for MockDb {
                         filter_condition = filter_condition && role_entity_id == entity_id
                     });
                 version.inspect(|ver| filter_condition = filter_condition && ver == &role.version);
+                status.inspect(|status| {
+                    filter_condition = filter_condition && status == &role.status
+                });
 
                 filter_condition.then(|| role.to_owned())
             })
             .collect();
 
+        if let Some(Ok(limit)) = limit.map(|val| val.try_into()) {
+            filtered_roles = filtered_roles.into_iter().take(limit).collect();
+        }
         Ok(filtered_roles)
     }
 

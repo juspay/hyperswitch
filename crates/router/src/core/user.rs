@@ -2289,15 +2289,13 @@ pub async fn list_orgs_for_user(
             None,
             None,
             None,
+            Some(UserStatus::Active),
+            None,
         )
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .filter_map(|user_role| {
-            (user_role.status == UserStatus::Active)
-                .then_some(user_role.org_id)
-                .flatten()
-        })
+        .filter_map(|user_role| user_role.org_id)
         .collect::<HashSet<_>>();
 
     let resp = futures::future::try_join_all(
@@ -2355,15 +2353,13 @@ pub async fn list_merchants_for_user_in_org(
                 None,
                 None,
                 None,
+                Some(UserStatus::Active),
+                None,
             )
             .await
             .change_context(UserErrors::InternalServerError)?
             .into_iter()
-            .filter_map(|user_role| {
-                (user_role.status == UserStatus::Active)
-                    .then_some(user_role.merchant_id)
-                    .flatten()
-            })
+            .filter_map(|user_role| user_role.merchant_id)
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
@@ -2438,15 +2434,13 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                     None,
                     None,
                     None,
+                    Some(UserStatus::Active),
+                    None,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
-                .filter_map(|user_role| {
-                    (user_role.status == UserStatus::Active)
-                        .then_some(user_role.profile_id)
-                        .flatten()
-                })
+                .filter_map(|user_role| user_role.profile_id)
                 .collect::<HashSet<_>>();
 
             futures::future::try_join_all(profile_ids.iter().map(|profile_id| {
@@ -2510,12 +2504,13 @@ pub async fn switch_org_for_user(
             None,
             None,
             None,
+            Some(UserStatus::Active),
+            Some(1),
         )
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to list user roles by user_id and org_id")?
-        .into_iter()
-        .find(|role| role.status == UserStatus::Active)
+        .first()
         .ok_or(UserErrors::InvalidRoleOperationWithMessage(
             "No user role found for the requested org_id".to_string(),
         ))?
@@ -2712,14 +2707,15 @@ pub async fn switch_merchant_for_user_in_org(
                     None,
                     None,
                     None,
+                    Some(UserStatus::Active),
+                    Some(1),
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable(
                     "Failed to list user roles for the given user_id, org_id and merchant_id",
                 )?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
+                .first()
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
                     "No user role associated with the requested merchant_id".to_string(),
                 ))?
@@ -2852,6 +2848,8 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                     Some(&request.profile_id),
                     None,
                     None,
+                    Some(UserStatus::Active),
+                    Some(1)
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)

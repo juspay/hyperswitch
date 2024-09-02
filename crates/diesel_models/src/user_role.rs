@@ -26,7 +26,7 @@ pub struct UserRole {
     pub version: enums::UserRoleVersion,
 }
 
-fn get_entity_id_and_type(user_role: &UserRole) -> (Option<String>, Option<EntityType>) {
+pub fn get_entity_id_and_type(user_role: &UserRole) -> (Option<String>, Option<EntityType>) {
     match (user_role.version, user_role.role_id.as_str()) {
         (enums::UserRoleVersion::V1, consts::ROLE_ID_ORGANIZATION_ADMIN) => (
             user_role

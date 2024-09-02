@@ -250,6 +250,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
+            | Flow::ListInvitationsForUser
             | Flow::AuthSelect => Self::User,
 
             Flow::ListRoles

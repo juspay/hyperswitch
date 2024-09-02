@@ -8,7 +8,11 @@ use error_stack::{report, ResultExt};
 use router_env::logger;
 
 use crate::{
-    enums::UserRoleVersion, errors, query::generics, schema::user_roles::dsl, user_role::*,
+    enums::{UserRoleVersion, UserStatus},
+    errors,
+    query::generics,
+    schema::user_roles::dsl,
+    user_role::*,
     PgPooledConn, StorageResult,
 };
 
@@ -208,7 +212,9 @@ impl UserRole {
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
         entity_id: Option<String>,
+        status: Option<UserStatus>,
         version: Option<UserRoleVersion>,
+        limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
             .filter(dsl::user_id.eq(user_id))
@@ -232,6 +238,14 @@ impl UserRole {
 
         if let Some(version) = version {
             query = query.filter(dsl::version.eq(version));
+        }
+
+        if let Some(status) = status {
+            query = query.filter(dsl::status.eq(status));
+        }
+
+        if let Some(limit) = limit {
+            query = query.limit(limit.into());
         }
 
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());

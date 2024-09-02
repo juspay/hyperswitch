@@ -1,5 +1,6 @@
 use common_enums::PermissionGroup;
 use common_utils::pii;
+use masking::Secret;
 
 pub mod role;
 
@@ -131,4 +132,12 @@ pub struct AcceptInvitationRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteUserRoleRequest {
     pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListInvitationForUserResponse {
+    pub entity_id: String,
+    pub entity_type: common_enums::EntityType,
+    pub entity_name: Option<Secret<String>>,
+    pub role_id: String,
 }
