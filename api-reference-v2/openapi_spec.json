@@ -17975,6 +17975,13 @@
           "payout"
         ]
       },
+      "UIWidgetFormLayout": {
+        "type": "string",
+        "enum": [
+          "tabs",
+          "journey"
+        ]
+      },
       "UpdateApiKeyRequest": {
         "type": "object",
         "description": "The request body for updating an API Key.",
