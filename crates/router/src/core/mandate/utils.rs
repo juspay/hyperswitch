@@ -7,8 +7,6 @@ use crate::{
     core::{errors, payments::helpers},
     types::{self, domain, PaymentAddress},
 };
-const IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW: &str =
-    "irrelevant_payment_id_in_mandate_revoke_flow";
 
 const IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW: &str =
     "irrelevant_attempt_id_in_mandate_revoke_flow";
@@ -22,7 +20,7 @@ pub async fn construct_mandate_revoke_router_data(
     customer_id: id_type::CustomerId,
     connector: &str,
     connector_mandate_id: Option<String>,
-    payment_id: Option<String>,
+    payment_id: Option<id_type::PaymentId>,
 ) -> CustomResult<types::MandateRevokeRouterData, errors::ApiErrorResponse> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -35,8 +33,9 @@ pub async fn construct_mandate_revoke_router_data(
         connector_customer: None,
         connector: connector.to_string(),
         payment_id: payment_id
-            .unwrap_or_else(|| IRRELEVANT_PAYMENT_ID_IN_MANDATE_REVOKE_FLOW.to_string()),
-        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
+            .unwrap_or_else(|| id_type::PaymentId::get_irrelevant_id("mandate_revoke"))
+            .get_string_repr()
+            .to_owned(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
@@ -76,6 +75,7 @@ pub async fn construct_mandate_revoke_router_data(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        attempt_id: IRRELEVANT_ATTEMPT_ID_IN_MANDATE_REVOKE_FLOW.to_string(),
     };
 
     Ok(router_data)

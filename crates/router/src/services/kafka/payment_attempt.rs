@@ -8,7 +8,7 @@ use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPaymentAttempt<'a> {
-    pub payment_id: &'a String,
+    pub payment_id: &'a id_type::PaymentId,
     pub merchant_id: &'a id_type::MerchantId,
     pub attempt_id: &'a String,
     pub status: storage_enums::AttemptStatus,
@@ -123,7 +123,7 @@ impl<'a> super::KafkaMessage for KafkaPaymentAttempt<'a> {
         format!(
             "{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id,
+            self.payment_id.get_string_repr(),
             self.attempt_id
         )
     }

@@ -69,7 +69,7 @@ pub async fn form_payment_link_data(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
@@ -269,7 +269,7 @@ pub async fn initiate_secure_payment_link_flow(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
@@ -368,7 +368,7 @@ pub async fn initiate_payment_link_flow(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
@@ -664,7 +664,7 @@ pub async fn get_payment_link_status(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?

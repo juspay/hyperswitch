@@ -8,7 +8,7 @@ use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaFraudCheckEvent<'a> {
     pub frm_id: &'a String,
-    pub payment_id: &'a String,
+    pub payment_id: &'a common_utils::id_type::PaymentId,
     pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub attempt_id: &'a String,
     #[serde(default, with = "time::serde::timestamp::milliseconds")]
@@ -57,7 +57,7 @@ impl<'a> super::KafkaMessage for KafkaFraudCheckEvent<'a> {
         format!(
             "{}_{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id,
+            self.payment_id.get_string_repr(),
             self.attempt_id,
             self.frm_id
         )

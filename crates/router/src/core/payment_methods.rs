@@ -5,37 +5,18 @@ pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
-<<<<<<< HEAD
-use std::collections::HashMap;
-
-=======
-
-use std::borrow::Cow;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use std::collections::HashSet;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::enums as api_enums;
->>>>>>> e6d43a001a083ae4a388bde916abf7ad5eb98d22
 pub use api_models::enums::Connector;
 use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
-<<<<<<< HEAD
-use api_models::{payment_methods, payments::CardToken};
-use common_utils::{
-    ext_traits::Encode,
-    id_type::{CustomerId, MerchantId},
-};
-=======
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::ext_traits::Encode;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::ext_traits::OptionExt;
-use common_utils::{consts::DEFAULT_LOCALE, id_type::CustomerId};
->>>>>>> e6d43a001a083ae4a388bde916abf7ad5eb98d22
+use common_utils::id_type::{CustomerId, MerchantConnectorAccountId, MerchantId};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use common_utils::{consts::DEFAULT_LOCALE, ext_traits::Encode};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -45,6 +26,12 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use masking::PeekInterface;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
+use std::borrow::Cow;
+use std::collections::HashMap;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use std::collections::HashSet;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use std::str::FromStr;
 use time::Duration;
 
 use super::errors::{RouterResponse, StorageErrorExt};
@@ -607,7 +594,7 @@ pub async fn retrieve_payment_method_with_token(
 pub async fn delete_payment_method_task(
     db: &dyn StorageInterface,
     payment_method_id: &str,
-    filter_mca: HashMap<String, storage::UpdateMandate>,
+    filter_mca: HashMap<MerchantConnectorAccountId, storage::UpdateMandate>,
     merchant_id: &MerchantId,
     deleted_at: time::PrimitiveDateTime,
     customer_id: CustomerId,

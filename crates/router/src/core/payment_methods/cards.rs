@@ -76,12 +76,7 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{
-            add_payment_method_status_update_task, delete_payment_method_task,
-            transformers as payment_methods,
-            utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
-            vault,
-        },
+        payment_methods::{delete_payment_method_task, transformers as payment_methods, vault},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -3065,7 +3060,7 @@ pub async fn list_payment_methods(
             }
         }
 
-        let pm_auth_key = format!("pm_auth_{}", payment_intent.payment_id);
+        let pm_auth_key = payment_intent.payment_id.get_pm_auth_key();
         let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
         if let Some(rc) = redis_conn {
@@ -4933,13 +4928,13 @@ pub async fn get_mca_status(
             key_store,
             merchant_id,
             profile_id,
-            Some(true),
+            Some(false),
             &connector_mandate_details,
         )
         .await?;
 
         for mca_id in connector_mandate_details.keys() {
-            if mca_ids.contains(mca_id) {
+            if mca_ids.contains_key(mca_id) {
                 return Ok(true);
             }
         }
@@ -4955,10 +4950,10 @@ async fn get_all_mcas(
     profile_id: Option<id_type::ProfileId>,
     disabled: Option<bool>,
     connector_mandate_details: &storage::PaymentsMandateReference,
-) -> errors::RouterResult<HashMap<String, storage::UpdateMandate>> {
+) -> errors::RouterResult<HashMap<id_type::MerchantConnectorAccountId, storage::UpdateMandate>> {
     let mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &state.into(),
+            key_manager_state,
             merchant_id,
             true,
             key_store,
@@ -4971,35 +4966,34 @@ async fn get_all_mcas(
     let mcas = mcas
         .into_iter()
         .filter(|mca| {
-            mca.disabled == Some(false)
-                && (profile_id.clone() == Some(mca.profile_id.clone() || profile_id.is_none()))
+            mca.disabled == disabled
+                && (profile_id.clone() == Some(mca.profile_id.clone()) || profile_id.is_none())
         })
         .collect::<Vec<_>>();
     let mut mca_ids = HashMap::new();
+
     for mca in mcas {
-        if let Some(profile_id) = mca.profile_id {
-            let connector = api_enums::Connector::from_str(mca.connector_name.as_str())
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector",
-                })
-                .attach_printable_lazy(|| {
-                    format!("unable to parse connector name: {}", mca.connector_name)
-                })?;
-            let connector_mandate_id = connector_mandate_details
-                .0
-                .get(&mca.merchant_connector_id)
-                .map(|pmr| pmr.connector_mandate_id.clone());
-            connector_mandate_id.map(|connector_mandate_id| {
-                mca_ids.insert(
-                    mca.merchant_connector_id,
-                    storage::UpdateMandate {
-                        connector,
-                        connector_mandate_id,
-                        profile_id,
-                    },
-                )
-            });
-        }
+        let connector = api_enums::Connector::from_str(mca.connector_name.as_str())
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name: {}", mca.connector_name)
+            })?;
+        let connector_mandate_id = connector_mandate_details
+            .0
+            .get(&mca.get_id())
+            .map(|pmr| pmr.connector_mandate_id.clone());
+        connector_mandate_id.map(|connector_mandate_id| {
+            mca_ids.insert(
+                mca.get_id(),
+                storage::UpdateMandate {
+                    connector,
+                    connector_mandate_id,
+                    profile_id: mca.profile_id,
+                },
+            )
+        });
     }
     Ok(mca_ids)
 }

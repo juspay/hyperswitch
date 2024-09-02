@@ -97,12 +97,11 @@ pub struct PaymentsMandateReferenceRecord {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReference(
-    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
+    pub HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
 
 impl Deref for PaymentsMandateReference {
-    type Target =
-        HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
+    type Target = HashMap<id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -126,15 +125,15 @@ pub struct PaymentMethodStatusTrackingData {
 pub struct UpdateMandate {
     pub connector_mandate_id: String,
     pub connector: api_enums::Connector,
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentMethodMandateRevokeTrackingData {
     pub merchant_id: id_type::MerchantId,
     pub customer_id: id_type::CustomerId,
-    pub merchant_connector_id: String,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
     pub connector: api_enums::Connector,
     pub connector_mandate_id: String,
-    pub profile_id: String,
+    pub profile_id: id_type::ProfileId,
 }

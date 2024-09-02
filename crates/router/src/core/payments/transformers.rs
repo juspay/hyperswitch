@@ -182,7 +182,11 @@ where
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector: connector_id.to_owned(),
-        payment_id: payment_data.payment_attempt.payment_id.clone(),
+        payment_id: payment_data
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
@@ -797,7 +801,7 @@ where
                     .parse_value("PaymentChargeRequest")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(format!(
-                        "Failed to parse PaymentChargeRequest for payment_intent {}",
+                        "Failed to parse PaymentChargeRequest for payment_intent {:?}",
                         payment_intent.payment_id
                     ))?;
 
