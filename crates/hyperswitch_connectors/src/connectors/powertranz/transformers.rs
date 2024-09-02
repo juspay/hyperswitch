@@ -1,15 +1,23 @@
+use common_enums::enums::{self, AuthenticationType, Currency};
 use common_utils::pii::IpAddress;
-use diesel_models::enums::RefundStatus;
+use hyperswitch_domain_models::{
+    payment_method_data::{Card, PaymentMethodData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::refunds::Execute,
+    router_request_types::{
+        BrowserInformation, PaymentsCancelData, PaymentsCaptureData, ResponseId,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+};
+use hyperswitch_interfaces::{consts, errors};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
-    consts,
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 const ISO_SUCCESS_CODES: [&str; 7] = ["00", "3D0", "3D1", "HP0", "TK0", "SP4", "FC0"];
@@ -95,44 +103,40 @@ pub struct RedirectResponsePayload {
     pub spi_token: Secret<String>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
+impl TryFrom<&PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(card) => {
+            PaymentMethodData::Card(card) => {
                 let card_holder_name = item.get_optional_billing_full_name();
                 Source::try_from((&card, card_holder_name))
             }
-            domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "powertranz",
-                }
-                .into())
+            PaymentMethodData::Wallet(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "powertranz",
             }
+            .into()),
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
         let (three_d_secure, extended_data) = match item.auth_type {
-            diesel_models::enums::AuthenticationType::ThreeDs => {
-                (true, Some(ExtendedData::try_from(item)?))
-            }
-            diesel_models::enums::AuthenticationType::NoThreeDs => (false, None),
+            AuthenticationType::ThreeDs => (true, Some(ExtendedData::try_from(item)?)),
+            AuthenticationType::NoThreeDs => (false, None),
         };
         Ok(Self {
             transaction_identifier: Uuid::new_v4().to_string(),
@@ -140,8 +144,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 item.request.amount,
                 item.request.currency,
             )?,
-            currency_code: diesel_models::enums::Currency::iso_4217(&item.request.currency)
-                .to_string(),
+            currency_code: Currency::iso_4217(&item.request.currency).to_string(),
             three_d_secure,
             source,
             order_identifier: item.connector_request_reference_id.clone(),
@@ -152,9 +155,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
+impl TryFrom<&PaymentsAuthorizeRouterData> for ExtendedData {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             three_d_secure: ThreeDSecure {
                 // Merchants preferred sized of challenge window presented to cardholder.
@@ -167,9 +170,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ExtendedData {
     }
 }
 
-impl TryFrom<&types::BrowserInformation> for BrowserInfo {
+impl TryFrom<&BrowserInformation> for BrowserInfo {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::BrowserInformation) -> Result<Self, Self::Error> {
+    fn try_from(item: &BrowserInformation) -> Result<Self, Self::Error> {
         Ok(Self {
             java_enabled: item.java_enabled,
             javascript_enabled: item.java_script_enabled,
@@ -219,10 +222,10 @@ impl TryFrom<&types::BrowserInformation> for BrowserInfo {
         })
 }*/
 
-impl TryFrom<(&domain::Card, Option<Secret<String>>)> for Source {
+impl TryFrom<(&Card, Option<Secret<String>>)> for Source {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (card, card_holder_name): (&domain::Card, Option<Secret<String>>),
+        (card, card_holder_name): (&Card, Option<Secret<String>>),
     ) -> Result<Self, Self::Error> {
         let card = PowertranzCard {
             cardholder_name: card_holder_name.unwrap_or(Secret::new("".to_string())),
@@ -240,11 +243,11 @@ pub struct PowertranzAuthType {
     pub(super) power_tranz_password: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PowertranzAuthType {
+impl TryFrom<&ConnectorAuthType> for PowertranzAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 power_tranz_id: key1.to_owned(),
                 power_tranz_password: api_key.to_owned(),
             }),
@@ -268,56 +271,53 @@ pub struct PowertranzBaseResponse {
     order_identifier: String,
 }
 
-impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
-    fn foreign_from((transaction_type, approved, is_3ds): (u8, bool, bool)) -> Self {
-        match transaction_type {
-            // Auth
-            1 => match approved {
-                true => Self::Authorized,
-                false => match is_3ds {
-                    true => Self::AuthenticationPending,
-                    false => Self::Failure,
-                },
+fn get_status((transaction_type, approved, is_3ds): (u8, bool, bool)) -> enums::AttemptStatus {
+    match transaction_type {
+        // Auth
+        1 => match approved {
+            true => enums::AttemptStatus::Authorized,
+            false => match is_3ds {
+                true => enums::AttemptStatus::AuthenticationPending,
+                false => enums::AttemptStatus::Failure,
             },
-            // Sale
-            2 => match approved {
-                true => Self::Charged,
-                false => match is_3ds {
-                    true => Self::AuthenticationPending,
-                    false => Self::Failure,
-                },
+        },
+        // Sale
+        2 => match approved {
+            true => enums::AttemptStatus::Charged,
+            false => match is_3ds {
+                true => enums::AttemptStatus::AuthenticationPending,
+                false => enums::AttemptStatus::Failure,
             },
-            // Capture
-            3 => match approved {
-                true => Self::Charged,
-                false => Self::Failure,
-            },
-            // Void
-            4 => match approved {
-                true => Self::Voided,
-                false => Self::VoidFailed,
-            },
-            // Refund
-            5 => match approved {
-                true => Self::AutoRefunded,
-                false => Self::Failure,
-            },
-            // Risk Management
-            _ => match approved {
-                true => Self::Pending,
-                false => Self::Failure,
-            },
-        }
+        },
+        // Capture
+        3 => match approved {
+            true => enums::AttemptStatus::Charged,
+            false => enums::AttemptStatus::Failure,
+        },
+        // Void
+        4 => match approved {
+            true => enums::AttemptStatus::Voided,
+            false => enums::AttemptStatus::VoidFailed,
+        },
+        // Refund
+        5 => match approved {
+            true => enums::AttemptStatus::AutoRefunded,
+            false => enums::AttemptStatus::Failure,
+        },
+        // Risk Management
+        _ => match approved {
+            true => enums::AttemptStatus::Pending,
+            false => enums::AttemptStatus::Failure,
+        },
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PowertranzBaseResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PowertranzBaseResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let error_response = build_error_response(&item.response, item.http_code);
         // original_trxn_identifier will be present only in capture and void
@@ -325,15 +325,14 @@ impl<F, T>
             .response
             .original_trxn_identifier
             .unwrap_or(item.response.transaction_identifier.clone());
-        let redirection_data =
-            item.response
-                .redirect_data
-                .map(|redirect_data| services::RedirectForm::Html {
-                    html_data: redirect_data.expose(),
-                });
+        let redirection_data = item.response.redirect_data.map(|redirect_data| {
+            hyperswitch_domain_models::router_response_types::RedirectForm::Html {
+                html_data: redirect_data.expose(),
+            }
+        });
         let response = error_response.map_or(
-            Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(connector_transaction_id),
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -345,7 +344,7 @@ impl<F, T>
             Err,
         );
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
+            status: get_status((
                 item.response.transaction_type,
                 item.response.approved,
                 is_3ds_payment(item.response.iso_response_code),
@@ -369,9 +368,9 @@ pub struct PowertranzBaseRequest {
     refund: Option<bool>,
 }
 
-impl TryFrom<&types::PaymentsCancelData> for PowertranzBaseRequest {
+impl TryFrom<&PaymentsCancelData> for PowertranzBaseRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelData) -> Result<Self, Self::Error> {
         Ok(Self {
             transaction_identifier: item.connector_transaction_id.clone(),
             total_amount: None,
@@ -380,9 +379,9 @@ impl TryFrom<&types::PaymentsCancelData> for PowertranzBaseRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsCaptureData> for PowertranzBaseRequest {
+impl TryFrom<&PaymentsCaptureData> for PowertranzBaseRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCaptureData) -> Result<Self, Self::Error> {
         let total_amount = Some(utils::to_currency_base_unit_asf64(
             item.amount_to_capture,
             item.currency,
@@ -395,9 +394,9 @@ impl TryFrom<&types::PaymentsCaptureData> for PowertranzBaseRequest {
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PowertranzBaseRequest {
+impl<F> TryFrom<&RefundsRouterData<F>> for PowertranzBaseRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let total_amount = Some(utils::to_currency_base_unit_asf64(
             item.request.refund_amount,
             item.request.currency,
@@ -410,20 +409,20 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PowertranzBaseRequest {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, PowertranzBaseResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, PowertranzBaseResponse>>
+    for RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, PowertranzBaseResponse>,
+        item: RefundsResponseRouterData<Execute, PowertranzBaseResponse>,
     ) -> Result<Self, Self::Error> {
         let error_response = build_error_response(&item.response, item.http_code);
         let response = error_response.map_or(
-            Ok(types::RefundsResponseData {
+            Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_identifier.to_string(),
                 refund_status: match item.response.approved {
-                    true => RefundStatus::Success,
-                    false => RefundStatus::Failure,
+                    true => enums::RefundStatus::Success,
+                    false => enums::RefundStatus::Failure,
                 },
             }),
             Err,
@@ -435,10 +434,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, PowertranzBaseRespon
     }
 }
 
-fn build_error_response(
-    item: &PowertranzBaseResponse,
-    status_code: u16,
-) -> Option<types::ErrorResponse> {
+fn build_error_response(item: &PowertranzBaseResponse, status_code: u16) -> Option<ErrorResponse> {
     // errors object has highest precedence to get error message and code
     let error_response = if item.errors.is_some() {
         item.errors.as_ref().map(|errors| {
@@ -446,7 +442,7 @@ fn build_error_response(
             let code = first_error.map(|error| error.code.clone());
             let message = first_error.map(|error| error.message.clone());
 
-            types::ErrorResponse {
+            ErrorResponse {
                 status_code,
                 code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                 message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
@@ -463,7 +459,7 @@ fn build_error_response(
         })
     } else if !ISO_SUCCESS_CODES.contains(&item.iso_response_code.as_str()) {
         // Incase error object is not present the error message and code should be propagated based on iso_response_code
-        Some(types::ErrorResponse {
+        Some(ErrorResponse {
             status_code,
             code: item.iso_response_code.clone(),
             message: item.response_message.clone(),

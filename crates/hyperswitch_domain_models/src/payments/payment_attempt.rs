@@ -40,21 +40,21 @@ pub trait PaymentAttemptInterface {
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
         connector_transaction_id: &str,
-        payment_id: &str,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
@@ -68,7 +68,7 @@ pub trait PaymentAttemptInterface {
 
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
-        payment_id: &str,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         attempt_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -91,7 +91,7 @@ pub trait PaymentAttemptInterface {
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &id_type::PaymentId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
 
@@ -118,7 +118,7 @@ pub trait PaymentAttemptInterface {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
@@ -181,6 +181,8 @@ pub struct PaymentAttempt {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: id_type::ProfileId,
+    pub organization_id: id_type::OrganizationId,
 }
 
 impl PaymentAttempt {
@@ -206,9 +208,9 @@ pub struct PaymentListFilters {
     pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
@@ -271,6 +273,8 @@ pub struct PaymentAttemptNew {
     pub client_source: Option<String>,
     pub client_version: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
+    pub profile_id: id_type::ProfileId,
+    pub organization_id: id_type::OrganizationId,
 }
 
 impl PaymentAttemptNew {
@@ -543,6 +547,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id,
         })
     }
     async fn convert_back(
@@ -625,6 +630,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .async_lift(inner_decrypt)
                     .await?,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
+                organization_id: storage_model.organization_id,
             })
         }
         .await
@@ -683,6 +689,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id,
         })
     }
 }
@@ -743,6 +750,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id,
         })
     }
 
@@ -826,6 +834,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .async_lift(inner_decrypt)
                     .await?,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
+                organization_id: storage_model.organization_id,
             })
         }
         .await
@@ -884,6 +893,7 @@ impl behaviour::Conversion for PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             shipping_details: self.shipping_details.map(Encryption::from),
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
+            organization_id: self.organization_id,
         })
     }
 }

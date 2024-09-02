@@ -172,9 +172,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    business_profile (profile_id) {
-        #[max_length = 64]
-        profile_id -> Varchar,
+    business_profile (id) {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
@@ -213,8 +211,11 @@ diesel::table! {
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
         #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
+        api_version -> ApiVersion,
     }
 }
 
@@ -385,6 +386,8 @@ diesel::table! {
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
         dispute_amount -> Int8,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
@@ -810,6 +813,12 @@ diesel::table! {
         #[max_length = 64]
         client_version -> Nullable<Varchar>,
         customer_acceptance -> Nullable<Jsonb>,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 32]
+        organization_id -> Varchar,
+        #[max_length = 32]
+        card_network -> Nullable<Varchar>,
     }
 }
 
@@ -885,6 +894,8 @@ diesel::table! {
         merchant_order_reference_id -> Nullable<Varchar>,
         shipping_details -> Nullable<Bytea>,
         is_payment_processor_token_flow -> Nullable<Bool>,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
@@ -1131,6 +1142,8 @@ diesel::table! {
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
         charges -> Nullable<Jsonb>,
+        #[max_length = 32]
+        organization_id -> Varchar,
     }
 }
 
