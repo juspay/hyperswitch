@@ -2423,7 +2423,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                 .into_iter()
                 .map(
                     |profile| user_api::ListProfilesForUserInOrgAndMerchantAccountResponse {
-                        profile_id: profile.profile_id,
+                        profile_id: profile.get_id().to_owned(),
                         profile_name: profile.profile_name,
                     },
                 )
@@ -2461,7 +2461,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
             .into_iter()
             .map(
                 |profile| user_api::ListProfilesForUserInOrgAndMerchantAccountResponse {
-                    profile_id: profile.profile_id,
+                    profile_id: profile.get_id().to_owned(),
                     profile_name: profile.profile_name,
                 },
             )
@@ -2550,8 +2550,8 @@ pub async fn switch_org_for_user(
             .first()
             .ok_or(UserErrors::InternalServerError)
             .attach_printable("No business profile found for the merchant_id")?
-            .profile_id
-            .clone()
+            .get_id()
+            .to_owned()
     };
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
@@ -2638,8 +2638,8 @@ pub async fn switch_merchant_for_user_in_org(
                 .first()
                 .ok_or(UserErrors::InternalServerError)
                 .attach_printable("No business profile found for the given merchant_id")?
-                .profile_id
-                .clone();
+                .get_id()
+                .to_owned();
 
             (
                 merchant_account.organization_id,
@@ -2691,8 +2691,8 @@ pub async fn switch_merchant_for_user_in_org(
                 .first()
                 .ok_or(UserErrors::InternalServerError)
                 .attach_printable("No business profile found for the merchant_id")?
-                .profile_id
-                .clone();
+                .get_id()
+                .to_owned();
 
             (
                 user_from_token.org_id.clone(),
@@ -2752,8 +2752,8 @@ pub async fn switch_merchant_for_user_in_org(
                     .first()
                     .ok_or(UserErrors::InternalServerError)
                     .attach_printable("No business profile found for the given merchant_id")?
-                    .profile_id
-                    .clone()
+                    .get_id()
+                    .to_owned()
             };
             (
                 user_from_token.org_id,
@@ -2838,7 +2838,8 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .change_context(UserErrors::InvalidRoleOperationWithMessage(
                     "No such profile found for the merchant".to_string(),
                 ))?
-                .profile_id;
+                .get_id()
+                .to_owned();
             (profile_id, user_from_token.role_id)
         }
 
