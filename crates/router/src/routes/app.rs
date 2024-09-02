@@ -1612,36 +1612,44 @@ impl BusinessProfile {
 ))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/account/{account_id}")
+        web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
             .service(
-                web::scope("/business_profile")
+                web::resource("")
+                    .route(web::post().to(business_profile_create))
+                    .route(web::get().to(business_profiles_list)),
+            )
+            .service(
+                web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                            .route(web::post().to(business_profile_create))
-                            .route(web::get().to(business_profiles_list)),
+                            .route(web::get().to(business_profile_retrieve))
+                            .route(web::post().to(business_profile_update))
+                            .route(web::delete().to(business_profile_delete)),
                     )
                     .service(
-                        web::scope("/{profile_id}")
-                            .service(
-                                web::resource("")
-                                    .route(web::get().to(business_profile_retrieve))
-                                    .route(web::post().to(business_profile_update))
-                                    .route(web::delete().to(business_profile_delete)),
-                            )
-                            .service(
-                                web::resource("/toggle_extended_card_info")
-                                    .route(web::post().to(toggle_extended_card_info)),
-                            )
-                            .service(
-                                web::resource("/toggle_connector_agnostic_mit")
-                                    .route(web::post().to(toggle_connector_agnostic_mit)),
-                            ),
+                        web::resource("/toggle_extended_card_info")
+                            .route(web::post().to(toggle_extended_card_info)),
+                    )
+                    .service(
+                        web::resource("/toggle_connector_agnostic_mit")
+                            .route(web::post().to(toggle_connector_agnostic_mit)),
                     ),
             )
-            .service(web::scope("/profile").service(
+    }
+}
+
+#[cfg(feature = "olap")]
+pub struct BusinessProfileNew;
+
+#[cfg(feature = "olap")]
+impl BusinessProfileNew {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/profile")
+            .app_data(web::Data::new(state))
+            .service(
                 web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
-            ))
+            )
     }
 }
 
