@@ -1,5 +1,3 @@
-// #[cfg(all(feature = "v2", feature = "customer_v2"))]
-// use crate::enums::SoftDeleteStatus;
 use common_enums::ApiVersion;
 use common_utils::{encryption::Encryption, pii, types::Description};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -35,21 +33,6 @@ pub struct CustomerNew {
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-impl Customer {
-    pub fn get_customer_id(&self) -> common_utils::id_type::CustomerId {
-        self.customer_id.clone()
-    }
-}
-
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-impl Customer {
-    #[allow(clippy::todo)]
-    pub fn get_customer_id(&self) -> common_utils::id_type::CustomerId {
-        todo!()
-    }
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl CustomerNew {
     pub fn update_storage_scheme(&mut self, storage_scheme: common_enums::MerchantStorageScheme) {
         self.updated_by = Some(storage_scheme.to_string());
@@ -79,8 +62,6 @@ impl From<CustomerNew> for Customer {
     }
 }
 
-// V2 customer
-
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(
     Clone,
@@ -109,8 +90,8 @@ pub struct CustomerNew {
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    pub id: String,
     pub status: DeleteStatus,
+    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -191,8 +172,8 @@ pub struct Customer {
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
-    pub id: String,
     pub status: DeleteStatus,
+    pub id: String,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -280,7 +261,6 @@ impl CustomerUpdateInternal {
             phone_country_code,
             metadata,
             connector_customer,
-            // address_id,
             default_payment_method_id,
             default_billing_address,
             default_shipping_address,
@@ -297,7 +277,6 @@ impl CustomerUpdateInternal {
             metadata: metadata.map_or(source.metadata, Some),
             modified_at: common_utils::date_time::now(),
             connector_customer: connector_customer.map_or(source.connector_customer, Some),
-            // address_id: address_id.map_or(source.address_id, Some),
             default_payment_method_id: default_payment_method_id
                 .flatten()
                 .map_or(source.default_payment_method_id, Some),
