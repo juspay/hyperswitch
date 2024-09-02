@@ -14,7 +14,7 @@ use crate::schema_v2::payment_intent;
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
@@ -69,13 +69,14 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
@@ -130,6 +131,7 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(
@@ -137,7 +139,7 @@ pub struct PaymentIntent {
 )]
 #[diesel(table_name = payment_intent)]
 pub struct PaymentIntentNew {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
@@ -190,6 +192,7 @@ pub struct PaymentIntentNew {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

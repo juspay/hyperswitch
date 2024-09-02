@@ -3082,7 +3082,7 @@ pub async fn list_payment_methods(
             }
         }
 
-        let pm_auth_key = format!("pm_auth_{}", payment_intent.payment_id);
+        let pm_auth_key = payment_intent.payment_id.get_pm_auth_key();
         let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
         if let Some(rc) = redis_conn {
@@ -3997,7 +3997,7 @@ pub async fn filter_payment_methods(
     _mca_id: String,
     _payment_methods: &[Secret<serde_json::Value>],
     _req: &mut api::PaymentMethodListRequest,
-    _resp: &mut Vec<ResponsePaymentMethodIntermediate>,
+    _resp: &mut [ResponsePaymentMethodIntermediate],
     _payment_intent: Option<&storage::PaymentIntent>,
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
@@ -4866,7 +4866,7 @@ async fn generate_saved_pm_response(
                     pi.off_session_payment_flag,
                     pi.business_profile
                         .as_ref()
-                        .map(|profile| profile.profile_id.clone()),
+                        .map(|profile| profile.get_id().to_owned()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));

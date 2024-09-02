@@ -125,7 +125,7 @@ impl PaymentIntentInterface for MockDb {
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         _state: &KeyManagerState,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -135,7 +135,7 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intents
             .iter()
             .find(|payment_intent| {
-                payment_intent.payment_id == payment_id
+                payment_intent.payment_id == *payment_id
                     && payment_intent.merchant_id.eq(merchant_id)
             })
             .cloned()

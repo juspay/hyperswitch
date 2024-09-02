@@ -1,5 +1,5 @@
 use api_models::user_role::role::{self as role_api};
-use common_enums::RoleScope;
+use common_enums::{EntityType, RoleScope};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
@@ -16,30 +16,10 @@ use crate::{
     utils,
 };
 
-pub async fn get_role_from_token_with_permissions(
-    state: SessionState,
-    user_from_token: UserFromToken,
-) -> UserResponse<role_api::GetRoleFromTokenResponse> {
-    let role_info = user_from_token
-        .get_role_info_from_db(&state)
-        .await
-        .attach_printable("Invalid role_id in JWT")?;
-
-    let permissions = role_info
-        .get_permissions_set()
-        .into_iter()
-        .map(Into::into)
-        .collect();
-
-    Ok(ApplicationResponse::Json(
-        role_api::GetRoleFromTokenResponse::Permissions(permissions),
-    ))
-}
-
 pub async fn get_role_from_token_with_groups(
     state: SessionState,
     user_from_token: UserFromToken,
-) -> UserResponse<role_api::GetRoleFromTokenResponse> {
+) -> UserResponse<Vec<role_api::PermissionGroup>> {
     let role_info = user_from_token
         .get_role_info_from_db(&state)
         .await
@@ -47,9 +27,7 @@ pub async fn get_role_from_token_with_groups(
 
     let permissions = role_info.get_permission_groups().to_vec();
 
-    Ok(ApplicationResponse::Json(
-        role_api::GetRoleFromTokenResponse::Groups(permissions),
-    ))
+    Ok(ApplicationResponse::Json(permissions))
 }
 
 pub async fn create_role(
@@ -86,7 +64,7 @@ pub async fn create_role(
             org_id: user_from_token.org_id,
             groups: req.groups,
             scope: req.role_scope,
-            entity_type: req.entity_type,
+            entity_type: Some(EntityType::Merchant),
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id,
             created_at: now,
@@ -105,56 +83,6 @@ pub async fn create_role(
     ))
 }
 
-// TODO: To be deprecated once groups are stable
-pub async fn list_invitable_roles_with_permissions(
-    state: SessionState,
-    user_from_token: UserFromToken,
-) -> UserResponse<role_api::ListRolesResponse> {
-    let predefined_roles_map = PREDEFINED_ROLES
-        .iter()
-        .filter(|(_, role_info)| role_info.is_invitable())
-        .map(|(role_id, role_info)| {
-            role_api::RoleInfoResponse::Permissions(role_api::RoleInfoWithPermissionsResponse {
-                permissions: role_info
-                    .get_permissions_set()
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
-                role_id: role_id.to_string(),
-                role_name: role_info.get_role_name().to_string(),
-                role_scope: role_info.get_scope(),
-            })
-        });
-
-    let custom_roles_map = state
-        .store
-        .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|role| {
-            let role_info = roles::RoleInfo::from(role);
-            role_info
-                .is_invitable()
-                .then_some(role_api::RoleInfoResponse::Permissions(
-                    role_api::RoleInfoWithPermissionsResponse {
-                        permissions: role_info
-                            .get_permissions_set()
-                            .into_iter()
-                            .map(Into::into)
-                            .collect(),
-                        role_id: role_info.get_role_id().to_string(),
-                        role_name: role_info.get_role_name().to_string(),
-                        role_scope: role_info.get_scope(),
-                    },
-                ))
-        });
-
-    Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
-        predefined_roles_map.chain(custom_roles_map).collect(),
-    )))
-}
-
 pub async fn list_invitable_roles_with_groups(
     state: SessionState,
     user_from_token: UserFromToken,
@@ -162,14 +90,14 @@ pub async fn list_invitable_roles_with_groups(
     let predefined_roles_map = PREDEFINED_ROLES
         .iter()
         .filter(|(_, role_info)| role_info.is_invitable())
-        .map(|(role_id, role_info)| {
-            role_api::RoleInfoResponse::Groups(role_api::RoleInfoWithGroupsResponse {
+        .map(
+            |(role_id, role_info)| role_api::RoleInfoWithGroupsResponse {
                 groups: role_info.get_permission_groups().to_vec(),
                 role_id: role_id.to_string(),
                 role_name: role_info.get_role_name().to_string(),
                 role_scope: role_info.get_scope(),
-            })
-        });
+            },
+        );
 
     let custom_roles_map = state
         .store
@@ -181,14 +109,12 @@ pub async fn list_invitable_roles_with_groups(
             let role_info = roles::RoleInfo::from(role);
             role_info
                 .is_invitable()
-                .then_some(role_api::RoleInfoResponse::Groups(
-                    role_api::RoleInfoWithGroupsResponse {
-                        groups: role_info.get_permission_groups().to_vec(),
-                        role_id: role_info.get_role_id().to_string(),
-                        role_name: role_info.get_role_name().to_string(),
-                        role_scope: role_info.get_scope(),
-                    },
-                ))
+                .then_some(role_api::RoleInfoWithGroupsResponse {
+                    groups: role_info.get_permission_groups().to_vec(),
+                    role_id: role_info.get_role_id().to_string(),
+                    role_name: role_info.get_role_name().to_string(),
+                    role_scope: role_info.get_scope(),
+                })
         });
 
     Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
@@ -196,46 +122,11 @@ pub async fn list_invitable_roles_with_groups(
     )))
 }
 
-// TODO: To be deprecated once groups are stable
-pub async fn get_role_with_permissions(
-    state: SessionState,
-    user_from_token: UserFromToken,
-    role: role_api::GetRoleRequest,
-) -> UserResponse<role_api::RoleInfoResponse> {
-    let role_info = roles::RoleInfo::from_role_id(
-        &state,
-        &role.role_id,
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .to_not_found_response(UserErrors::InvalidRoleId)?;
-
-    if role_info.is_internal() {
-        return Err(UserErrors::InvalidRoleId.into());
-    }
-
-    let permissions = role_info
-        .get_permissions_set()
-        .into_iter()
-        .map(Into::into)
-        .collect();
-
-    Ok(ApplicationResponse::Json(
-        role_api::RoleInfoResponse::Permissions(role_api::RoleInfoWithPermissionsResponse {
-            permissions,
-            role_id: role.role_id,
-            role_name: role_info.get_role_name().to_string(),
-            role_scope: role_info.get_scope(),
-        }),
-    ))
-}
-
 pub async fn get_role_with_groups(
     state: SessionState,
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
-) -> UserResponse<role_api::RoleInfoResponse> {
+) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let role_info = roles::RoleInfo::from_role_id(
         &state,
         &role.role_id,
@@ -250,12 +141,12 @@ pub async fn get_role_with_groups(
     }
 
     Ok(ApplicationResponse::Json(
-        role_api::RoleInfoResponse::Groups(role_api::RoleInfoWithGroupsResponse {
+        role_api::RoleInfoWithGroupsResponse {
             groups: role_info.get_permission_groups().to_vec(),
             role_id: role.role_id,
             role_name: role_info.get_role_name().to_string(),
             role_scope: role_info.get_scope(),
-        }),
+        },
     ))
 }
 
@@ -321,4 +212,149 @@ pub async fn update_role(
             role_scope: updated_role.scope,
         },
     ))
+}
+
+pub async fn list_roles_with_info(
+    state: SessionState,
+    user_from_token: UserFromToken,
+) -> UserResponse<Vec<role_api::RoleInfoResponseNew>> {
+    let user_role_info = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?;
+
+    let mut role_info_vec = PREDEFINED_ROLES
+        .iter()
+        .map(|(_, role_info)| role_info.clone())
+        .collect::<Vec<_>>();
+
+    let user_role_entity = user_role_info.get_entity_type();
+    let custom_roles = match user_role_entity {
+        EntityType::Organization => state
+            .store
+            .list_roles_for_org_by_parameters(&user_from_token.org_id, None, None, None)
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+        EntityType::Merchant => state
+            .store
+            .list_roles_for_org_by_parameters(
+                &user_from_token.org_id,
+                Some(&user_from_token.merchant_id),
+                None,
+                None,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+        // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
+        EntityType::Profile => Vec::new(),
+        EntityType::Internal => {
+            return Err(UserErrors::InvalidRoleOperationWithMessage(
+                "Internal roles are not allowed for this operation".to_string(),
+            )
+            .into());
+        }
+    };
+
+    role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
+    let list_role_info_response = role_info_vec
+        .into_iter()
+        .filter_map(|role_info| {
+            if user_role_entity >= role_info.get_entity_type() {
+                Some(role_api::RoleInfoResponseNew {
+                    role_id: role_info.get_role_id().to_string(),
+                    role_name: role_info.get_role_name().to_string(),
+                    groups: role_info.get_permission_groups().to_vec(),
+                    entity_type: role_info.get_entity_type(),
+                    scope: role_info.get_scope(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Ok(ApplicationResponse::Json(list_role_info_response))
+}
+
+pub async fn list_roles_at_entity_level(
+    state: SessionState,
+    user_from_token: UserFromToken,
+    req: role_api::ListRolesAtEntityLevelRequest,
+    check_type: role_api::RoleCheckType,
+) -> UserResponse<Vec<role_api::MinimalRoleInfo>> {
+    let user_entity_type = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?
+        .get_entity_type();
+
+    if req.entity_type > user_entity_type {
+        return Err(UserErrors::InvalidRoleOperationWithMessage(
+            "User is attempting to request list roles above the current entity level".to_string(),
+        )
+        .into());
+    }
+    let mut role_info_vec = PREDEFINED_ROLES
+        .iter()
+        .map(|(_, role_info)| role_info.clone())
+        .collect::<Vec<_>>();
+
+    let custom_roles = match req.entity_type {
+        EntityType::Organization => state
+            .store
+            .list_roles_for_org_by_parameters(
+                &user_from_token.org_id,
+                None,
+                Some(req.entity_type),
+                None,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+
+        EntityType::Merchant => state
+            .store
+            .list_roles_for_org_by_parameters(
+                &user_from_token.org_id,
+                Some(&user_from_token.merchant_id),
+                Some(req.entity_type),
+                None,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get roles")?,
+        // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
+        EntityType::Profile => Vec::new(),
+
+        EntityType::Internal => {
+            return Err(UserErrors::InvalidRoleOperationWithMessage(
+                "Internal roles are not allowed for this operation".to_string(),
+            )
+            .into());
+        }
+    };
+
+    role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
+
+    let list_minimal_role_info = role_info_vec
+        .into_iter()
+        .filter_map(|role_info| {
+            let check_type = match check_type {
+                role_api::RoleCheckType::Invite => role_info.is_invitable(),
+                role_api::RoleCheckType::Update => role_info.is_updatable(),
+            };
+            if check_type && role_info.get_entity_type() == req.entity_type {
+                Some(role_api::MinimalRoleInfo {
+                    role_id: role_info.get_role_id().to_string(),
+                    role_name: role_info.get_role_name().to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Ok(ApplicationResponse::Json(list_minimal_role_info))
 }

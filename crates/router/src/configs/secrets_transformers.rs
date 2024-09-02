@@ -123,6 +123,9 @@ impl SecretsHandler for settings::ApiKeys {
             .get_secret(api_keys.checksum_auth_key.clone())
             .await?;
 
+        #[cfg(feature = "partial-auth")]
+        let enable_partial_auth = api_keys.enable_partial_auth;
+
         Ok(value.transition_state(|_| Self {
             hash_key,
             #[cfg(feature = "email")]
@@ -132,12 +135,14 @@ impl SecretsHandler for settings::ApiKeys {
             checksum_auth_key,
             #[cfg(feature = "partial-auth")]
             checksum_auth_context,
+            #[cfg(feature = "partial-auth")]
+            enable_partial_auth,
         }))
     }
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::ApplePayDecryptConifg {
+impl SecretsHandler for settings::ApplePayDecryptConfig {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
@@ -338,7 +343,7 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt connector_onboarding configs");
 
     #[allow(clippy::expect_used)]
-    let applepay_decrypt_keys = settings::ApplePayDecryptConifg::convert_to_raw_secret(
+    let applepay_decrypt_keys = settings::ApplePayDecryptConfig::convert_to_raw_secret(
         conf.applepay_decrypt_keys,
         secret_management_client,
     )

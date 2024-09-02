@@ -1,10 +1,12 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import * as utils from "../RoutingUtils/utils";
+import * as utils from "../RoutingUtils/Utils";
 
 let globalState;
 
 describe("Rule Based Routing Test", () => {
+  let should_continue = true;
+
   context("Create Jwt Token", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -21,8 +23,6 @@ describe("Rule Based Routing Test", () => {
       let res_data = data["Response"];
 
       cy.createJWTToken(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
     });
 
     it("merchant retrieve call", () => {

@@ -14,8 +14,12 @@ use super::payments;
 use super::payouts;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use crate::utils::ValueExt;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
 use crate::{
-    consts,
+    core::{admin, errors::RouterResult},
+    db::StorageInterface,
+};
+use crate::{
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
@@ -27,11 +31,6 @@ use crate::{
         transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
-};
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{
-    core::{admin, errors::RouterResult},
-    db::StorageInterface,
 };
 pub enum TransactionData<'a, F>
 where
@@ -53,10 +52,7 @@ impl RoutingAlgorithmUpdate {
         profile_id: common_utils::id_type::ProfileId,
         transaction_type: &enums::TransactionType,
     ) -> Self {
-        let algorithm_id = common_utils::generate_id(
-            consts::ROUTING_CONFIG_ID_LENGTH,
-            &format!("routing_{}", merchant_id.get_string_repr()),
-        );
+        let algorithm_id = common_utils::generate_routing_id_of_default_length();
         let timestamp = common_utils::date_time::now();
         let algo = RoutingAlgorithm {
             algorithm_id,
@@ -74,7 +70,7 @@ impl RoutingAlgorithmUpdate {
     }
     pub async fn fetch_routing_algo(
         merchant_id: &common_utils::id_type::MerchantId,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         db: &dyn StorageInterface,
     ) -> RouterResult<Self> {
         let routing_algo = db
@@ -144,13 +140,13 @@ pub async fn create_routing_algorithm_under_profile(
     .await?;
 
     let name_mca_id_set = helpers::ConnectNameAndMCAIdForProfile(
-        all_mcas.filter_by_profile(&business_profile.profile_id, |mca| {
+        all_mcas.filter_by_profile(business_profile.get_id(), |mca| {
             (&mca.connector_name, mca.get_id())
         }),
     );
 
     let name_set = helpers::ConnectNameForProfile(
-        all_mcas.filter_by_profile(&business_profile.profile_id, |mca| &mca.connector_name),
+        all_mcas.filter_by_profile(business_profile.get_id(), |mca| &mca.connector_name),
     );
 
     let algorithm_helper = helpers::RoutingAlgorithmHelpers {
@@ -164,7 +160,7 @@ pub async fn create_routing_algorithm_under_profile(
     let algo = RoutingAlgorithmUpdate::create_new_routing_algorithm(
         &request,
         merchant_account.get_id(),
-        business_profile.profile_id,
+        business_profile.get_id().to_owned(),
         transaction_type,
     );
 
@@ -215,10 +211,7 @@ pub async fn create_routing_algorithm_under_profile(
         })
         .attach_printable("Algorithm of config not given")?;
 
-    let algorithm_id = common_utils::generate_id(
-        consts::ROUTING_CONFIG_ID_LENGTH,
-        &format!("routing_{}", merchant_account.get_id().get_string_repr()),
-    );
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
 
     let profile_id = request
         .profile_id
@@ -280,7 +273,7 @@ pub async fn link_routing_config_under_profile(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile_id: common_utils::id_type::ProfileId,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -352,7 +345,7 @@ pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -428,7 +421,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -461,7 +454,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -860,7 +853,7 @@ pub async fn retrieve_routing_config_under_profile(
 
     let record = db
         .list_routing_algorithm_metadata_by_profile_id(
-            &business_profile.profile_id,
+            business_profile.get_id(),
             i64::from(query_params.limit.unwrap_or_default()),
             i64::from(query_params.offset.unwrap_or_default()),
         )
@@ -921,6 +914,8 @@ pub async fn retrieve_linked_routing_config(
     let mut active_algorithms = Vec::new();
 
     for business_profile in business_profiles {
+        let profile_id = business_profile.get_id().to_owned();
+
         let routing_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
             enums::TransactionType::Payment => business_profile.routing_algorithm,
             #[cfg(feature = "payouts")]
@@ -937,7 +932,7 @@ pub async fn retrieve_linked_routing_config(
             let record = db
                 .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
                     &algorithm_id,
-                    &business_profile.profile_id,
+                    &profile_id,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
@@ -977,7 +972,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
         .map(|prof| {
             helpers::get_merchant_default_config(
                 db,
-                prof.profile_id.get_string_repr(),
+                prof.get_id().get_string_repr(),
                 transaction_type,
             )
         })
@@ -990,7 +985,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
 
     let default_configs = configs
         .into_iter()
-        .zip(all_profiles.iter().map(|prof| prof.profile_id.clone()))
+        .zip(all_profiles.iter().map(|prof| prof.get_id().to_owned()))
         .map(
             |(config, profile_id)| routing_types::ProfileDefaultRoutingConfig {
                 profile_id,
@@ -1029,7 +1024,7 @@ pub async fn update_default_routing_config_for_profile(
     })?;
     let default_config = helpers::get_merchant_default_config(
         db,
-        business_profile.profile_id.get_string_repr(),
+        business_profile.get_id().get_string_repr(),
         transaction_type,
     )
     .await?;
@@ -1071,7 +1066,7 @@ pub async fn update_default_routing_config_for_profile(
 
     helpers::update_merchant_default_config(
         db,
-        business_profile.profile_id.get_string_repr(),
+        business_profile.get_id().get_string_repr(),
         updated_config.clone(),
         transaction_type,
     )
@@ -1080,7 +1075,7 @@ pub async fn update_default_routing_config_for_profile(
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::ProfileDefaultRoutingConfig {
-            profile_id: business_profile.profile_id,
+            profile_id: business_profile.get_id().to_owned(),
             connectors: updated_config,
         },
     ))
