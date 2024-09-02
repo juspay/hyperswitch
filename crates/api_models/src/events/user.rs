@@ -16,11 +16,11 @@ use crate::user::{
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
     GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse,
     ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
-    SsoSignInRequest, SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest,
-    TokenOrPayloadResponse, TokenResponse, TwoFactorAuthStatusResponse,
-    UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest, UserFromEmailRequest,
-    UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
+    SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
+    SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
+    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
+    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
+    VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 impl ApiEventMetric for DashboardEntryResponse {
@@ -37,12 +37,6 @@ impl ApiEventMetric for VerifyTokenResponse {
         Some(ApiEventsType::User {
             user_id: self.user_email.peek().to_string(),
         })
-    }
-}
-
-impl<T> ApiEventMetric for TokenOrPayloadResponse<T> {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
     }
 }
 
@@ -72,7 +66,6 @@ common_utils::impl_api_event_type!(
         VerifyEmailRequest,
         SendVerifyEmailRequest,
         AcceptInviteFromEmailRequest,
-        SignInResponse,
         UpdateUserAccountDetailsRequest,
         GetUserDetailsResponse,
         GetUserRoleDetailsRequest,

@@ -192,42 +192,42 @@ where
     )
     .await?;
 
-    // let connector = if format!("{operation:?}").as_str() == "PaymentSessionUpdate" {
-    //     Some(ConnectorCallType::PreDetermined(
-    //         api::ConnectorData::get_connector_by_name(
-    //             &state.conf.connectors,
-    //             "klarna",
-    //             api::GetToken::Connector,
-    //             None,
-    //         )?,
-    //     ))
-    // } else {
-    //     get_connector_choice(
-    //         &operation,
-    //         state,
-    //         &req,
-    //         &merchant_account,
-    //         &business_profile,
-    //         &key_store,
-    //         &mut payment_data,
-    //         eligible_connectors,
-    //         mandate_type,
-    //     )
-    //     .await?
-    // };
+    let connector = if format!("{operation:?}").as_str() == "PaymentSessionUpdate" {
+        Some(ConnectorCallType::PreDetermined(
+            api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                "klarna",
+                api::GetToken::Connector,
+                None,
+            )?,
+        ))
+    } else {
+        get_connector_choice(
+            &operation,
+            state,
+            &req,
+            &merchant_account,
+            &business_profile,
+            &key_store,
+            &mut payment_data,
+            eligible_connectors,
+            mandate_type,
+        )
+        .await?
+    };
 
-    let connector = get_connector_choice(
-        &operation,
-        state,
-        &req,
-        &merchant_account,
-        &business_profile,
-        &key_store,
-        &mut payment_data,
-        eligible_connectors,
-        mandate_type,
-    )
-    .await?;
+    // let connector = get_connector_choice(
+    //     &operation,
+    //     state,
+    //     &req,
+    //     &merchant_account,
+    //     &business_profile,
+    //     &key_store,
+    //     &mut payment_data,
+    //     eligible_connectors,
+    //     mandate_type,
+    // )
+    // .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 
@@ -3855,6 +3855,30 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
 
             Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
         }
+        (
+            None,
+            None,
+            Some(RecurringDetails::ProcessorPaymentToken(_token)),
+            Some(true),
+            Some(api::MandateTransactionType::RecurringMandateTransaction),
+        ) => {
+            if let Some(connector) = connectors.first() {
+                routing_data.routed_through = Some(connector.connector_name.clone().to_string());
+                routing_data
+                    .merchant_connector_id
+                    .clone_from(&connector.merchant_connector_id);
+                Ok(ConnectorCallType::PreDetermined(api::ConnectorData {
+                    connector: connector.connector.clone(),
+                    connector_name: connector.connector_name,
+                    get_token: connector.get_token.clone(),
+                    merchant_connector_id: connector.merchant_connector_id.clone(),
+                }))
+            } else {
+                logger::error!("no eligible connector found for the ppt_mandate payment");
+                Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration.into())
+            }
+        }
+
         _ => {
             helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
 

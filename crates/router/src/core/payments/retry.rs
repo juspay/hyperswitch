@@ -506,7 +506,6 @@ pub fn make_new_payment_attempt(
         amount: old_payment_attempt.amount,
         currency: old_payment_attempt.currency,
         save_to_locker: old_payment_attempt.save_to_locker,
-
         offer_amount: old_payment_attempt.offer_amount,
         surcharge_amount: old_payment_attempt.surcharge_amount,
         tax_amount: old_payment_attempt.tax_amount,
@@ -521,7 +520,6 @@ pub fn make_new_payment_attempt(
         } else {
             old_payment_attempt.authentication_type
         },
-
         amount_to_capture: old_payment_attempt.amount_to_capture,
         mandate_id: old_payment_attempt.mandate_id,
         browser_info: old_payment_attempt.browser_info,
@@ -531,7 +529,37 @@ pub fn make_new_payment_attempt(
         created_at,
         modified_at,
         last_synced,
-        ..storage::PaymentAttemptNew::default()
+        net_amount: Default::default(),
+        error_message: Default::default(),
+        cancellation_reason: Default::default(),
+        error_code: Default::default(),
+        connector_metadata: Default::default(),
+        payment_experience: Default::default(),
+        payment_method_data: Default::default(),
+        business_sub_label: Default::default(),
+        straight_through_algorithm: Default::default(),
+        preprocessing_step_id: Default::default(),
+        mandate_details: Default::default(),
+        error_reason: Default::default(),
+        connector_response_reference_id: Default::default(),
+        multiple_capture_count: Default::default(),
+        amount_capturable: Default::default(),
+        updated_by: Default::default(),
+        authentication_data: Default::default(),
+        encoded_data: Default::default(),
+        merchant_connector_id: Default::default(),
+        unified_code: Default::default(),
+        unified_message: Default::default(),
+        external_three_ds_authentication_attempted: Default::default(),
+        authentication_connector: Default::default(),
+        authentication_id: Default::default(),
+        mandate_data: Default::default(),
+        payment_method_billing_address_id: Default::default(),
+        fingerprint_id: Default::default(),
+        charge_id: Default::default(),
+        customer_acceptance: Default::default(),
+        profile_id: old_payment_attempt.profile_id,
+        organization_id: old_payment_attempt.organization_id,
     }
 }
 

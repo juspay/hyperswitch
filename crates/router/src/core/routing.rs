@@ -14,8 +14,12 @@ use super::payments;
 use super::payouts;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use crate::utils::ValueExt;
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
 use crate::{
-    consts,
+    core::{admin, errors::RouterResult},
+    db::StorageInterface,
+};
+use crate::{
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
         metrics, utils as core_utils,
@@ -27,11 +31,6 @@ use crate::{
         transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
-};
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
-use crate::{
-    core::{admin, errors::RouterResult},
-    db::StorageInterface,
 };
 pub enum TransactionData<'a, F>
 where
@@ -53,10 +52,7 @@ impl RoutingAlgorithmUpdate {
         profile_id: common_utils::id_type::ProfileId,
         transaction_type: &enums::TransactionType,
     ) -> Self {
-        let algorithm_id = common_utils::generate_id(
-            consts::ROUTING_CONFIG_ID_LENGTH,
-            &format!("routing_{}", merchant_id.get_string_repr()),
-        );
+        let algorithm_id = common_utils::generate_routing_id_of_default_length();
         let timestamp = common_utils::date_time::now();
         let algo = RoutingAlgorithm {
             algorithm_id,
@@ -74,7 +70,7 @@ impl RoutingAlgorithmUpdate {
     }
     pub async fn fetch_routing_algo(
         merchant_id: &common_utils::id_type::MerchantId,
-        algorithm_id: &str,
+        algorithm_id: &common_utils::id_type::RoutingId,
         db: &dyn StorageInterface,
     ) -> RouterResult<Self> {
         let routing_algo = db
@@ -215,10 +211,7 @@ pub async fn create_routing_algorithm_under_profile(
         })
         .attach_printable("Algorithm of config not given")?;
 
-    let algorithm_id = common_utils::generate_id(
-        consts::ROUTING_CONFIG_ID_LENGTH,
-        &format!("routing_{}", merchant_account.get_id().get_string_repr()),
-    );
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
 
     let profile_id = request
         .profile_id
@@ -280,7 +273,7 @@ pub async fn link_routing_config_under_profile(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile_id: common_utils::id_type::ProfileId,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -352,7 +345,7 @@ pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -428,7 +421,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
@@ -461,7 +454,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    algorithm_id: String,
+    algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();

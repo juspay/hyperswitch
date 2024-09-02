@@ -1,6 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import * as utils from "../RoutingUtils/utils";
+import * as utils from "../RoutingUtils/Utils";
 
 let globalState;
 
@@ -39,7 +39,7 @@ describe("Volume Based Routing Test", () => {
       });
     });
 
-    afterEach("flush global state", () => {
+    after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
@@ -166,7 +166,7 @@ describe("Volume Based Routing Test", () => {
       });
     });
 
-    afterEach("flush global state", () => {
+    after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
     it("list-mca-by-mid", () => {

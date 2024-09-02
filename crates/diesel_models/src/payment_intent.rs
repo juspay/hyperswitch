@@ -70,6 +70,7 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub tax_details: Option<TaxDetails>,
 }
@@ -133,6 +134,7 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub tax_details: Option<TaxDetails>,
 }
@@ -215,6 +217,7 @@ pub struct PaymentIntentNew {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub shipping_cost: Option<MinorUnit>,
     pub tax_details: Option<TaxDetails>,
 }

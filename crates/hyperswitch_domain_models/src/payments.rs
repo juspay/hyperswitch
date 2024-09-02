@@ -69,5 +69,6 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
 }
