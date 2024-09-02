@@ -16,9 +16,10 @@ use serde_json::Value;
 use crate::connector::utils::PayoutsData;
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, ApplePayDecrypt, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RecurringMandateData, RouterData, NetworkTokenData
+        self, AddressDetailsData, ApplePayDecrypt, CardData, NetworkTokenData,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsPreProcessingData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
+        RecurringMandateData, RouterData,
     },
     consts,
     core::errors,
