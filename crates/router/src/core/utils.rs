@@ -1383,7 +1383,7 @@ impl<T, F> GetProfileId for (storage::Payouts, T, F) {
 
 impl GetProfileId for domain::BusinessProfile {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.profile_id)
+        Some(self.get_id())
     }
 }
 
