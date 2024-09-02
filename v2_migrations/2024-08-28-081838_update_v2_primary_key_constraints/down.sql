@@ -31,6 +31,15 @@ WHERE merchant_id IS NULL;
 ALTER TABLE merchant_account
 ADD PRIMARY KEY (merchant_id);
 
+UPDATE business_profile
+SET profile_id = id
+WHERE profile_id IS NULL;
+
+ALTER TABLE business_profile DROP COLUMN id;
+
+ALTER TABLE business_profile
+ADD PRIMARY KEY (profile_id);
+
 ALTER TABLE merchant_connector_account DROP CONSTRAINT merchant_connector_account_pkey;
 
 UPDATE merchant_connector_account

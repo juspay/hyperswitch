@@ -794,7 +794,10 @@ mod tests {
                     response: None,
                     delivery_attempt: Some(enums::WebhookDeliveryAttempt::InitialAttempt),
                     metadata: Some(EventMetadata::Payment {
-                        payment_id: payment_id.into(),
+                        payment_id: common_utils::id_type::PaymentId::try_from(
+                            std::borrow::Cow::Borrowed(payment_id),
+                        )
+                        .unwrap(),
                     }),
                 },
                 &merchant_key_store,

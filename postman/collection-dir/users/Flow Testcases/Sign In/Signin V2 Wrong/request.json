@@ -18,7 +18,7 @@
     }
   },
   "url": {
-    "raw": "{{baseUrl}}/user/v2/signin?token_only=true",
+    "raw": "{{baseUrl}}/user/v2/signin",
     "host": [
       "{{baseUrl}}"
     ],
@@ -26,12 +26,6 @@
       "user",
       "v2",
       "signin"
-    ],
-    "query": [
-      {
-        "key": "token_only",
-        "value": "true"
-      }
     ]
   }
 }

@@ -29,7 +29,8 @@ ALTER TABLE merchant_account
 ALTER COLUMN primary_business_details DROP DEFAULT;
 
 ALTER TABLE business_profile
-ADD COLUMN routing_algorithm JSON DEFAULT NULL,
+ADD COLUMN profile_id VARCHAR(64),
+    ADD COLUMN routing_algorithm JSON DEFAULT NULL,
     ADD COLUMN intent_fulfillment_time BIGINT DEFAULT NULL,
     ADD COLUMN frm_routing_algorithm JSONB DEFAULT NULL,
     ADD COLUMN payout_routing_algorithm JSONB DEFAULT NULL;

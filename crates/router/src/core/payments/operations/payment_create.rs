@@ -234,9 +234,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &state.conf,
             merchant_id,
         ) {
-            payment_id.to_string()
+            payment_id.get_string_repr().to_string()
         } else {
-            utils::get_payment_attempt_id(payment_id.clone(), 1)
+            payment_id.get_attempt_id(1)
         };
 
         let session_expiry =
@@ -873,7 +873,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         organization_id: &common_utils::id_type::OrganizationId,
         money: (api::Amount, enums::Currency),
@@ -968,9 +968,9 @@ impl PaymentCreate {
             &state.conf,
             merchant_id,
         ) {
-            payment_id.to_string()
+            payment_id.get_string_repr().to_owned()
         } else {
-            utils::get_payment_attempt_id(payment_id, 1)
+            payment_id.get_attempt_id(1)
         };
         let surcharge_amount = request
             .surcharge_details
@@ -1000,7 +1000,7 @@ impl PaymentCreate {
 
         Ok((
             storage::PaymentAttemptNew {
-                payment_id: payment_id.to_string(),
+                payment_id: payment_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
                 attempt_id,
                 status,
@@ -1078,7 +1078,7 @@ impl PaymentCreate {
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
         state: &SessionState,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         money: (api::Amount, enums::Currency),
@@ -1101,8 +1101,7 @@ impl PaymentCreate {
                 }),
             request.confirm,
         );
-        let client_secret =
-            utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
+        let client_secret = payment_id.generate_client_secret();
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request
@@ -1199,7 +1198,7 @@ impl PaymentCreate {
             .attach_printable("Unable to encrypt customer details")?;
 
         Ok(storage::PaymentIntent {
-            payment_id: payment_id.to_string(),
+            payment_id: payment_id.to_owned(),
             merchant_id: merchant_account.get_id().to_owned(),
             status,
             amount: MinorUnit::from(amount),
@@ -1294,7 +1293,7 @@ async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,
     merchant_id: &common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     db: &dyn StorageInterface,
     amount: api::Amount,
     description: Option<String>,
@@ -1310,7 +1309,7 @@ async fn create_payment_link(
         "{}/payment_link/{}/{}?locale={}",
         domain_name,
         merchant_id.get_string_repr(),
-        payment_id.clone(),
+        payment_id.get_string_repr(),
         locale_str.clone(),
     );
 
@@ -1319,7 +1318,7 @@ async fn create_payment_link(
             "{}/payment_link/s/{}/{}?locale={}",
             domain_name,
             merchant_id.get_string_repr(),
-            payment_id.clone(),
+            payment_id.get_string_repr(),
             locale_str,
         )
     });

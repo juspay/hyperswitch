@@ -357,11 +357,7 @@ impl UserRoleInterface for MockDb {
 
         for user_role in user_roles.iter() {
             let Some(user_role_merchant_id) = &user_role.merchant_id else {
-                return Err(errors::StorageError::DatabaseError(
-                    report!(errors::DatabaseError::Others)
-                        .attach_printable("merchant_id not found for user_role"),
-                )
-                .into());
+                continue;
             };
             if user_role.user_id == user_id
                 && user_role_merchant_id == merchant_id

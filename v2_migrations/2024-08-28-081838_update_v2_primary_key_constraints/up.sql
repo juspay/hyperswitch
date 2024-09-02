@@ -34,6 +34,20 @@ WHERE id IS NULL;
 ALTER TABLE merchant_account
 ADD PRIMARY KEY (id);
 
+-- This migration is to modify the id column in business_profile table to be a VARCHAR(64) and to set the id column as primary key
+ALTER TABLE business_profile
+ADD COLUMN id VARCHAR(64);
+
+-- Backfill the id column with the profile_id to prevent null values
+UPDATE business_profile
+SET id = profile_id
+WHERE id IS NULL;
+
+ALTER TABLE business_profile DROP CONSTRAINT business_profile_pkey;
+
+ALTER TABLE business_profile
+ADD PRIMARY KEY (id);
+
 -- Backfill the id column with the merchant_connector_id to prevent null values
 UPDATE merchant_connector_account
 SET id = merchant_connector_id
