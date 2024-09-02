@@ -132,3 +132,9 @@ pub struct AcceptInvitationRequest {
 pub struct DeleteUserRoleRequest {
     pub email: pii::Email,
 }
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListUsersInEntityResponse {
+    pub email: pii::Email,
+    pub roles: Vec<role::MinimalRoleInfo>,
+}
