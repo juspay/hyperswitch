@@ -36,6 +36,17 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
     pub version: Option<enums::UserRoleVersion>,
 }
 
+pub struct ListUserRolesByUserIdPayload<'a> {
+    pub user_id: &'a str,
+    pub org_id: Option<&'a id_type::OrganizationId>,
+    pub merchant_id: Option<&'a id_type::MerchantId>,
+    pub profile_id: Option<&'a id_type::ProfileId>,
+    pub entity_id: Option<&'a String>,
+    pub version: Option<enums::UserRoleVersion>,
+    pub status: Option<UserStatus>,
+    pub limit: Option<u32>,
+}
+
 #[async_trait::async_trait]
 pub trait UserRoleInterface {
     async fn insert_user_role(
@@ -96,17 +107,9 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
-    #[allow(clippy::too_many_arguments)]
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id<'a>(
         &self,
-        user_id: &str,
-        org_id: Option<&id_type::OrganizationId>,
-        merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&id_type::ProfileId>,
-        entity_id: Option<&String>,
-        version: Option<enums::UserRoleVersion>,
-        status: Option<UserStatus>,
-        limit: Option<u32>,
+        payload: ListUserRolesByUserIdPayload<'a>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError>;
 
     async fn list_user_roles_by_org_id<'a>(
@@ -250,28 +253,21 @@ impl UserRoleInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id<'a>(
         &self,
-        user_id: &str,
-        org_id: Option<&id_type::OrganizationId>,
-        merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&id_type::ProfileId>,
-        entity_id: Option<&String>,
-        version: Option<enums::UserRoleVersion>,
-        status: Option<UserStatus>,
-        limit: Option<u32>,
+        payload: ListUserRolesByUserIdPayload<'a>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::UserRole::generic_user_roles_list_for_user(
             &conn,
-            user_id.to_owned(),
-            org_id.cloned(),
-            merchant_id.cloned(),
-            profile_id.cloned(),
-            entity_id.cloned(),
-            status,
-            version,
-            limit,
+            payload.user_id.to_owned(),
+            payload.org_id.cloned(),
+            payload.merchant_id.cloned(),
+            payload.profile_id.cloned(),
+            payload.entity_id.cloned(),
+            payload.status,
+            payload.version,
+            payload.limit,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -562,48 +558,41 @@ impl UserRoleInterface for MockDb {
         }
     }
 
-    async fn list_user_roles_by_user_id(
+    async fn list_user_roles_by_user_id<'a>(
         &self,
-        user_id: &str,
-        org_id: Option<&id_type::OrganizationId>,
-        merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&id_type::ProfileId>,
-        entity_id: Option<&String>,
-        version: Option<enums::UserRoleVersion>,
-        status: Option<UserStatus>,
-        limit: Option<u32>,
+        payload: ListUserRolesByUserIdPayload<'a>
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
         let mut filtered_roles: Vec<_> = user_roles
             .iter()
             .filter_map(|role| {
-                let mut filter_condition = role.user_id == user_id;
+                let mut filter_condition = role.user_id == payload.user_id;
 
                 role.org_id
                     .as_ref()
-                    .zip(org_id)
+                    .zip(payload.org_id)
                     .inspect(|(role_org_id, org_id)| {
                         filter_condition = filter_condition && role_org_id == org_id
                     });
-                role.merchant_id.as_ref().zip(merchant_id).inspect(
+                role.merchant_id.as_ref().zip(payload.merchant_id).inspect(
                     |(role_merchant_id, merchant_id)| {
                         filter_condition = filter_condition && role_merchant_id == merchant_id
                     },
                 );
-                role.profile_id.as_ref().zip(profile_id).inspect(
+                role.profile_id.as_ref().zip(payload.profile_id).inspect(
                     |(role_profile_id, profile_id)| {
                         filter_condition = filter_condition && role_profile_id == profile_id
                     },
                 );
                 role.entity_id
                     .as_ref()
-                    .zip(entity_id)
+                    .zip(payload.entity_id)
                     .inspect(|(role_entity_id, entity_id)| {
                         filter_condition = filter_condition && role_entity_id == entity_id
                     });
-                version.inspect(|ver| filter_condition = filter_condition && ver == &role.version);
-                status.inspect(|status| {
+                payload.version.inspect(|ver| filter_condition = filter_condition && ver == &role.version);
+                payload.status.inspect(|status| {
                     filter_condition = filter_condition && status == &role.status
                 });
 
@@ -611,7 +600,7 @@ impl UserRoleInterface for MockDb {
             })
             .collect();
 
-        if let Some(Ok(limit)) = limit.map(|val| val.try_into()) {
+        if let Some(Ok(limit)) = payload.limit.map(|val| val.try_into()) {
             filtered_roles = filtered_roles.into_iter().take(limit).collect();
         }
         Ok(filtered_roles)
