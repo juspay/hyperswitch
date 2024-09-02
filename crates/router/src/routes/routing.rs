@@ -196,7 +196,7 @@ pub async fn list_routing_configs(
             routing::retrieve_merchant_routing_dictionary(
                 state,
                 auth.merchant_account,
-                auth.profile_id,
+                None,
                 query_params,
                 transaction_type,
             )
@@ -234,7 +234,7 @@ pub async fn list_routing_configs_for_profile(
             routing::retrieve_merchant_routing_dictionary(
                 state,
                 auth.merchant_account,
-                auth.profile_id,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
                 query_params,
                 transaction_type,
             )

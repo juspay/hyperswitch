@@ -1383,6 +1383,12 @@ impl GetProfileId for api_models::routing::RoutingRetrieveLinkQuery {
     }
 }
 
+impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
 impl GetProfileId for domain::BusinessProfile {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)

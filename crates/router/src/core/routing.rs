@@ -84,7 +84,7 @@ impl RoutingAlgorithmUpdate {
 pub async fn retrieve_merchant_routing_dictionary(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     query_params: RoutingRetrieveQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
@@ -99,19 +99,9 @@ pub async fn retrieve_merchant_routing_dictionary(
             i64::from(query_params.offset.unwrap_or_default()),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
-        .into_iter()
-        .filter_map(|routing_metadata| {
-            if authentication_profile_id
-                .clone()
-                .is_some_and(|auth_profile| auth_profile == routing_metadata.profile_id)
-            {
-                Some(routing_metadata)
-            } else {
-                None
-            }
-        })
-        .collect();
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    let routing_metadata =
+        super::utils::filter_objects_based_on_profile_id_list(profile_id_list, routing_metadata);
 
     let result = routing_metadata
         .into_iter()
