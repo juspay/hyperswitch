@@ -1,13 +1,20 @@
+use common_enums::enums;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{self, RefundsRouterData},
+};
+use hyperswitch_interfaces::{consts, errors};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, RouterData},
-    consts,
-    core::errors,
-    types::{self, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{get_unimplemented_payment_method_error_message, RouterData as _},
 };
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -47,57 +54,55 @@ impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for Globe
     ) -> Result<Self, Self::Error> {
         let item = item_data.router_data.clone();
         let channel: GlobepayChannel = match &item.request.payment_method_data {
-            domain::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
-                domain::WalletData::AliPayQr(_) => GlobepayChannel::Alipay,
-                domain::WalletData::WeChatPayQr(_) => GlobepayChannel::Wechat,
-                domain::WalletData::AliPayRedirect(_)
-                | domain::WalletData::AliPayHkRedirect(_)
-                | domain::WalletData::MomoRedirect(_)
-                | domain::WalletData::KakaoPayRedirect(_)
-                | domain::WalletData::GoPayRedirect(_)
-                | domain::WalletData::GcashRedirect(_)
-                | domain::WalletData::ApplePay(_)
-                | domain::WalletData::ApplePayRedirect(_)
-                | domain::WalletData::ApplePayThirdPartySdk(_)
-                | domain::WalletData::DanaRedirect {}
-                | domain::WalletData::GooglePay(_)
-                | domain::WalletData::GooglePayRedirect(_)
-                | domain::WalletData::GooglePayThirdPartySdk(_)
-                | domain::WalletData::MbWayRedirect(_)
-                | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::PaypalRedirect(_)
-                | domain::WalletData::PaypalSdk(_)
-                | domain::WalletData::SamsungPay(_)
-                | domain::WalletData::TwintRedirect {}
-                | domain::WalletData::VippsRedirect {}
-                | domain::WalletData::TouchNGoRedirect(_)
-                | domain::WalletData::WeChatPayRedirect(_)
-                | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_)
-                | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("globepay"),
+            PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                WalletData::AliPayQr(_) => GlobepayChannel::Alipay,
+                WalletData::WeChatPayQr(_) => GlobepayChannel::Wechat,
+                WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePay(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePay(_)
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("globepay"),
                 ))?,
             },
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("globepay"),
-                ))?
-            }
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("globepay"),
+            ))?,
         };
         let description = item.get_description()?;
         Ok(Self {
@@ -114,11 +119,11 @@ pub struct GlobepayAuthType {
     pub(super) credential_code: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for GlobepayAuthType {
+impl TryFrom<&ConnectorAuthType> for GlobepayAuthType {
     type Error = Error;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 partner_code: api_key.to_owned(),
                 credential_code: key1.to_owned(),
             }),
@@ -174,18 +179,12 @@ pub enum GlobepayReturnCode {
     OrderNotPaid,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, GlobepayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, GlobepayPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            GlobepayPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, GlobepayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if item.response.return_code == GlobepayReturnCode::Success {
             let globepay_metadata = GlobepayConnectorMetadata {
@@ -204,8 +203,8 @@ impl<F, T>
 
             Ok(Self {
                 status: enums::AttemptStatus::from(globepay_status),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         item.response
                             .order_id
                             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
@@ -264,13 +263,12 @@ impl From<GlobepayPaymentPsyncStatus> for enums::AttemptStatus {
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, GlobepaySyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, GlobepaySyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::ResponseRouterData<F, GlobepaySyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, GlobepaySyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if item.response.return_code == GlobepayReturnCode::Success {
             let globepay_status = item
@@ -283,8 +281,8 @@ impl<F, T>
                 .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
             Ok(Self {
                 status: enums::AttemptStatus::from(globepay_status),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(globepay_id),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(globepay_id),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
@@ -313,8 +311,8 @@ fn get_error_response(
     return_code: GlobepayReturnCode,
     return_msg: Option<String>,
     status_code: u16,
-) -> types::ErrorResponse {
-    types::ErrorResponse {
+) -> ErrorResponse {
+    ErrorResponse {
         code: return_code.to_string(),
         message: consts::NO_ERROR_MESSAGE.to_string(),
         reason: return_msg,
@@ -329,11 +327,9 @@ pub struct GlobepayRefundRequest {
     pub fee: MinorUnit,
 }
 
-impl<F> TryFrom<&GlobepayRouterData<&types::RefundsRouterData<F>>> for GlobepayRefundRequest {
+impl<F> TryFrom<&GlobepayRouterData<&RefundsRouterData<F>>> for GlobepayRefundRequest {
     type Error = Error;
-    fn try_from(
-        item: &GlobepayRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &GlobepayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self { fee: item.amount })
     }
 }
@@ -368,12 +364,10 @@ pub struct GlobepayRefundResponse {
     pub return_msg: Option<String>,
 }
 
-impl<T> TryFrom<types::RefundsResponseRouterData<T, GlobepayRefundResponse>>
-    for types::RefundsRouterData<T>
-{
+impl<T> TryFrom<RefundsResponseRouterData<T, GlobepayRefundResponse>> for RefundsRouterData<T> {
     type Error = Error;
     fn try_from(
-        item: types::RefundsResponseRouterData<T, GlobepayRefundResponse>,
+        item: RefundsResponseRouterData<T, GlobepayRefundResponse>,
     ) -> Result<Self, Self::Error> {
         if item.response.return_code == GlobepayReturnCode::Success {
             let globepay_refund_id = item
@@ -385,7 +379,7 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, GlobepayRefundResponse>>
                 .result_code
                 .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
             Ok(Self {
-                response: Ok(types::RefundsResponseData {
+                response: Ok(RefundsResponseData {
                     connector_refund_id: globepay_refund_id,
                     refund_status: enums::RefundStatus::from(globepay_refund_status),
                 }),
