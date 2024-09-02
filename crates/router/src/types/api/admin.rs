@@ -81,7 +81,6 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             default_profile: item.default_profile,
             recon_status: item.recon_status,
             pm_collect_link_config,
-            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         })
     }
 }
@@ -170,6 +169,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             outgoing_webhook_custom_http_headers,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
+            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         })
     }
 }
@@ -357,6 +357,7 @@ pub async fn create_business_profile_from_merchant_account(
                 .map(Into::into),
             tax_connector_id: request.tax_connector_id,
             is_tax_connector_enabled: request.is_tax_connector_enabled,
+            is_network_tokenization_enabled: request.is_network_tokenization_enabled,
         },
     ))
 }

@@ -200,7 +200,7 @@ where
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let merchant_id = merchant_account.get_id();
                 let is_network_tokenization_enabled =
-                    merchant_account.is_network_tokenization_enabled;
+                business_profile.is_network_tokenization_enabled;
                 let ((mut resp, duplication_check, network_token_requestor_ref_id), token_resp) =
                     if !state.conf.locker.locker_enabled {
                         let (res, dc) = skip_saving_card_in_locker(

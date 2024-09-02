@@ -119,8 +119,6 @@ pub struct MerchantAccountCreate {
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
 
-    #[serde(default)]
-    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(
@@ -339,8 +337,6 @@ pub struct MerchantAccountUpdate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
-
-    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -540,8 +536,6 @@ pub struct MerchantAccountResponse {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
-
-    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -1975,6 +1969,11 @@ pub struct BusinessProfileCreate {
     /// If set to `true` tax_connector_id will be checked.
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[serde(default)]
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[nutype::nutype(
@@ -2197,6 +2196,8 @@ pub struct BusinessProfileResponse {
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
+
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -2415,6 +2416,9 @@ pub struct BusinessProfileUpdate {
     /// Indicates if tax_calculator connector is enabled or not.
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
+
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]

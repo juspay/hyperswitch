@@ -57,7 +57,6 @@ pub struct MerchantAccount {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
-    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(
@@ -93,7 +92,6 @@ pub struct MerchantAccountSetter {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
-    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(
@@ -131,7 +129,6 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
-            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         }
     }
 }
@@ -249,7 +246,6 @@ pub struct MerchantAccountNew {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
-    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
@@ -314,5 +310,4 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
-    pub is_network_tokenization_enabled: Option<bool>,
 }

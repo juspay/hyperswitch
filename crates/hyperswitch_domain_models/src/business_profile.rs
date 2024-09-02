@@ -57,6 +57,7 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: bool,
     pub api_version: common_enums::ApiVersion,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(
@@ -96,6 +97,7 @@ pub struct BusinessProfileSetter {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: bool,
+    pub is_network_tokenization_enabled: bool,
 }
 
 #[cfg(all(
@@ -142,6 +144,7 @@ impl From<BusinessProfileSetter> for BusinessProfile {
             tax_connector_id: value.tax_connector_id,
             is_tax_connector_enabled: value.is_tax_connector_enabled,
             api_version: consts::API_VERSION,
+            is_network_tokenization_enabled: value.is_network_tokenization_enabled,
         }
     }
 }
@@ -193,6 +196,7 @@ pub struct BusinessProfileGeneralUpdate {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub is_network_tokenization_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -212,6 +216,11 @@ pub enum BusinessProfileUpdate {
     ConnectorAgnosticMitUpdate {
         is_connector_agnostic_mit_enabled: Option<bool>,
     },
+    NetworkTokenizationUpdate{
+        is_network_tokenization_enabled: Option<bool>,
+    }
+
+
 }
 
 #[cfg(all(
@@ -251,6 +260,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
+                    is_network_tokenization_enabled
                 } = *update;
 
                 Self {
@@ -284,6 +294,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                     always_collect_shipping_details_from_wallet_connector,
                     tax_connector_id,
                     is_tax_connector_enabled,
+                    is_network_tokenization_enabled
                 }
             }
             BusinessProfileUpdate::RoutingAlgorithmUpdate {
@@ -319,6 +330,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None
             },
             BusinessProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -352,6 +364,7 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None
             },
             BusinessProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -385,6 +398,41 @@ impl From<BusinessProfileUpdate> for BusinessProfileUpdateInternal {
                 always_collect_shipping_details_from_wallet_connector: None,
                 tax_connector_id: None,
                 is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None
+            },
+            BusinessProfileUpdate::NetworkTokenizationUpdate {
+                is_network_tokenization_enabled,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled,
             },
         }
     }
@@ -440,6 +488,7 @@ impl super::behaviour::Conversion for BusinessProfile {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: Some(self.is_tax_connector_enabled),
             api_version: self.api_version,
+            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 
@@ -504,6 +553,7 @@ impl super::behaviour::Conversion for BusinessProfile {
                 tax_connector_id: item.tax_connector_id,
                 is_tax_connector_enabled: item.is_tax_connector_enabled.unwrap_or(false),
                 api_version: item.api_version,
+                is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             })
         }
         .await

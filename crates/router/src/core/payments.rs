@@ -3593,7 +3593,7 @@ where
             connector_data,
             mandate_type,
             business_profile.is_connector_agnostic_mit_enabled,
-            merchant_account.is_network_tokenization_enabled,
+            business_profile.is_network_tokenization_enabled,
             key_store,
         )
         .await;
@@ -3642,7 +3642,7 @@ where
             connector_data,
             mandate_type,
             business_profile.is_connector_agnostic_mit_enabled,
-            merchant_account.is_network_tokenization_enabled,
+            business_profile.is_network_tokenization_enabled,
             key_store,
         )
         .await;
@@ -4250,7 +4250,7 @@ where
                 connector_data,
                 mandate_type,
                 business_profile.is_connector_agnostic_mit_enabled,
-                merchant_account.is_network_tokenization_enabled,
+                business_profile.is_network_tokenization_enabled,
                 key_store,
             )
             .await
@@ -4400,12 +4400,22 @@ pub async fn payment_external_authentication(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while fetching authentication record")?;
+
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
     let payment_method_details = helpers::get_payment_method_details_from_payment_token(
         &state,
         &payment_attempt,
         &payment_intent,
         &key_store,
         storage_scheme,
+        &business_profile
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -4430,14 +4440,6 @@ pub async fn payment_external_authentication(
     ));
     let webhook_url =
         helpers::create_webhook_url(&state.base_url, merchant_id, &authentication_connector);
-
-    let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
-        .await
-        .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
 
     let authentication_details = business_profile
         .authentication_connector_details

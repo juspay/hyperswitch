@@ -1807,6 +1807,7 @@ pub async fn retrieve_card_with_permanent_token(
     _storage_scheme: enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<storage::PaymentMethod>,
+    business_profile: Option<&domain::BusinessProfile>,
 ) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1816,18 +1817,7 @@ pub async fn retrieve_card_with_permanent_token(
             message: "no customer id provided for the payment".to_string(),
         })?;
 
-    let db = state.store.as_ref();
-    let key_manager_state = &state.into();
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(
-            key_manager_state,
-            &payment_intent.merchant_id,
-            merchant_key_store,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-    if merchant_account.is_network_tokenization_enabled {
+    if business_profile.unwrap().is_network_tokenization_enabled {
         if let Some(mandate_ids) = mandate_id {
             if let Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(nt_data)) =
                 mandate_ids.mandate_reference_id
@@ -2064,6 +2054,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 storage_scheme,
                 mandate_id,
                 payment_data.payment_method_info.clone(),
+                business_profile
             )
             .await;
 
@@ -4965,10 +4956,11 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 
 pub async fn get_payment_method_details_from_payment_token(
     state: &SessionState,
-    payment_attempt: &PaymentAttempt,
+    payment_attempt: &PaymentAttempt, 
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
     let hyperswitch_token = if let Some(token) = payment_attempt.payment_token.clone() {
         let redis_conn = state
@@ -5054,6 +5046,7 @@ pub async fn get_payment_method_details_from_payment_token(
             storage_scheme,
             None,
             None,
+            Some(business_profile),
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
@@ -5071,6 +5064,7 @@ pub async fn get_payment_method_details_from_payment_token(
             storage_scheme,
             None,
             None,
+            Some(business_profile),
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),

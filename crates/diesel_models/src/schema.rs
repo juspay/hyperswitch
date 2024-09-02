@@ -209,6 +209,7 @@ diesel::table! {
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
         api_version -> ApiVersion,
+        is_network_tokenization_enabled -> Bool,
     }
 }
 
@@ -674,7 +675,6 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
-        is_network_tokenization_enabled -> Bool,
     }
 }
 

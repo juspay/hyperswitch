@@ -404,7 +404,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     payment_link_config: None,
                     pm_collect_link_config,
                     version: hyperswitch_domain_models::consts::API_VERSION,
-                    is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 },
             )
         }
@@ -977,7 +976,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             payment_link_config: None,
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
-            is_network_tokenization_enabled: self.is_network_tokenization_enabled,
         })
     }
 }
@@ -3548,6 +3546,7 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
                     .always_collect_billing_details_from_wallet_connector,
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         ))
     }
@@ -3903,6 +3902,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 tax_connector_id: self.tax_connector_id,
                 is_tax_connector_enabled: self.is_tax_connector_enabled,
+                is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             },
         )))
     }
