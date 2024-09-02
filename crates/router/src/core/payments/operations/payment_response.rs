@@ -563,7 +563,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
 
         // let total_amount = MinorUnit::from(payment_data.amount) + pmt_amount;
 
-        // // if connector_ call successfull -> paymnet_intent.amount update
+        // // if connector_ call successful -> payment_intent.amount update
         // match router_data.response.clone() {
         //     Err(_) => (None, None),
         //     Ok(types::PaymentsResponseData::SessionUpdateResponse { status }) => {

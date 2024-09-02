@@ -4,7 +4,7 @@ use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     enums::{DisputeStage, DisputeStatus},
-    payments::{Address, OrderDetailsWithAmount},
+    payments::OrderDetailsWithAmount,
 };
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
@@ -105,7 +105,7 @@ pub async fn construct_payout_router_data<'a, F>(
             state: a.state.map(Encryptable::into_inner),
         };
 
-        Address {
+        api_models::payments::Address {
             phone: Some(phone_details),
             address: Some(address_details),
             email: a.email.to_owned().map(Email::from),
