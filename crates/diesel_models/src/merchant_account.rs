@@ -158,8 +158,8 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
-    pub id: common_utils::id_type::MerchantId,
     pub version: common_enums::ApiVersion,
+    pub id: common_utils::id_type::MerchantId,
 }
 
 #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]

@@ -302,7 +302,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         ))]
         let fallback_config = routing::helpers::get_merchant_default_config(
             &*state.clone().store,
-            business_profile.profile_id.get_string_repr(),
+            business_profile.get_id().get_string_repr(),
             &api_enums::TransactionType::from(transaction_data),
         )
         .await
@@ -322,7 +322,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         state,
         merchant_id,
         &algorithm_id,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         &api_enums::TransactionType::from(transaction_data),
     )
     .await?;
@@ -780,7 +780,7 @@ pub async fn perform_fallback_routing<F: Clone>(
         fallback_config,
         backend_input,
         eligible_connectors,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         &api_enums::TransactionType::from(transaction_data),
     )
     .await
@@ -800,7 +800,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         chosen,
         transaction_data,
         eligible_connectors.as_ref(),
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
     )
     .await?;
 

@@ -443,6 +443,14 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let enable_partial_auth = state.conf().api_keys.get_inner().enable_partial_auth;
+
+        // This is a early return if partial auth is disabled
+        // Preventing the need to go through the header extraction process
+        if !enable_partial_auth {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
         let report_failure = || {
             metrics::PARTIAL_AUTH_FAILURE.add(&metrics::CONTEXT, 1, &[]);
         };

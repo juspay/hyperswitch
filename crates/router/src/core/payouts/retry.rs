@@ -273,7 +273,7 @@ pub async fn modify_trackers(
         .attach_printable("Error updating payouts")?;
 
     let payout_attempt_id =
-        utils::get_payment_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
+        utils::get_payout_attempt_id(payout_id.to_owned(), payout_data.payouts.attempt_count);
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
