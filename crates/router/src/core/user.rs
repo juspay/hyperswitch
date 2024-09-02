@@ -2347,7 +2347,7 @@ pub async fn list_merchants_for_user_in_org(
                     merchant_id: merchant_account.get_id().to_owned(),
                 },
             )
-            .collect()
+            .collect::<Vec<_>>()
     } else {
         let merchant_ids = state
             .store
@@ -2381,10 +2381,10 @@ pub async fn list_merchants_for_user_in_org(
                     merchant_id: merchant_account.get_id().to_owned(),
                 },
             )
-            .collect()
+            .collect::<Vec<_>>()
     };
 
-    if resp.is_empty() {
+    if merchant_accounts.is_empty() {
         Err(UserErrors::InternalServerError).attach_printable("No merchant found for a user")?;
     }
 
@@ -2433,7 +2433,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                         profile_name: profile.profile_name,
                     },
                 )
-                .collect()
+                .collect::<Vec<_>>()
         } else {
             let profile_ids = state
                 .store
@@ -2470,10 +2470,10 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                     profile_name: profile.profile_name,
                 },
             )
-            .collect()
+            .collect::<Vec<_>>()
         };
 
-    if resp.is_empty() {
+    if profiles.is_empty() {
         Err(UserErrors::InternalServerError).attach_printable("No profile found for a user")?;
     }
 
