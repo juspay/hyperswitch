@@ -216,7 +216,7 @@ where
         &validate_result,
         &key_store,
         &customer,
-        Some(&business_profile),
+        &business_profile,
     )
     .await?;
 
@@ -1540,7 +1540,7 @@ where
         &merchant_connector_account,
         key_store,
         customer,
-        Some(business_profile),
+        business_profile,
     )
     .await?;
     *payment_data = pd;
@@ -2549,7 +2549,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -2678,7 +2678,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     validate_result: &operations::ValidateResult,
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,

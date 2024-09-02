@@ -1807,7 +1807,7 @@ pub async fn retrieve_card_with_permanent_token(
     _storage_scheme: enums::MerchantStorageScheme,
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<storage::PaymentMethod>,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1817,7 +1817,7 @@ pub async fn retrieve_card_with_permanent_token(
             message: "no customer id provided for the payment".to_string(),
         })?;
 
-    if business_profile.unwrap().is_network_tokenization_enabled {
+    if business_profile.is_network_tokenization_enabled {
         if let Some(mandate_ids) = mandate_id {
             if let Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(nt_data)) =
                 mandate_ids.mandate_reference_id
@@ -1993,7 +1993,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     merchant_key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    business_profile: Option<&domain::BusinessProfile>,
+    business_profile: &domain::BusinessProfile,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R>,
     Option<domain::PaymentMethodData>,
@@ -2081,7 +2081,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
                 merchant_key_store,
-                business_profile,
+                Some(business_profile),
             )
             .await?;
 
@@ -5046,7 +5046,7 @@ pub async fn get_payment_method_details_from_payment_token(
             storage_scheme,
             None,
             None,
-            Some(business_profile),
+            business_profile,
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
@@ -5064,7 +5064,7 @@ pub async fn get_payment_method_details_from_payment_token(
             storage_scheme,
             None,
             None,
-            Some(business_profile),
+            business_profile,
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
