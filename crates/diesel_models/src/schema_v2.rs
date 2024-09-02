@@ -215,7 +215,7 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
-        api_version -> ApiVersion,
+        version -> ApiVersion,
     }
 }
 
