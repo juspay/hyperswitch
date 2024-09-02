@@ -6,6 +6,12 @@ pub mod utils;
 mod validator;
 pub mod vault;
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use std::collections::HashSet;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use std::str::FromStr;
+use std::{borrow::Cow, collections::HashMap};
+
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub use api_models::enums as api_enums;
 pub use api_models::enums::Connector;
@@ -26,12 +32,6 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
 use masking::PeekInterface;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
-use std::borrow::Cow;
-use std::collections::HashMap;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use std::collections::HashSet;
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use std::str::FromStr;
 use time::Duration;
 
 use super::errors::{RouterResponse, StorageErrorExt};
