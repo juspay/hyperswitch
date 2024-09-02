@@ -18,6 +18,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub customer_id: Option<id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub connector: String,
+    // TODO: This should be a PaymentId type.
+    // Make this change after all the connector dependency has been removed from connectors
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::enums::AttemptStatus,

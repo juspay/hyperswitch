@@ -101,11 +101,11 @@ pub async fn dummy_connector_refund(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<types::DummyConnectorRefundRequest>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl actix_web::Responder {
     let flow = types::Flow::DummyRefundCreate;
     let mut payload = json_payload.into_inner();
-    payload.payment_id = Some(path.to_string());
+    payload.payment_id = Some(path.into_inner());
     api::server_wrap(
         flow,
         state,

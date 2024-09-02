@@ -11,7 +11,7 @@ use crate::{
 #[diesel(table_name = fraud_check,  primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct FraudCheck {
     pub frm_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
@@ -33,7 +33,7 @@ pub struct FraudCheck {
 #[diesel(table_name = fraud_check)]
 pub struct FraudCheckNew {
     pub frm_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub attempt_id: String,
     pub created_at: PrimitiveDateTime,
