@@ -15,3 +15,14 @@ ALTER TABLE business_profile DROP COLUMN routing_algorithm_id,
     DROP COLUMN default_fallback_routing;
 
 DROP TYPE "OrderFulfillmentTimeOrigin";
+
+ALTER TABLE business_profile
+ADD COLUMN profile_id VARCHAR(64);
+
+UPDATE business_profile
+SET profile_id = id;
+
+ALTER TABLE business_profile DROP COLUMN id;
+
+ALTER TABLE business_profile
+ADD PRIMARY KEY (profile_id);

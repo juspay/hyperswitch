@@ -200,7 +200,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id,
                     };
                     let field = format!("cust_{}", customer_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
@@ -267,9 +267,9 @@ mod storage {
             let maybe_customer = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = PartitionKey::MerchantIdCustomerId {
+                    let key = PartitionKey::MerchantIdMerchantReferenceId {
                         merchant_id,
-                        customer_id: merchant_reference_id.get_string_repr(),
+                        merchant_reference_id: merchant_reference_id.get_string_repr(),
                     };
                     let field = format!("cust_{}", merchant_reference_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
@@ -339,7 +339,7 @@ mod storage {
             };
             let key = PartitionKey::MerchantIdCustomerId {
                 merchant_id: &merchant_id,
-                customer_id: customer_id.get_string_repr(),
+                customer_id: &customer_id,
             };
             let field = format!("cust_{}", customer_id.get_string_repr());
             let storage_scheme = decide_storage_scheme::<_, diesel_models::Customer>(
@@ -487,7 +487,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id,
                     };
                     let field = format!("cust_{}", customer_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
@@ -670,7 +670,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id: &merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id: &customer_id,
                     };
                     let field = format!("cust_{}", customer_id.get_string_repr());
 

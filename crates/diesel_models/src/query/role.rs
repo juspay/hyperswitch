@@ -1,8 +1,14 @@
+use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::id_type;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, result::Error as DieselError,
+    BoolExpressionMethods, ExpressionMethods, QueryDsl,
+};
+use error_stack::{report, ResultExt};
 
 use crate::{
-    enums::RoleScope, query::generics, role::*, schema::roles::dsl, PgPooledConn, StorageResult,
+    enums::RoleScope, errors, query::generics, role::*, schema::roles::dsl, PgPooledConn,
+    StorageResult,
 };
 
 impl RoleNew {
@@ -80,5 +86,50 @@ impl Role {
             Some(dsl::last_modified_at.asc()),
         )
         .await
+    }
+
+    pub async fn generic_roles_list_for_org(
+        conn: &PgPooledConn,
+        org_id: id_type::OrganizationId,
+        merchant_id: Option<id_type::MerchantId>,
+        entity_type: Option<common_enums::EntityType>,
+        limit: Option<u32>,
+    ) -> StorageResult<Vec<Self>> {
+        let mut query = <Self as HasTable>::table()
+            .filter(dsl::org_id.eq(org_id))
+            .into_boxed();
+
+        if let Some(merchant_id) = merchant_id {
+            query = query.filter(
+                dsl::merchant_id
+                    .eq(merchant_id)
+                    .or(dsl::scope.eq(RoleScope::Organization)),
+            );
+        }
+
+        if let Some(entity_type) = entity_type {
+            query = query.filter(dsl::entity_type.eq(entity_type))
+        }
+
+        if let Some(limit) = limit {
+            query = query.limit(limit.into());
+        }
+
+        router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        match generics::db_metrics::track_database_call::<Self, _, _>(
+            query.get_results_async(conn),
+            generics::db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        {
+            Ok(value) => Ok(value),
+            Err(err) => match err {
+                DieselError::NotFound => {
+                    Err(report!(err)).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
+            },
+        }
     }
 }

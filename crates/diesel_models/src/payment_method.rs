@@ -58,6 +58,7 @@ pub struct PaymentMethod {
     pub client_secret: Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
     pub updated_by: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -85,6 +86,7 @@ pub struct PaymentMethod {
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
     pub id: String,
+    pub version: common_enums::ApiVersion,
 }
 
 impl PaymentMethod {
@@ -141,6 +143,7 @@ pub struct PaymentMethodNew {
     pub client_secret: Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
     pub updated_by: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -168,6 +171,7 @@ pub struct PaymentMethodNew {
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
     pub id: String,
+    pub version: common_enums::ApiVersion,
 }
 
 impl PaymentMethodNew {
@@ -708,6 +712,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_billing_address: payment_method_new
                 .payment_method_billing_address
                 .clone(),
+            version: payment_method_new.version,
         }
     }
 }
@@ -737,6 +742,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
                 .clone(),
             id: payment_method_new.id.clone(),
             locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
+            version: payment_method_new.version,
         }
     }
 }

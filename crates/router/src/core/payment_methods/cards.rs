@@ -186,6 +186,7 @@ pub async fn create_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
+                version: enums::ApiVersion::V1,
             },
             storage_scheme,
         )
@@ -748,6 +749,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address: payment_method_billing_address.map(Into::into),
                 updated_by: None,
+                version: enums::ApiVersion::V1,
             },
             merchant_account.storage_scheme,
         )
@@ -2638,7 +2640,11 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    feature = "payment_methods_v2"
+))]
 pub async fn list_payment_methods(
     _state: routes::SessionState,
     _merchant_account: domain::MerchantAccount,
@@ -2648,7 +2654,11 @@ pub async fn list_payment_methods(
     todo!()
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn list_payment_methods(
     state: routes::SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3149,7 +3159,7 @@ pub async fn list_payment_methods(
             }
         }
 
-        let pm_auth_key = format!("pm_auth_{}", payment_intent.payment_id);
+        let pm_auth_key = payment_intent.payment_id.get_pm_auth_key();
         let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
         if let Some(rc) = redis_conn {
@@ -4943,7 +4953,7 @@ async fn generate_saved_pm_response(
                     pi.off_session_payment_flag,
                     pi.business_profile
                         .as_ref()
-                        .map(|profile| profile.profile_id.clone()),
+                        .map(|profile| profile.get_id().to_owned()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));

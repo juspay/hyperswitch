@@ -50,6 +50,7 @@ pub struct PaymentMethod {
     pub client_secret: Option<String>,
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -74,6 +75,7 @@ pub struct PaymentMethod {
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
     pub id: String,
+    pub version: common_enums::ApiVersion,
 }
 
 impl PaymentMethod {
@@ -133,6 +135,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .payment_method_billing_address
                 .map(|val| val.into()),
             updated_by: self.updated_by,
+            version: self.version,
         })
     }
 
@@ -203,6 +206,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     })
                     .await?,
                 updated_by: item.updated_by,
+                version: item.version,
             })
         }
         .await
@@ -245,6 +249,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .payment_method_billing_address
                 .map(|val| val.into()),
             updated_by: self.updated_by,
+            version: self.version,
         })
     }
 }
@@ -277,6 +282,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             updated_by: self.updated_by,
             locker_fingerprint_id: self.locker_fingerprint_id,
+            version: self.version,
         })
     }
 
@@ -336,6 +342,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .await?,
                 updated_by: item.updated_by,
                 locker_fingerprint_id: item.locker_fingerprint_id,
+                version: item.version,
             })
         }
         .await
@@ -367,6 +374,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|val| val.into()),
             updated_by: self.updated_by,
             locker_fingerprint_id: self.locker_fingerprint_id,
+            version: self.version,
         })
     }
 }

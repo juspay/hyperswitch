@@ -58,7 +58,7 @@ pub async fn create_link_token(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
+    let pm_auth_key = payload.payment_id.get_pm_auth_key();
 
     redis_conn
         .exists::<Vec<u8>>(&pm_auth_key)
@@ -322,6 +322,10 @@ async fn store_bank_details_in_payment_methods(
         .customer_id
         .ok_or(ApiErrorResponse::CustomerNotFound)?;
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     let payment_methods = db
         .find_payment_method_by_customer_id_merchant_id_list(
             &((&state).into()),
@@ -329,6 +333,20 @@ async fn store_bank_details_in_payment_methods(
             &customer_id,
             merchant_account.get_id(),
             None,
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)?;
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    let payment_methods = db
+        .find_payment_method_by_customer_id_merchant_id_status(
+            &((&state).into()),
+            &key_store,
+            &customer_id,
+            merchant_account.get_id(),
+            common_enums::enums::PaymentMethodStatus::Active,
+            None,
+            merchant_account.storage_scheme,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)?;
@@ -502,6 +520,7 @@ async fn store_bank_details_in_payment_methods(
                 client_secret: None,
                 payment_method_billing_address: None,
                 updated_by: None,
+                version: enums::ApiVersion::V1,
             };
 
             #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -525,6 +544,7 @@ async fn store_bank_details_in_payment_methods(
                 payment_method_billing_address: None,
                 updated_by: None,
                 locker_fingerprint_id: None,
+                version: enums::ApiVersion::V2,
             };
 
             new_entries.push(pm_new);
@@ -700,7 +720,7 @@ async fn get_selected_config_from_redis(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let pm_auth_key = format!("pm_auth_{}", payload.payment_id);
+    let pm_auth_key = payload.payment_id.get_pm_auth_key();
 
     redis_conn
         .exists::<Vec<u8>>(&pm_auth_key)

@@ -61,7 +61,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Add routing config", () => {
-              let data = utils.getConnectorDetails("common")["routing"];
+              let data = utils.getConnectorDetails("common")["priorityRouting"];
               let req_data = data["Request"];
               let res_data = data["Response"];
 
@@ -90,7 +90,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Activate routing config", () => {
-              let data = utils.getConnectorDetails("common")["routing"];
+              let data = utils.getConnectorDetails("common")["priorityRouting"];
               let req_data = data["Request"];
               let res_data = data["Response"];
               cy.activateRoutingConfig(req_data, res_data, globalState);
@@ -272,7 +272,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Add routing config", () => {
-              let data = utils.getConnectorDetails("common")["routing"];
+              let data = utils.getConnectorDetails("common")["priorityRouting"];
               let req_data = data["Request"];
               let res_data = data["Response"];
 
@@ -301,7 +301,7 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Activate routing config", () => {
-              let data = utils.getConnectorDetails("common")["routing"];
+              let data = utils.getConnectorDetails("common")["priorityRouting"];
               let req_data = data["Request"];
               let res_data = data["Response"];
               cy.activateRoutingConfig(req_data, res_data, globalState);
