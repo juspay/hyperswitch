@@ -179,7 +179,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             async move {
                 store
                     .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                        m_payment_id.as_str(),
+                        &m_payment_id,
                         &m_merchant_id,
                         attempt_id.as_str(),
                         storage_scheme,
@@ -210,7 +210,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
-                    m_payment_intent_payment_id.as_ref(),
+                    &m_payment_intent_payment_id,
                     storage_scheme,
                 )
                 .await
@@ -238,7 +238,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
-                    m_payment_intent_payment_id.as_ref(),
+                    &m_payment_intent_payment_id,
                     storage_scheme,
                 )
                 .await
@@ -506,7 +506,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
-                    m_payment_intent_payment_id.as_ref(),
+                    &m_payment_intent_payment_id,
                     storage_scheme,
                 )
                 .await
@@ -961,7 +961,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         state: &SessionState,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         business_profile: &domain::BusinessProfile,
         payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1506,7 +1506,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: merchant_account.get_id().to_owned(),
-                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
+                payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
                     request.retry_action,

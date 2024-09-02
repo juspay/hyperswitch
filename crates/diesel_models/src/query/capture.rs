@@ -50,7 +50,7 @@ impl Capture {
 
     pub async fn find_all_by_merchant_id_payment_id_authorized_attempt_id(
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         authorized_attempt_id: &str,
         conn: &PgPooledConn,
     ) -> StorageResult<Vec<Self>> {

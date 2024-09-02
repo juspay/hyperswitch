@@ -1,11 +1,23 @@
+use common_enums::enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{self, ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        self, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RefundsRequestData},
-    core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, CardData as _, PaymentsAuthorizeRequestData, RefundsRequestData as _},
 };
 
 #[derive(Debug, Serialize)]
@@ -38,7 +50,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(ccard) => {
+            PaymentMethodData::Card(ccard) => {
                 let connector_auth: TsysAuthType =
                     TsysAuthType::try_from(&item.connector_auth_type)?;
                 let auth_data: TsysPaymentAuthSaleRequest = TsysPaymentAuthSaleRequest {
@@ -63,26 +75,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TsysPaymentsRequest {
                     Ok(Self::Auth(auth_data))
                 }
             }
-            domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("tsys"),
-                ))?
-            }
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("tsys"),
+            ))?,
         }
     }
 }
@@ -94,11 +104,11 @@ pub struct TsysAuthType {
     pub(super) developer_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for TsysAuthType {
+impl TryFrom<&ConnectorAuthType> for TsysAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -199,8 +209,8 @@ pub enum TsysPaymentsResponse {
 fn get_error_response(
     connector_response: TsysErrorResponse,
     status_code: u16,
-) -> types::ErrorResponse {
-    types::ErrorResponse {
+) -> router_data::ErrorResponse {
+    router_data::ErrorResponse {
         code: connector_response.response_code,
         message: connector_response.response_message.clone(),
         reason: Some(connector_response.response_message),
@@ -210,11 +220,9 @@ fn get_error_response(
     }
 }
 
-fn get_payments_response(connector_response: TsysResponse) -> types::PaymentsResponseData {
-    types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(
-            connector_response.transaction_id.clone(),
-        ),
+fn get_payments_response(connector_response: TsysResponse) -> PaymentsResponseData {
+    PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::ConnectorTransactionId(connector_response.transaction_id.clone()),
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
@@ -227,9 +235,9 @@ fn get_payments_response(connector_response: TsysResponse) -> types::PaymentsRes
 
 fn get_payments_sync_response(
     connector_response: &TsysPaymentsSyncResponse,
-) -> types::PaymentsResponseData {
-    types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(
+) -> PaymentsResponseData {
+    PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::ConnectorTransactionId(
             connector_response
                 .transaction_details
                 .transaction_id
@@ -250,13 +258,12 @@ fn get_payments_sync_response(
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, TsysPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, TsysPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, TsysPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, TsysPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (response, status) = match item.response {
             TsysPaymentsResponse::AuthResponse(resp) => match resp {
@@ -326,9 +333,9 @@ pub struct TsysSyncRequest {
     search_transaction: TsysSearchTransactionRequest,
 }
 
-impl TryFrom<&types::PaymentsSyncRouterData> for TsysSyncRequest {
+impl TryFrom<&PaymentsSyncRouterData> for TsysSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let search_transaction = TsysSearchTransactionRequest {
             device_id: connector_auth.device_id,
@@ -357,12 +364,12 @@ pub struct TsysSyncResponse {
     search_transaction_response: SearchResponseTypes,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, TsysSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, TsysSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, TsysSyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, TsysSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let tsys_search_response = item.response.search_transaction_response;
         let (response, status) = match tsys_search_response {
@@ -400,9 +407,9 @@ pub struct TsysCancelRequest {
 pub struct TsysPaymentsCancelRequest {
     void: TsysCancelRequest,
 }
-impl TryFrom<&types::PaymentsCancelRouterData> for TsysPaymentsCancelRequest {
+impl TryFrom<&PaymentsCancelRouterData> for TsysPaymentsCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let void = TsysCancelRequest {
             device_id: connector_auth.device_id,
@@ -434,9 +441,9 @@ pub struct TsysPaymentsCaptureRequest {
     capture: TsysCaptureRequest,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for TsysPaymentsCaptureRequest {
+impl TryFrom<&PaymentsCaptureRouterData> for TsysPaymentsCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let capture = TsysCaptureRequest {
             device_id: connector_auth.device_id,
@@ -468,9 +475,9 @@ pub struct TsysRefundRequest {
     return_request: TsysReturnRequest,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for TsysRefundRequest {
+impl<F> TryFrom<&RefundsRouterData<F>> for TsysRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let return_request = TsysReturnRequest {
             device_id: connector_auth.device_id,
@@ -508,16 +515,14 @@ pub struct RefundResponse {
     return_response: TsysResponseTypes,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let tsys_return_response = item.response.return_response;
         let response = match tsys_return_response {
-            TsysResponseTypes::SuccessResponse(return_response) => Ok(types::RefundsResponseData {
+            TsysResponseTypes::SuccessResponse(return_response) => Ok(RefundsResponseData {
                 connector_refund_id: return_response.transaction_id,
                 refund_status: enums::RefundStatus::from(return_response.status),
             }),
@@ -532,9 +537,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<&types::RefundSyncRouterData> for TsysSyncRequest {
+impl TryFrom<&RefundSyncRouterData> for TsysSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &RefundSyncRouterData) -> Result<Self, Self::Error> {
         let connector_auth: TsysAuthType = TsysAuthType::try_from(&item.connector_auth_type)?;
         let search_transaction = TsysSearchTransactionRequest {
             device_id: connector_auth.device_id,
@@ -546,21 +551,17 @@ impl TryFrom<&types::RefundSyncRouterData> for TsysSyncRequest {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, TsysSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, TsysSyncResponse>> for RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, TsysSyncResponse>,
+        item: RefundsResponseRouterData<RSync, TsysSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let tsys_search_response = item.response.search_transaction_response;
         let response = match tsys_search_response {
-            SearchResponseTypes::SuccessResponse(search_response) => {
-                Ok(types::RefundsResponseData {
-                    connector_refund_id: search_response.transaction_details.transaction_id.clone(),
-                    refund_status: enums::RefundStatus::from(search_response.transaction_details),
-                })
-            }
+            SearchResponseTypes::SuccessResponse(search_response) => Ok(RefundsResponseData {
+                connector_refund_id: search_response.transaction_details.transaction_id.clone(),
+                refund_status: enums::RefundStatus::from(search_response.transaction_details),
+            }),
             SearchResponseTypes::ErrorResponse(connector_response) => {
                 Err(get_error_response(connector_response, item.http_code))
             }

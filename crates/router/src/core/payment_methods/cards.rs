@@ -3159,7 +3159,7 @@ pub async fn list_payment_methods(
             }
         }
 
-        let pm_auth_key = format!("pm_auth_{}", payment_intent.payment_id);
+        let pm_auth_key = payment_intent.payment_id.get_pm_auth_key();
         let redis_expiry = state.conf.payment_method_auth.get_inner().redis_expiry;
 
         if let Some(rc) = redis_conn {
@@ -4953,7 +4953,7 @@ async fn generate_saved_pm_response(
                     pi.off_session_payment_flag,
                     pi.business_profile
                         .as_ref()
-                        .map(|profile| profile.profile_id.clone()),
+                        .map(|profile| profile.get_id().to_owned()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));

@@ -107,7 +107,7 @@ impl Address {
     pub async fn find_by_merchant_id_payment_id_address_id<'a>(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         address_id: &str,
     ) -> StorageResult<Self> {
         match generics::generic_find_one::<<Self as HasTable>::Table, _, _>(

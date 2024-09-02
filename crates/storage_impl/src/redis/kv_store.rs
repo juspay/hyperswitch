@@ -25,7 +25,7 @@ pub trait KvStorePartition {
 pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
         merchant_id: &'a common_utils::id_type::MerchantId,
-        payment_id: &'a str,
+        payment_id: &'a common_utils::id_type::PaymentId,
     },
     CombinationKey {
         combination: &'a str,
@@ -64,8 +64,9 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!(
-                "mid_{}_pid_{payment_id}",
-                merchant_id.get_string_repr()
+                "mid_{}_pid_{}",
+                merchant_id.get_string_repr(),
+                payment_id.get_string_repr()
             )),
             PartitionKey::CombinationKey { combination } => f.write_str(combination),
             PartitionKey::MerchantIdCustomerId {
