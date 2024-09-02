@@ -8597,6 +8597,7 @@
           "square",
           "stax",
           "stripe",
+          "taxjar",
           "threedsecureio",
           "trustpay",
           "tsys",
@@ -8711,7 +8712,8 @@
           "non_banking_finance",
           "payout_processor",
           "payment_method_auth",
-          "authentication_processor"
+          "authentication_processor",
+          "tax_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -17373,10 +17375,10 @@
       },
       "PaymentsDynamicTaxCalculationRequest": {
         "type": "object",
-        "description": "Request for calling tax jar API",
         "required": [
           "shipping",
-          "client_secret"
+          "client_secret",
+          "payment_method_type"
         ],
         "properties": {
           "shipping": {
@@ -17385,6 +17387,9 @@
           "client_secret": {
             "type": "string",
             "description": "Client Secret"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           }
         }
       },

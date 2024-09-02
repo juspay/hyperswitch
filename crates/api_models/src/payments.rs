@@ -4458,6 +4458,7 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     #[schema(value_type = String)]
     pub client_secret: String,
     /// Payment method type
+    #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
 }
 
