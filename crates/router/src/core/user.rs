@@ -33,7 +33,10 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
-    db::{domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,user_role::ListUserRolesByUserIdPayload},
+    db::{
+        domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
+        user_role::ListUserRolesByUserIdPayload,
+    },
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
@@ -2282,17 +2285,16 @@ pub async fn list_orgs_for_user(
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
     let orgs = state
         .store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
-            user_id:user_from_token.user_id.as_str(),
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: user_from_token.user_id.as_str(),
             org_id: None,
             merchant_id: None,
-            profile_id:None,
+            profile_id: None,
             entity_id: None,
-            version:None,
+            version: None,
             status: Some(UserStatus::Active),
             limit: None,
-        }
-        )
+        })
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
@@ -2351,17 +2353,16 @@ pub async fn list_merchants_for_user_in_org(
     } else {
         let merchant_ids = state
             .store
-            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
+            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                 user_id: user_from_token.user_id.as_str(),
                 org_id: Some(&user_from_token.org_id),
                 merchant_id: None,
-                profile_id:None,
+                profile_id: None,
                 entity_id: None,
-                version:None,
+                version: None,
                 status: Some(UserStatus::Active),
                 limit: None,
-            }
-            )
+            })
             .await
             .change_context(UserErrors::InternalServerError)?
             .into_iter()
@@ -2437,17 +2438,16 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
         } else {
             let profile_ids = state
                 .store
-                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
-                    user_id:user_from_token.user_id.as_str(),
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: user_from_token.user_id.as_str(),
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: Some(&user_from_token.merchant_id),
-                    profile_id:None,
+                    profile_id: None,
                     entity_id: None,
-                    version:None,
+                    version: None,
                     status: Some(UserStatus::Active),
                     limit: None,
-            }
-                )
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
@@ -2512,17 +2512,16 @@ pub async fn switch_org_for_user(
 
     let user_role = state
         .store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
-            user_id:&user_from_token.user_id,
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: &user_from_token.user_id,
             org_id: Some(&request.org_id),
             merchant_id: None,
-            profile_id:None,
+            profile_id: None,
             entity_id: None,
-            version:None,
+            version: None,
             status: Some(UserStatus::Active),
             limit: Some(1),
-        }
-        )
+        })
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to list user roles by user_id and org_id")?
@@ -2702,8 +2701,10 @@ pub async fn switch_merchant_for_user_in_org(
                 .ok_or(UserErrors::InternalServerError)
                 .attach_printable("No business profile found for the merchant_id")?
                 .get_id()
+                .to_owned();
             (
                 user_from_token.org_id.clone(),
+                merchant_id,
                 profile_id,
                 user_from_token.role_id.clone(),
             )
@@ -2712,17 +2713,16 @@ pub async fn switch_merchant_for_user_in_org(
         EntityType::Merchant | EntityType::Profile => {
             let user_role = state
                 .store
-                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
-                    user_id:&user_from_token.user_id,
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: &user_from_token.user_id,
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: Some(&request.merchant_id),
-                    profile_id:None,
+                    profile_id: None,
                     entity_id: None,
-                    version:None,
+                    version: None,
                     status: Some(UserStatus::Active),
                     limit: Some(1),
-                }
-                )
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable(

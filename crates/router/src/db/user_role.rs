@@ -560,7 +560,7 @@ impl UserRoleInterface for MockDb {
 
     async fn list_user_roles_by_user_id<'a>(
         &self,
-        payload: ListUserRolesByUserIdPayload<'a>
+        payload: ListUserRolesByUserIdPayload<'a>,
     ) -> CustomResult<Vec<storage::UserRole>, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
 
@@ -585,13 +585,14 @@ impl UserRoleInterface for MockDb {
                         filter_condition = filter_condition && role_profile_id == profile_id
                     },
                 );
-                role.entity_id
-                    .as_ref()
-                    .zip(payload.entity_id)
-                    .inspect(|(role_entity_id, entity_id)| {
+                role.entity_id.as_ref().zip(payload.entity_id).inspect(
+                    |(role_entity_id, entity_id)| {
                         filter_condition = filter_condition && role_entity_id == entity_id
-                    });
-                payload.version.inspect(|ver| filter_condition = filter_condition && ver == &role.version);
+                    },
+                );
+                payload
+                    .version
+                    .inspect(|ver| filter_condition = filter_condition && ver == &role.version);
                 payload.status.inspect(|status| {
                     filter_condition = filter_condition && status == &role.status
                 });

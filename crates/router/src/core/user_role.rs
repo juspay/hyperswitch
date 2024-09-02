@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    db::user_role::{ListUserRolesByOrgIdPayload,ListUserRolesByUserIdPayload},
+    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -694,17 +694,16 @@ pub async fn list_invitations_for_user(
 ) -> UserResponse<Vec<user_role_api::ListInvitationForUserResponse>> {
     let invitations = state
         .store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
-            user_id:&user_from_token.user_id,
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: &user_from_token.user_id,
             org_id: None,
             merchant_id: None,
-            profile_id:None,
+            profile_id: None,
             entity_id: None,
-            version:None,
+            version: None,
             status: Some(UserStatus::InvitationSent),
             limit: None,
-        }
-        )
+        })
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to list user roles by user id and invitation sent")?
