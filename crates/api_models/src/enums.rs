@@ -46,6 +46,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+	//Thunes,
     // Novalnet,
     // Nexixpay,
     Adyenplatform,
@@ -137,6 +138,7 @@ pub enum Connector {
     Stripe,
     Taxjar,
     Threedsecureio,
+    //Thunes,
     Trustpay,
     Tsys,
     Volt,
@@ -213,6 +215,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			//| Self::Thunes
 			// | Self::Novalnet
 			// | Self::Nexixpay
 			// | Self::Fiuu
