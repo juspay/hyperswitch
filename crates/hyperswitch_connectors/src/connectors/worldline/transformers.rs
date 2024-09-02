@@ -19,7 +19,7 @@ use url::Url;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, CardData as _, RouterData as _},
+    utils::{self, CardData, RouterData as RouterDataUtils},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]

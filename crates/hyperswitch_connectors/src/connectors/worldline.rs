@@ -45,6 +45,7 @@ use hyperswitch_interfaces::{
 };
 use masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
+use router_env::logger;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
@@ -152,7 +153,7 @@ impl ConnectorCommon for Worldline {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        logger::info!(connector_response=?response);
 
         let error = response.errors.into_iter().next().unwrap_or_default();
         Ok(ErrorResponse {
@@ -267,7 +268,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -351,7 +352,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        router_env::logger::debug!(payment_sync_response=?res);
+        logger::debug!(payment_sync_response=?res);
         let mut response: worldline::Payment = res
             .response
             .parse_struct("Worldline Payment")
@@ -359,7 +360,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         response.capture_method = data.request.capture_method.unwrap_or_default();
 
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -436,7 +437,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         PaymentsCaptureData: Clone,
         PaymentsResponseData: Clone,
     {
-        router_env::logger::debug!(payment_capture_response=?res);
+        logger::debug!(payment_capture_response=?res);
         let mut response: worldline::PaymentResponse = res
             .response
             .parse_struct("Worldline PaymentResponse")
@@ -444,7 +445,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         response.payment.capture_method = enums::CaptureMethod::Manual;
 
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        logger::info!(connector_response=?response);
 
         RouterData::try_from(ResponseRouterData {
             response,
@@ -529,14 +530,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        router_env::logger::debug!(payment_authorize_response=?res);
+        logger::debug!(payment_authorize_response=?res);
         let mut response: worldline::PaymentResponse = res
             .response
             .parse_struct("Worldline PaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         response.payment.capture_method = data.request.capture_method.unwrap_or_default();
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -611,13 +612,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldli
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        router_env::logger::debug!(target: "router::connector::worldline", response=?res);
+        logger::debug!(target: "router::connector::worldline", response=?res);
         let response: worldline::RefundResponse = res
             .response
             .parse_struct("Worldline RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -688,13 +689,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldline
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        router_env::logger::debug!(target: "router::connector::worldline", response=?res);
+        logger::debug!(target: "router::connector::worldline", response=?res);
         let response: worldline::RefundResponse = res
             .response
             .parse_struct("Worldline RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
