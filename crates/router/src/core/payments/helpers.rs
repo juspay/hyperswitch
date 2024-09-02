@@ -445,7 +445,7 @@ pub async fn get_token_pm_type_mandate_details(
 
                                 #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
                             let connector_name = db
-                                .find_merchant_connector_account_by_id(key_manager_state, &mca_id, &merchant_key_store)
+                                .find_merchant_connector_account_by_id(key_manager_state, mca_id, merchant_key_store)
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                     id: mca_id.clone().get_string_repr().to_string(),
