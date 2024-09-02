@@ -962,6 +962,7 @@ diesel::table! {
         locker_fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
     }
 }
 

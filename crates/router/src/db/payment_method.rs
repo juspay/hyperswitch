@@ -407,7 +407,7 @@ mod storage {
 
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id: &merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id: &customer_id,
                     };
                     let key_str = key.to_string();
                     let field = format!("payment_method_id_{}", payment_method_new.get_id());
@@ -494,7 +494,7 @@ mod storage {
             let customer_id = payment_method.customer_id.clone();
             let key = PartitionKey::MerchantIdCustomerId {
                 merchant_id: &merchant_id,
-                customer_id: customer_id.get_string_repr(),
+                customer_id: &customer_id,
             };
             let field = format!("payment_method_id_{}", payment_method.get_id());
             let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
@@ -580,7 +580,7 @@ mod storage {
             let customer_id = payment_method.customer_id.clone();
             let key = PartitionKey::MerchantIdCustomerId {
                 merchant_id: &merchant_id,
-                customer_id: customer_id.get_string_repr(),
+                customer_id: &customer_id,
             };
             let field = format!("payment_method_id_{}", payment_method.get_id());
             let storage_scheme = decide_storage_scheme::<_, storage_types::PaymentMethod>(
@@ -718,7 +718,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id,
                     };
 
                     let pattern = "payment_method_id_*";
