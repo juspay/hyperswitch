@@ -18,7 +18,6 @@ use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethod
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2")
 ))]
-use diesel::JoinOnDsl;
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
