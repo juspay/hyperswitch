@@ -1724,8 +1724,8 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     ))
 }
 
-// This function is to retrieve customer details. If the customer details are redacted, it returns
-// `None` instead of an error, as it is used only in the payment retrieval flow where customer details are not required.
+// This function is to retrieve customer details. If the customer is deleted, it returns
+// customer details that contains the fields as Redacted
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn get_customer_details_even_for_redacted_customer<F: Clone>(
     state: &SessionState,

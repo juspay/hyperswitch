@@ -603,56 +603,55 @@ where
 
     // If we have customer data in Payment Intent and if the customer is not deleted, We are populating the Retrieve response from the
     // same. If the customer is deleted then we use the customer table to populate customer details
-    let payment_intent_customer_details = payment_intent.customer_details.clone();
-    let is_customer_details_redacted = customer_table_response
-        .clone()
-        .and_then(|customer_details| customer_details.name)
-        .as_ref()
-        .map(|customer_name| customer_name.peek().to_owned())
-        .ne(&Some("Redacted".to_owned()));
-
-    let customer_details_response = if payment_intent_customer_details.is_some()
-        && is_customer_details_redacted
-    {
-        let customer_details_encrypted = payment_intent_customer_details
-            .map(|details| serde_json::from_value::<CustomerData>(details.into_inner().expose()));
-        if let Some(Ok(customer_details_encrypted_data)) = customer_details_encrypted {
-            Some(CustomerDetailsResponse {
-                id: customer_table_response
-                    .clone()
-                    .and_then(|customer_data| customer_data.id),
-                name: customer_details_encrypted_data.name.or_else(|| {
-                    customer.as_ref().and_then(|customer| {
-                        customer.name.as_ref().map(|name| name.clone().into_inner())
-                    })
-                }),
-                email: customer_details_encrypted_data.email.or_else(|| {
-                    customer
+    let customer_details_response =
+        if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
+            let customer_details_encrypted =
+                serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
+            if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
+                Some(CustomerDetailsResponse {
+                    id: customer_table_response
                         .as_ref()
-                        .and_then(|customer| customer.email.clone().map(Email::from))
-                }),
-                phone: customer_details_encrypted_data.phone.or_else(|| {
-                    customer.as_ref().and_then(|customer| {
-                        customer
+                        .and_then(|customer_data| customer_data.id.clone()),
+                    name: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.name.clone())
+                        .or(customer_details_encrypted_data
+                            .name
+                            .or(customer.as_ref().and_then(|customer| {
+                                customer.name.as_ref().map(|name| name.clone().into_inner())
+                            }))),
+                    email: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.email.clone())
+                        .or(customer_details_encrypted_data.email.or(customer
+                            .as_ref()
+                            .and_then(|customer| customer.email.clone().map(Email::from)))),
+                    phone: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.phone.clone())
+                        .or(customer_details_encrypted_data
                             .phone
-                            .as_ref()
-                            .map(|phone| phone.clone().into_inner())
-                    })
-                }),
-                phone_country_code: customer_details_encrypted_data.phone_country_code.or_else(
-                    || {
-                        customer
-                            .as_ref()
-                            .and_then(|customer| customer.phone_country_code.clone())
-                    },
-                ),
-            })
+                            .or(customer.as_ref().and_then(|customer| {
+                                customer
+                                    .phone
+                                    .as_ref()
+                                    .map(|phone| phone.clone().into_inner())
+                            }))),
+                    phone_country_code: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.phone_country_code.clone())
+                        .or(customer_details_encrypted_data
+                            .phone_country_code
+                            .or(customer
+                                .as_ref()
+                                .and_then(|customer| customer.phone_country_code.clone()))),
+                })
+            } else {
+                customer_table_response
+            }
         } else {
             customer_table_response
-        }
-    } else {
-        customer_table_response
-    };
+        };
 
     headers.extend(
         external_latency
