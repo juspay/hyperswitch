@@ -561,6 +561,7 @@ pub struct PaymentsRequest {
     )]
     pub merchant_order_reference_id: Option<String>,
 
+    /// Whether to calculate tax for this payment intent
     pub skip_external_tax_calculation: Option<bool>,
 }
 
