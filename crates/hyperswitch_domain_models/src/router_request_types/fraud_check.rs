@@ -72,7 +72,7 @@ pub struct FraudCheckFulfillmentData {
 pub struct FrmFulfillmentRequest {
     ///unique payment_id for the transaction
     #[schema(max_length = 255, example = "pay_qiYfHcDou1ycIaxVXKHF")]
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     ///unique order_id for the order_details in the transaction
     #[schema(max_length = 255, example = "pay_qiYfHcDou1ycIaxVXKHF")]
     pub order_id: String,

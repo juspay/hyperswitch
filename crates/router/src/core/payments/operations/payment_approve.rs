@@ -276,10 +276,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for Paymen
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: merchant_account.get_id().to_owned(),
-                payment_id: api::PaymentIdType::PaymentIntentId(crate::core::utils::validate_id(
-                    request.payment_id.clone(),
-                    "payment_id",
-                )?),
+                payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.clone()),
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,
             },

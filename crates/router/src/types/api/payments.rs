@@ -40,11 +40,15 @@ use crate::core::errors;
 impl super::Router for PaymentsRequest {}
 
 pub trait PaymentIdTypeExt {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError>;
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
             Self::ConnectorTransactionId(_)
@@ -129,7 +133,12 @@ mod payments_test {
     // Intended to test the serialization and deserialization of the enum PaymentIdType
     #[test]
     fn test_connector_id_type() {
-        let sample_1 = PaymentIdType::PaymentIntentId("test_234565430uolsjdnf48i0".to_string());
+        let sample_1 = PaymentIdType::PaymentIntentId(
+            common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "test_234565430uolsjdnf48i0",
+            ))
+            .unwrap(),
+        );
         let s_sample_1 = serde_json::to_string(&sample_1).unwrap();
         let ds_sample_1 = serde_json::from_str::<PaymentIdType>(&s_sample_1).unwrap();
         assert_eq!(ds_sample_1, sample_1)

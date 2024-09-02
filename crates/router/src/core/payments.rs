@@ -958,7 +958,7 @@ pub trait PaymentRedirectFlow: Sync {
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
     fn get_payment_action(&self) -> services::PaymentAction;
@@ -966,7 +966,7 @@ pub trait PaymentRedirectFlow: Sync {
     fn generate_response(
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
@@ -1055,7 +1055,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
-        _payment_id: String,
+        _payment_id: id_type::PaymentId,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let key_manager_state = &state.into();
 
@@ -1121,7 +1121,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     fn generate_response(
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
@@ -1191,7 +1191,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         _connector: String,
-        _payment_id: String,
+        _payment_id: id_type::PaymentId,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let key_manager_state = &state.into();
 
@@ -1250,7 +1250,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
     fn generate_response(
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         Ok(services::ApplicationResponse::JsonForRedirection(
@@ -1285,7 +1285,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
         connector: String,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let merchant_id = merchant_account.get_id().clone();
         let key_manager_state = &state.into();
@@ -1482,7 +1482,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     fn generate_response(
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
-        payment_id: String,
+        payment_id: id_type::PaymentId,
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
@@ -2997,7 +2997,7 @@ pub async fn list_payments(
                     if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
                         logger::warn!(
                             ?error,
-                            "payment_attempts missing for payment_id : {}",
+                            "payment_attempts missing for payment_id : {:?}",
                             pi.payment_id,
                         );
                         return None;
@@ -4459,7 +4459,7 @@ pub async fn payment_external_authentication(
 pub async fn get_extended_card_info(
     state: SessionState,
     merchant_id: id_type::MerchantId,
-    payment_id: String,
+    payment_id: id_type::PaymentId,
 ) -> RouterResponse<payments_api::ExtendedCardInfoResponse> {
     let redis_conn = state
         .store
