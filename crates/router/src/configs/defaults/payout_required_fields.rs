@@ -44,6 +44,12 @@ impl Default for PayoutRequiredFields {
                         PayoutConnectors::Ebanx,
                         PaymentMethodType::Pix,
                     ),
+
+                    // Wise
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Wise,
+                        PaymentMethodType::Bacs,
+                    ),
                 ])),
             ),
             (
@@ -101,6 +107,22 @@ fn get_connector_payment_method_type_fields(
         }
 
         // Banks
+        PaymentMethodType::Bacs => {
+            common_fields.extend(get_bacs_fields());
+            (
+                payment_method_type,
+                ConnectorFields {
+                    fields: HashMap::from([(
+                        connector.into(),
+                        RequiredFieldFinal {
+                            mandate: HashMap::new(),
+                            non_mandate: HashMap::new(),
+                            common: common_fields,
+                        },
+                    )]),
+                },
+            )
+        }
         PaymentMethodType::Pix => {
             common_fields.extend(get_pix_bank_transfer_fields());
             (
