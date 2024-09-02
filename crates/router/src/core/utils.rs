@@ -1396,7 +1396,7 @@ impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
 
 impl GetProfileId for domain::BusinessProfile {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(&self.profile_id)
+        Some(self.get_id())
     }
 }
 
