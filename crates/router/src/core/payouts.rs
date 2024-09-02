@@ -2137,7 +2137,7 @@ pub async fn response_handler(
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
     let customer_id = payouts.customer_id;
-    let billing = billing_address.as_ref().map(|a| From::from(a));
+    let billing = billing_address.as_ref().map(From::from);
 
     let response = api::PayoutCreateResponse {
         payout_id: payouts.payout_id.to_owned(),

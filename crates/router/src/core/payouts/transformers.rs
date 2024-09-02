@@ -11,10 +11,7 @@ use crate::types::transformers::ForeignInto;
 use crate::types::{domain, storage};
 use crate::{
     settings::PayoutRequiredFields,
-    types::{
-        api::{self, payments::Address},
-        transformers::ForeignFrom,
-    },
+    types::{api, transformers::ForeignFrom},
 };
 
 #[cfg(all(feature = "v2", feature = "customer_v2", feature = "olap"))]
