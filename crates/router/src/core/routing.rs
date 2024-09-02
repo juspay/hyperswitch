@@ -908,6 +908,7 @@ pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
@@ -930,13 +931,14 @@ pub async fn retrieve_linked_routing_config(
             id: profile_id.get_string_repr().to_owned(),
         })?
     } else {
-        db.list_business_profile_by_merchant_id(
+        let business_profile = db.list_business_profile_by_merchant_id(
             key_manager_state,
             &key_store,
             merchant_account.get_id(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        core_utils::filter_objects_based_on_profile_id_list(authentication_profile_id.map(|profile_id| vec![profile_id]), business_profile.clone())
     };
 
     let mut active_algorithms = Vec::new();

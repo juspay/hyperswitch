@@ -717,6 +717,7 @@ pub async fn routing_retrieve_linked_config(
                     state,
                     auth.merchant_account,
                     auth.key_store,
+                    auth.profile_id,
                     query_params,
                     transaction_type,
                 )
@@ -749,6 +750,7 @@ pub async fn routing_retrieve_linked_config(
                     state,
                     auth.merchant_account,
                     auth.key_store,
+                    auth.profile_id,
                     query_params,
                     transaction_type,
                 )
