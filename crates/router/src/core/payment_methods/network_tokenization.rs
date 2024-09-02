@@ -424,7 +424,9 @@ pub async fn get_token_from_tokenization_service(
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .inspect_err(|e| logger::error!(error=?e, "Error while fetching token from tokenization service"))?;
+    .inspect_err(
+        |e| logger::error!(error=?e, "Error while fetching token from tokenization service"),
+    )?;
 
     let token_decrypted = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
         &state.into(),
