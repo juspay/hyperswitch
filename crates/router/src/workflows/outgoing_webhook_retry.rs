@@ -201,7 +201,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     _ => {
                         logger::warn!(
                             %event.event_id,
-                            "The current status of the resource `{}` (event type: {:?}) and the status of \
+                            "The current status of the resource `{:?}` (event type: {:?}) and the status of \
                             the resource when the event was created (event type: {:?}) differ, finishing task",
                             tracking_data.primary_object_id,
                             event_type,
@@ -359,6 +359,15 @@ async fn get_outgoing_webhook_content_and_event_type(
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
             let payment_id = tracking_data.primary_object_id.clone();
+            let payment_id =
+                common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payment_id))
+                    .map_err(|payment_id_parsing_error| {
+                        logger::error!(
+                            ?payment_id_parsing_error,
+                            "Failed to parse payment ID from tracking data"
+                        );
+                        errors::ProcessTrackerError::DeserializationFailed
+                    })?;
             let request = PaymentsRetrieveRequest {
                 resource_id: PaymentIdType::PaymentIntentId(payment_id),
                 merchant_id: Some(tracking_data.merchant_id.clone()),
