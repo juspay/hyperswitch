@@ -336,6 +336,24 @@ pub async fn get_user_role_details(
     .await
 }
 
+pub async fn get_user_role_details_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<user_api::GetUserRoleDetailsRequest>,
+) -> HttpResponse {
+    let flow = Flow::GetUserRoleDetails;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload.into_inner(),
+        user_core::get_user_role_details,
+        &auth::JWTAuth(Permission::UsersRead),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn list_users_for_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,

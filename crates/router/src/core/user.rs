@@ -5,7 +5,7 @@ use std::{
 
 use api_models::{
     payments::RedirectionResponse,
-    user::{self as user_api, InviteMultipleUserResponse},
+    user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
 use common_enums::EntityType;
 use common_utils::{type_name, types::keymanager::Identifier};
@@ -1313,6 +1313,117 @@ pub async fn get_user_details_in_merchant_account(
             last_modified_at: required_user_role.last_modified,
             groups: role_info.get_permission_groups().to_vec(),
             role_scope: role_info.get_scope(),
+        },
+    ))
+}
+
+pub async fn get_user_role_details(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    request: user_api::GetUserRoleDetailsRequest,
+    _req_state: ReqState,
+) -> UserResponse<user_api::GetUserRoleDetailsResponseV2> {
+    let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    let required_user_role = state
+        .store
+        .find_user_role_by_user_id_and_lineage(
+            required_user.get_user_id(),
+            &user_from_token.org_id,
+            &user_from_token.merchant_id,
+            user_from_token.profile_id.as_ref(),
+            UserRoleVersion::V2,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidRoleOperation)
+        .attach_printable("No user role found for the user in the current hierarchy")?;
+
+    let role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &required_user_role.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("User role exists but the corresponding role doesn't")?;
+
+    let org_name = state
+        .store
+        .find_organization_by_org_id(&user_from_token.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .get_organization_name();
+
+    let org = NameIdUnit {
+        id: user_from_token.org_id,
+        name: org_name,
+    };
+
+    let key_manager_state = &(&state).into();
+    let merchant_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
+    let merchant = if let Some(merchant_id) = &required_user_role.merchant_id {
+        let merchant_name = state
+            .store
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &merchant_key_store,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .merchant_name;
+
+        Some(NameIdUnit {
+            id: merchant_id.clone(),
+            name: merchant_name,
+        })
+    } else {
+        None
+    };
+
+    let profile = if let Some(profile_id) = &required_user_role.profile_id {
+        let profile_name = state
+            .store
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                &merchant_key_store,
+                &profile_id,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .profile_name;
+
+        Some(NameIdUnit {
+            id: profile_id.clone(),
+            name: profile_name,
+        })
+    } else {
+        None
+    };
+
+    Ok(ApplicationResponse::Json(
+        user_api::GetUserRoleDetailsResponseV2 {
+            role_id: role_info.get_role_id().to_string(),
+            role_name: role_info.get_role_name().to_string(),
+            org,
+            merchant,
+            profile,
+            status: required_user_role.status.foreign_into(),
+            role_scope: role_info.get_scope(),
+            entity_type: role_info.get_entity_type(),
         },
     ))
 }
