@@ -123,6 +123,9 @@ impl SecretsHandler for settings::ApiKeys {
             .get_secret(api_keys.checksum_auth_key.clone())
             .await?;
 
+        #[cfg(feature = "partial-auth")]
+        let enable_partial_auth = api_keys.enable_partial_auth;
+
         Ok(value.transition_state(|_| Self {
             hash_key,
             #[cfg(feature = "email")]
@@ -132,6 +135,8 @@ impl SecretsHandler for settings::ApiKeys {
             checksum_auth_key,
             #[cfg(feature = "partial-auth")]
             checksum_auth_context,
+            #[cfg(feature = "partial-auth")]
+            enable_partial_auth,
         }))
     }
 }
