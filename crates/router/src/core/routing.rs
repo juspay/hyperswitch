@@ -931,14 +931,18 @@ pub async fn retrieve_linked_routing_config(
             id: profile_id.get_string_repr().to_owned(),
         })?
     } else {
-        let business_profile = db.list_business_profile_by_merchant_id(
-            key_manager_state,
-            &key_store,
-            merchant_account.get_id(),
+        let business_profile = db
+            .list_business_profile_by_merchant_id(
+                key_manager_state,
+                &key_store,
+                merchant_account.get_id(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        core_utils::filter_objects_based_on_profile_id_list(
+            authentication_profile_id.map(|profile_id| vec![profile_id]),
+            business_profile.clone(),
         )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-        core_utils::filter_objects_based_on_profile_id_list(authentication_profile_id.map(|profile_id| vec![profile_id]), business_profile.clone())
     };
 
     let mut active_algorithms = Vec::new();
