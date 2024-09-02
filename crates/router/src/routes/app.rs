@@ -1639,7 +1639,6 @@ impl BusinessProfile {
     }
 }
 
-#[cfg(feature = "olap")]
 pub struct BusinessProfileNew;
 
 #[cfg(feature = "olap")]
