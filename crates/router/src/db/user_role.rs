@@ -96,6 +96,7 @@ pub trait UserRoleInterface {
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn list_user_roles_by_user_id(
         &self,
         user_id: &str,
