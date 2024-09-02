@@ -134,6 +134,12 @@ pub struct DeleteUserRoleRequest {
     pub email: pii::Email,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct ListUsersInEntityResponse {
+    pub email: pii::Email,
+    pub roles: Vec<role::MinimalRoleInfo>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListInvitationForUserResponse {
     pub entity_id: String,
