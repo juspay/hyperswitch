@@ -614,32 +614,37 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
         .into()
 }
 
-/// Uses the [`Serialize`] implementation of a type to derive a function
-/// implementation.
-///
-/// Causes a compilation error if the type doesn't implement the [`Debug`][Debug] trait.
-///
-/// [Debug]: ::core::fmt::Debug
-/// [Display]: ::core::fmt::Display
+/// Uses the [`Serialize`] implementation of a type to derive a function implementation
+/// for converting nested keys structure into a flattened structure.
 ///
 /// # Example
 ///
-/// ```
-/// use router_derive::DebugAsDisplay;
-///
-/// #[derive(Debug, DebugAsDisplay)]
-/// struct Point {
-///     x: f32,
-///     y: f32,
+/// #[derive(Default, Serialize, FlattenStructKeys)]
+/// pub struct User {
+///     name: String,
+///     address: Address,
+///     email: String,
 /// }
 ///
-/// #[derive(Debug, DebugAsDisplay)]
-/// enum Color {
-///     Red,
-///     Green,
-///     Blue,
+/// #[derive(Default, Serialize)]
+/// pub struct Address {
+///     line1: String,
+///     line2: String,
+///     zip: String,
 /// }
-/// ```
+///
+/// let user = User::default();
+/// let flattened_keys = user.flatten_struct_keys();
+///
+/// flattened keys will be a HashMap of key, value where key is in the flattened form.
+///
+/// [
+///     ("name", "Test"),
+///     ("address.line1", "1397"),
+///     ("address.line2", "Some street"),
+///     ("address.zip", "941222"),
+///     ("email", "test@example.com"),
+/// ]
 #[proc_macro_derive(FlattenStructKeys)]
 pub fn flatten_struct_keys_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
