@@ -186,7 +186,7 @@ pub async fn create_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address,
                 updated_by: None,
-                version: enums::ApiVersion::V1,
+                version: domain::consts::API_VERSION,
             },
             storage_scheme,
         )
@@ -749,7 +749,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_used_at: current_time,
                 payment_method_billing_address: payment_method_billing_address.map(Into::into),
                 updated_by: None,
-                version: enums::ApiVersion::V1,
+                version: domain::consts::API_VERSION,
             },
             merchant_account.storage_scheme,
         )
