@@ -648,7 +648,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
 
         let updated_customer = storage::CustomerUpdate::Update {
             name: Some(redacted_encrypted_value.clone()),
-            email: Some(redacted_encrypted_email),
+            email: Box::new(Some(redacted_encrypted_email)),
             phone: Box::new(Some(redacted_encrypted_value.clone())),
             description: Some(Description::new(REDACTED.to_string())),
             phone_country_code: Some(REDACTED.to_string()),
@@ -1253,7 +1253,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 merchant_account.get_id(),
                 storage::CustomerUpdate::Update {
                     name: encryptable_customer.name,
-                    email: encryptable_customer.email,
+                    email: Box::new(encryptable_customer.email),
                     phone: Box::new(encryptable_customer.phone),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
