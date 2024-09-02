@@ -1,6 +1,6 @@
 use common_enums::TokenPurpose;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use masking::Secret;
 
 use super::UserFromStorage;
@@ -109,16 +109,14 @@ impl JWTFlow {
     ) -> UserResult<Secret<String>> {
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
-            user_role
-                .merchant_id
-                .clone()
-                .ok_or(report!(UserErrors::InternalServerError))?,
+            utils::user_role::get_single_merchant_id(state, user_role).await?,
             user_role.role_id.clone(),
             &state.conf,
             user_role
                 .org_id
                 .clone()
-                .ok_or(report!(UserErrors::InternalServerError))?,
+                .ok_or(report!(UserErrors::InternalServerError))
+                .attach_printable("org_id not found")?,
             None,
         )
         .await
