@@ -98,8 +98,8 @@ pub async fn generate_sample_data(
                 .attach_printable("Failed to get business profile")?
                 .first()
                 .ok_or(SampleDataError::InternalServerError)?
-                .profile_id
-                .clone()
+                .get_id()
+                .to_owned()
         }
     };
 
