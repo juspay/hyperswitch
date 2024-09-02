@@ -39,7 +39,6 @@ impl Default for PayoutRequiredFields {
                         PayoutConnectors::Adyenplatform,
                         PaymentMethodType::Sepa,
                     ),
-
                     // Ebanx
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Ebanx,
