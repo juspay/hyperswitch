@@ -205,6 +205,7 @@ impl UserRole {
             .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_user(
         conn: &PgPooledConn,
         user_id: String,
