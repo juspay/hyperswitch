@@ -2054,7 +2054,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 storage_scheme,
                 mandate_id,
                 payment_data.payment_method_info.clone(),
-                business_profile
+                business_profile,
             )
             .await;
 
@@ -4956,7 +4956,7 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 
 pub async fn get_payment_method_details_from_payment_token(
     state: &SessionState,
-    payment_attempt: &PaymentAttempt, 
+    payment_attempt: &PaymentAttempt,
     payment_intent: &PaymentIntent,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,

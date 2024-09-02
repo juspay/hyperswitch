@@ -4415,7 +4415,7 @@ pub async fn payment_external_authentication(
         &payment_intent,
         &key_store,
         storage_scheme,
-        &business_profile
+        &business_profile,
     )
     .await?
     .ok_or(errors::ApiErrorResponse::InternalServerError)
