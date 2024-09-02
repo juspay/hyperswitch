@@ -20,6 +20,35 @@ impl PaymentIntentNew {
 }
 
 impl PaymentIntent {
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    pub async fn update_by_id(
+        conn: &PgPooledConn,
+        id: String,
+        payment_intent: PaymentIntentUpdateInternal,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            id.clone(),
+            payment_intent,
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => {
+                    generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id).await
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    pub async fn find_by_global_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
@@ -44,6 +73,22 @@ impl PaymentIntent {
         }
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    pub async fn find_by_merchant_reference_id_merchant_id(
+        conn: &PgPooledConn,
+        merchant_reference_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::merchant_reference_id.eq(merchant_reference_id.to_owned())),
+        )
+        .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -58,6 +103,22 @@ impl PaymentIntent {
         .await
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    pub async fn find_optional_by_merchant_id_merchant_reference_id(
+        conn: &PgPooledConn,
+        merchant_reference_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::merchant_reference_id.eq(merchant_reference_id.to_owned())),
+        )
+        .await
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
