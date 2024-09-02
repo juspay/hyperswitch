@@ -1653,7 +1653,6 @@ pub trait AddressDetailsData {
     fn to_state_code(&self) -> Result<Secret<String>, Error>;
     fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error>;
     fn get_optional_line2(&self) -> Option<Secret<String>>;
-    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -1752,9 +1751,6 @@ impl AddressDetailsData for api::AddressDetails {
 
     fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
-    }
-    fn get_optional_country(&self) -> Option<api_models::enums::CountryAlpha2> {
-        self.country
     }
 }
 

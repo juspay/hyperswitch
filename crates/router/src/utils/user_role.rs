@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::user_role as user_role_api;
-use common_enums::PermissionGroup;
+use common_enums::{EntityType, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::UserRoleVersion,
@@ -13,7 +13,7 @@ use storage_impl::errors::StorageError;
 
 use crate::{
     consts,
-    core::errors::{StorageErrorExt, UserErrors, UserResult},
+    core::errors::{UserErrors, UserResult},
     routes::SessionState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
@@ -167,28 +167,6 @@ pub async fn set_role_permissions_in_cache_if_required(
     .attach_printable("Error setting permissions in redis")
 }
 
-pub async fn get_multiple_role_info_for_user_roles(
-    state: &SessionState,
-    user_roles: &[UserRole],
-) -> UserResult<Vec<roles::RoleInfo>> {
-    futures::future::try_join_all(user_roles.iter().map(|user_role| async {
-        let Some(merchant_id) = &user_role.merchant_id else {
-            return Err(report!(UserErrors::InternalServerError))
-                .attach_printable("merchant_id not found for user_role");
-        };
-        let Some(org_id) = &user_role.org_id else {
-            return Err(report!(UserErrors::InternalServerError)
-                .attach_printable("org_id not found in user_role"));
-        };
-        let role = roles::RoleInfo::from_role_id(state, &user_role.role_id, merchant_id, org_id)
-            .await
-            .to_not_found_response(UserErrors::InternalServerError)
-            .attach_printable("Role for user role doesn't exist")?;
-        Ok::<_, Report<UserErrors>>(role)
-    }))
-    .await
-}
-
 pub async fn update_v1_and_v2_user_roles_in_db(
     state: &SessionState,
     user_id: &str,
@@ -233,4 +211,39 @@ pub async fn update_v1_and_v2_user_roles_in_db(
         });
 
     (updated_v1_role, updated_v2_role)
+}
+
+pub async fn get_single_merchant_id(
+    state: &SessionState,
+    user_role: &UserRole,
+) -> UserResult<id_type::MerchantId> {
+    match user_role.entity_type {
+        Some(EntityType::Organization) => Ok(state
+            .store
+            .list_merchant_accounts_by_organization_id(
+                &state.into(),
+                user_role
+                    .org_id
+                    .as_ref()
+                    .ok_or(UserErrors::InternalServerError)
+                    .attach_printable("org_id not found")?
+                    .get_string_repr(),
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to get merchant list for org")?
+            .first()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("No merchants found for org_id")?
+            .get_id()
+            .clone()),
+        Some(EntityType::Merchant)
+        | Some(EntityType::Internal)
+        | Some(EntityType::Profile)
+        | None => user_role
+            .merchant_id
+            .clone()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("merchant_id not found"),
+    }
 }

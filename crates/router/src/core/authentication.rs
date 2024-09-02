@@ -123,7 +123,7 @@ pub async fn perform_pre_authentication(
     token: String,
     business_profile: &domain::BusinessProfile,
     acquirer_details: Option<types::AcquirerDetails>,
-    payment_id: Option<String>,
+    payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, business_profile).await?;
@@ -133,7 +133,7 @@ pub async fn perform_pre_authentication(
         business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
         token,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         payment_id,
         three_ds_connector_account
             .get_mca_id()

@@ -204,7 +204,7 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let merchant_id = current_business_profile.merchant_id.clone();
 
-    let profile_id = current_business_profile.profile_id.clone();
+    let profile_id = current_business_profile.get_id().to_owned();
 
     let routing_cache_key = cache::CacheKind::Routing(
         format!(

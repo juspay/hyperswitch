@@ -180,6 +180,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
                 merchant_account.storage_scheme,
+                &payment_data.payment_intent.payment_id,
             )
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -707,6 +708,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_id.clone(),
             merchant_connector_id.clone(),
             merchant_account.storage_scheme,
+            &payment_data.payment_intent.payment_id,
         )
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;

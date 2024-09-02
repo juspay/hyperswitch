@@ -12,7 +12,7 @@ use crate::RemoteStorageObject;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaymentIntent {
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
@@ -67,4 +67,5 @@ pub struct PaymentIntent {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: id_type::OrganizationId,
 }
