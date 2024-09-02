@@ -44,7 +44,6 @@ impl Default for PayoutRequiredFields {
                         PayoutConnectors::Ebanx,
                         PaymentMethodType::Pix,
                     ),
-
                     // Wise
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Wise,
