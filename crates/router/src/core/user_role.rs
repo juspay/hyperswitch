@@ -559,7 +559,7 @@ pub async fn delete_user_role(
 pub async fn list_users_in_lineage(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<Vec<user_api::ListUsersInEntityResponse>> {
+) -> UserResponse<Vec<user_role_api::ListUsersInEntityResponse>> {
     let requestor_role_info = roles::RoleInfo::from_role_id(
         &state,
         &user_from_token.role_id,
@@ -644,7 +644,7 @@ pub async fn list_users_in_lineage(
             .map(|role_info| {
                 (
                     user_role.role_id.clone(),
-                    user_api::MinimalRoleInfo {
+                    user_role_api::role::MinimalRoleInfo {
                         role_id: user_role.role_id.clone(),
                         role_name: role_info.get_role_name().to_string(),
                     },
@@ -669,7 +669,7 @@ pub async fn list_users_in_lineage(
         user_role_map
             .into_iter()
             .map(|(user_id, role_id_vec)| {
-                Ok::<_, error_stack::Report<UserErrors>>(user_api::ListUsersInEntityResponse {
+                Ok::<_, error_stack::Report<UserErrors>>(user_role_api::ListUsersInEntityResponse {
                     email: email_map
                         .remove(&user_id)
                         .ok_or(UserErrors::InternalServerError)?,

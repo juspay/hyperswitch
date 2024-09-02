@@ -3272,6 +3272,18 @@ impl RoleInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store.list_all_roles(merchant_id, org_id).await
     }
+
+    async fn list_roles_for_org_by_parameters(
+        &self,
+        org_id: &id_type::OrganizationId,
+        merchant_id: Option<&id_type::MerchantId>,
+        entity_type: Option<enums::EntityType>,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        self.diesel_store
+            .list_roles_for_org_by_parameters(org_id, merchant_id, entity_type, limit)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
