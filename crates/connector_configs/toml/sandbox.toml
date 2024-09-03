@@ -3981,3 +3981,50 @@ api_secret="CLE Secret"
 api_key="Key"
 key1="Merchant ID"
 api_secret="Shared Secret"
+
+
+[fiuu]
+[[fiuu.credit]]
+  payment_method_type = "Mastercard"
+[[fiuu.credit]]
+  payment_method_type = "Visa"
+[[fiuu.credit]]
+  payment_method_type = "Interac"
+[[fiuu.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiuu.credit]]
+  payment_method_type = "JCB"
+[[fiuu.credit]]
+  payment_method_type = "DinersClub"
+[[fiuu.credit]]
+  payment_method_type = "Discover"
+[[fiuu.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiuu.credit]]
+  payment_method_type = "UnionPay"
+[[fiuu.debit]]
+  payment_method_type = "Mastercard"
+[[fiuu.debit]]
+  payment_method_type = "Visa"
+[[fiuu.debit]]
+  payment_method_type = "Interac"
+[[fiuu.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiuu.debit]]
+  payment_method_type = "JCB"
+[[fiuu.debit]]
+  payment_method_type = "DinersClub"
+[[fiuu.debit]]
+  payment_method_type = "Discover"
+[[fiuu.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiuu.debit]]
+  payment_method_type = "UnionPay"
+[[fiuu.wallet]]
+  payment_method_type = "apple_pay"
+[[fiuu.wallet]]
+  payment_method_type = "google_pay"
+[fiuu.connector_auth.SignatureKey]
+api_key="Verify Key"
+key1="Merchant ID"
+api_secret="Secret Key"

@@ -1,31 +1,44 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use std::collections::HashMap;
+
+use cards::CardNumber;
+use common_enums::{enums, CaptureMethod, Currency};
+use common_utils::{
+    crypto::GenerateDigest,
+    request::Method,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use strum::Display;
 
 use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+    },
+    utils::{PaymentsAuthorizeRequestData, RouterData as _},
 };
 
-//TODO: Fill the struct with respective fields
 pub struct FiuuRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for FiuuRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
+impl<T> From<(StringMajorUnit, T)> for FiuuRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
         Self {
             amount,
             router_data: item,
@@ -33,194 +46,790 @@ impl<T> From<(StringMinorUnit, T)> for FiuuRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct FiuuPaymentsRequest {
-    amount: StringMinorUnit,
-    card: FiuuCard,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct FiuuCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
-impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &FiuuRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = FiuuCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-// Auth Struct
 pub struct FiuuAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) merchant_id: Secret<String>,
+    pub(super) verify_key: Secret<String>,
+    pub(super) secret_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for FiuuAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                merchant_id: key1.to_owned(),
+                verify_key: api_key.to_owned(),
+                secret_key: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum FiuuPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "UPPERCASE")]
+enum TxnType {
+    Sals,
+    Auts,
 }
 
-impl From<FiuuPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: FiuuPaymentStatus) -> Self {
-        match item {
-            FiuuPaymentStatus::Succeeded => Self::Charged,
-            FiuuPaymentStatus::Failed => Self::Failure,
-            FiuuPaymentStatus::Processing => Self::Authorizing,
+impl TryFrom<Option<CaptureMethod>> for TxnType {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(capture_method: Option<CaptureMethod>) -> Result<Self, Self::Error> {
+        match capture_method {
+            Some(CaptureMethod::Automatic) => Ok(Self::Sals),
+            Some(CaptureMethod::Manual) => Ok(Self::Auts),
+            _ => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FiuuPaymentsResponse {
-    status: FiuuPaymentStatus,
-    id: String,
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "UPPERCASE")]
+enum TxnChannel {
+    Creditz,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, FiuuPaymentsResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, FiuuPaymentsResponse, T, PaymentsResponseData>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: common_enums::AttemptStatus::from(item.response.status),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                charge_id: None,
+#[derive(Serialize, Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuPaymentsRequest {
+    #[serde(rename = "MerchantID")]
+    merchant_id: String,
+    reference_no: String,
+    txn_type: TxnType,
+    txn_channel: TxnChannel,
+    txn_currency: Currency,
+    txn_amount: StringMajorUnit,
+    signature: Secret<String>,
+    #[serde(rename = "CC_PAN")]
+    cc_pan: CardNumber,
+    #[serde(rename = "CC_CVV2")]
+    cc_cvv2: Secret<String>,
+    #[serde(rename = "CC_MONTH")]
+    cc_month: Secret<String>,
+    #[serde(rename = "CC_YEAR")]
+    cc_year: Secret<String>,
+    #[serde(rename = "non_3DS")]
+    non_3ds: i32,
+    #[serde(rename = "ReturnURL")]
+    return_url: Option<String>,
+}
+
+pub fn calculate_signature(
+    signature_data: String,
+) -> Result<Secret<String>, Report<errors::ConnectorError>> {
+    let message = signature_data.as_bytes();
+    let encoded_data = hex::encode(
+        common_utils::crypto::Md5
+            .generate_digest(message)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+    );
+    Ok(Secret::new(encoded_data))
+}
+
+impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequest {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(item: &FiuuRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let auth: FiuuAuthType = FiuuAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let merchant_id = auth.merchant_id.peek().to_string();
+        let txn_currency = item.router_data.request.currency;
+        let txn_amount = item.amount.clone();
+        let reference_no = item.router_data.connector_request_reference_id.clone();
+        let verify_key = auth.verify_key.peek().to_string();
+        let signature = calculate_signature(format!(
+            "{txn_amount}{merchant_id}{reference_no}{verify_key}"
+        ))?;
+        match item.router_data.request.payment_method_data.clone() {
+            PaymentMethodData::Card(req_card) => Ok(Self {
+                merchant_id,
+                reference_no,
+                txn_type: match item.router_data.request.is_auto_capture()? {
+                    true => TxnType::Sals,
+                    false => TxnType::Auts,
+                },
+                txn_channel: TxnChannel::Creditz,
+                txn_currency,
+                txn_amount,
+                signature,
+                cc_pan: req_card.card_number,
+                cc_cvv2: req_card.card_cvc,
+                cc_month: req_card.card_exp_month,
+                cc_year: req_card.card_exp_year,
+                non_3ds: match item.router_data.is_three_ds() {
+                    false => 1,
+                    true => 0,
+                },
+                return_url: item.router_data.request.router_return_url.clone(),
             }),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuPaymentsSuccessResponse {
+    #[serde(rename = "MerchantID")]
+    pub merchant_id: String,
+    pub reference_no: String,
+    #[serde(rename = "TxnID")]
+    pub txn_id: String,
+    pub txn_type: String,
+    pub txn_currency: String,
+    pub txn_amount: String,
+    pub txn_channel: String,
+    pub txn_data: TxnData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FiuuPaymentsResponse {
+    Success(Box<FiuuPaymentsSuccessResponse>),
+    Error(FiuuErrorResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct TxnData {
+    #[serde(rename = "RequestURL")]
+    pub request_url: String,
+    pub request_type: RequestType,
+    pub request_data: RequestData,
+    pub request_method: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RequestType {
+    REDIRECT,
+    RESPONSE,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ThreeDSResponseData {
+    #[serde(rename = "paRes")]
+    pa_res: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RequestData {
+    NonThreeDS(NonThreeDSResponseData),
+    ThreeDS(ThreeDSResponseData),
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NonThreeDSResponseData {
+    #[serde(rename = "tranID")]
+    pub tran_id: String,
+    pub status: String,
+    pub error_code: Option<String>,
+    pub error_desc: Option<String>,
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<F, FiuuPaymentsResponse, PaymentsAuthorizeData, PaymentsResponseData>,
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+{
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            FiuuPaymentsResponse,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            FiuuPaymentsResponse::Error(error) => Ok(Self {
+                response: Err(ErrorResponse {
+                    code: error.error_code.clone(),
+                    message: error.error_desc.clone(),
+                    reason: Some(error.error_desc),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            }),
+            FiuuPaymentsResponse::Success(data) => match data.txn_data.request_data {
+                RequestData::ThreeDS(three_ds_data) => {
+                    let form_fields = {
+                        let mut map = HashMap::new();
+                        map.insert("paRes".to_string(), three_ds_data.pa_res.clone());
+                        map
+                    };
+                    let redirection_data = Some(RedirectForm::Form {
+                        endpoint: data.txn_data.request_url.to_string(),
+                        method: if data.txn_data.request_method.as_str() == "POST" {
+                            Method::Post
+                        } else {
+                            Method::Get
+                        },
+                        form_fields,
+                    });
+                    Ok(Self {
+                        status: enums::AttemptStatus::AuthenticationPending,
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
+                            redirection_data,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        }),
+                        ..item.data
+                    })
+                }
+
+                RequestData::NonThreeDS(non_threeds_data) => Ok(Self {
+                    status: match non_threeds_data.status.as_str() {
+                        "00" => {
+                            if item.data.request.is_auto_capture()? {
+                                Ok(enums::AttemptStatus::Charged)
+                            } else {
+                                Ok(enums::AttemptStatus::Authorized)
+                            }
+                        }
+                        "11" => Ok(enums::AttemptStatus::Failure),
+                        "22" => Ok(enums::AttemptStatus::Pending),
+                        other => Err(errors::ConnectorError::UnexpectedResponseError(
+                            bytes::Bytes::from(other.to_owned()),
+                        )),
+                    }?,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(data.txn_id),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    ..item.data
+                }),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuRefundRequest {
+    pub refund_type: RefundType,
+    #[serde(rename = "MerchantID")]
+    pub merchant_id: String,
+    #[serde(rename = "RefID")]
+    pub ref_id: String,
+    #[serde(rename = "TxnID")]
+    pub txn_id: String,
+    pub amount: StringMajorUnit,
+    pub signature: Secret<String>,
+}
+#[derive(Debug, Serialize, Display)]
+pub enum RefundType {
+    P,
+}
+
+impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(item: &FiuuRouterData<&RefundsRouterData<Execute>>) -> Result<Self, Self::Error> {
+        let auth: FiuuAuthType = FiuuAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let merchant_id = auth.merchant_id.peek().to_string();
+        let txn_amount = item.amount.clone();
+        let reference_no = item.router_data.connector_request_reference_id.clone();
+        let txn_id = item.router_data.request.connector_transaction_id.clone();
+        let secret_key = auth.secret_key.peek().to_string();
+        let refund_type = RefundType::P.to_string();
+        Ok(Self {
+            refund_type: RefundType::P,
+            merchant_id: merchant_id.clone(),
+            ref_id: reference_no.clone(),
+            txn_id: txn_id.clone(),
+            amount: txn_amount.clone(),
+            signature: calculate_signature(format!(
+                "{refund_type}{merchant_id}{reference_no}{txn_id}{txn_amount}{secret_key}"
+            ))?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuRefundSuccessResponse {
+    #[serde(rename = "RefundID")]
+    refund_id: i64,
+    status: String,
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FiuuRefundResponse {
+    Success(FiuuRefundSuccessResponse),
+    Error(FiuuErrorResponse),
+}
+impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
+    for RefundsRouterData<Execute>
+{
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(
+        item: RefundsResponseRouterData<Execute, FiuuRefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            FiuuRefundResponse::Error(error) => Ok(Self {
+                response: Err(ErrorResponse {
+                    code: error.error_code.clone(),
+                    message: error.error_desc.clone(),
+                    reason: Some(error.error_desc),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            }),
+            FiuuRefundResponse::Success(refund_data) => Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: refund_data.refund_id.to_string(),
+                    refund_status: match refund_data.status.as_str() {
+                        "00" => Ok(enums::RefundStatus::Success),
+                        "11" => Ok(enums::RefundStatus::Failure),
+                        "22" => Ok(enums::RefundStatus::Pending),
+                        other => Err(errors::ConnectorError::UnexpectedResponseError(
+                            bytes::Bytes::from(other.to_owned()),
+                        )),
+                    }?,
+                }),
+                ..item.data
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct FiuuErrorResponse {
+    pub error_code: String,
+    pub error_desc: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct FiuuPaymentSyncRequest {
+    amount: StringMajorUnit,
+    #[serde(rename = "txID")]
+    tx_id: String,
+    domain: String,
+    skey: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuPaymentSyncResponse {
+    stat_code: String,
+    stat_name: String,
+    #[serde(rename = "TranID")]
+    tran_id: String,
+    error_code: String,
+    error_desc: String,
+}
+impl TryFrom<&PaymentsSyncRouterData> for FiuuPaymentSyncRequest {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let auth = FiuuAuthType::try_from(&item.connector_auth_type)?;
+        let txn_id = item
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let merchant_id = auth.merchant_id.peek().to_string();
+        let verify_key = auth.verify_key.peek().to_string();
+        let amount = StringMajorUnitForConnector
+            .convert(item.request.amount, item.request.currency)
+            .change_context(errors::ConnectorError::AmountConversionFailed)?;
+        Ok(Self {
+            amount: amount.clone(),
+            tx_id: txn_id.clone(),
+            domain: merchant_id.clone(),
+            skey: calculate_signature(format!("{txn_id}{merchant_id}{verify_key}{amount}"))?,
+        })
+    }
+}
+
+impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>> for PaymentsSyncRouterData {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        let stat_name = item.response.stat_name.as_str();
+        let status = match item.response.stat_code.as_str() {
+            "00" => {
+                if stat_name == "settled" || stat_name == "captured" {
+                    Ok(enums::AttemptStatus::Charged)
+                } else {
+                    Ok(enums::AttemptStatus::Authorized)
+                }
+            }
+            "22" => Ok(enums::AttemptStatus::Pending),
+            "11" => Ok(enums::AttemptStatus::Failure),
+            other => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(other.to_owned()),
+            )),
+        }?;
+        let error_response = if status == enums::AttemptStatus::Failure {
+            Some(ErrorResponse {
+                status_code: item.http_code,
+                code: item.response.stat_code.as_str().to_owned(),
+                message: item.response.stat_name.clone(),
+                reason: Some(item.response.stat_name),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        } else {
+            None
+        };
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: item.data.request.connector_transaction_id.clone(),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charge_id: None,
+        };
+        Ok(Self {
+            status,
+            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct FiuuRefundRequest {
-    pub amount: StringMinorUnit,
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct PaymentCaptureRequest {
+    domain: String,
+    #[serde(rename = "tranID")]
+    tran_id: String,
+    amount: StringMajorUnit,
+    #[serde(rename = "RefID")]
+    ref_id: String,
+    skey: Secret<String>,
 }
 
-impl<F> TryFrom<&FiuuRouterData<&RefundsRouterData<F>>> for FiuuRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &FiuuRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct PaymentCaptureResponse {
+    #[serde(rename = "TranID")]
+    tran_id: String,
+    stat_code: String,
+}
+
+impl TryFrom<&FiuuRouterData<&PaymentsCaptureRouterData>> for PaymentCaptureRequest {
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(item: &FiuuRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
+        let auth = FiuuAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let merchant_id = auth.merchant_id.peek().to_string();
+        let amount = item.amount.clone();
+        let txn_id = item.router_data.request.connector_transaction_id.clone();
+        let verify_key = auth.verify_key.peek().to_string();
+        let signature = calculate_signature(format!("{txn_id}{amount}{merchant_id}{verify_key}"))?;
         Ok(Self {
-            amount: item.amount.to_owned(),
+            domain: merchant_id,
+            tran_id: txn_id,
+            amount,
+            ref_id: item.router_data.connector_request_reference_id.clone(),
+            skey: signature,
+        })
+    }
+}
+fn capture_status_codes() -> HashMap<&'static str, &'static str> {
+    [
+        ("00", "Capture successful"),
+        ("11", "Capture failed"),
+        ("12", "Invalid or unmatched security hash string"),
+        ("13", "Not a credit card transaction"),
+        ("15", "Requested day is on settlement day"),
+        ("16", "Forbidden transaction"),
+        ("17", "Transaction not found"),
+        ("18", "Missing required parameter"),
+        ("19", "Domain not found"),
+        ("20", "Temporary out of service"),
+        ("21", "Authorization expired"),
+        ("23", "Partial capture not allowed"),
+        ("24", "Transaction already captured"),
+        ("25", "Requested amount exceeds available capture amount"),
+        ("99", "General error (contact payment gateway support)"),
+    ]
+    .into_iter()
+    .collect()
+}
+
+impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
+    for PaymentsCaptureRouterData
+{
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
+    ) -> Result<Self, Self::Error> {
+        let status_code = item.response.stat_code;
+
+        let status = match status_code.as_str() {
+            "00" => Ok(enums::AttemptStatus::Charged),
+            "22" => Ok(enums::AttemptStatus::Pending),
+            "11" | "12" | "13" | "15" | "16" | "17" | "18" | "19" | "20" | "21" | "23" | "24"
+            | "25" | "99" => Ok(enums::AttemptStatus::Failure),
+            other => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(other.to_owned()),
+            )),
+        }?;
+        let capture_message_status = capture_status_codes();
+        let error_response = if status == enums::AttemptStatus::Failure {
+            Some(ErrorResponse {
+                status_code: item.http_code,
+                code: status_code.to_owned(),
+                message: capture_message_status
+                    .get(status_code.as_str())
+                    .unwrap_or(&"NO_ERROR_MESSAGE")
+                    .to_string(),
+                reason: Some(
+                    capture_message_status
+                        .get(status_code.as_str())
+                        .unwrap_or(&"NO_ERROR_REASON")
+                        .to_string(),
+                ),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        } else {
+            None
+        };
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.to_string()),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charge_id: None,
+        };
+        Ok(Self {
+            status,
+            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            ..item.data
         })
     }
 }
 
-// Type definition for Refund Response
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct FiuuPaymentCancelRequest {
+    #[serde(rename = "txnID")]
+    txn_id: String,
+    skey: Secret<String>,
+}
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuPaymentCancelResponse {
+    #[serde(rename = "TranID")]
+    tran_id: String,
+    stat_code: String,
+}
+
+impl TryFrom<&PaymentsCancelRouterData> for FiuuPaymentCancelRequest {
+    type Error = Report<errors::ConnectorError>;
+
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let auth = FiuuAuthType::try_from(&item.connector_auth_type)?;
+        let txn_id = item.request.connector_transaction_id.clone();
+        let merchant_id = auth.merchant_id.peek().to_string();
+        let secret_key = auth.secret_key.peek().to_string();
+        Ok(Self {
+            txn_id: txn_id.clone(),
+            skey: calculate_signature(format!("{txn_id}{merchant_id}{secret_key}"))?,
+        })
+    }
+}
+// Reminder
+fn void_status_codes() -> HashMap<&'static str, &'static str> {
+    [
+        ("00", "Success (will proceed the request)"),
+        ("11", "Failure"),
+        ("12", "Invalid or unmatched security hash string"),
+        ("13", "Not a refundable transaction"),
+        ("14", "Transaction date more than 180 days"),
+        ("15", "Requested day is on settlement day"),
+        ("16", "Forbidden transaction"),
+        ("17", "Transaction not found"),
+        ("18", "Duplicate partial refund request"),
+        ("19", "Merchant not found"),
+        ("20", "Missing required parameter"),
+        (
+            "21",
+            "Transaction must be in authorized/captured/settled status",
+        ),
+    ]
+    .into_iter()
+    .collect()
+}
+impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
+    for PaymentsCancelRouterData
+{
+    type Error = Report<errors::ConnectorError>;
+    fn try_from(
+        item: PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>,
+    ) -> Result<Self, Self::Error> {
+        let status_code = item.response.stat_code;
+        let status = match status_code.as_str() {
+            "00" => Ok(enums::AttemptStatus::Voided),
+            "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "20" | "21" => {
+                Ok(enums::AttemptStatus::VoidFailed)
+            }
+            other => Err(errors::ConnectorError::UnexpectedResponseError(
+                bytes::Bytes::from(other.to_owned()),
+            )),
+        }?;
+        let void_message_status = void_status_codes();
+        let error_response = if status == enums::AttemptStatus::VoidFailed {
+            Some(ErrorResponse {
+                status_code: item.http_code,
+                code: status_code.to_owned(),
+                message: void_message_status
+                    .get(status_code.as_str())
+                    .unwrap_or(&"NO_ERROR_MESSAGE")
+                    .to_string(),
+                reason: Some(
+                    void_message_status
+                        .get(status_code.as_str())
+                        .unwrap_or(&"NO_ERROR_REASON")
+                        .to_string(),
+                ),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        } else {
+            None
+        };
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.tran_id.to_string()),
+            redirection_data: None,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            charge_id: None,
+        };
+        Ok(Self {
+            status,
+            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct FiuuRefundSyncRequest {
+    #[serde(rename = "TxnID")]
+    txn_id: String,
+    #[serde(rename = "MerchantID")]
+    merchant_id: Secret<String>,
+    signature: Secret<String>,
+}
+
+impl TryFrom<&RefundSyncRouterData> for FiuuRefundSyncRequest {
+    type Error = Report<errors::ConnectorError>;
+
+    fn try_from(item: &RefundSyncRouterData) -> Result<Self, Self::Error> {
+        let auth = FiuuAuthType::try_from(&item.connector_auth_type)?;
+        let (txn_id, merchant_id, verify_key) = (
+            item.request.connector_transaction_id.clone(),
+            auth.merchant_id.peek().to_string(),
+            auth.verify_key.peek().to_string(),
+        );
+        let signature = calculate_signature(format!("{txn_id}{merchant_id}{verify_key}"))?;
+        Ok(Self {
+            txn_id,
+            merchant_id: auth.merchant_id,
+            signature,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FiuuRefundSyncResponse {
+    Success(Vec<RefundData>),
+    Error(FiuuErrorResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RefundData {
+    #[serde(rename = "RefundID")]
+    refund_id: String,
+    status: RefundStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
+    Success,
+    Pending,
+    Rejected,
     Processing,
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
+    for RefundsRouterData<RSync>
+{
+    type Error = Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            FiuuRefundSyncResponse::Error(error) => Ok(Self {
+                response: Err(ErrorResponse {
+                    code: error.error_code.clone(),
+                    message: error.error_desc.clone(),
+                    reason: Some(error.error_desc),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..item.data
+            }),
+            FiuuRefundSyncResponse::Success(refund_data) => {
+                let refund = refund_data
+                    .iter()
+                    .find(|refund| {
+                        Some(refund.refund_id.clone()) == item.data.request.connector_refund_id
+                    })
+                    .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
+                Ok(Self {
+                    response: Ok(RefundsResponseData {
+                        connector_refund_id: refund.refund_id.clone(),
+                        refund_status: enums::RefundStatus::from(refund.status.clone()),
+                    }),
+                    ..item.data
+                })
+            }
+        }
+    }
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Success => Self::Success,
+            RefundStatus::Rejected => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: RefundsResponseRouterData<RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct FiuuErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
 }
