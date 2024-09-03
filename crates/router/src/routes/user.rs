@@ -336,7 +336,7 @@ pub async fn get_user_role_details(
     .await
 }
 
-pub async fn list_user_role_details(
+pub async fn list_user_roles_details(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Query<user_api::GetUserRoleDetailsRequest>,
@@ -347,7 +347,7 @@ pub async fn list_user_role_details(
         state.clone(),
         &req,
         payload.into_inner(),
-        user_core::list_user_role_details,
+        user_core::list_user_roles_details,
         &auth::JWTAuth(Permission::UsersRead),
         api_locking::LockAction::NotApplicable,
     ))

@@ -1321,7 +1321,7 @@ pub async fn get_user_details_in_merchant_account(
     ))
 }
 
-pub async fn list_user_role_details(
+pub async fn list_user_roles_details(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::GetUserRoleDetailsRequest,
