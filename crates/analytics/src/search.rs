@@ -7,15 +7,14 @@ use error_stack::ResultExt;
 use router_env::tracing;
 
 use crate::{
-    enums::UserLevel,
+    enums::AuthInfo,
     opensearch::{OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder},
 };
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
-    _merchant_id: &common_utils::id_type::MerchantId,
-    search_params: Vec<UserLevel>,
+    search_params: Vec<AuthInfo>,
     indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
     if req.query.trim().is_empty()
@@ -150,8 +149,7 @@ pub async fn msearch_results(
 pub async fn search_results(
     client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
-    _merchant_id: &common_utils::id_type::MerchantId,
-    search_params: Vec<UserLevel>,
+    search_params: Vec<AuthInfo>,
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
 

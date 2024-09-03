@@ -1896,15 +1896,15 @@ pub mod routes {
                 let org_id: OrganizationId =
                     OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
                         .unwrap();
-                let search_params: Vec<UserLevel> = vec![
-                    UserLevel::OrgLevel {
+                let search_params: Vec<AuthInfo> = vec![
+                    AuthInfo::OrgLevel {
                         org_id: org_id.clone(),
                     },
-                    UserLevel::MerchantLevel {
+                    AuthInfo::MerchantLevel {
                         org_id: org_id.clone(),
                         merchant_ids: vec![auth.merchant_id.clone()],
                     },
-                    UserLevel::ProfileLevel {
+                    AuthInfo::ProfileLevel {
                         org_id: org_id.clone(),
                         merchant_id: auth.merchant_id.clone(),
                         profile_ids: vec![profile_id.clone()],
@@ -1914,7 +1914,6 @@ pub mod routes {
                 analytics::search::msearch_results(
                     &state.opensearch_client,
                     req,
-                    &auth.merchant_id,
                     search_params,
                     accessible_indexes,
                 )
@@ -1964,15 +1963,15 @@ pub mod routes {
                 let org_id: OrganizationId =
                     OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
                         .unwrap();
-                let search_params: Vec<UserLevel> = vec![
-                    UserLevel::OrgLevel {
+                let search_params: Vec<AuthInfo> = vec![
+                    AuthInfo::OrgLevel {
                         org_id: org_id.clone(),
                     },
-                    UserLevel::MerchantLevel {
+                    AuthInfo::MerchantLevel {
                         org_id: org_id.clone(),
                         merchant_ids: vec![auth.merchant_id.clone()],
                     },
-                    UserLevel::ProfileLevel {
+                    AuthInfo::ProfileLevel {
                         org_id: org_id.clone(),
                         merchant_id: auth.merchant_id.clone(),
                         profile_ids: vec![profile_id.clone()],
@@ -1982,7 +1981,6 @@ pub mod routes {
                 analytics::search::search_results(
                     &state.opensearch_client,
                     req,
-                    &auth.merchant_id,
                     search_params,
                 )
                 .await

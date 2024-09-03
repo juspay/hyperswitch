@@ -24,7 +24,7 @@ use storage_impl::errors::ApplicationError;
 use time::PrimitiveDateTime;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
-use crate::{enums::UserLevel, query::QueryBuildingError};
+use crate::{enums::AuthInfo, query::QueryBuildingError};
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
@@ -397,11 +397,11 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<String>)>,
     pub time_range: Option<OpensearchTimeRange>,
-    pub search_params: Vec<UserLevel>,
+    pub search_params: Vec<AuthInfo>,
 }
 
 impl OpenSearchQueryBuilder {
-    pub fn new(query_type: OpenSearchQuery, query: String, search_params: Vec<UserLevel>) -> Self {
+    pub fn new(query_type: OpenSearchQuery, query: String, search_params: Vec<AuthInfo>) -> Self {
         Self {
             query_type,
             query,
@@ -504,7 +504,7 @@ impl OpenSearchQueryBuilder {
             .search_params
             .iter()
             .map(|user_level| match user_level {
-                UserLevel::OrgLevel { org_id } => {
+                AuthInfo::OrgLevel { org_id } => {
                     let must_clauses = vec![json!({
                         "term": {
                             "organization_id.keyword": {
@@ -519,7 +519,7 @@ impl OpenSearchQueryBuilder {
                         }
                     })
                 }
-                UserLevel::MerchantLevel {
+                AuthInfo::MerchantLevel {
                     org_id,
                     merchant_ids,
                 } => {
@@ -544,7 +544,7 @@ impl OpenSearchQueryBuilder {
                         }
                     })
                 }
-                UserLevel::ProfileLevel {
+                AuthInfo::ProfileLevel {
                     org_id,
                     merchant_id,
                     profile_ids,
