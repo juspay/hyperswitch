@@ -1,0 +1,7 @@
+# Outputs
+reports
+screenshots
+
+# Files
+creds.json
+run_all.sh
