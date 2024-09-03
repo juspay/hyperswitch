@@ -1368,6 +1368,38 @@ impl GetProfileId for diesel_models::Refund {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+impl GetProfileId for api_models::routing::RoutingConfigRequest {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.profile_id.as_ref()
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "routing_v2"))]
+impl GetProfileId for api_models::routing::RoutingConfigRequest {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
+impl GetProfileId for api_models::routing::RoutingRetrieveLinkQuery {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        self.profile_id.as_ref()
+    }
+}
+
+impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
+impl GetProfileId for domain::BusinessProfile {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(self.get_id())
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl GetProfileId for storage::Payouts {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
@@ -1378,12 +1410,6 @@ impl GetProfileId for storage::Payouts {
 impl<T, F> GetProfileId for (storage::Payouts, T, F) {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.0.get_profile_id()
-    }
-}
-
-impl GetProfileId for domain::BusinessProfile {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        Some(self.get_id())
     }
 }
 
