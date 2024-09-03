@@ -869,8 +869,9 @@ pub async fn business_profile_update(
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
+            &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
+                profile_id: profile_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
             },
             req.headers(),
@@ -948,9 +949,43 @@ pub async fn business_profiles_list(
         state,
         &req,
         merchant_id.clone(),
-        |state, _, merchant_id, _| list_business_profile(state, merchant_id),
+        |state, _auth, merchant_id, _| list_business_profile(state, merchant_id, None),
         auth::auth_type(
-            &auth::AdminApiAuth,
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::MerchantAccountRead,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileList))]
+pub async fn business_profiles_list_at_profile_level(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileList;
+    let merchant_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        merchant_id.clone(),
+        |state, auth, merchant_id, _| {
+            list_business_profile(
+                state,
+                merchant_id,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+            )
+        },
+        auth::auth_type(
+            &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,

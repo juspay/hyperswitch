@@ -3615,6 +3615,7 @@ pub async fn create_business_profile(
 pub async fn list_business_profile(
     state: SessionState,
     merchant_id: id_type::MerchantId,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
     let key_store = db
@@ -3630,6 +3631,7 @@ pub async fn list_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         .clone();
+    let profiles = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, profiles);
     let mut business_profiles = Vec::new();
     for profile in profiles {
         let business_profile =
