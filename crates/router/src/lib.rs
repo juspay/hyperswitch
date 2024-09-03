@@ -119,7 +119,9 @@ pub fn mk_app(
         {
             // This is a more specific route as compared to `MerchantConnectorAccount`
             // so it is registered before `MerchantConnectorAccount`.
-            server_app = server_app.service(routes::BusinessProfile::server(state.clone()))
+            server_app = server_app
+                .service(routes::BusinessProfileNew::server(state.clone()))
+                .service(routes::BusinessProfile::server(state.clone()))
         }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
