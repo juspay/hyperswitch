@@ -20,7 +20,7 @@ pub mod routes {
         GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
         GetSdkEventMetricRequest, ReportRequest,
     };
-    use common_utils::id_type::{OrganizationId, ProfileId};
+    use common_utils::id_type::{OrganizationId, MerchantId};
     use error_stack::{report, ResultExt};
 
     use crate::{
@@ -1890,26 +1890,13 @@ pub mod routes {
                     .filter(|(_, perm)| perm.iter().any(|p| permissions.contains(p)))
                     .map(|(i, _)| *i)
                     .collect();
-                let profile_id: ProfileId =
-                    ProfileId::try_from(std::borrow::Cow::from("pro_ZTGBrEwlRmTyzKFpnV9Z"))
-                        .unwrap();
-                let org_id: OrganizationId =
-                    OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
-                        .unwrap();
-                let search_params: Vec<AuthInfo> = vec![
-                    AuthInfo::OrgLevel {
-                        org_id: org_id.clone(),
-                    },
-                    AuthInfo::MerchantLevel {
-                        org_id: org_id.clone(),
-                        merchant_ids: vec![auth.merchant_id.clone()],
-                    },
-                    AuthInfo::ProfileLevel {
-                        org_id: org_id.clone(),
-                        merchant_id: auth.merchant_id.clone(),
-                        profile_ids: vec![profile_id.clone()],
-                    },
-                ];
+
+                let merchant_id: MerchantId = auth.merchant_id;
+                let org_id: OrganizationId = auth.org_id;
+                let search_params: Vec<AuthInfo> = vec![AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                }];
 
                 analytics::search::msearch_results(
                     &state.opensearch_client,
@@ -1957,26 +1944,12 @@ pub mod routes {
                     .find(|i| i.1.iter().any(|p| permissions.contains(p)))
                     .ok_or(OpenSearchError::IndexAccessNotPermittedError(index))?;
 
-                let profile_id: ProfileId =
-                    ProfileId::try_from(std::borrow::Cow::from("pro_ZTGBrEwlRmTyzKFpnV9Z"))
-                        .unwrap();
-                let org_id: OrganizationId =
-                    OrganizationId::try_from(std::borrow::Cow::from("org_uE6MKlLqjU91iFPEFrMk"))
-                        .unwrap();
-                let search_params: Vec<AuthInfo> = vec![
-                    AuthInfo::OrgLevel {
-                        org_id: org_id.clone(),
-                    },
-                    AuthInfo::MerchantLevel {
-                        org_id: org_id.clone(),
-                        merchant_ids: vec![auth.merchant_id.clone()],
-                    },
-                    AuthInfo::ProfileLevel {
-                        org_id: org_id.clone(),
-                        merchant_id: auth.merchant_id.clone(),
-                        profile_ids: vec![profile_id.clone()],
-                    },
-                ];
+                let merchant_id: MerchantId = auth.merchant_id;
+                let org_id: OrganizationId = auth.org_id;
+                let search_params: Vec<AuthInfo> = vec![AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                }];
 
                 analytics::search::search_results(&state.opensearch_client, req, search_params)
                     .await
