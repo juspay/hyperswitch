@@ -1,0 +1,16 @@
+{
+  "api_key_create": {
+    "connector_type": "payment_processor",
+    "connector_webhook_details": {
+      "merchant_secret": ""
+    },
+    "merchant_id": "{{merchant_id}}"
+  },
+  "api_key_update": {
+    "connector_type": "payment_processor",
+    "connector_webhook_details": {
+      "merchant_secret": ""
+    },
+    "merchant_id": "{{merchant_id}}"
+  }
+}
