@@ -8,6 +8,7 @@ license.workspace = true
 [features]
 frm = ["hyperswitch_domain_models/frm", "hyperswitch_interfaces/frm"]
 payouts = ["hyperswitch_domain_models/payouts", "api_models/payouts", "hyperswitch_interfaces/payouts"]
+v1 = ["api_models/v1"]
 
 [dependencies]
 actix-http = "3.6.0"
