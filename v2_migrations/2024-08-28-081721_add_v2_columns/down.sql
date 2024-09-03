@@ -17,4 +17,7 @@ DROP TYPE "OrderFulfillmentTimeOrigin";
 ALTER TABLE payment_intent DROP COLUMN merchant_reference_id,
     DROP COLUMN billing_address,
     DROP COLUMN shipping_address,
-    DROP COLUMN capture_method;
+    DROP COLUMN capture_method,
+    DROP COLUMN authentication_type,
+    DROP COLUMN amount_to_capture,
+    DROP COLUMN prerouting_algorithm;

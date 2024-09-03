@@ -540,6 +540,9 @@ impl behaviour::Conversion for PaymentIntent {
             is_payment_processor_token_flow: self.is_payment_processor_token_flow,
             capture_method: self.capture_method,
             id: self.id,
+            authentication_type: self.authentication_type,
+            amount_to_capture: self.amount_to_capture,
+            prerouting_algorithm: self.prerouting_algorithm,
             merchant_reference_id: self.merchant_reference_id,
             organization_id: self.organization_id,
         })
@@ -619,6 +622,9 @@ impl behaviour::Conversion for PaymentIntent {
                 id: storage_model.id,
                 merchant_reference_id: storage_model.merchant_reference_id,
                 organization_id: storage_model.organization_id,
+                authentication_type: storage_model.authentication_type,
+                amount_to_capture: storage_model.amount_to_capture,
+                prerouting_algorithm: storage_model.prerouting_algorithm,
             })
         }
         .await
@@ -671,6 +677,9 @@ impl behaviour::Conversion for PaymentIntent {
             capture_method: self.capture_method,
             id: self.id,
             merchant_reference_id: self.merchant_reference_id,
+            authentication_type: self.authentication_type,
+            amount_to_capture: self.amount_to_capture,
+            prerouting_algorithm: self.prerouting_algorithm,
             organization_id: self.organization_id,
         })
     }

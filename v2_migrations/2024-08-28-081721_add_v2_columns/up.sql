@@ -19,4 +19,8 @@ ALTER TABLE payment_intent
 ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
     ADD COLUMN billing_address BYTEA DEFAULT NULL,
     ADD COLUMN shipping_address BYTEA DEFAULT NULL,
-    ADD COLUMN capture_method "CaptureMethod";
+    ADD COLUMN capture_method "CaptureMethod",
+    ADD COLUMN authentication_type "AuthenticationType",
+    ADD COLUMN amount_to_capture bigint,
+    ADD COLUMN prerouting_algorithm JSONB; -- straight_through_algorithm from payment_attempt
+

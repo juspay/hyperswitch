@@ -1,4 +1,4 @@
-use common_enums::RequestIncrementalAuthorization;
+use common_enums::{RequestIncrementalAuthorization, AuthenticationType};
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
@@ -63,6 +63,9 @@ pub struct PaymentIntent {
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub authentication_type: Option<AuthenticationType>,
+    pub amount_to_capture: Option<MinorUnit>,
+    pub prerouting_algorithm: Option<serde_json::Value>,
     pub id: String,
 }
 
@@ -180,6 +183,9 @@ pub struct PaymentIntentNew {
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub authentication_type: Option<AuthenticationType>,
+    pub amount_to_capture: Option<MinorUnit>,
+    pub prerouting_algorithm: Option<serde_json::Value>,
     pub id: String,
 }
 
@@ -1163,7 +1169,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_details: None,
                 billing_address: None,
                 merchant_order_reference_id: None,
-                shipping_address: None,
+                shipping_address,
                 is_payment_processor_token_flow: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
