@@ -4,6 +4,7 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
@@ -12,7 +13,7 @@ pub trait ApiEventFilterAnalytics: LoadRow<ApiEventFilter> {}
 
 pub async fn get_api_event_filter_for_dimension<T>(
     dimension: ApiEventDimensions,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<ApiEventFilter>>
@@ -32,9 +33,7 @@ where
         .attach_printable("Error filtering time range")
         .switch()?;
 
-    query_builder
-        .add_filter_clause("merchant_id", merchant_id)
-        .switch()?;
+    auth.set_filter_clause(&mut query_builder).switch()?;
 
     query_builder.set_distinct();
 
