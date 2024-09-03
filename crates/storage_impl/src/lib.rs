@@ -349,7 +349,7 @@ impl UniqueConstraints for diesel_models::PaymentIntent {
         vec![format!(
             "pi_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id
+            self.payment_id.get_string_repr()
         )]
     }
     fn table_name(&self) -> &str {
@@ -362,7 +362,7 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
         vec![format!(
             "pa_{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id,
+            self.payment_id.get_string_repr(),
             self.attempt_id
         )]
     }

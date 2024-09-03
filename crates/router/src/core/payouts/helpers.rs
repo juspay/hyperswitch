@@ -1043,6 +1043,18 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn update_payouts_and_payout_attempt(
+    _payout_data: &mut PayoutData,
+    _merchant_account: &domain::MerchantAccount,
+    _req: &payouts::PayoutCreateRequest,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    todo!()
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 pub async fn update_payouts_and_payout_attempt(
     payout_data: &mut PayoutData,
     merchant_account: &domain::MerchantAccount,
@@ -1077,10 +1089,19 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data
             .customer_details
             .as_ref()
-            .map(|customer| customer.get_customer_id())
+            .map(|customer| customer.customer_id.clone())
     } else {
         payout_data.payouts.customer_id.clone()
     };
+
+    // We have to do this because the function that is being used to create / get address is from payments
+    // which expects a payment_id
+    let payout_id_as_payment_id_type =
+        id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.clone()))
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payout_id contains invalid data".to_string(),
+            })
+            .attach_printable("Error converting payout_id to PaymentId type")?;
 
     // Fetch address details from request and create new or else use existing address that was attached
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
@@ -1090,7 +1111,7 @@ pub async fn update_payouts_and_payout_attempt(
         merchant_account.get_id(),
         customer_id.as_ref(),
         merchant_key_store,
-        &payout_id,
+        &payout_id_as_payment_id_type,
         merchant_account.storage_scheme,
     )
     .await?;

@@ -5,9 +5,14 @@ use diesel::{
     BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
+use router_env::logger;
 
 use crate::{
-    enums::UserRoleVersion, errors, query::generics, schema::user_roles::dsl, user_role::*,
+    enums::{UserRoleVersion, UserStatus},
+    errors,
+    query::generics,
+    schema::user_roles::dsl,
+    user_role::*,
     PgPooledConn, StorageResult,
 };
 
@@ -18,6 +23,21 @@ impl UserRoleNew {
 }
 
 impl UserRole {
+    pub async fn insert_multiple_user_roles(
+        conn: &PgPooledConn,
+        user_roles: Vec<UserRoleNew>,
+    ) -> StorageResult<Vec<Self>> {
+        let query = diesel::insert_into(<Self>::table()).values(user_roles);
+
+        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        query
+            .get_results_async(conn)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error while inserting user_roles")
+    }
+
     pub async fn find_by_user_id(
         conn: &PgPooledConn,
         user_id: String,
@@ -185,14 +205,17 @@ impl UserRole {
             .await
     }
 
-    pub async fn generic_user_roles_list(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn generic_user_roles_list_for_user(
         conn: &PgPooledConn,
         user_id: String,
         org_id: Option<id_type::OrganizationId>,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
         entity_id: Option<String>,
+        status: Option<UserStatus>,
         version: Option<UserRoleVersion>,
+        limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
             .filter(dsl::user_id.eq(user_id))
@@ -212,6 +235,60 @@ impl UserRole {
 
         if let Some(entity_id) = entity_id {
             query = query.filter(dsl::entity_id.eq(entity_id));
+        }
+
+        if let Some(version) = version {
+            query = query.filter(dsl::version.eq(version));
+        }
+
+        if let Some(status) = status {
+            query = query.filter(dsl::status.eq(status));
+        }
+
+        if let Some(limit) = limit {
+            query = query.limit(limit.into());
+        }
+
+        router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        match generics::db_metrics::track_database_call::<Self, _, _>(
+            query.get_results_async(conn),
+            generics::db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        {
+            Ok(value) => Ok(value),
+            Err(err) => match err {
+                DieselError::NotFound => {
+                    Err(report!(err)).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
+            },
+        }
+    }
+
+    pub async fn generic_user_roles_list_for_org_and_extra(
+        conn: &PgPooledConn,
+        user_id: Option<String>,
+        org_id: id_type::OrganizationId,
+        merchant_id: Option<id_type::MerchantId>,
+        profile_id: Option<id_type::ProfileId>,
+        version: Option<UserRoleVersion>,
+    ) -> StorageResult<Vec<Self>> {
+        let mut query = <Self as HasTable>::table()
+            .filter(dsl::org_id.eq(org_id))
+            .into_boxed();
+
+        if let Some(user_id) = user_id {
+            query = query.filter(dsl::user_id.eq(user_id));
+        }
+
+        if let Some(merchant_id) = merchant_id {
+            query = query.filter(dsl::merchant_id.eq(merchant_id));
+        }
+
+        if let Some(profile_id) = profile_id {
+            query = query.filter(dsl::profile_id.eq(profile_id));
         }
 
         if let Some(version) = version {

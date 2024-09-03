@@ -203,7 +203,7 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let merchant_id = current_business_profile.merchant_id.clone();
 
-    let profile_id = current_business_profile.profile_id.clone();
+    let profile_id = current_business_profile.get_id().to_owned();
 
     let routing_cache_key = cache::CacheKind::Routing(
         format!(
@@ -251,7 +251,12 @@ pub struct RoutingAlgorithmHelpers<'h> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, String)>);
+pub struct ConnectNameAndMCAIdForProfile<'a>(
+    pub  FxHashSet<(
+        &'a String,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+);
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
@@ -322,7 +327,7 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
                     self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
-                            "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                            "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
                             choice.connector,
                             mca_id,
                         )
@@ -430,7 +435,7 @@ pub async fn validate_connectors_in_routing_config(
                 name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
                         choice.connector,
                         mca_id,
                     )

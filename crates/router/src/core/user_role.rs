@@ -1,15 +1,16 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
-    user_role::UserRoleUpdate,
+    user_role::{get_entity_id_and_type, UserRoleUpdate},
 };
 use error_stack::{report, ResultExt};
 use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -20,22 +21,8 @@ use crate::{
     utils,
 };
 pub mod role;
-use common_enums::PermissionGroup;
+use common_enums::{EntityType, PermissionGroup};
 use strum::IntoEnumIterator;
-
-// TODO: To be deprecated once groups are stable
-pub async fn get_authorization_info_with_modules(
-    _state: SessionState,
-) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
-    Ok(ApplicationResponse::Json(
-        user_role_api::AuthorizationInfoResponse(
-            info::get_module_authorization_info()
-                .into_iter()
-                .map(|module_info| user_role_api::AuthorizationInfo::Module(module_info.into()))
-                .collect(),
-        ),
-    ))
-}
 
 pub async fn get_authorization_info_with_groups(
     _state: SessionState,
@@ -49,6 +36,7 @@ pub async fn get_authorization_info_with_groups(
         ),
     ))
 }
+
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
@@ -308,85 +296,11 @@ pub async fn accept_invitation(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn merchant_select(
-    state: SessionState,
-    user_token: auth::UserFromSinglePurposeToken,
-    req: user_role_api::MerchantSelectRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
-    let merchant_accounts = state
-        .store
-        .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let update_result =
-        futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
-            let (update_v1_result, update_v2_result) =
-                utils::user_role::update_v1_and_v2_user_roles_in_db(
-                    &state,
-                    user_token.user_id.as_str(),
-                    &merchant_account.organization_id,
-                    merchant_account.get_id(),
-                    None,
-                    UserRoleUpdate::UpdateStatus {
-                        status: UserStatus::Active,
-                        modified_by: user_token.user_id.clone(),
-                    },
-                )
-                .await;
-
-            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
-                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
-            {
-                Err(report!(UserErrors::InternalServerError))
-            } else {
-                Ok(())
-            }
-        }))
-        .await;
-
-    if update_result.iter().all(Result::is_err) {
-        return Err(UserErrors::MerchantIdNotFound.into());
-    }
-
-    if let Some(true) = req.need_dashboard_entry_response {
-        let user_from_db: domain::UserFromStorage = state
-            .global_store
-            .find_user_by_id(user_token.user_id.as_str())
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into();
-
-        let user_role = user_from_db
-            .get_preferred_or_active_user_role_from_db(&state)
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-
-        utils::user_role::set_role_permissions_in_cache_by_user_role(&state, &user_role).await;
-
-        let token =
-            utils::user::generate_jwt_auth_token_without_profile(&state, &user_from_db, &user_role)
-                .await?;
-        let response = utils::user::get_dashboard_entry_response(
-            &state,
-            user_from_db,
-            user_role,
-            token.clone(),
-        )?;
-        return auth::cookies::set_cookie_response(
-            user_api::TokenOrPayloadResponse::Payload(response),
-            token,
-        );
-    }
-
-    Ok(ApplicationResponse::StatusOk)
-}
-
 pub async fn merchant_select_token_only_flow(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::MerchantSelectRequest,
-) -> UserResponse<user_api::TokenOrPayloadResponse<user_api::DashboardEntryResponse>> {
+) -> UserResponse<user_api::TokenResponse> {
     let merchant_accounts = state
         .store
         .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
@@ -443,10 +357,10 @@ pub async fn merchant_select_token_only_flow(
         .get_token_with_user_role(&state, &user_role)
         .await?;
 
-    let response = user_api::TokenOrPayloadResponse::Token(user_api::TokenResponse {
+    let response = user_api::TokenResponse {
         token: token.clone(),
         token_type: next_flow.get_flow().into(),
-    });
+    };
     auth::cookies::set_cookie_response(response, token)
 }
 
@@ -618,13 +532,13 @@ pub async fn delete_user_role(
     // Check if user has any more role associations
     let user_roles_v2 = state
         .store
-        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V2)
+        .list_user_roles_by_user_id_and_version(user_from_db.get_user_id(), UserRoleVersion::V2)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     let user_roles_v1 = state
         .store
-        .list_user_roles_by_user_id(user_from_db.get_user_id(), UserRoleVersion::V1)
+        .list_user_roles_by_user_id_and_version(user_from_db.get_user_id(), UserRoleVersion::V1)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -640,4 +554,174 @@ pub async fn delete_user_role(
 
     auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
     Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn list_users_in_lineage(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<Vec<user_role_api::ListUsersInEntityResponse>> {
+    let requestor_role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    let user_roles_set: HashSet<_> = match requestor_role_info.get_entity_type() {
+        EntityType::Organization => state
+            .store
+            .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                user_id: None,
+                org_id: &user_from_token.org_id,
+                merchant_id: None,
+                profile_id: None,
+                version: None,
+            })
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into_iter()
+            .collect(),
+        EntityType::Merchant => state
+            .store
+            .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                user_id: None,
+                org_id: &user_from_token.org_id,
+                merchant_id: Some(&user_from_token.merchant_id),
+                profile_id: None,
+                version: None,
+            })
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into_iter()
+            .collect(),
+        EntityType::Profile => {
+            let Some(profile_id) = user_from_token.profile_id.as_ref() else {
+                return Err(UserErrors::JwtProfileIdMissing.into());
+            };
+
+            state
+                .store
+                .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                    user_id: None,
+                    org_id: &user_from_token.org_id,
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id: Some(profile_id),
+                    version: None,
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .collect()
+        }
+        EntityType::Internal => HashSet::new(),
+    };
+
+    let mut email_map = state
+        .global_store
+        .find_users_by_user_ids(
+            user_roles_set
+                .iter()
+                .map(|user_role| user_role.user_id.clone())
+                .collect(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .map(|user| (user.user_id.clone(), user.email))
+        .collect::<HashMap<_, _>>();
+
+    let role_info_map =
+        futures::future::try_join_all(user_roles_set.iter().map(|user_role| async {
+            roles::RoleInfo::from_role_id(
+                &state,
+                &user_role.role_id,
+                &user_from_token.merchant_id,
+                &user_from_token.org_id,
+            )
+            .await
+            .map(|role_info| {
+                (
+                    user_role.role_id.clone(),
+                    user_role_api::role::MinimalRoleInfo {
+                        role_id: user_role.role_id.clone(),
+                        role_name: role_info.get_role_name().to_string(),
+                    },
+                )
+            })
+        }))
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .collect::<HashMap<_, _>>();
+
+    let user_role_map = user_roles_set
+        .into_iter()
+        .fold(HashMap::new(), |mut map, user_role| {
+            map.entry(user_role.user_id)
+                .or_insert(Vec::with_capacity(1))
+                .push(user_role.role_id);
+            map
+        });
+
+    Ok(ApplicationResponse::Json(
+        user_role_map
+            .into_iter()
+            .map(|(user_id, role_id_vec)| {
+                Ok::<_, error_stack::Report<UserErrors>>(user_role_api::ListUsersInEntityResponse {
+                    email: email_map
+                        .remove(&user_id)
+                        .ok_or(UserErrors::InternalServerError)?,
+                    roles: role_id_vec
+                        .into_iter()
+                        .map(|role_id| {
+                            role_info_map
+                                .get(&role_id)
+                                .cloned()
+                                .ok_or(UserErrors::InternalServerError)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+    ))
+}
+
+pub async fn list_invitations_for_user(
+    state: SessionState,
+    user_from_token: auth::UserIdFromAuth,
+) -> UserResponse<Vec<user_role_api::ListInvitationForUserResponse>> {
+    let invitations = state
+        .store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: &user_from_token.user_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: Some(UserStatus::InvitationSent),
+            limit: None,
+        })
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to list user roles by user id and invitation sent")?
+        .into_iter()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .filter_map(|user_role| {
+            let (entity_id, entity_type) = get_entity_id_and_type(&user_role);
+            entity_id.zip(entity_type).map(|(entity_id, entity_type)| {
+                user_role_api::ListInvitationForUserResponse {
+                    entity_id,
+                    entity_type,
+                    entity_name: None,
+                    role_id: user_role.role_id,
+                }
+            })
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(invitations))
 }

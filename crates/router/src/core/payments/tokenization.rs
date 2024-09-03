@@ -67,7 +67,7 @@ impl<F, Req: Clone> From<&types::RouterData<F, Req, types::PaymentsResponseData>
 pub async fn save_payment_method<FData>(
     state: &SessionState,
     connector_name: String,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     save_payment_method_data: SavePaymentMethodData<FData>,
     customer_id: Option<id_type::CustomerId>,
     merchant_account: &domain::MerchantAccount,
@@ -657,7 +657,7 @@ where
 pub async fn save_payment_method<FData>(
     _state: &SessionState,
     _connector_name: String,
-    _merchant_connector_id: Option<String>,
+    _merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     _save_payment_method_data: SavePaymentMethodData<FData>,
     _customer_id: Option<id_type::CustomerId>,
     _merchant_account: &domain::MerchantAccount,
@@ -983,7 +983,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
 ) -> Option<storage::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
@@ -1011,7 +1011,7 @@ pub fn update_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match payment_method.connector_mandate_details {

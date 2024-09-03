@@ -91,7 +91,7 @@ impl PaymentIntent {
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     pub async fn find_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -121,7 +121,7 @@ impl PaymentIntent {
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(

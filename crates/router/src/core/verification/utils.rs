@@ -16,7 +16,7 @@ pub async fn check_existence_and_add_domain_to_db(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
     profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
-    merchant_connector_id: String,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     domain_from_req: Vec<String>,
 ) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
     let key_manager_state = &state.into();
@@ -116,7 +116,10 @@ pub async fn check_existence_and_add_domain_to_db(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
+            format!(
+                "Failed while updating MerchantConnectorAccount: id: {:?}",
+                merchant_connector_id
+            )
         })?;
 
     Ok(already_verified_domains.clone())

@@ -23,8 +23,6 @@ pub struct SignUpRequest {
     pub password: Secret<String>,
 }
 
-pub type SignUpResponse = DashboardEntryResponse;
-
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct DashboardEntryResponse {
     pub token: Secret<String>,
@@ -39,22 +37,6 @@ pub struct DashboardEntryResponse {
 }
 
 pub type SignInRequest = SignUpRequest;
-
-#[derive(Debug, serde::Serialize)]
-#[serde(tag = "flow_type", rename_all = "snake_case")]
-pub enum SignInResponse {
-    MerchantSelect(MerchantSelectResponse),
-    DashboardEntry(DashboardEntryResponse),
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct MerchantSelectResponse {
-    pub token: Secret<String>,
-    pub name: Secret<String>,
-    pub email: pii::Email,
-    pub verification_days_left: Option<i64>,
-    pub merchants: Vec<UserMerchantAccount>,
-}
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct ConnectAccountRequest {
@@ -124,8 +106,18 @@ pub struct AcceptInviteFromEmailRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct SwitchMerchantIdRequest {
+pub struct SwitchOrganizationRequest {
+    pub org_id: id_type::OrganizationId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SwitchMerchantRequest {
     pub merchant_id: id_type::MerchantId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SwitchProfileRequest {
+    pub profile_id: id_type::ProfileId,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -192,8 +184,6 @@ pub struct VerifyEmailRequest {
     pub token: Secret<String>,
 }
 
-pub type VerifyEmailResponse = SignInResponse;
-
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
@@ -223,11 +213,6 @@ pub struct UpdateUserAccountDetailsRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct TokenOnlyQueryParam {
-    pub token_only: Option<bool>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SkipTwoFactorAuthQueryParam {
     pub skip_two_factor_auth: Option<bool>,
 }
@@ -244,12 +229,6 @@ pub struct TwoFactorAuthStatusResponse {
     pub recovery_code: bool,
 }
 
-#[derive(Debug, serde::Serialize)]
-#[serde(untagged)]
-pub enum TokenOrPayloadResponse<T> {
-    Token(TokenResponse),
-    Payload(T),
-}
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserFromEmailRequest {
     pub token: Secret<String>,

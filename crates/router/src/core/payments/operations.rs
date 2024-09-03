@@ -166,6 +166,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         _state: &SessionState,
@@ -174,6 +175,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _merchant_account: &domain::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -192,7 +194,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &SessionState,
-        _payment_id: &str,
+        _payment_id: &common_utils::id_type::PaymentId,
         _business_profile: &domain::BusinessProfile,
         _payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {

@@ -244,7 +244,7 @@ pub struct OnlineMandate {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct StripePaymentIntentRequest {
-    pub id: Option<String>,
+    pub id: Option<id_type::PaymentId>,
     pub amount: Option<i64>, // amount in cents, hence passed as integer
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
@@ -462,7 +462,7 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
-    pub id: String,
+    pub id: id_type::PaymentId,
     pub object: &'static str,
     pub amount: i64,
     pub amount_received: Option<i64>,
@@ -615,8 +615,8 @@ impl Charges {
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
     pub customer: Option<id_type::CustomerId>,
-    pub starting_after: Option<String>,
-    pub ending_before: Option<String>,
+    pub starting_after: Option<id_type::PaymentId>,
+    pub ending_before: Option<id_type::PaymentId>,
     #[serde(default = "default_limit")]
     pub limit: u32,
     pub created: Option<i64>,

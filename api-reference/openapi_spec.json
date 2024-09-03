@@ -4488,7 +4488,7 @@
         ]
       }
     },
-    "/api_keys/{merchant_id)": {
+    "/api_keys/{merchant_id}": {
       "post": {
         "tags": [
           "API Key"
@@ -4645,9 +4645,7 @@
             "admin_api_key": []
           }
         ]
-      }
-    },
-    "/api_keys/{merchant_id)/{key_id}": {
+      },
       "delete": {
         "tags": [
           "API Key"
@@ -8566,6 +8564,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",
@@ -14617,58 +14616,6 @@
           "display_wait_screen"
         ]
       },
-      "PaymentIdType": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "PaymentIntentId"
-            ],
-            "properties": {
-              "PaymentIntentId": {
-                "type": "string",
-                "description": "The identifier for payment intent"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "ConnectorTransactionId"
-            ],
-            "properties": {
-              "ConnectorTransactionId": {
-                "type": "string",
-                "description": "The identifier for connector transaction"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PaymentAttemptId"
-            ],
-            "properties": {
-              "PaymentAttemptId": {
-                "type": "string",
-                "description": "The identifier for payment attempt"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PreprocessingId"
-            ],
-            "properties": {
-              "PreprocessingId": {
-                "type": "string",
-                "description": "The identifier for preprocessing step"
-              }
-            }
-          }
-        ]
-      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -18436,7 +18383,8 @@
         ],
         "properties": {
           "resource_id": {
-            "$ref": "#/components/schemas/PaymentIdType"
+            "type": "string",
+            "description": "The type of ID (ex: payment intent id, payment attempt id or connector txn id)"
           },
           "merchant_id": {
             "type": "string",
@@ -18537,28 +18485,6 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
-          }
-        }
-      },
-      "PaymentsStartRequest": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "merchant_id",
-          "attempt_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account."
-          },
-          "attempt_id": {
-            "type": "string",
-            "description": "The identifier for the payment transaction"
           }
         }
       },
@@ -20506,19 +20432,15 @@
         "type": "object",
         "description": "Processor payment token for MIT payments where payment_method_data is not available",
         "required": [
-          "processor_payment_token",
-          "connector",
-          "merchant_connector_id"
+          "processor_payment_token"
         ],
         "properties": {
           "processor_payment_token": {
             "type": "string"
           },
-          "connector": {
-            "$ref": "#/components/schemas/Connector"
-          },
           "merchant_connector_id": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -21392,6 +21314,7 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
           "forte",
           "globalpay",
           "globepay",
