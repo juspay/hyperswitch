@@ -208,6 +208,7 @@ diesel::table! {
         #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
+        version -> ApiVersion,
     }
 }
 

@@ -3,14 +3,14 @@ use std::collections::{HashMap, HashSet};
 use api_models::{user as user_api, user_role as user_role_api};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
-    user_role::UserRoleUpdate,
+    user_role::{get_entity_id_and_type, UserRoleUpdate},
 };
 use error_stack::{report, ResultExt};
 use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    db::user_role::ListUserRolesByOrgIdPayload,
+    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -686,4 +686,42 @@ pub async fn list_users_in_lineage(
             })
             .collect::<Result<Vec<_>, _>>()?,
     ))
+}
+
+pub async fn list_invitations_for_user(
+    state: SessionState,
+    user_from_token: auth::UserIdFromAuth,
+) -> UserResponse<Vec<user_role_api::ListInvitationForUserResponse>> {
+    let invitations = state
+        .store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: &user_from_token.user_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: Some(UserStatus::InvitationSent),
+            limit: None,
+        })
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to list user roles by user id and invitation sent")?
+        .into_iter()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .filter_map(|user_role| {
+            let (entity_id, entity_type) = get_entity_id_and_type(&user_role);
+            entity_id.zip(entity_type).map(|(entity_id, entity_type)| {
+                user_role_api::ListInvitationForUserResponse {
+                    entity_id,
+                    entity_type,
+                    entity_name: None,
+                    role_id: user_role.role_id,
+                }
+            })
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(invitations))
 }

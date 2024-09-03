@@ -1097,7 +1097,7 @@ pub async fn validate_and_get_business_profile(
             // Check if the merchant_id of business profile is same as the current merchant_id
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
-                    resource: business_profile.profile_id.get_string_repr().to_owned(),
+                    resource: business_profile.get_id().get_string_repr().to_owned(),
                 }
                 .into())
             } else {
@@ -1193,7 +1193,7 @@ pub async fn get_profile_id_from_business_details(
                         id: profile_name,
                     })?;
 
-                Ok(business_profile.profile_id)
+                Ok(business_profile.get_id().to_owned())
             }
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "profile_id or business_country, business_label"
@@ -1334,7 +1334,7 @@ pub fn get_incremental_authorization_allowed_value(
     }
 }
 
-pub(super) trait GetProfileId {
+pub(crate) trait GetProfileId {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId>;
 }
 
@@ -1381,6 +1381,12 @@ impl<T, F> GetProfileId for (storage::Payouts, T, F) {
     }
 }
 
+impl GetProfileId for domain::BusinessProfile {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(self.get_id())
+    }
+}
+
 /// Filter Objects based on profile ids
 pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
@@ -1406,7 +1412,7 @@ pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     }
 }
 
-pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
+pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
     profile_id_auth_layer: Option<common_utils::id_type::ProfileId>,
     object: &T,
 ) -> RouterResult<()> {

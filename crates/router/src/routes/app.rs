@@ -1639,6 +1639,19 @@ impl BusinessProfile {
     }
 }
 
+pub struct BusinessProfileNew;
+
+#[cfg(feature = "olap")]
+impl BusinessProfileNew {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
+            )
+    }
+}
+
 pub struct Gsm;
 
 #[cfg(feature = "olap")]
@@ -1725,6 +1738,9 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
+                )
+                .service(
+                    web::resource("/invitation").route(web::get().to(list_invitations_for_user)),
                 ),
         );
 
