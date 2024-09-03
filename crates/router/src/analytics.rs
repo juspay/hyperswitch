@@ -20,7 +20,7 @@ pub mod routes {
         GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
         GetSdkEventMetricRequest, ReportRequest,
     };
-    use common_utils::id_type::{OrganizationId, MerchantId};
+    use common_utils::id_type::{MerchantId, OrganizationId};
     use error_stack::{report, ResultExt};
 
     use crate::{
