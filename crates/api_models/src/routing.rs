@@ -40,7 +40,7 @@ pub struct RoutingConfigRequest {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[cfg(feature = "v1",)]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,

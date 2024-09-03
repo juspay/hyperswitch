@@ -1,10 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
-#[cfg(all(
-    feature = "olap",
-feature = "v1"
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
 #[cfg(feature = "olap")]
 use common_enums::TransactionType;
@@ -669,9 +666,7 @@ impl Routing {
             )
     }
 }
-#[cfg(all(
-    feature = "olap",feature = "v1"
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
         #[allow(unused_mut)]

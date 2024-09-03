@@ -51,10 +51,7 @@ pub async fn routing_create_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    feature = "v1"
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_link_config(
     state: web::Data<AppState>,
@@ -239,9 +236,7 @@ pub async fn routing_unlink_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",feature = "v1"
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,

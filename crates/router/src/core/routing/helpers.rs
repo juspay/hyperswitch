@@ -254,11 +254,11 @@ pub struct ConnectNameAndMCAIdForProfile<'a>(
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
-#[cfg(feature = "v2",)]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
 
-#[cfg(feature = "v2", )]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccounts {
     pub async fn get_all_mcas(
         merchant_id: &common_utils::id_type::MerchantId,
@@ -310,7 +310,7 @@ impl MerchantConnectorAccounts {
     }
 }
 
-#[cfg(feature = "v2", )]
+#[cfg(feature = "v2")]
 impl<'h> RoutingAlgorithmHelpers<'h> {
     fn connector_choice(
         &self,
@@ -391,7 +391,7 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
     }
 }
 
-#[cfg(all(feature = "v1"))]
+#[cfg(feature = "v1")]
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
