@@ -901,7 +901,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.is_three_ds()
             && req.request.is_card()
-            && req.request.connector_mandate_id().is_none()
+            && (req.request.connector_mandate_id().is_none()
+                && req.request.get_optional_network_transaction_id().is_none())
             && req.request.authentication_data.is_none()
         {
             Ok(format!(
@@ -929,7 +930,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))?;
         if req.is_three_ds()
             && req.request.is_card()
-            && req.request.connector_mandate_id().is_none()
+            && (req.request.connector_mandate_id().is_none()
+                && req.request.get_optional_network_transaction_id().is_none())
             && req.request.authentication_data.is_none()
         {
             let connector_req =
@@ -970,7 +972,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         if data.is_three_ds()
             && data.request.is_card()
-            && data.request.connector_mandate_id().is_none()
+            && (data.request.connector_mandate_id().is_none()
+                && data.request.get_optional_network_transaction_id().is_none())
             && data.request.authentication_data.is_none()
         {
             let response: cybersource::CybersourceAuthSetupResponse = res

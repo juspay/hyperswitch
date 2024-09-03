@@ -53,4 +53,5 @@ where
 pub struct PaymentIntentFilterRow {
     pub status: Option<DBEnumWrapper<IntentStatus>>,
     pub currency: Option<DBEnumWrapper<Currency>>,
+    pub profile_id: Option<String>,
 }

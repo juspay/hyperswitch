@@ -21,6 +21,7 @@ use self::{
     total_dispute_lost_amount::TotalDisputeLostAmount,
 };
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
@@ -52,7 +53,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -73,7 +74,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &common_utils::id_type::MerchantId,
+        auth: &AuthInfo,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -82,38 +83,17 @@ where
         match self {
             Self::TotalAmountDisputed => {
                 TotalAmountDisputed::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::DisputeStatusMetric => {
                 DisputeStatusMetric::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::TotalDisputeLostAmount => {
                 TotalDisputeLostAmount::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
         }
