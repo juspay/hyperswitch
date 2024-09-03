@@ -4479,7 +4479,7 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     /// The unique identifier for the payment
     #[serde(skip_deserializing)]
     #[schema(value_type = String)]
-    pub payment_id:id_type::PaymentId,
+    pub payment_id: id_type::PaymentId,
     /// The shipping address for the payment
     pub shipping: Address,
     /// Client Secret

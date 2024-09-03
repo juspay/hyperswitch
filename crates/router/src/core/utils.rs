@@ -962,7 +962,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         customer_id: payment_intent.customer_id.to_owned(),
         connector_customer: None,
         connector: mca.connector_name.clone(),
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),

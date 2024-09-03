@@ -128,7 +128,11 @@ default_imp_for_calculate_tax!(
     connectors::Stax,
     connectors::Novalnet,
     connectors::Nexixpay,
-    connectors::Fiuu
+    connectors::Fiuu,
+    connectors::Globepay,
+    connectors::Worldline,
+    connectors::Powertranz,
+    connectors::Tsys
 );
 
 macro_rules! default_imp_for_session_update {
@@ -155,7 +159,11 @@ default_imp_for_session_update!(
     connectors::Taxjar,
     connectors::Novalnet,
     connectors::Nexixpay,
-    connectors::Fiuu
+    connectors::Fiuu,
+    connectors::Globepay,
+    connectors::Worldline,
+    connectors::Powertranz,
+    connectors::Tsys
 );
 
 use crate::connectors;

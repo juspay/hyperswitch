@@ -617,7 +617,7 @@ pub async fn payments_dynamic_tax_calculation(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsDynamicTaxCalculationRequest>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::SessionUpdateTaxCalculation;
     let payment_id = path.into_inner();
@@ -635,7 +635,7 @@ pub async fn payments_dynamic_tax_calculation(
             HeaderPayload::default()
         }
     };
-    tracing::Span::current().record("payment_id", &payload.payment_id);
+    tracing::Span::current().record("payment_id", payload.payment_id.get_string_repr());
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,
@@ -1831,7 +1831,7 @@ impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
     {
         api_locking::LockAction::Hold {
             input: api_locking::LockingInput {
-                unique_locking_key: self.payment_id.to_owned(),
+                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
                 override_lock_retries: None,
             },
