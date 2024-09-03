@@ -58,12 +58,12 @@ pub struct PaymentIntent {
     pub customer_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub merchant_reference_id: String,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub id: String,
-    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -175,6 +175,7 @@ pub struct PaymentIntentNew {
     pub customer_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub merchant_reference_id: String,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,

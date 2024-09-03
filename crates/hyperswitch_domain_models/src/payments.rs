@@ -123,4 +123,5 @@ pub struct PaymentIntent {
     pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub id: String,
+    pub organization_id: id_type::OrganizationId,
 }

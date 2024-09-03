@@ -14,3 +14,9 @@ ADD COLUMN routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN frm_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN payout_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN default_fallback_routing JSONB DEFAULT NULL;
+
+ALTER TABLE payment_intent
+ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
+    ADD COLUMN billing_address BYTEA DEFAULT NULL,
+    ADD COLUMN shipping_address BYTEA DEFAULT NULL,
+    ADD COLUMN capture_method "CaptureMethod";

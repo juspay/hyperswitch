@@ -876,6 +876,8 @@ diesel::table! {
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
         is_payment_processor_token_flow -> Nullable<Bool>,
+        #[max_length = 32]
+        organization_id -> Varchar,
         #[max_length = 64]
         merchant_reference_id -> Varchar,
         billing_address -> Nullable<Bytea>,
@@ -883,8 +885,6 @@ diesel::table! {
         capture_method -> Nullable<CaptureMethod>,
         #[max_length = 64]
         id -> Varchar,
-        #[max_length = 32]
-        organization_id -> Varchar,
     }
 }
 
