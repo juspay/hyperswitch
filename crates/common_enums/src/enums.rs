@@ -160,6 +160,7 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
+    // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -207,10 +208,12 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Datatrans,
+    // Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,
-    // Fiservemea,
+    Fiservemea,
+    // Fiuu,
     Forte,
     Globalpay,
     Globepay,
@@ -225,6 +228,7 @@ pub enum RoutableConnectors {
     Nexinets,
     Nmi,
     Noon,
+    // Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,
@@ -3092,6 +3096,7 @@ pub enum ApiVersion {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]

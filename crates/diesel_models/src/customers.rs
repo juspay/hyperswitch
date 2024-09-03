@@ -41,6 +41,7 @@ impl Customer {
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
+    #[allow(clippy::todo)]
     pub fn get_customer_id(&self) -> common_utils::id_type::CustomerId {
         todo!()
     }

@@ -9,7 +9,7 @@ use crate::{enums as storage_enums, schema::payment_link};
 #[diesel(table_name = payment_link, primary_key(payment_link_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentLink {
     pub payment_link_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub link_to_pay: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub amount: MinorUnit,
@@ -23,7 +23,7 @@ pub struct PaymentLink {
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub secure_link: Option<String>,
 }
 
@@ -40,7 +40,7 @@ pub struct PaymentLink {
 #[diesel(table_name = payment_link)]
 pub struct PaymentLinkNew {
     pub payment_link_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub link_to_pay: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub amount: MinorUnit,
@@ -54,6 +54,6 @@ pub struct PaymentLinkNew {
     pub custom_merchant_name: Option<String>,
     pub payment_link_config: Option<serde_json::Value>,
     pub description: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub secure_link: Option<String>,
 }

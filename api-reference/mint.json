@@ -104,6 +104,14 @@
       ]
     },
     {
+      "group": "Organization",
+      "pages": [
+        "api-reference/organization/organization--create",
+        "api-reference/organization/organization--retrieve",
+        "api-reference/organization/organization--update"
+      ]
+    },
+    {
       "group": "Merchant Account",
       "pages": [
         "api-reference/merchant-account/merchant-account--create",

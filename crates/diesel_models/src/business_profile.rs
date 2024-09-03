@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use common_enums::AuthenticationConnectors;
-// #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-// use common_enums::OrderFulfillmentTimeOrigin;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
@@ -27,7 +25,7 @@ use crate::schema_v2::business_profile;
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -56,6 +54,11 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -65,7 +68,7 @@ pub struct BusinessProfile {
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct BusinessProfileNew {
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -94,6 +97,11 @@ pub struct BusinessProfileNew {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(
@@ -129,6 +137,10 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -163,6 +175,10 @@ impl BusinessProfileUpdateInternal {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
+            tax_connector_id,
+            is_tax_connector_enabled,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -207,6 +223,15 @@ impl BusinessProfileUpdateInternal {
                     .or(source.collect_billing_details_from_wallet_connector),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
+            always_collect_billing_details_from_wallet_connector:
+                always_collect_billing_details_from_wallet_connector
+                    .or(source.always_collect_billing_details_from_wallet_connector),
+            always_collect_shipping_details_from_wallet_connector:
+                always_collect_shipping_details_from_wallet_connector
+                    .or(source.always_collect_shipping_details_from_wallet_connector),
+            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
+            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
+            version: source.version,
         }
     }
 }
@@ -218,9 +243,8 @@ impl BusinessProfileUpdateInternal {
 /// fields read / written will be interchanged
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
-#[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct BusinessProfile {
-    pub profile_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -231,7 +255,6 @@ pub struct BusinessProfile {
     pub redirect_to_merchant_with_http_post: bool,
     pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub intent_fulfillment_time: Option<i64>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -246,19 +269,39 @@ pub struct BusinessProfile {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
-    pub routing_algorithm_id: Option<String>,
-    // pub order_fulfillment_time: Option<i64>,
-    // pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub order_fulfillment_time: Option<i64>,
+    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
-    pub payout_routing_algorithm_id: Option<String>,
+    pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub id: common_utils::id_type::ProfileId,
+    pub version: common_enums::ApiVersion,
+}
+
+impl BusinessProfile {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "business_profile_v2")
+    ))]
+    pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
+        &self.profile_id
+    }
+
+    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    pub fn get_id(&self) -> &common_utils::id_type::ProfileId {
+        &self.id
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = business_profile, primary_key(profile_id))]
 pub struct BusinessProfileNew {
-    pub profile_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
@@ -269,7 +312,6 @@ pub struct BusinessProfileNew {
     pub redirect_to_merchant_with_http_post: bool,
     pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub intent_fulfillment_time: Option<i64>,
     pub is_recon_enabled: bool,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -284,12 +326,18 @@ pub struct BusinessProfileNew {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
-    pub routing_algorithm_id: Option<String>,
-    // pub order_fulfillment_time: Option<i64>,
-    // pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub order_fulfillment_time: Option<i64>,
+    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
-    pub payout_routing_algorithm_id: Option<String>,
+    pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub id: common_utils::id_type::ProfileId,
+    pub version: common_enums::ApiVersion,
 }
 
 #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
@@ -304,7 +352,6 @@ pub struct BusinessProfileUpdateInternal {
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub webhook_details: Option<WebhookDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub intent_fulfillment_time: Option<i64>,
     pub is_recon_enabled: Option<bool>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
     pub applepay_verified_domains: Option<Vec<String>>,
@@ -319,11 +366,15 @@ pub struct BusinessProfileUpdateInternal {
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
     pub outgoing_webhook_custom_http_headers: Option<Encryption>,
-    pub routing_algorithm_id: Option<String>,
-    // pub order_fulfillment_time: Option<i64>,
-    // pub order_fulfillment_time_origin: Option<OrderFulfillmentTimeOrigin>,
+    pub always_collect_billing_details_from_wallet_connector: Option<bool>,
+    pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
+    pub tax_connector_id: Option<String>,
+    pub is_tax_connector_enabled: Option<bool>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub order_fulfillment_time: Option<i64>,
+    pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
-    pub payout_routing_algorithm_id: Option<String>,
+    pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
@@ -352,16 +403,19 @@ impl BusinessProfileUpdateInternal {
             collect_shipping_details_from_wallet_connector,
             collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers,
+            always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector,
+            tax_connector_id,
+            is_tax_connector_enabled,
             routing_algorithm_id,
-            intent_fulfillment_time,
-            // order_fulfillment_time,
-            // order_fulfillment_time_origin,
+            order_fulfillment_time,
+            order_fulfillment_time_origin,
             frm_routing_algorithm_id,
             payout_routing_algorithm_id,
             default_fallback_routing,
         } = self;
         BusinessProfile {
-            profile_id: source.profile_id,
+            id: source.id,
             merchant_id: source.merchant_id,
             profile_name: profile_name.unwrap_or(source.profile_name),
             created_at: source.created_at,
@@ -399,15 +453,23 @@ impl BusinessProfileUpdateInternal {
                     .or(source.collect_billing_details_from_wallet_connector),
             outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
                 .or(source.outgoing_webhook_custom_http_headers),
+            always_collect_billing_details_from_wallet_connector:
+                always_collect_billing_details_from_wallet_connector
+                    .or(always_collect_billing_details_from_wallet_connector),
+            always_collect_shipping_details_from_wallet_connector:
+                always_collect_shipping_details_from_wallet_connector
+                    .or(always_collect_shipping_details_from_wallet_connector),
+            tax_connector_id: tax_connector_id.or(source.tax_connector_id),
+            is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
             routing_algorithm_id: routing_algorithm_id.or(source.routing_algorithm_id),
-            intent_fulfillment_time: intent_fulfillment_time.or(source.intent_fulfillment_time),
-            // order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
-            // order_fulfillment_time_origin: order_fulfillment_time_origin
-            //     .or(source.order_fulfillment_time_origin),
+            order_fulfillment_time: order_fulfillment_time.or(source.order_fulfillment_time),
+            order_fulfillment_time_origin: order_fulfillment_time_origin
+                .or(source.order_fulfillment_time_origin),
             frm_routing_algorithm_id: frm_routing_algorithm_id.or(source.frm_routing_algorithm_id),
             payout_routing_algorithm_id: payout_routing_algorithm_id
                 .or(source.payout_routing_algorithm_id),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
+            version: source.version,
         }
     }
 }
@@ -419,7 +481,7 @@ impl BusinessProfileUpdateInternal {
 impl From<BusinessProfileNew> for BusinessProfile {
     fn from(new: BusinessProfileNew) -> Self {
         Self {
-            profile_id: new.profile_id,
+            id: new.id,
             merchant_id: new.merchant_id,
             profile_name: new.profile_name,
             created_at: new.created_at,
@@ -445,13 +507,19 @@ impl From<BusinessProfileNew> for BusinessProfile {
             collect_billing_details_from_wallet_connector: new
                 .collect_billing_details_from_wallet_connector,
             outgoing_webhook_custom_http_headers: new.outgoing_webhook_custom_http_headers,
+            tax_connector_id: new.tax_connector_id,
+            is_tax_connector_enabled: new.is_tax_connector_enabled,
             routing_algorithm_id: new.routing_algorithm_id,
-            intent_fulfillment_time: new.intent_fulfillment_time,
-            // order_fulfillment_time: new.order_fulfillment_time,
-            // order_fulfillment_time_origin: new.order_fulfillment_time_origin,
+            always_collect_billing_details_from_wallet_connector: new
+                .always_collect_billing_details_from_wallet_connector,
+            always_collect_shipping_details_from_wallet_connector: new
+                .always_collect_shipping_details_from_wallet_connector,
+            order_fulfillment_time: new.order_fulfillment_time,
+            order_fulfillment_time_origin: new.order_fulfillment_time_origin,
             frm_routing_algorithm_id: new.frm_routing_algorithm_id,
             payout_routing_algorithm_id: new.payout_routing_algorithm_id,
             default_fallback_routing: new.default_fallback_routing,
+            version: new.version,
         }
     }
 }
@@ -506,6 +574,7 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
 pub struct BusinessPayoutLinkConfig {
     #[serde(flatten)]
     pub config: BusinessGenericLinkConfig,
+    pub payout_test_mode: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

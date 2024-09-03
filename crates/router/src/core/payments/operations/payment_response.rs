@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
 use common_utils::{
-    ext_traits::Encode,
+    ext_traits::{AsyncExt, Encode},
     types::{keymanager::KeyManagerState, MinorUnit},
 };
 use error_stack::{report, ResultExt};
@@ -17,6 +17,7 @@ use tracing_futures::Instrument;
 use super::{Operation, PostUpdateTracker};
 use crate::{
     connector::utils::PaymentResponseRouterData,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
@@ -64,6 +65,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b,
@@ -79,6 +81,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
@@ -177,6 +180,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 payment_method_id.clone(),
                 merchant_connector_id.clone(),
                 merchant_account.storage_scheme,
+                &payment_data.payment_intent.payment_id,
             )
             .await?;
             payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -278,6 +282,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -409,6 +414,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -420,6 +426,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await
     }
@@ -461,6 +468,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -472,6 +480,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
@@ -491,6 +500,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -502,6 +512,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
@@ -519,6 +530,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -530,6 +542,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
@@ -549,6 +562,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
         router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -560,6 +574,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
@@ -577,6 +592,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
         router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -588,6 +604,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
@@ -611,6 +628,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         >,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -627,6 +645,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             router_data,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await?;
 
@@ -689,6 +708,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             payment_method_id.clone(),
             merchant_connector_id.clone(),
             merchant_account.storage_scheme,
+            &payment_data.payment_intent.payment_id,
         )
         .await?;
         payment_data.payment_attempt.payment_method_id = payment_method_id;
@@ -709,6 +729,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -720,6 +741,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             response,
             key_store,
             storage_scheme,
+            locale,
         ))
         .await
     }
@@ -757,6 +779,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
+    locale: &Option<String>,
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector
     let additional_payment_method_data =
@@ -822,6 +845,34 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     )
                     .await;
 
+                    let gsm_unified_code =
+                        option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone());
+                    let gsm_unified_message = option_gsm.and_then(|gsm| gsm.unified_message);
+
+                    let (unified_code, unified_message) = if let Some((code, message)) =
+                        gsm_unified_code.as_ref().zip(gsm_unified_message.as_ref())
+                    {
+                        (code.to_owned(), message.to_owned())
+                    } else {
+                        (
+                            consts::DEFAULT_UNIFIED_ERROR_CODE.to_owned(),
+                            consts::DEFAULT_UNIFIED_ERROR_MESSAGE.to_owned(),
+                        )
+                    };
+                    let unified_translated_message = locale
+                        .as_ref()
+                        .async_and_then(|locale_str| async {
+                            payments_helpers::get_unified_translation(
+                                state,
+                                unified_code.to_owned(),
+                                unified_message.to_owned(),
+                                locale_str.to_owned(),
+                            )
+                            .await
+                        })
+                        .await
+                        .or(Some(unified_message));
+
                     let status = match err.attempt_status {
                         // Use the status sent by connector in error_response if it's present
                         Some(status) => status,
@@ -862,8 +913,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .get_amount_capturable(&payment_data, status)
                                 .map(MinorUnit::new),
                             updated_by: storage_scheme.to_string(),
-                            unified_code: option_gsm.clone().map(|gsm| gsm.unified_code),
-                            unified_message: option_gsm.map(|gsm| gsm.unified_message),
+                            unified_code: Some(Some(unified_code)),
+                            unified_message: Some(unified_translated_message),
                             connector_transaction_id: err.connector_transaction_id,
                             payment_method_data: additional_payment_method_data,
                             authentication_type: auth_update,

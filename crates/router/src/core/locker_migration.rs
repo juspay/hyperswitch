@@ -1,6 +1,16 @@
-use api_models::{enums as api_enums, locker_migration::MigrateCardResponse};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use api_models::enums as api_enums;
+use api_models::locker_migration::MigrateCardResponse;
 use common_utils::{errors::CustomResult, id_type};
-use diesel_models::{enums as storage_enums, PaymentMethod};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use diesel_models::enums as storage_enums;
+use diesel_models::PaymentMethod;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::FutureExt;
 use error_stack::ResultExt;
@@ -9,13 +19,22 @@ use futures::TryFutureExt;
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use super::errors::StorageErrorExt;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 use super::payment_methods::cards;
-use crate::{
-    errors,
-    routes::SessionState,
-    services::{self, logger},
-    types::{api, domain},
-};
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::services::logger;
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
+use crate::types::api;
+use crate::{errors, routes::SessionState, services, types::domain};
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 pub async fn rust_locker_migration(
@@ -30,6 +49,8 @@ pub async fn rust_locker_migration(
     state: SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> CustomResult<services::ApplicationResponse<MigrateCardResponse>, errors::ApiErrorResponse> {
+    use crate::db::customers::CustomerListConstraints;
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -48,8 +69,14 @@ pub async fn rust_locker_migration(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    // Handle cases where the number of customers is greater than the limit
+    let constraints = CustomerListConstraints {
+        limit: u16::MAX,
+        offset: None,
+    };
+
     let domain_customers = db
-        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .list_customers_by_merchant_id(key_manager_state, merchant_id, &key_store, constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -89,6 +116,10 @@ pub async fn rust_locker_migration(
     ))
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn call_to_locker(
     state: &SessionState,
     payment_methods: Vec<PaymentMethod>,
@@ -184,4 +215,15 @@ pub async fn call_to_locker(
     }
 
     Ok(cards_moved)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn call_to_locker(
+    _state: &SessionState,
+    _payment_methods: Vec<PaymentMethod>,
+    _customer_id: &id_type::CustomerId,
+    _merchant_id: &id_type::MerchantId,
+    _merchant_account: &domain::MerchantAccount,
+) -> CustomResult<usize, errors::ApiErrorResponse> {
+    todo!()
 }

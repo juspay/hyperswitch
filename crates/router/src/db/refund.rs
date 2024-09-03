@@ -25,7 +25,7 @@ pub trait RefundInterface {
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError>;
@@ -201,7 +201,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
-            payment_id: &str,
+            payment_id: &common_utils::id_type::PaymentId,
             merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
@@ -398,6 +398,7 @@ mod storage {
                         updated_by: new.updated_by.clone(),
                         merchant_connector_id: new.merchant_connector_id.clone(),
                         charges: new.charges.clone(),
+                        organization_id: new.organization_id.clone(),
                     };
 
                     let field = format!(
@@ -705,7 +706,7 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_refund_by_payment_id_merchant_id(
             &self,
-            payment_id: &str,
+            payment_id: &common_utils::id_type::PaymentId,
             merchant_id: &common_utils::id_type::MerchantId,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
@@ -859,6 +860,7 @@ impl RefundInterface for MockDb {
             updated_by: new.updated_by,
             merchant_connector_id: new.merchant_connector_id,
             charges: new.charges,
+            organization_id: new.organization_id,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -944,7 +946,7 @@ impl RefundInterface for MockDb {
 
     async fn find_refund_by_payment_id_merchant_id(
         &self,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError> {
@@ -952,7 +954,7 @@ impl RefundInterface for MockDb {
 
         Ok(refunds
             .iter()
-            .filter(|refund| refund.merchant_id == *merchant_id && refund.payment_id == payment_id)
+            .filter(|refund| refund.merchant_id == *merchant_id && refund.payment_id == *payment_id)
             .cloned()
             .collect::<Vec<_>>())
     }

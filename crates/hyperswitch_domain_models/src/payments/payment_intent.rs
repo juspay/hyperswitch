@@ -35,7 +35,7 @@ pub trait PaymentIntentInterface {
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         state: &KeyManagerState,
-        payment_id: &str,
+        payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -68,6 +68,13 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
+    async fn get_intent_status_with_count(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        constraints: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -96,7 +103,7 @@ pub struct CustomerData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PaymentIntentNew {
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
     pub merchant_id: id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
@@ -126,7 +133,7 @@ pub struct PaymentIntentNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
@@ -144,6 +151,7 @@ pub struct PaymentIntentNew {
     pub billing_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub organization_id: id_type::OrganizationId,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -723,7 +731,9 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
 }
 
 pub enum PaymentIntentFetchConstraints {
-    Single { payment_intent_id: String },
+    Single {
+        payment_intent_id: id_type::PaymentId,
+    },
     List(Box<PaymentIntentListParams>),
 }
 
@@ -738,11 +748,11 @@ pub struct PaymentIntentListParams {
     pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
     pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
     pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
-    pub merchant_connector_id: Option<Vec<String>>,
-    pub profile_id: Option<String>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
-    pub starting_after_id: Option<String>,
-    pub ending_before_id: Option<String>,
+    pub starting_after_id: Option<id_type::PaymentId>,
+    pub ending_before_id: Option<id_type::PaymentId>,
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
 }

@@ -59,10 +59,10 @@ pub use self::app::Forex;
 #[cfg(all(feature = "olap", feature = "recon"))]
 pub use self::app::Recon;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, BusinessProfile, Cache, Cards, Configs,
-    ConnectorOnboarding, Customers, Disputes, EphemeralKey, Files, Gsm, Health, Mandates,
-    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
-    Refunds, SessionState, User, Webhooks,
+    ApiKeys, AppState, ApplePayCertificatesMigration, BusinessProfile, BusinessProfileNew, Cache,
+    Cards, Configs, ConnectorOnboarding, Customers, Disputes, EphemeralKey, Files, Gsm, Health,
+    Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments,
+    Poll, Refunds, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};
