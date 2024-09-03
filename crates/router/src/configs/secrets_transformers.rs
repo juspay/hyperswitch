@@ -115,6 +115,9 @@ impl SecretsHandler for settings::ApiKeys {
         let expiry_reminder_days = api_keys.expiry_reminder_days.clone();
 
         #[cfg(feature = "partial-auth")]
+        let enable_partial_auth = api_keys.enable_partial_auth;
+
+        #[cfg(feature = "partial-auth")]
         let (checksum_auth_context, checksum_auth_key) = {
             if enable_partial_auth {
                 let checksum_auth_context = secret_management_client
@@ -128,8 +131,6 @@ impl SecretsHandler for settings::ApiKeys {
                 (String::new().into(), String::new().into())
             }
         };
-        #[cfg(feature = "partial-auth")]
-        let enable_partial_auth = api_keys.enable_partial_auth;
 
         Ok(value.transition_state(|_| Self {
             hash_key,
