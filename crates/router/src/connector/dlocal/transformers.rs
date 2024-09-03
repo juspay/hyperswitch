@@ -1,5 +1,8 @@
 use api_models::payments::AddressDetails;
-use common_utils::pii::Email;
+use common_utils::{
+    pii::Email,
+    types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
+};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -53,31 +56,22 @@ pub enum PaymentMethodFlow {
 
 #[derive(Debug, Serialize)]
 pub struct DlocalRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for DlocalRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for DlocalRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data,
-        })
+        }
     }
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: enums::Currency,
     pub country: String,
     pub payment_method_id: PaymentMethodId,
@@ -229,19 +223,22 @@ impl TryFrom<&types::PaymentsCancelRouterData> for DlocalPaymentsCancelRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DlocalPaymentsCaptureRequest {
     pub authorization_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub order_id: String,
 }
-
-impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest {
+impl TryFrom<&DlocalRouterData<&types::PaymentsCaptureRouterData>>
+    for DlocalPaymentsCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &DlocalRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            authorization_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.amount_to_capture,
-            currency: item.request.currency.to_string(),
-            order_id: item.connector_request_reference_id.clone(),
+            authorization_id: item.router_data.request.connector_transaction_id.clone(),
+            amount: item.amount,
+            currency: item.router_data.request.currency.to_string(),
+            order_id: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
@@ -460,7 +457,7 @@ impl<F, T>
 // REFUND :
 #[derive(Default, Debug, Serialize)]
 pub struct DlocalRefundRequest {
-    pub amount: String,
+    pub amount: StringMinorUnit,
     pub payment_id: String,
     pub currency: enums::Currency,
     pub id: String,
@@ -471,9 +468,13 @@ impl<F> TryFrom<&DlocalRouterData<&types::RefundsRouterData<F>>> for DlocalRefun
     fn try_from(
         item: &DlocalRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let amount_to_refund = item.router_data.request.refund_amount.to_string();
         Ok(Self {
-            amount: amount_to_refund,
+            amount: StringMinorUnitForConnector::convert(
+                &StringMinorUnitForConnector,
+                item.amount,
+                item.router_data.request.currency,
+            )
+            .change_context(errors::ConnectorError::AmountConversionFailed)?,
             payment_id: item.router_data.request.connector_transaction_id.clone(),
             currency: item.router_data.request.currency,
             id: item.router_data.request.refund_id.clone(),

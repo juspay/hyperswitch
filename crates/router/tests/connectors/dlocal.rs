@@ -18,7 +18,7 @@ impl utils::Connector for DlocalTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Dlocal;
         utils::construct_connector_data_old(
-            Box::new(&Dlocal),
+            Box::new(Dlocal::new()),
             types::Connector::Dlocal,
             api::GetToken::Connector,
             None,
