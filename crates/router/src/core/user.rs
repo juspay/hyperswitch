@@ -16,6 +16,7 @@ use diesel_models::{
     organization::OrganizationBridge,
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
+    user_role::get_entity_id_and_type,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "email")]
@@ -1332,14 +1333,16 @@ pub async fn list_user_role_details(
 
     let user_roles_set: HashSet<_> = state
         .store
-        .list_user_roles_by_user_id(
-            required_user.get_user_id(),
-            Some(&user_from_token.org_id),
-            None,
-            None,
-            None,
-            None,
-        )
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: required_user.get_user_id(),
+            org_id: Some(&user_from_token.org_id),
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: None,
+            limit: None,
+        })
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to fetch user roles")?
@@ -1361,8 +1364,9 @@ pub async fn list_user_role_details(
             id: user_from_token.org_id.clone(),
             name: org_name,
         };
+        let (_, entity_type) = get_entity_id_and_type(&user_role);
 
-        let merchant = match user_role.entity_type {
+        let merchant = match entity_type {
             Some(EntityType::Organization) => None,
             _ => {
                 if let Some(merchant_id) = &user_role.merchant_id {
@@ -1400,7 +1404,7 @@ pub async fn list_user_role_details(
             }
         };
 
-        let profile = match user_role.entity_type {
+        let profile = match entity_type {
             Some(EntityType::Organization) | Some(EntityType::Merchant) => None,
             _ => {
                 if let Some(profile_id) = &user_role.profile_id {
