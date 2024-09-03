@@ -195,8 +195,6 @@ pub async fn mk_tokenization_req(
     .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
     .attach_printable("Error on jwe encrypt")?;
 
-    logger::info!("JWE Encrypted Payload: {}", jwt);
-
     let order_data = OrderData {
         consent_id: uuid::Uuid::new_v4().to_string(),
         customer_id,
@@ -228,7 +226,6 @@ pub async fn mk_tokenization_req(
     );
     request.add_default_headers();
 
-    logger::info!("api Payload to generate token: {:?}", api_payload); //added for debugging
     request.set_body(RequestContent::Json(Box::new(api_payload)));
 
     logger::info!("Request to generate token: {:?}", request);
@@ -283,7 +280,6 @@ pub async fn mk_tokenization_req(
         "Failed to decrypt the tokenization response from the tokenization service",
     )?;
 
-    logger::info!("Decrypted Response: {:?}", card_network_token_response); //added for debugging
 
     let cn_response: CardNetworkTokenResponsePayload =
         serde_json::from_str(&card_network_token_response)
@@ -360,7 +356,6 @@ pub async fn get_network_token(
             .into_masked(),
     );
     request.add_default_headers();
-    logger::info!("Payload to fetch network token: {:?}", payload); //added for debugging``
     request.set_body(RequestContent::Json(Box::new(payload)));
 
     logger::info!("Request to fetch network token: {:?}", request);
@@ -690,7 +685,6 @@ pub async fn delete_network_token_from_tokenization_service(
             .into_masked(),
     );
     request.add_default_headers();
-    logger::info!("Payload to delete network token: {:?}", payload);
     request.set_body(RequestContent::Json(Box::new(payload)));
 
     logger::info!("Request to delete network token: {:?}", request);
