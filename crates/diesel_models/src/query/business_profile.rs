@@ -2,9 +2,9 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 
 use super::generics;
 #[cfg(feature = "v1")]
-use crate::schema::business_profile::dsl;
+use crate::schema::business_profile::dsl::{self, profile_id as dsl_identifier};
 #[cfg(feature = "v2")]
-use crate::schema_v2::business_profile::dsl;
+use crate::schema_v2::business_profile::dsl::{self, id as dsl_identifier};
 use crate::{
     business_profile::{BusinessProfile, BusinessProfileNew, BusinessProfileUpdateInternal},
     errors, PgPooledConn, StorageResult,
@@ -24,7 +24,7 @@ impl BusinessProfile {
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.profile_id.clone(),
+            self.get_id().to_owned(),
             business_profile,
         )
         .await
@@ -43,7 +43,7 @@ impl BusinessProfile {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::profile_id.eq(profile_id.to_owned()),
+            dsl_identifier.eq(profile_id.to_owned()),
         )
         .await
     }
@@ -57,7 +57,7 @@ impl BusinessProfile {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::profile_id.eq(profile_id.to_owned())),
+                .and(dsl_identifier.eq(profile_id.to_owned())),
         )
         .await
     }
@@ -102,7 +102,7 @@ impl BusinessProfile {
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::profile_id
+            dsl_identifier
                 .eq(profile_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )

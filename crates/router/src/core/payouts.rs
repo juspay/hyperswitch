@@ -300,7 +300,7 @@ pub async fn payouts_create_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
-    locale: &String,
+    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer) =
@@ -776,7 +776,7 @@ pub async fn payouts_list_core(
         match db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
-                &utils::get_payment_attempt_id(payout.payout_id.clone(), payout.attempt_count),
+                &utils::get_payout_attempt_id(payout.payout_id.clone(), payout.attempt_count),
                 storage_enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
@@ -2220,10 +2220,10 @@ pub async fn payout_create_db_entries(
     _merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     _req: &payouts::PayoutCreateRequest,
-    _payout_id: &String,
-    _profile_id: &String,
+    _payout_id: &str,
+    _profile_id: &str,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
-    _locale: &String,
+    _locale: &str,
     _customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     todo!()
@@ -2240,7 +2240,7 @@ pub async fn payout_create_db_entries(
     payout_id: &String,
     profile_id: &common_utils::id_type::ProfileId,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
-    locale: &String,
+    locale: &str,
     customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
@@ -2269,6 +2269,15 @@ pub async fn payout_create_db_entries(
         _ => None,
     };
 
+    // We have to do this because the function that is being used to create / get address is from payments
+    // which expects a payment_id
+    let payout_id_as_payment_id_type =
+        common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Owned(payout_id.to_string()))
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "payout_id contains invalid data".to_string(),
+            })
+            .attach_printable("Error converting payout_id to PaymentId type")?;
+
     // Get or create address
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         state,
@@ -2277,7 +2286,7 @@ pub async fn payout_create_db_entries(
         merchant_id,
         customer_id.as_ref(),
         key_store,
-        payout_id,
+        &payout_id_as_payment_id_type,
         merchant_account.storage_scheme,
     )
     .await?;
@@ -2345,7 +2354,7 @@ pub async fn payout_create_db_entries(
         })
         .attach_printable("Error inserting payouts in db")?;
     // Make payout_attempt entry
-    let payout_attempt_id = utils::get_payment_attempt_id(payout_id, 1);
+    let payout_attempt_id = utils::get_payout_attempt_id(payout_id, 1);
 
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
@@ -2436,7 +2445,7 @@ pub async fn make_payout_data(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
 
-    let payout_attempt_id = utils::get_payment_attempt_id(payout_id, payouts.attempt_count);
+    let payout_attempt_id = utils::get_payout_attempt_id(payout_id, payouts.attempt_count);
 
     let payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_attempt_id(
@@ -2448,7 +2457,17 @@ pub async fn make_payout_data(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
     let customer_id = payouts.customer_id.as_ref();
-    let payout_id = &payouts.payout_id;
+
+    // We have to do this because the function that is being used to create / get address is from payments
+    // which expects a payment_id
+    let payout_id_as_payment_id_type = common_utils::id_type::PaymentId::try_from(
+        std::borrow::Cow::Owned(payouts.payout_id.clone()),
+    )
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "payout_id contains invalid data".to_string(),
+    })
+    .attach_printable("Error converting payout_id to PaymentId type")?;
+
     let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         state,
         None,
@@ -2456,10 +2475,12 @@ pub async fn make_payout_data(
         merchant_id,
         customer_id,
         key_store,
-        payout_id,
+        &payout_id_as_payment_id_type,
         merchant_account.storage_scheme,
     )
     .await?;
+
+    let payout_id = &payouts.payout_id;
 
     let customer_details = customer_id
         .async_map(|customer_id| async move {
@@ -2631,8 +2652,8 @@ pub async fn create_payout_link(
     customer_id: &CustomerId,
     merchant_id: &common_utils::id_type::MerchantId,
     req: &payouts::PayoutCreateRequest,
-    payout_id: &String,
-    locale: &String,
+    payout_id: &str,
+    locale: &str,
 ) -> RouterResult<PayoutLink> {
     let payout_link_config_req = req.payout_link_config.to_owned();
 

@@ -20,6 +20,7 @@ pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
     merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
 ) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
@@ -94,8 +95,8 @@ pub async fn generate_sample_data(
                 .attach_printable("Failed to get business profile")?
                 .first()
                 .ok_or(SampleDataError::InternalServerError)?
-                .profile_id
-                .clone()
+                .get_id()
+                .to_owned()
         }
     };
 
@@ -168,12 +169,9 @@ pub async fn generate_sample_data(
             .change_context(SampleDataError::InternalServerError)?;
 
     for num in 1..=sample_data_size {
-        let payment_id = common_utils::generate_id_with_default_len("test");
-        let attempt_id = crate::utils::get_payment_attempt_id(&payment_id, 1);
-        let client_secret = common_utils::generate_id(
-            consts::ID_LENGTH,
-            format!("{}_secret", payment_id.clone()).as_str(),
-        );
+        let payment_id = id_type::PaymentId::generate_test_payment_id_for_sample_data();
+        let attempt_id = payment_id.get_attempt_id(1);
+        let client_secret = payment_id.generate_client_secret();
         let amount = thread_rng().gen_range(min_amount..=max_amount);
 
         let created_at @ modified_at @ last_synced =
@@ -249,6 +247,7 @@ pub async fn generate_sample_data(
             merchant_order_reference_id: Default::default(),
             shipping_details: None,
             is_payment_processor_token_flow: None,
+            organization_id: org_id.clone(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
@@ -326,6 +325,8 @@ pub async fn generate_sample_data(
             client_source: None,
             client_version: None,
             customer_acceptance: None,
+            profile_id: profile_id.clone(),
+            organization_id: org_id.clone(),
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -361,6 +362,7 @@ pub async fn generate_sample_data(
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 charges: None,
+                organization_id: org_id.clone(),
             })
         } else {
             None

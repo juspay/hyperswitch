@@ -114,7 +114,7 @@ run *FLAGS:
 
 alias r := run
 
-doc_flags := '--all-features --all-targets --exclude-features "v2 merchant_account_v2 payment_v2"'
+doc_flags := '--all-features --all-targets --exclude-features "v2 payment_v2"'
 
 # Generate documentation
 doc *FLAGS:

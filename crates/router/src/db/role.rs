@@ -46,6 +46,14 @@ pub trait RoleInterface {
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
+
+    async fn list_roles_for_org_by_parameters(
+        &self,
+        org_id: &id_type::OrganizationId,
+        merchant_id: Option<&id_type::MerchantId>,
+        entity_type: Option<enums::EntityType>,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -118,6 +126,26 @@ impl RoleInterface for Store {
         storage::Role::list_roles(&conn, merchant_id, org_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn list_roles_for_org_by_parameters(
+        &self,
+        org_id: &id_type::OrganizationId,
+        merchant_id: Option<&id_type::MerchantId>,
+        entity_type: Option<enums::EntityType>,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Role::generic_roles_list_for_org(
+            &conn,
+            org_id.to_owned(),
+            merchant_id.cloned(),
+            entity_type,
+            limit,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -268,6 +296,33 @@ impl RoleInterface for MockDb {
             ))
             .into());
         }
+
+        Ok(roles_list)
+    }
+
+    #[instrument(skip_all)]
+    async fn list_roles_for_org_by_parameters(
+        &self,
+        org_id: &id_type::OrganizationId,
+        merchant_id: Option<&id_type::MerchantId>,
+        entity_type: Option<enums::EntityType>,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        let roles = self.roles.lock().await;
+        let limit_usize = limit.unwrap_or(u32::MAX).try_into().unwrap_or(usize::MAX);
+        let roles_list: Vec<_> = roles
+            .iter()
+            .filter(|role| {
+                let matches_merchant = match merchant_id {
+                    Some(merchant_id) => role.merchant_id == *merchant_id,
+                    None => true,
+                };
+
+                matches_merchant && role.org_id == *org_id && role.entity_type == entity_type
+            })
+            .take(limit_usize)
+            .cloned()
+            .collect();
 
         Ok(roles_list)
     }

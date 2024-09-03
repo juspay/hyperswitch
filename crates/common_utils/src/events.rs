@@ -16,10 +16,10 @@ pub enum ApiEventsType {
         payout_id: String,
     },
     Payment {
-        payment_id: String,
+        payment_id: id_type::PaymentId,
     },
     Refund {
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
         refund_id: String,
     },
     PaymentMethod {
@@ -46,13 +46,13 @@ pub enum ApiEventsType {
     },
     Webhooks {
         connector: String,
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
     },
     Routing,
     ResourceListAPI,
     PaymentRedirectionResponse {
         connector: Option<String>,
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
     },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
@@ -79,6 +79,14 @@ pub enum ApiEventsType {
 
 impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
+
+impl ApiEventMetric for id_type::PaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
 
 impl<Q: ApiEventMetric, E> ApiEventMetric for Result<Q, E> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

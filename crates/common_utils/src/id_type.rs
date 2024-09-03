@@ -7,7 +7,9 @@ mod customer;
 mod merchant;
 mod merchant_connector_account;
 mod organization;
+mod payment;
 mod profile;
+mod routing;
 
 mod global_id;
 
@@ -22,7 +24,9 @@ use diesel::{
 pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
+pub use payment::PaymentId;
 pub use profile::ProfileId;
+pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

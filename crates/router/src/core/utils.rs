@@ -42,7 +42,6 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
 #[cfg(feature = "payouts")]
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_payouts_flow";
-const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
 #[cfg(all(feature = "payouts", feature = "v2", feature = "customer_v2"))]
@@ -148,7 +147,9 @@ pub async fn construct_payout_router_data<'a, F>(
         customer_id: customer_details.to_owned().map(|c| c.customer_id),
         connector_customer: connector_customer_id,
         connector: connector_name.to_string(),
-        payment_id: "".to_string(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
+            .get_string_repr()
+            .to_owned(),
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Failure,
         payment_method: enums::PaymentMethod::default(),
@@ -298,7 +299,7 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_id: merchant_account.get_id().clone(),
         customer_id: payment_intent.customer_id.to_owned(),
         connector: connector_id.to_string(),
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status,
         payment_method: payment_method_type,
@@ -617,7 +618,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: dispute.connector.to_string(),
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -712,7 +713,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -805,7 +806,7 @@ pub async fn construct_upload_file_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -902,7 +903,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector: connector_id.to_string(),
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -994,7 +995,9 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector: connector_id.to_string(),
         customer_id: None,
         connector_customer: None,
-        payment_id: IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW.to_string(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("dispute")
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
@@ -1062,7 +1065,7 @@ pub fn get_connector_request_reference_id(
         is_merchant_enabled_for_payment_id_as_connector_request_id(conf, merchant_id);
     // Send payment_id if config is enabled for a merchant, else send attempt_id
     if is_config_enabled_for_merchant {
-        payment_attempt.payment_id.clone()
+        payment_attempt.payment_id.get_string_repr().to_owned()
     } else {
         payment_attempt.attempt_id.clone()
     }
@@ -1094,7 +1097,7 @@ pub async fn validate_and_get_business_profile(
             // Check if the merchant_id of business profile is same as the current merchant_id
             if business_profile.merchant_id.ne(merchant_id) {
                 Err(errors::ApiErrorResponse::AccessForbidden {
-                    resource: business_profile.profile_id.get_string_repr().to_owned(),
+                    resource: business_profile.get_id().get_string_repr().to_owned(),
                 }
                 .into())
             } else {
@@ -1187,7 +1190,7 @@ pub async fn get_profile_id_from_business_details(
                         id: profile_name,
                     })?;
 
-                Ok(business_profile.profile_id)
+                Ok(business_profile.get_id().to_owned())
             }
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "profile_id or business_country, business_label"
@@ -1200,14 +1203,16 @@ pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: S
     merchant_id.get_poll_id(&unique_id)
 }
 
-pub fn get_external_authentication_request_poll_id(payment_id: &String) -> String {
-    format!("external_authentication_{}", payment_id)
+pub fn get_external_authentication_request_poll_id(
+    payment_id: &common_utils::id_type::PaymentId,
+) -> String {
+    payment_id.get_external_authentication_request_poll_id()
 }
 
 pub fn get_html_redirect_response_for_external_authentication(
     return_url_with_query_params: String,
     payment_response: &api_models::payments::PaymentsResponse,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     poll_config: &PollConfig,
 ) -> RouterResult<String> {
     // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url

@@ -4,6 +4,82 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.03.0
+
+### Features
+
+- **connector:** [Adyenplatform] add webhooks for payout ([#5749](https://github.com/juspay/hyperswitch/pull/5749)) ([`258212d`](https://github.com/juspay/hyperswitch/commit/258212d8b0a17ac0f2efefd1809dfd681bd991e8))
+- **roles:** Add list support for roles ([#5754](https://github.com/juspay/hyperswitch/pull/5754)) ([`e4f1fbc`](https://github.com/juspay/hyperswitch/commit/e4f1fbc5a5622a86c3e3c27ae20e4b7b05f0a7ef))
+- **user:** Implement invitations api ([#5769](https://github.com/juspay/hyperswitch/pull/5769)) ([`730c2ba`](https://github.com/juspay/hyperswitch/commit/730c2ba258ea6c1c03dfbde562b5a883e0ffc4e9))
+
+### Bug Fixes
+
+- **cypress:** Fix cypress throwing error when `connectorId` is not passed and miscellaneous fixes ([#5746](https://github.com/juspay/hyperswitch/pull/5746)) ([`4eec869`](https://github.com/juspay/hyperswitch/commit/4eec86949881db19a39aa8473065aedd642ef1a3))
+
+### Refactors
+
+- **business_profile:** Change id for business profile ([#5748](https://github.com/juspay/hyperswitch/pull/5748)) ([`8e5c33e`](https://github.com/juspay/hyperswitch/commit/8e5c33e2d892f1f6dc514cacb25fdbc62f145b7c))
+- **connector:** Move globepay, powertranz, tsys, worldline to hyperswitch_connectors ([#5758](https://github.com/juspay/hyperswitch/pull/5758)) ([`1d14971`](https://github.com/juspay/hyperswitch/commit/1d149716ba47d3e3f4c749687cff851e18ec77c0))
+- **payment_id:** Add payment id domain type ([#5738](https://github.com/juspay/hyperswitch/pull/5738)) ([`7296cce`](https://github.com/juspay/hyperswitch/commit/7296cceba351dccf13a71ef2479dba3f24e3c31f))
+- **v2_migrations:** Re-organize v2 migrations ([#5760](https://github.com/juspay/hyperswitch/pull/5760)) ([`f32a329`](https://github.com/juspay/hyperswitch/commit/f32a32945d09b72da6eeb0196e7308145bcc9592))
+
+### Miscellaneous Tasks
+
+- Enable partial auth as a feature flag ([#5711](https://github.com/juspay/hyperswitch/pull/5711)) ([`c03587f`](https://github.com/juspay/hyperswitch/commit/c03587f9c6e8ad444cebac92fd5134fe01c71728))
+- Fix typos ([#5766](https://github.com/juspay/hyperswitch/pull/5766)) ([`4fc4763`](https://github.com/juspay/hyperswitch/commit/4fc4763035ae25b54736ac28f4a1303918275ccd))
+- Add wasm support for connector additional details ([#5712](https://github.com/juspay/hyperswitch/pull/5712)) ([`45929f2`](https://github.com/juspay/hyperswitch/commit/45929f2b8d28ca580e5c2dac5a010909d4fbb05b))
+
+**Full Changelog:** [`2024.09.02.0...2024.09.03.0`](https://github.com/juspay/hyperswitch/compare/2024.09.02.0...2024.09.03.0)
+
+- - -
+
+## 2024.09.02.0
+
+### Features
+
+- **connector:** [WELLSFARGO] Remove Wallet Configs ([#5739](https://github.com/juspay/hyperswitch/pull/5739)) ([`2cf0571`](https://github.com/juspay/hyperswitch/commit/2cf05712b2d40a772947f7a09b09a34367899f09))
+
+### Bug Fixes
+
+- **cypress:** Fix undefined errors in auto-retries ([#5750](https://github.com/juspay/hyperswitch/pull/5750)) ([`3798319`](https://github.com/juspay/hyperswitch/commit/379831932a9c1e73b669f40af75cd02e682a0ec7))
+
+### Refactors
+
+- **core:** Make the ppt token flow to accept optional mca_id ([#5744](https://github.com/juspay/hyperswitch/pull/5744)) ([`f682b57`](https://github.com/juspay/hyperswitch/commit/f682b570dd1f90388279c7011ae16f7f81056804))
+- **users:** Add V2 user_roles data support ([#5763](https://github.com/juspay/hyperswitch/pull/5763)) ([`6b41050`](https://github.com/juspay/hyperswitch/commit/6b410505da3a2dbceaf6f07bb3f19f3ceef4efe2))
+
+### Miscellaneous Tasks
+
+- **config:** Add support for some more country and currencies for Mifinity Wallet ([#5639](https://github.com/juspay/hyperswitch/pull/5639)) ([`f7f5ba7`](https://github.com/juspay/hyperswitch/commit/f7f5ba7c0bbf694dbeecec73f8383ac678dd4425))
+- **postman:** Update Postman collection files ([`6342cdc`](https://github.com/juspay/hyperswitch/commit/6342cdcaa4ca8de259aade9a3ca892eb62c2ab73))
+
+**Full Changelog:** [`2024.08.30.0...2024.09.02.0`](https://github.com/juspay/hyperswitch/compare/2024.08.30.0...2024.09.02.0)
+
+- - -
+
+## 2024.08.30.0
+
+### Features
+
+- **connector:** [FIUU] PR template code ([#5691](https://github.com/juspay/hyperswitch/pull/5691)) ([`3f17b52`](https://github.com/juspay/hyperswitch/commit/3f17b52a2ea2fd716cc2c2c2aa3bd32083e1ea5d))
+- **database:** Add profile & organisation id to transaction tables ([#5696](https://github.com/juspay/hyperswitch/pull/5696)) ([`2049ab0`](https://github.com/juspay/hyperswitch/commit/2049ab055469a43c0cb2e543740571913a027eab))
+- **routing:** Add domain type for Routing id ([#5733](https://github.com/juspay/hyperswitch/pull/5733)) ([`e939db2`](https://github.com/juspay/hyperswitch/commit/e939db2fad6fd4acd8575d44de89860e50584925))
+- **user_role:** Insert V2 user_roles ([#5607](https://github.com/juspay/hyperswitch/pull/5607)) ([`6c266b5`](https://github.com/juspay/hyperswitch/commit/6c266b5df494377805bc908c6b5af38d65c89e96))
+
+### Bug Fixes
+
+- **cypress:** Fix compilation errors due to filename mismatch ([#5740](https://github.com/juspay/hyperswitch/pull/5740)) ([`35666f5`](https://github.com/juspay/hyperswitch/commit/35666f57bff0aed60c6e06efeeefa94ff15681c9))
+
+### Refactors
+
+- **customers:** Add offset and limit to customers list ([#5735](https://github.com/juspay/hyperswitch/pull/5735)) ([`be44198`](https://github.com/juspay/hyperswitch/commit/be4419865fb05172bde39b9273c9f5b216b1a1ad))
+- **payout_link:** Update fonts and UI for payout link ([#5678](https://github.com/juspay/hyperswitch/pull/5678)) ([`a6cb6c6`](https://github.com/juspay/hyperswitch/commit/a6cb6c6e68cc21e765b07468af033a29a48fbf60))
+- **router:** Revert [Stripe/Itau/Paypal/Bambora/Cybs] prevent partial submission of billing address and add required fields for all payment methods ([#5745](https://github.com/juspay/hyperswitch/pull/5745)) ([`18f912d`](https://github.com/juspay/hyperswitch/commit/18f912def7e2a879bc6d994955514d2f80ad14b9))
+
+**Full Changelog:** [`2024.08.29.0...2024.08.30.0`](https://github.com/juspay/hyperswitch/compare/2024.08.29.0...2024.08.30.0)
+
+- - -
+
 ## 2024.08.29.0
 
 ### Features

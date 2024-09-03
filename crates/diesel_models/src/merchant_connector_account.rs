@@ -93,8 +93,8 @@ pub struct MerchantConnectorAccount {
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
-    pub id: id_type::MerchantConnectorAccountId,
     pub version: common_enums::ApiVersion,
+    pub id: id_type::MerchantConnectorAccountId,
 }
 
 #[cfg(feature = "v2")]
