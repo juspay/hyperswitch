@@ -1366,9 +1366,15 @@ pub async fn list_user_role_details(
         };
         let (_, entity_type) = get_entity_id_and_type(&user_role);
 
-        let merchant = match entity_type {
-            Some(EntityType::Organization) => None,
-            _ => {
+        let merchant = match entity_type.ok_or(UserErrors::InternalServerError)? {
+            EntityType::Internal => {
+                return Err(UserErrors::InvalidRoleOperationWithMessage(
+                    "Internal roles are not allowed for this operation".to_string(),
+                )
+                .into());
+            }
+            EntityType::Organization => None,
+            EntityType::Merchant | EntityType::Profile => {
                 if let Some(merchant_id) = &user_role.merchant_id {
                     let key_manager_state = &(&state).into();
                     let merchant_key_store = state
@@ -1404,9 +1410,15 @@ pub async fn list_user_role_details(
             }
         };
 
-        let profile = match entity_type {
-            Some(EntityType::Organization) | Some(EntityType::Merchant) => None,
-            _ => {
+        let profile = match entity_type.ok_or(UserErrors::InternalServerError)? {
+            EntityType::Internal => {
+                return Err(UserErrors::InvalidRoleOperationWithMessage(
+                    "Internal roles are not allowed for this operation".to_string(),
+                )
+                .into());
+            }
+            EntityType::Organization | EntityType::Merchant => None,
+            EntityType::Profile => {
                 if let Some(profile_id) = &user_role.profile_id {
                     let key_manager_state = &(&state).into();
                     let merchant_key_store = state
