@@ -64,10 +64,11 @@ pub mod zen;
 pub mod zsl;
 
 pub use hyperswitch_connectors::connectors::{
-    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, fiserv, fiserv::Fiserv, fiservemea,
-    fiservemea::Fiservemea, fiuu, fiuu::Fiuu, globepay, globepay::Globepay, helcim, helcim::Helcim,
-    nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet, powertranz, powertranz::Powertranz,
-    stax, stax::Stax, taxjar, taxjar::Taxjar, tsys, tsys::Tsys, worldline, worldline::Worldline,
+    bambora, bambora::Bambora, bitpay, bitpay::Bitpay, deutschebank, deutschebank::Deutschebank,
+    fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, globepay,
+    globepay::Globepay, helcim, helcim::Helcim, nexixpay, nexixpay::Nexixpay, novalnet,
+    novalnet::Novalnet, powertranz, powertranz::Powertranz, stax, stax::Stax, taxjar,
+    taxjar::Taxjar, tsys, tsys::Tsys, worldline, worldline::Worldline,
 };
 
 #[cfg(feature = "dummy_connector")]

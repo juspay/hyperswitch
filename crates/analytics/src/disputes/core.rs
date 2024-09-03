@@ -21,13 +21,14 @@ use super::{
 };
 use crate::{
     disputes::DisputeMetricAccumulator,
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics, AnalyticsProvider,
 };
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     req: GetDisputeMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<DisputeMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -44,14 +45,14 @@ pub async fn get_metrics(
         );
         // Currently JoinSet works with only static lifetime references even if the task pool does not outlive the given reference
         // We can optimize away this clone once that is fixed
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_dispute_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &auth_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -123,30 +124,30 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetDisputeFilterRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<DisputeFiltersResponse> {
     let mut res = DisputeFiltersResponse::default();
     for dim in req.group_by_names {
         let values = match pool {
                         AnalyticsProvider::Sqlx(pool) => {
-                            get_dispute_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                            get_dispute_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                            get_dispute_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
+                            get_dispute_filter_for_dimension(dim, auth, &req.time_range, pool)
                     .await
             }
                     AnalyticsProvider::CombinedCkh(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_pool,
                 )
@@ -162,14 +163,14 @@ pub async fn get_filters(
                     AnalyticsProvider::CombinedSqlx(sqlx_pool, ckh_pool) => {
                 let ckh_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_dispute_filter_for_dimension(
                     dim,
-                    merchant_id,
+                    auth,
                     &req.time_range,
                     sqlx_pool,
                 )
