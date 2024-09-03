@@ -1681,6 +1681,7 @@ impl User {
 
         route = route
             .service(web::resource("").route(web::get().to(get_user_details)))
+            .service(web::resource("/signin").route(web::post().to(user_signin)))
             .service(web::resource("/v2/signin").route(web::post().to(user_signin)))
             // signin/signup with sso using openidconnect
             .service(web::resource("/oidc").route(web::post().to(sso_sign)))
@@ -1724,6 +1725,9 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
+                )
+                .service(
+                    web::resource("/invitation").route(web::get().to(list_invitations_for_user)),
                 ),
         );
 
@@ -1796,6 +1800,7 @@ impl User {
                     web::resource("/signup_with_merchant_id")
                         .route(web::post().to(user_signup_with_merchant_id)),
                 )
+                .service(web::resource("/verify_email").route(web::post().to(verify_email)))
                 .service(web::resource("/v2/verify_email").route(web::post().to(verify_email)))
                 .service(
                     web::resource("/verify_email_request")
@@ -1840,7 +1845,19 @@ impl User {
                         .route(web::get().to(get_role_from_token))
                         .route(web::post().to(create_role)),
                 )
-                .service(web::resource("/list").route(web::get().to(list_all_roles)))
+                .service(web::resource("/v2/list").route(web::get().to(list_roles_with_info)))
+                .service(
+                    web::scope("/list")
+                        .service(web::resource("").route(web::get().to(list_all_roles)))
+                        .service(
+                            web::resource("/invite")
+                                .route(web::get().to(list_invitable_roles_at_entity_level)),
+                        )
+                        .service(
+                            web::resource("/update")
+                                .route(web::get().to(list_updatable_roles_at_entity_level)),
+                        ),
+                )
                 .service(
                     web::resource("/{role_id}")
                         .route(web::get().to(get_role))

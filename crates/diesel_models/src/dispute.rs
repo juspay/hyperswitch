@@ -15,7 +15,7 @@ pub struct DisputeNew {
     pub currency: String,
     pub dispute_stage: storage_enums::DisputeStage,
     pub dispute_status: storage_enums::DisputeStatus,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub attempt_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_status: String,
@@ -30,6 +30,7 @@ pub struct DisputeNew {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub dispute_amount: i64,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
@@ -40,7 +41,7 @@ pub struct Dispute {
     pub currency: String,
     pub dispute_stage: storage_enums::DisputeStage,
     pub dispute_status: storage_enums::DisputeStatus,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub attempt_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_status: String,
@@ -59,6 +60,7 @@ pub struct Dispute {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub dispute_amount: i64,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Debug)]
