@@ -706,7 +706,6 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             is_verified: false,
             created_at: Some(now),
             last_modified_at: Some(now),
-            preferred_merchant_id: None,
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
@@ -934,10 +933,6 @@ impl UserFromStorage {
         Ok(days_left_for_password_rotate.whole_days() < 0)
     }
 
-    pub fn get_preferred_merchant_id(&self) -> Option<id_type::MerchantId> {
-        self.0.preferred_merchant_id.clone()
-    }
-
     pub async fn get_role_from_db_by_merchant_id(
         &self,
         state: &SessionState,
@@ -953,27 +948,20 @@ impl UserFromStorage {
             .await
     }
 
-    pub async fn get_preferred_or_active_user_role_from_db(
+    pub async fn get_active_user_role_from_db(
         &self,
         state: &SessionState,
     ) -> CustomResult<UserRole, errors::StorageError> {
-        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
-            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
-                .await
-        } else {
-            state
-                .store
-                .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
-                .await?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
-                .ok_or(
-                    errors::StorageError::ValueNotFound(
-                        "No active role found for user".to_string(),
-                    )
+        state
+            .store
+            .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
+            .await?
+            .into_iter()
+            .find(|role| role.status == UserStatus::Active)
+            .ok_or(
+                errors::StorageError::ValueNotFound("No active role found for user".to_string())
                     .into(),
-                )
-        }
+            )
     }
 
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
@@ -1421,3 +1409,16 @@ impl NewUserRole<ProfileLevel> {
             .ok_or(report!(UserErrors::InternalServerError))
     }
 }
+//
+// pub struct Entity {
+//     pub entity_id: String,
+//     pub entity_type: EntityType,
+// }
+//
+// impl Entity {
+//     fn get_user_role_from_db_for_user(
+//         &state: &SessionState,
+//         user_id: &str,
+//     ) -> UserResult<Option<UserRole>> {
+//     }
+// }

@@ -51,9 +51,6 @@ pub struct AuthorizeResponse {
     //this field is added for audit/debug reasons
     #[serde(skip_serializing)]
     pub user_id: String,
-    //this field is added for audit/debug reasons
-    #[serde(skip_serializing)]
-    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -209,7 +206,6 @@ pub struct VerifyTokenResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,
-    pub preferred_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -147,3 +147,14 @@ pub struct ListInvitationForUserResponse {
     pub entity_name: Option<Secret<String>>,
     pub role_id: String,
 }
+
+pub type AcceptInvitationsV2Request = Vec<Entity>;
+pub type MerchantSelectV2Request = Vec<Entity>;
+
+// pub type AcceptMultipleInvitationsV2Request = Vec<Entity>;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct Entity {
+    pub entity_id: String,
+    pub entity_type: common_enums::EntityType,
+}
