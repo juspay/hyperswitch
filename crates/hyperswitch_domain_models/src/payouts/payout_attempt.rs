@@ -78,6 +78,8 @@ pub struct PayoutAttempt {
     pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -101,6 +103,8 @@ pub struct PayoutAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +115,9 @@ pub enum PayoutAttemptUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         is_eligible: Option<bool>,
+
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -143,6 +150,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -158,12 +167,16 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {

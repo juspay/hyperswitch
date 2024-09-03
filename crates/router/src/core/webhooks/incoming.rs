@@ -688,6 +688,8 @@ async fn payouts_incoming_webhook_flow(
             error_message: None,
             error_code: None,
             is_eligible: payout_attempt.is_eligible,
+            unified_code: None,
+            unified_message: None,
         };
 
         let action_req =
@@ -695,9 +697,15 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
-        let payout_data =
-            payouts::make_payout_data(&state, &merchant_account, None, &key_store, &action_req)
-                .await?;
+        let payout_data = payouts::make_payout_data(
+            &state,
+            &merchant_account,
+            None,
+            &key_store,
+            &action_req,
+            common_utils::consts::DEFAULT_LOCALE,
+        )
+        .await?;
 
         let updated_payout_attempt = db
             .update_payout_attempt(

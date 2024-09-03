@@ -80,6 +80,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     profile_id: new_payout_attempt.profile_id.clone(),
                     merchant_connector_id: new_payout_attempt.merchant_connector_id.clone(),
                     routing_info: new_payout_attempt.routing_info.clone(),
+                    unified_code: new_payout_attempt.unified_code.clone(),
+                    unified_message: new_payout_attempt.unified_message.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -517,6 +519,8 @@ impl DataModelExt for PayoutAttempt {
             profile_id: self.profile_id,
             merchant_connector_id: self.merchant_connector_id,
             routing_info: self.routing_info,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
         }
     }
 
@@ -541,6 +545,8 @@ impl DataModelExt for PayoutAttempt {
             profile_id: storage_model.profile_id,
             merchant_connector_id: storage_model.merchant_connector_id,
             routing_info: storage_model.routing_info,
+            unified_code: storage_model.unified_code,
+            unified_message: storage_model.unified_message,
         }
     }
 }
@@ -568,6 +574,8 @@ impl DataModelExt for PayoutAttemptNew {
             profile_id: self.profile_id,
             merchant_connector_id: self.merchant_connector_id,
             routing_info: self.routing_info,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
         }
     }
 
@@ -592,6 +600,8 @@ impl DataModelExt for PayoutAttemptNew {
             profile_id: storage_model.profile_id,
             merchant_connector_id: storage_model.merchant_connector_id,
             routing_info: storage_model.routing_info,
+            unified_code: storage_model.unified_code,
+            unified_message: storage_model.unified_message,
         }
     }
 }
@@ -605,12 +615,16 @@ impl DataModelExt for PayoutAttemptUpdate {
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
             } => DieselPayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id,
                 status,
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
             },
             Self::PayoutTokenUpdate { payout_token } => {
                 DieselPayoutAttemptUpdate::PayoutTokenUpdate { payout_token }

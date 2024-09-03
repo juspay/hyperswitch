@@ -30,6 +30,8 @@ pub struct PayoutAttempt {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(
@@ -66,6 +68,8 @@ pub struct PayoutAttemptNew {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +80,8 @@ pub enum PayoutAttemptUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         is_eligible: Option<bool>,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -110,6 +116,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -129,6 +137,8 @@ impl Default for PayoutAttemptUpdateInternal {
             last_modified_at: common_utils::date_time::now(),
             address_id: None,
             customer_id: None,
+            unified_code: None,
+            unified_message: None,
         }
     }
 }
@@ -146,12 +156,16 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
@@ -197,6 +211,8 @@ impl PayoutAttemptUpdate {
             address_id,
             customer_id,
             merchant_connector_id,
+            unified_code,
+            unified_message,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -213,6 +229,8 @@ impl PayoutAttemptUpdate {
             address_id: address_id.or(source.address_id),
             customer_id: customer_id.or(source.customer_id),
             merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
+            unified_code: unified_code.or(source.unified_code),
+            unified_message: unified_message.or(source.unified_message),
             ..source
         }
     }

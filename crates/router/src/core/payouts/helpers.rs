@@ -928,12 +928,13 @@ pub async fn get_gsm_record(
     error_code: Option<String>,
     error_message: Option<String>,
     connector_name: Option<String>,
-    flow: String,
+    flow: &str,
 ) -> Option<storage::gsm::GatewayStatusMap> {
+    let connector_name = connector_name.unwrap_or_default();
     let get_gsm = || async {
         state.store.find_gsm_rule(
-                connector_name.clone().unwrap_or_default(),
-                flow.clone(),
+                connector_name.clone(),
+                flow.to_string(),
                 "sub_flow".to_string(),
                 error_code.clone().unwrap_or_default(), // TODO: make changes in connector to get a mandatory code in case of success or error response
                 error_message.clone().unwrap_or_default(),
@@ -943,7 +944,7 @@ pub async fn get_gsm_record(
                 if err.current_context().is_db_not_found() {
                     logger::warn!(
                         "GSM miss for connector - {}, flow - {}, error_code - {:?}, error_message - {:?}",
-                        connector_name.unwrap_or_default(),
+                        connector_name,
                         flow,
                         error_code,
                         error_message
@@ -1247,5 +1248,32 @@ pub(super) fn get_customer_details_from_request(
         email: customer_email,
         phone: customer_phone,
         phone_country_code: customer_phone_code,
+    }
+}
+
+pub(super) async fn get_translated_unified_code_and_message(
+    state: &SessionState,
+    error_code: Option<String>,
+    error_message: Option<String>,
+    connector_name: Option<String>,
+    flow: &str,
+    locale: &str,
+) -> (Option<String>, Option<String>) {
+    let (unified_code, unified_message) =
+        get_gsm_record(state, error_code, error_message, connector_name, flow)
+            .await
+            .map_or((None, None), |gsm| (gsm.unified_code, gsm.unified_message));
+
+    match (unified_code.clone(), unified_message.clone()) {
+        (Some(code), Some(message)) => {
+            let translated_message =
+                payment_helpers::get_unified_translation(state, code, message, locale.to_string())
+                    .await;
+            match translated_message {
+                Some(_) => (unified_code, translated_message),
+                _ => (unified_code, unified_message),
+            }
+        }
+        _ => (unified_code, unified_message),
     }
 }

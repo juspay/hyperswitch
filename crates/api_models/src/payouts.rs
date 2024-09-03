@@ -376,7 +376,7 @@ pub struct Venmo {
     pub telephone_number: Option<Secret<String>>,
 }
 
-#[derive(Debug, ToSchema, Clone, Serialize)]
+#[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -528,6 +528,16 @@ pub struct PayoutCreateResponse {
     /// Customer's phone country code. _Deprecated: Use customer object instead._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    /// (This field is not live yet)
+    /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutCreateResponse)]
+    pub unified_code: Option<String>,
+
+    /// (This field is not live yet)
+    /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutCreateResponse)]
+    pub unified_message: Option<String>,
 }
 
 #[derive(
@@ -561,9 +571,13 @@ pub struct PayoutAttemptResponse {
     pub connector_transaction_id: Option<String>,
     /// If the payout was cancelled the reason provided here
     pub cancellation_reason: Option<String>,
-    /// error code unified across the connectors is received here if there was an error while calling connector
+    /// (This field is not live yet)
+    /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutAttemptResponse)]
     pub unified_code: Option<String>,
-    /// error message unified across the connectors is received here if there was an error while calling connector
+    /// (This field is not live yet)
+    /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutAttemptResponse)]
     pub unified_message: Option<String>,
 }
 
