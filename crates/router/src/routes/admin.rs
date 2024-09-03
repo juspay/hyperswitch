@@ -892,7 +892,8 @@ pub async fn business_profile_update(
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthProfileFromRoute {
+            &auth::JWTAuthMerchantAndProfileFromRoute {
+                merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
             },
