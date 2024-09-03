@@ -88,6 +88,11 @@ pub enum AuthenticationType {
         merchant_id: id_type::MerchantId,
         user_id: Option<String>,
     },
+    MerchantJwtWithProfileId {
+        merchant_id: id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+        user_id: String,
+    },
     UserJwt {
         user_id: String,
     },
@@ -137,6 +142,7 @@ impl AuthenticationType {
                 merchant_id,
                 user_id: _,
             }
+            | Self::MerchantJwtWithProfileId { merchant_id, .. }
             | Self::WebhookAuth { merchant_id } => Some(merchant_id),
             Self::AdminApiKey
             | Self::UserJwt { .. }

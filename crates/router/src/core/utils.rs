@@ -1334,7 +1334,7 @@ pub fn get_incremental_authorization_allowed_value(
     }
 }
 
-pub(super) trait GetProfileId {
+pub(crate) trait GetProfileId {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId>;
 }
 
@@ -1438,7 +1438,7 @@ pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     }
 }
 
-pub(super) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
+pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::Debug>(
     profile_id_auth_layer: Option<common_utils::id_type::ProfileId>,
     object: &T,
 ) -> RouterResult<()> {
