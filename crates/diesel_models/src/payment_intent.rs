@@ -1,4 +1,4 @@
-use common_enums::{RequestIncrementalAuthorization, AuthenticationType};
+use common_enums::{AuthenticationType, RequestIncrementalAuthorization};
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
