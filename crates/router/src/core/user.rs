@@ -1317,115 +1317,160 @@ pub async fn get_user_details_in_merchant_account(
     ))
 }
 
-pub async fn get_user_role_details(
+pub async fn list_user_role_details(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     request: user_api::GetUserRoleDetailsRequest,
     _req_state: ReqState,
-) -> UserResponse<user_api::GetUserRoleDetailsResponseV2> {
+) -> UserResponse<Vec<user_api::GetUserRoleDetailsResponseV2>> {
     let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let required_user_role = state
+    let user_roles_set: HashSet<_> = state
         .store
-        .find_user_role_by_user_id_and_lineage(
+        .list_user_roles_by_user_id(
             required_user.get_user_id(),
-            &user_from_token.org_id,
-            &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
-            UserRoleVersion::V2,
-        )
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleOperation)
-        .attach_printable("No user role found for the user in the current hierarchy")?;
-
-    let role_info = roles::RoleInfo::from_role_id(
-        &state,
-        &required_user_role.role_id,
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("User role exists but the corresponding role doesn't")?;
-
-    let org_name = state
-        .store
-        .find_organization_by_org_id(&user_from_token.org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .get_organization_name();
-
-    let org = NameIdUnit {
-        id: user_from_token.org_id,
-        name: org_name,
-    };
-
-    let key_manager_state = &(&state).into();
-    let merchant_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
+            Some(&user_from_token.org_id),
+            None,
+            None,
+            None,
+            None,
         )
         .await
         .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+        .attach_printable("Failed to fetch user roles")?
+        .into_iter()
+        .collect();
 
-    let merchant = if let Some(merchant_id) = &required_user_role.merchant_id {
-        let merchant_name = state
+    let mut role_details_list = Vec::new();
+
+    for user_role in user_roles_set {
+        let org_name = state
             .store
-            .find_merchant_account_by_merchant_id(
-                key_manager_state,
-                &merchant_id,
-                &merchant_key_store,
-            )
+            .find_organization_by_org_id(&user_from_token.org_id)
             .await
-            .change_context(UserErrors::InternalServerError)?
-            .merchant_name;
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Org id not found")?
+            .get_organization_name();
 
-        Some(NameIdUnit {
-            id: merchant_id.clone(),
-            name: merchant_name,
-        })
-    } else {
-        None
-    };
+        let org = NameIdUnit {
+            id: user_from_token.org_id.clone(),
+            name: org_name,
+        };
 
-    let profile = if let Some(profile_id) = &required_user_role.profile_id {
-        let profile_name = state
-            .store
-            .find_business_profile_by_profile_id(
-                key_manager_state,
-                &merchant_key_store,
-                &profile_id,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .profile_name;
+        let merchant = match user_role.entity_type {
+            Some(EntityType::Organization) => None,
+            _ => {
+                if let Some(merchant_id) = &user_role.merchant_id {
+                    let key_manager_state = &(&state).into();
+                    let merchant_key_store = state
+                        .store
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            merchant_id,
+                            &state.store.get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
-        Some(NameIdUnit {
-            id: profile_id.clone(),
-            name: profile_name,
-        })
-    } else {
-        None
-    };
+                    let merchant_name = state
+                        .store
+                        .find_merchant_account_by_merchant_id(
+                            key_manager_state,
+                            merchant_id,
+                            &merchant_key_store,
+                        )
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Merchant account not found")?
+                        .merchant_name;
 
-    Ok(ApplicationResponse::Json(
-        user_api::GetUserRoleDetailsResponseV2 {
+                    Some(NameIdUnit {
+                        id: merchant_id.clone(),
+                        name: merchant_name,
+                    })
+                } else {
+                    None
+                }
+            }
+        };
+
+        let profile = match user_role.entity_type {
+            Some(EntityType::Organization) | Some(EntityType::Merchant) => None,
+            _ => {
+                if let Some(profile_id) = &user_role.profile_id {
+                    let key_manager_state = &(&state).into();
+                    let merchant_key_store = state
+                        .store
+                        .get_merchant_key_store_by_merchant_id(
+                            key_manager_state,
+                            &user_role
+                                .merchant_id
+                                .clone()
+                                .ok_or(UserErrors::InternalServerError)?,
+                            &state.store.get_master_key().to_vec().into(),
+                        )
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
+                    let profile_name = state
+                        .store
+                        .find_business_profile_by_profile_id(
+                            key_manager_state,
+                            &merchant_key_store,
+                            profile_id,
+                        )
+                        .await
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Business profile not found")?
+                        .profile_name;
+
+                    Some(NameIdUnit {
+                        id: profile_id.clone(),
+                        name: profile_name,
+                    })
+                } else {
+                    None
+                }
+            }
+        };
+
+        let role_info = if let Some(role) =
+            roles::predefined_roles::PREDEFINED_ROLES.get(&user_role.role_id.as_str())
+        {
+            role.clone()
+        } else {
+            state
+                .store
+                .find_role_by_role_id_in_merchant_scope(
+                    &user_role.role_id,
+                    &user_role
+                        .merchant_id
+                        .ok_or(UserErrors::InternalServerError)
+                        .attach_printable("Merchant id not found for custom role")?,
+                    &user_from_token.org_id,
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to get custom role")?
+                .into()
+        };
+
+        role_details_list.push(user_api::GetUserRoleDetailsResponseV2 {
             role_id: role_info.get_role_id().to_string(),
             role_name: role_info.get_role_name().to_string(),
             org,
             merchant,
             profile,
-            status: required_user_role.status.foreign_into(),
-            role_scope: role_info.get_scope(),
+            status: user_role.status.foreign_into(),
             entity_type: role_info.get_entity_type(),
-        },
-    ))
+        });
+    }
+
+    Ok(ApplicationResponse::Json(role_details_list))
 }
 
 pub async fn list_users_for_merchant_account(

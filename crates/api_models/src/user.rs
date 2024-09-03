@@ -187,7 +187,6 @@ pub struct GetUserRoleDetailsResponseV2 {
     pub merchant: Option<NameIdUnit<OptionalEncryptableName, id_type::MerchantId>>,
     pub profile: Option<NameIdUnit<String, id_type::ProfileId>>,
     pub status: UserStatus,
-    pub role_scope: RoleScope,
     pub entity_type: common_enums::EntityType,
 }
 
