@@ -600,18 +600,6 @@ pub async fn payments_capture(
 
 /// Dynamic Tax Calculation
 
-#[utoipa::path(
-    post,
-    path = "/payments/{payment_id}/calculate_tax",
-    request_body=PaymentsDynamicTaxCalculationRequest,
-    responses(
-        (status = 200, description = "Tax Calculation is done", body = PaymentsDynamicTaxCalculationResponse),
-        (status = 400, description = "Missing mandatory fields")
-    ),
-    tag = "Payments",
-    operation_id = "Create Tax Calculation for a Payment",
-    security(("publishable_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::SessionUpdateTaxCalculation, payment_id))]
 pub async fn payments_dynamic_tax_calculation(
     state: web::Data<app::AppState>,
