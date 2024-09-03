@@ -628,6 +628,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
 pub struct FiuuPaymentCancelRequest {
     #[serde(rename = "txnID")]
     txn_id: String,
+    domain: String,
     skey: Secret<String>,
 }
 
@@ -649,6 +650,7 @@ impl TryFrom<&PaymentsCancelRouterData> for FiuuPaymentCancelRequest {
         let secret_key = auth.secret_key.peek().to_string();
         Ok(Self {
             txn_id: txn_id.clone(),
+            domain: merchant_id.clone(),
             skey: calculate_signature(format!("{txn_id}{merchant_id}{secret_key}"))?,
         })
     }
