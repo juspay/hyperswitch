@@ -4,7 +4,6 @@ members = ["crates/*"]
 package.edition = "2021"
 package.rust-version = "1.80.0"
 package.license = "Apache-2.0"
-exclude = ["crates/openapi"]
 
 [workspace.dependencies]
 tracing = { version = "0.1.40" }
