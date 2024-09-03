@@ -1978,13 +1978,9 @@ pub mod routes {
                     },
                 ];
 
-                analytics::search::search_results(
-                    &state.opensearch_client,
-                    req,
-                    search_params,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                analytics::search::search_results(&state.opensearch_client, req, search_params)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,
