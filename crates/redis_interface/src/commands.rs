@@ -19,7 +19,8 @@ use fred::{
     prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        MultipleValues, RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
+        MultipleValues, RedisKey, RedisMap, RedisValue, ScanType, Scanner, SetOptions, XCap,
+        XReadResponse,
     },
 };
 use futures::StreamExt;
@@ -207,6 +208,25 @@ impl super::RedisConnectionPool {
             .del(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::DeleteFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn delete_multiple_keys(
+        &self,
+        keys: Vec<String>,
+    ) -> CustomResult<Vec<DelReply>, errors::RedisError> {
+        let mut del_result = Vec::with_capacity(keys.len());
+
+        for key in keys {
+            del_result.push(
+                self.pool
+                    .del(self.add_prefix(&key))
+                    .await
+                    .change_context(errors::RedisError::DeleteFailed)?,
+            );
+        }
+
+        Ok(del_result)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -411,6 +431,37 @@ impl super::RedisConnectionPool {
 
                         let v: Vec<String> =
                             v.iter().filter_map(|(_, val)| val.as_string()).collect();
+                        Some(futures::stream::iter(v))
+                    }
+                    Err(err) => {
+                        tracing::error!(?err);
+                        None
+                    }
+                }
+            })
+            .flatten()
+            .collect::<Vec<_>>()
+            .await)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn scan(
+        &self,
+        pattern: &str,
+        count: Option<u32>,
+        scan_type: Option<ScanType>,
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        Ok(self
+            .pool
+            .next()
+            .scan(&self.add_prefix(pattern), count, scan_type)
+            .filter_map(|value| async move {
+                match value {
+                    Ok(mut v) => {
+                        let v = v.take_results()?;
+
+                        let v: Vec<String> =
+                            v.into_iter().filter_map(|val| val.into_string()).collect();
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
