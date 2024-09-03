@@ -1639,6 +1639,19 @@ impl BusinessProfile {
     }
 }
 
+pub struct BusinessProfileNew;
+
+#[cfg(feature = "olap")]
+impl BusinessProfileNew {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
+            )
+    }
+}
+
 pub struct Gsm;
 
 #[cfg(feature = "olap")]
@@ -1725,6 +1738,9 @@ impl User {
                 .service(
                     web::resource("/profile")
                         .route(web::get().to(list_profiles_for_user_in_org_and_merchant)),
+                )
+                .service(
+                    web::resource("/invitation").route(web::get().to(list_invitations_for_user)),
                 ),
         );
 
@@ -1843,7 +1859,19 @@ impl User {
                         .route(web::get().to(get_role_from_token))
                         .route(web::post().to(create_role)),
                 )
-                .service(web::resource("/list").route(web::get().to(list_all_roles)))
+                .service(web::resource("/v2/list").route(web::get().to(list_roles_with_info)))
+                .service(
+                    web::scope("/list")
+                        .service(web::resource("").route(web::get().to(list_all_roles)))
+                        .service(
+                            web::resource("/invite")
+                                .route(web::get().to(list_invitable_roles_at_entity_level)),
+                        )
+                        .service(
+                            web::resource("/update")
+                                .route(web::get().to(list_updatable_roles_at_entity_level)),
+                        ),
+                )
                 .service(
                     web::resource("/{role_id}")
                         .route(web::get().to(get_role))

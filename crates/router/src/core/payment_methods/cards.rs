@@ -3975,7 +3975,7 @@ pub async fn filter_payment_methods(
     _mca_id: String,
     _payment_methods: &[Secret<serde_json::Value>],
     _req: &mut api::PaymentMethodListRequest,
-    _resp: &mut Vec<ResponsePaymentMethodIntermediate>,
+    _resp: &mut [ResponsePaymentMethodIntermediate],
     _payment_intent: Option<&storage::PaymentIntent>,
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
@@ -4844,7 +4844,7 @@ async fn generate_saved_pm_response(
                     pi.off_session_payment_flag,
                     pi.business_profile
                         .as_ref()
-                        .map(|profile| profile.profile_id.clone()),
+                        .map(|profile| profile.get_id().to_owned()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));
