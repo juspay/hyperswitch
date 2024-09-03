@@ -3721,7 +3721,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                     .as_ref()
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to find the merchant connector id")?;
-                if is_network_token_with_transaction_id_flow(
+                if is_network_token_with_network_transaction_id_flow(
                     state,
                     connector_data.connector_name,
                     is_connector_agnostic_mit_enabled,
@@ -3796,6 +3796,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                     })
                     .unwrap_or(false)
                 {
+                    logger::info!("using connector_mandate_id for MIT flow");
                     if let Some(merchant_connector_id) =
                         connector_data.merchant_connector_id.as_ref()
                     {
@@ -3924,7 +3925,7 @@ pub fn is_network_transaction_id_flow(
         && payment_method_info.network_transaction_id.is_some()
 }
 
-pub fn is_network_token_with_transaction_id_flow(
+pub fn is_network_token_with_network_transaction_id_flow(
     state: &SessionState,
     connector: enums::Connector,
     is_connector_agnostic_mit_enabled: Option<bool>,
@@ -3936,6 +3937,11 @@ pub fn is_network_token_with_transaction_id_flow(
         .network_transaction_id_supported_connectors
         .connector_list;
 
+    let network_tokenization_supported_connectors = &state
+        .conf
+        .network_tokenization_supported_connectors
+        .connector_list;
+
     is_connector_agnostic_mit_enabled == Some(true)
         && is_network_tokenization_enabled
         && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
@@ -3945,6 +3951,7 @@ pub fn is_network_token_with_transaction_id_flow(
             .network_token_requestor_reference_id
             .is_some()
         && ntid_supported_connectors.contains(&connector)
+        && network_tokenization_supported_connectors.contains(&connector)
 }
 
 pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F>) -> bool {

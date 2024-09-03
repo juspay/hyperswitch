@@ -340,22 +340,9 @@ pub enum NetworkTokenizationError {
     RequestEncodingFailed,
     #[error("Failed to deserialize network token service response")]
     ResponseDeserializationFailed,
-    #[error("Failed to create payment method")]
-    PaymentMethodCreationFailed,
-    #[error("The given payment method is currently not supported in vault")]
-    PaymentMethodNotSupported,
-    #[error("The given payout method is currently not supported in vault")]
-    PayoutMethodNotSupported,
-    #[error("Missing required field: {field_name}")]
-    MissingRequiredField { field_name: &'static str },
-    #[error("The card vault returned an unexpected response: {0:?}")]
-    UnexpectedResponseError(bytes::Bytes),
-    #[error("Failed to update in PMD table")]
-    UpdateInPaymentMethodDataTableFailed,
-    #[error("Failed to fetch payment method in vault")]
-    FetchPaymentMethodFailed,
-    #[error("Failed to save payment method in vault")]
-    SavePaymentMethodFailed,
     #[error("Failed to delete network token")]
     DeleteNetworkTokenFailed,
+    #[error("Network token service not configured")]
+    NetworkTokenizationServiceNotConfigured
+
 }

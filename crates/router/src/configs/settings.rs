@@ -121,7 +121,8 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
-    pub network_tokenization_service: SecretStateContainer<NetworkTokenizationService, S>,
+    pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
+    pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -732,6 +733,12 @@ pub struct UserAuthMethodSettings {
     pub encryption_key: Secret<String>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTokenizationSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
 impl Settings<SecuredSecret> {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
@@ -841,6 +848,11 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         self.generic_link.payment_method_collect.validate()?;
         self.generic_link.payout_link.validate()?;
+        
+        self.network_tokenization_service
+        .as_ref()
+        .map(|x| x.get_inner().validate()).transpose()?;
+
         Ok(())
     }
 }

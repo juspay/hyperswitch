@@ -389,3 +389,6 @@ connector_list = ""
 
 [network_tokenization_supported_card_networks]
 card_networks = "Visa"
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"

@@ -738,3 +738,6 @@ private_key= ""
 key_id= ""
 delete_token_url= ""
 check_token_status_url= ""
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"

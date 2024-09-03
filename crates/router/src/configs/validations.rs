@@ -192,3 +192,58 @@ impl super::settings::GenericLinkEnvConfig {
         })
     }
 }
+
+
+impl super::settings::NetworkTokenizationService {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.generate_token_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "generate_token_url must not be empty".into(),
+            ))
+        })?;
+
+        when(self.fetch_token_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "fetch_token_url must not be empty".into(),
+            ))
+        })?;
+
+        when(self.delete_token_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "delete_token_url must not be empty".into(),
+            ))
+        })?;
+
+        when(self.check_token_status_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "check_token_status_url must not be empty".into(),
+            ))
+        })?;
+
+        when(self.token_service_api_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "token_service_api_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.public_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "public_key must not be empty".into(),
+            ))
+        })?;
+
+        when(self.key_id.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "key_id must not be empty".into(),
+            ))
+        })?;
+
+        when(self.private_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "private_key must not be empty".into(),
+            ))
+        })
+    }
+}

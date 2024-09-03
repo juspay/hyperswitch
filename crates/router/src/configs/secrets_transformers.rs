@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
@@ -409,12 +409,16 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt user_auth_methods configs");
 
     #[allow(clippy::expect_used)]
-    let network_tokenization_service = settings::NetworkTokenizationService::convert_to_raw_secret(
-        conf.network_tokenization_service,
-        secret_management_client,
-    )
-    .await
-    .expect("Failed to decrypt network tokenization service configs");
+    let network_tokenization_service =
+        conf.network_tokenization_service
+            .async_map(|network_tokenization_service| async {
+                settings::NetworkTokenizationService::convert_to_raw_secret(
+                    network_tokenization_service,
+                    secret_management_client,
+                )
+                .await
+                .expect("Failed to decrypt network tokenization service configs")
+            }).await;
 
     Settings {
         server: conf.server,
@@ -491,5 +495,6 @@ pub(crate) async fn fetch_raw_secrets(
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
         network_tokenization_service,
+        network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
     }
 }

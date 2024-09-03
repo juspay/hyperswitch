@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, str::FromStr};
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use api_models::customers::CustomerRequestWithEmail;
@@ -1876,14 +1876,30 @@ pub async fn retrieve_card_with_permanent_token(
         }
     }
 
+
     let card =
         cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, locker_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to fetch card information from the permanent locker")?;
+
+    // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
+     // from payment_method_data.card_token object
+     let name_on_card = if let Some(name) = card.name_on_card.clone() {
+        if name.clone().expose().is_empty() {
+            card_token_data
+                .and_then(|token_data| token_data.card_holder_name.clone())
+                .or(Some(name))
+        } else {
+            card.name_on_card
+        }
+    } else {
+        card_token_data.and_then(|token_data| token_data.card_holder_name.clone())
+    };
+
     let api_card = api::Card {
         card_number: card.card_number,
-        card_holder_name: None,
+        card_holder_name: name_on_card,
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
         card_cvc: card_token_data
@@ -1893,7 +1909,15 @@ pub async fn retrieve_card_with_permanent_token(
             .unwrap_or_default(),
         card_issuer: None,
         nick_name: card.nick_name.map(masking::Secret::new),
-        card_network: None,
+        card_network: card
+        .card_brand
+        .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
+        .transpose()
+        .map_err(|e| {
+            logger::error!("Failed to parse card network {e:?}");
+        })
+        .ok()
+        .flatten(),
         card_type: None,
         card_issuing_country: None,
         bank_code: None,
