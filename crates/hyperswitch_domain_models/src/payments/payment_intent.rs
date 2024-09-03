@@ -304,7 +304,7 @@ pub struct PaymentIntentUpdateInternal {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
-    pub tax_details: diesel_models::TaxDetails,
+    pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -491,7 +491,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 tax_details,
                 shipping_address_id,
             } => Self {
-                tax_details,
+                tax_details: Some(tax_details),
                 shipping_address_id,
                 ..Default::default()
             },
@@ -749,7 +749,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             merchant_order_reference_id,
             shipping_details: shipping_details.map(Encryption::from),
             is_payment_processor_token_flow,
-            tax_details: Some(tax_details),
+            tax_details,
         }
     }
 }

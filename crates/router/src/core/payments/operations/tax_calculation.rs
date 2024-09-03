@@ -282,7 +282,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
             None,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Tax connector Response Failed")?;
 
         let tax_response =
             response

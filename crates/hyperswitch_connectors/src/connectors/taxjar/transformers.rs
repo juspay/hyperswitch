@@ -192,7 +192,6 @@ impl<F>
             response: Ok(TaxCalculationResponseData {
                 order_tax_amount: calculated_tax,
                 net_amount: (total_amount + calculated_tax),
-                shipping_address: None,
             }),
             ..item.data
         })

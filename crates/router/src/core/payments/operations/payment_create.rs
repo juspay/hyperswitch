@@ -661,7 +661,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             None,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Tax connector Response Failed")?;
 
         let tax_response =
             response

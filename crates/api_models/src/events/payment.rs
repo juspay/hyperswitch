@@ -71,11 +71,7 @@ impl ApiEventMetric for PaymentsDynamicTaxCalculationRequest {
     }
 }
 
-impl ApiEventMetric for PaymentsDynamicTaxCalculationResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::ResourceListAPI)
-    }
-}
+impl ApiEventMetric for PaymentsDynamicTaxCalculationResponse {}
 
 impl ApiEventMetric for PaymentsCancelRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

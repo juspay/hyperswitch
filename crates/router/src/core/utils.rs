@@ -874,56 +874,18 @@ pub async fn construct_upload_file_router_data<'a>(
 pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone>(
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
-    mca: &MerchantConnectorAccount,
+    merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
     let payment_intent = &payment_data.payment_intent.clone();
     let payment_attempt = &payment_data.payment_attempt.clone();
 
-    let key_manager_state: &KeyManagerState = &state.into();
-    // If profile id is not passed, get it from the business_country and business_label
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
-    let profile_id = get_profile_id_from_business_details(
-        key_manager_state,
-        key_store,
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
-
-    // Profile id will be mandatory in v2 in the request / headers
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-    let profile_id = payment_intent
-        .profile_id
-        .clone()
-        .get_required_value("profile_id")
-        .attach_printable("Profile id is a mandatory parameter")?;
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_account.get_id(),
-        None,
-        key_store,
-        &profile_id,
-        &mca.connector_name,
-        payment_attempt.merchant_connector_id.as_ref(),
-    )
-    .await?;
-
-    let test_mode = merchant_connector_account.is_test_mode_on();
+    let test_mode = merchant_connector_account.test_mode;
 
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
-        .get_connector_account_details()
+        .connector_account_details
+        .clone()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
@@ -961,7 +923,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         merchant_id: merchant_account.get_id().to_owned(),
         customer_id: payment_intent.customer_id.to_owned(),
         connector_customer: None,
-        connector: mca.connector_name.clone(),
+        connector: merchant_connector_account.connector_name.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
@@ -986,10 +948,11 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         connector_api_version: None,
         request: types::PaymentsTaxCalculationData {
             amount: payment_intent.amount,
-            shipping_cost: payment_intent
-                .shipping_cost
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Missing shipping_cost")?,
+            shipping_cost: payment_intent.shipping_cost.ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "shipping_cost",
+                },
+            )?,
             order_details,
             currency: payment_intent
                 .currency
