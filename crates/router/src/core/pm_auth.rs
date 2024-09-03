@@ -520,7 +520,7 @@ async fn store_bank_details_in_payment_methods(
                 client_secret: None,
                 payment_method_billing_address: None,
                 updated_by: None,
-                version: enums::ApiVersion::V1,
+                version: domain::consts::API_VERSION,
             };
 
             #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -544,7 +544,7 @@ async fn store_bank_details_in_payment_methods(
                 payment_method_billing_address: None,
                 updated_by: None,
                 locker_fingerprint_id: None,
-                version: enums::ApiVersion::V2,
+                version: domain::consts::API_VERSION,
             };
 
             new_entries.push(pm_new);
