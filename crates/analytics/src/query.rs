@@ -19,13 +19,16 @@ use api_models::{
     },
     refunds::RefundStatus,
 };
-use common_utils::errors::{CustomResult, ParsingError};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    id_type::{MerchantId, OrganizationId, ProfileId},
+};
 use diesel_models::{enums as storage_enums, enums::FraudCheckStatus};
 use error_stack::ResultExt;
 use router_env::{logger, Flow};
 
 use super::types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, TableEngine};
-use crate::types::QueryExecutionError;
+use crate::{enums::AuthInfo, types::QueryExecutionError};
 pub type QueryResult<T> = error_stack::Result<T, QueryBuildingError>;
 pub trait QueryFilter<T>
 where
@@ -354,7 +357,25 @@ pub trait ToSql<T: AnalyticsDataSource> {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError>;
 }
 
-impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::MerchantId {
+impl<T: AnalyticsDataSource> ToSql<T> for &MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for MerchantId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &OrganizationId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for ProfileId {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(self.get_string_repr().to_owned())
     }
@@ -764,5 +785,48 @@ where
             .attach_printable("Failed to execute query")?;
 
         Ok(store.load_results(query.as_str()).await)
+    }
+}
+
+impl<T> QueryFilter<T> for AuthInfo
+where
+    T: AnalyticsDataSource,
+    AnalyticsCollection: ToSql<T>,
+{
+    fn set_filter_clause(&self, builder: &mut QueryBuilder<T>) -> QueryResult<()> {
+        match self {
+            Self::OrgLevel { org_id } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+            }
+            Self::MerchantLevel {
+                org_id,
+                merchant_ids,
+            } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+                builder
+                    .add_filter_in_range_clause("merchant_id", merchant_ids)
+                    .attach_printable("Error adding merchant_id filter")?;
+            }
+            Self::ProfileLevel {
+                org_id,
+                merchant_id,
+                profile_ids,
+            } => {
+                builder
+                    .add_filter_clause("organization_id", org_id)
+                    .attach_printable("Error adding organization_id filter")?;
+                builder
+                    .add_filter_clause("merchant_id", merchant_id)
+                    .attach_printable("Error adding merchant_id filter")?;
+                builder
+                    .add_filter_in_range_clause("profile_id", profile_ids)
+                    .attach_printable("Error adding profile_id filter")?;
+            }
+        }
+        Ok(())
     }
 }
