@@ -161,7 +161,6 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
             Value::Bool(b) => b.to_string(),
             _ => "".to_string(),
         };
-        println!("Key is {:?} Value is {:?}", key, value);
         form = form.text(key.clone(), value.clone());
     }
     Ok(form)
