@@ -1,5 +1,5 @@
 use api_models::payments::PaymentIdType;
-use common_utils::{errors::CustomResult};
+use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 
 use crate::{
