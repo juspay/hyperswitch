@@ -42,3 +42,36 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     ))
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
+pub async fn receive_network_token_requestor_incoming_webhook<W: types::OutgoingWebhookType>(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Bytes,
+    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+) -> impl Responder {
+    let flow = Flow::IncomingWebhookReceive;
+    let (merchant_id, connector_id_or_name) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow.clone(),
+        state,
+        &req,
+        (),
+        |state, auth, _, req_state| {
+            webhooks::incoming_webhooks_wrapper::<W>(
+                &flow,
+                state.to_owned(),
+                req_state,
+                &req,
+                auth.merchant_account,
+                auth.key_store,
+                &connector_id_or_name,
+                body.clone(),
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
