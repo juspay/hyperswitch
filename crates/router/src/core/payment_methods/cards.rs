@@ -3664,10 +3664,7 @@ pub async fn call_surcharge_decision_management(
     billing_address: Option<domain::Address>,
     response_payment_method_types: &mut [ResponsePaymentMethodsEnabled],
 ) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -3678,7 +3675,7 @@ pub async fn call_surcharge_decision_management(
         .unwrap_or_default();
 
     // TODO: Move to business profile surcharge decision column
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     let (surcharge_results, merchant_sucharge_configs) =
@@ -3725,10 +3722,7 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> errors::RouterResult<()> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -3737,10 +3731,10 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
-    // TODO: Move to business profile surcharge column
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
+    // TODO: Move to business profile surcharge column
     let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
@@ -3975,7 +3969,7 @@ pub async fn filter_payment_methods(
     _mca_id: String,
     _payment_methods: &[Secret<serde_json::Value>],
     _req: &mut api::PaymentMethodListRequest,
-    _resp: &mut Vec<ResponsePaymentMethodIntermediate>,
+    _resp: &mut [ResponsePaymentMethodIntermediate],
     _payment_intent: Option<&storage::PaymentIntent>,
     _payment_attempt: Option<&storage::PaymentAttempt>,
     _address: Option<&domain::Address>,
@@ -4844,7 +4838,7 @@ async fn generate_saved_pm_response(
                     pi.off_session_payment_flag,
                     pi.business_profile
                         .as_ref()
-                        .map(|profile| profile.profile_id.clone()),
+                        .map(|profile| profile.get_id().to_owned()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));

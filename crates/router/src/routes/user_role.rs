@@ -310,3 +310,23 @@ pub async fn list_updatable_roles_at_entity_level(
     ))
     .await
 }
+
+pub async fn list_invitations_for_user(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::ListInvitationsForUser;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user_id_from_token, _, _| {
+            user_role_core::list_invitations_for_user(state, user_id_from_token)
+        },
+        &auth::SinglePurposeOrLoginTokenAuth(TokenPurpose::AcceptInvite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

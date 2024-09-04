@@ -158,11 +158,7 @@ pub async fn get_organization(
     state: SessionState,
     org_id: api::OrganizationId,
 ) -> RouterResponse<api::OrganizationResponse> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     {
         CreateOrValidateOrganization::new(Some(org_id.organization_id))
             .create_or_validate(state.store.as_ref())
@@ -170,7 +166,7 @@ pub async fn get_organization(
             .map(ForeignFrom::foreign_from)
             .map(service_api::ApplicationResponse::Json)
     }
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
+    #[cfg(all(feature = "v2", feature = "olap"))]
     {
         CreateOrValidateOrganization::new(org_id.organization_id)
             .create_or_validate(state.store.as_ref())
@@ -272,11 +268,7 @@ trait MerchantAccountCreateBridge {
     ) -> RouterResult<domain::MerchantAccount>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    feature = "olap",
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     async fn create_domain_model_from_request(
@@ -423,10 +415,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 #[cfg(feature = "olap")]
 enum CreateOrValidateOrganization {
     /// Creates a new organization
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     Create,
     /// Validates if this organization exists in the records
     Validate {
@@ -436,11 +425,7 @@ enum CreateOrValidateOrganization {
 
 #[cfg(feature = "olap")]
 impl CreateOrValidateOrganization {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
@@ -452,7 +437,7 @@ impl CreateOrValidateOrganization {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
+    #[cfg(all(feature = "v2", feature = "olap"))]
     /// Create an action to validate the provided organization_id
     fn new(organization_id: id_type::OrganizationId) -> Self {
         Self::Validate { organization_id }
@@ -465,10 +450,7 @@ impl CreateOrValidateOrganization {
         db: &dyn StorageInterface,
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             Self::Create => {
                 let new_organization = api_models::organization::OrganizationNew::new(None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -487,11 +469,7 @@ impl CreateOrValidateOrganization {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    feature = "olap",
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 enum CreateBusinessProfile {
     /// Create business profiles from primary business details
     /// If there is only one business profile created, then set this profile as default
@@ -502,11 +480,7 @@ enum CreateBusinessProfile {
     CreateDefaultBusinessProfile,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    feature = "olap",
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 impl CreateBusinessProfile {
     /// Create a new business profile action from the given information
     /// If primary business details exist, then create business profiles from them
@@ -544,7 +518,7 @@ impl CreateBusinessProfile {
                 if business_profiles.len() == 1 {
                     merchant_account.default_profile = business_profiles
                         .first()
-                        .map(|business_profile| business_profile.profile_id.clone())
+                        .map(|business_profile| business_profile.get_id().to_owned())
                 }
             }
             Self::CreateDefaultBusinessProfile => {
@@ -552,7 +526,7 @@ impl CreateBusinessProfile {
                     .create_default_business_profile(state, merchant_account.clone(), key_store)
                     .await?;
 
-                merchant_account.default_profile = Some(business_profile.profile_id);
+                merchant_account.default_profile = Some(business_profile.get_id().to_owned());
             }
         }
 
@@ -620,7 +594,7 @@ impl CreateBusinessProfile {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2", feature = "olap"))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
     async fn create_domain_model_from_request(
@@ -753,10 +727,7 @@ pub async fn get_merchant_account(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// For backwards compatibility, whenever new business labels are passed in
 /// primary_business_details, create a business profile
 pub async fn create_business_profile_from_business_labels(
@@ -837,10 +808,7 @@ trait MerchantAccountUpdateBridge {
     ) -> RouterResult<storage::MerchantAccountUpdate>;
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     async fn get_update_merchant_object(
@@ -899,7 +867,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 merchant_id,
             )
             .await?
-            .map(|business_profile| Some(business_profile.profile_id))
+            .map(|business_profile| Some(business_profile.get_id().to_owned()))
         } else {
             None
         };
@@ -980,7 +948,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "merchant_account_v2",))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
     async fn get_update_merchant_object(
@@ -1153,10 +1121,7 @@ pub async fn merchant_account_delete(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 async fn get_parent_merchant(
     state: &SessionState,
     sub_merchants_enabled: Option<bool>,
@@ -1185,10 +1150,7 @@ async fn get_parent_merchant(
     })
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 async fn validate_merchant_id(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
@@ -1840,10 +1802,7 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
         Ok(routable_connector)
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2",))
-))]
+#[cfg(feature = "v1")]
 struct MerchantDefaultConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
@@ -1852,10 +1811,7 @@ struct MerchantDefaultConfigUpdate<'a> {
     profile_id: &'a id_type::ProfileId,
     transaction_type: &'a api_enums::TransactionType,
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2",))
-))]
+#[cfg(feature = "v1")]
 impl<'a> MerchantDefaultConfigUpdate<'a> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
@@ -1904,24 +1860,16 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
         Ok(())
     }
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2",
-))]
+#[cfg(feature = "v2")]
 struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
-    merchant_connector_id: &'a common_utils::id_type::MerchantConnectorAccountId,
+    merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
     store: &'a dyn StorageInterface,
     business_profile: domain::BusinessProfile,
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 impl<'a> DefaultFallbackRoutingConfigUpdate<'a> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
@@ -1973,11 +1921,7 @@ trait MerchantConnectorAccountUpdateBridge {
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate>;
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "merchant_connector_account_v2",
-    feature = "olap"
-))]
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
     async fn get_merchant_connector_account_from_id(
@@ -2142,10 +2086,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
     async fn get_merchant_connector_account_from_id(
@@ -2342,12 +2283,7 @@ trait MerchantConnectorAccountCreateBridge {
     ) -> RouterResult<domain::BusinessProfile>;
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "merchant_connector_account_v2",
-    feature = "olap",
-    feature = "merchant_account_v2"
-))]
+#[cfg(all(feature = "v2", feature = "olap",))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn create_domain_model_from_request(
@@ -2449,7 +2385,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 }
                 None => None,
             },
-            profile_id: business_profile.profile_id.clone(),
+            profile_id: business_profile.get_id().to_owned(),
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
@@ -2500,11 +2436,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2", feature = "olap"),
-    not(feature = "merchant_connector_account_v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn create_domain_model_from_request(
@@ -2618,7 +2550,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 }
                 None => None,
             },
-            profile_id: business_profile.profile_id.clone(),
+            profile_id: business_profile.get_id().to_owned(),
             applepay_verified_domains: None,
             pm_auth_config: self.pm_auth_config.clone(),
             status: connector_status,
@@ -2725,10 +2657,7 @@ pub async fn create_connector(
 
     connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     helpers::validate_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -2745,7 +2674,7 @@ pub async fn create_connector(
         pm_auth_config: &req.pm_auth_config,
         db: store,
         merchant_id,
-        profile_id: &business_profile.profile_id,
+        profile_id: business_profile.get_id(),
         key_store: &key_store,
         key_manager_state,
     };
@@ -2791,32 +2720,25 @@ pub async fn create_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id: business_profile.profile_id.get_string_repr().to_owned(),
+                profile_id: business_profile.get_id().get_string_repr().to_owned(),
                 connector_label: merchant_connector_account
                     .connector_label
                     .unwrap_or_default(),
             },
         )?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(any(feature = "routing_v2", feature = "business_profile_v2",))
-    ))]
+    #[cfg(feature = "v1")]
     //update merchant default config
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
         store,
         merchant_id,
-        profile_id: &business_profile.profile_id,
+        profile_id: business_profile.get_id(),
         transaction_type: &req.get_transaction_type(),
     };
 
-    #[cfg(all(
-        feature = "v2",
-        feature = "routing_v2",
-        feature = "business_profile_v2",
-    ))]
+    #[cfg(feature = "v2")]
     //update merchant default config
     let merchant_default_config_update = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &routable_connector,
@@ -2844,10 +2766,7 @@ pub async fn create_connector(
     Ok(service_api::ApplicationResponse::Json(mca_response))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 async fn validate_pm_auth(
     val: pii::SecretSerdeValue,
     state: &SessionState,
@@ -2896,10 +2815,7 @@ async fn validate_pm_auth(
     Ok(services::ApplicationResponse::StatusOk)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn retrieve_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
@@ -2940,7 +2856,7 @@ pub async fn retrieve_connector(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn retrieve_connector(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3098,10 +3014,7 @@ pub async fn update_connector(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn delete_connector(
     state: SessionState,
     merchant_id: id_type::MerchantId,
@@ -3153,7 +3066,7 @@ pub async fn delete_connector(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_connector(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -3358,10 +3271,7 @@ pub fn get_frm_config_as_secret(
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn create_and_insert_business_profile(
     state: &SessionState,
     request: api::BusinessProfileCreate,
@@ -3393,10 +3303,7 @@ pub async fn create_and_insert_business_profile(
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 trait BusinessProfileCreateBridge {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "business_profile_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
@@ -3404,7 +3311,7 @@ trait BusinessProfileCreateBridge {
         key: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::BusinessProfile>;
 
-    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    #[cfg(feature = "v2")]
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
@@ -3416,10 +3323,7 @@ trait BusinessProfileCreateBridge {
 #[cfg(feature = "olap")]
 #[async_trait::async_trait]
 impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "business_profile_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
@@ -3480,75 +3384,77 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             })
             .transpose()?;
 
-        Ok(domain::BusinessProfile {
-            profile_id,
-            merchant_id: merchant_account.get_id().clone(),
-            profile_name,
-            created_at: current_time,
-            modified_at: current_time,
-            return_url: self
-                .return_url
-                .map(|return_url| return_url.to_string())
-                .or(merchant_account.return_url.clone()),
-            enable_payment_response_hash: self
-                .enable_payment_response_hash
-                .unwrap_or(merchant_account.enable_payment_response_hash),
-            payment_response_hash_key: Some(payment_response_hash_key),
-            redirect_to_merchant_with_http_post: self
-                .redirect_to_merchant_with_http_post
-                .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
-            webhook_details: webhook_details.or(merchant_account.webhook_details.clone()),
-            metadata: self.metadata,
-            routing_algorithm: None,
-            intent_fulfillment_time: self
-                .intent_fulfillment_time
-                .map(i64::from)
-                .or(merchant_account.intent_fulfillment_time)
-                .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
-            frm_routing_algorithm: self
-                .frm_routing_algorithm
-                .or(merchant_account.frm_routing_algorithm.clone()),
-            #[cfg(feature = "payouts")]
-            payout_routing_algorithm: self
-                .payout_routing_algorithm
-                .or(merchant_account.payout_routing_algorithm.clone()),
-            #[cfg(not(feature = "payouts"))]
-            payout_routing_algorithm: None,
-            is_recon_enabled: merchant_account.is_recon_enabled,
-            applepay_verified_domains: self.applepay_verified_domains,
-            payment_link_config,
-            session_expiry: self
-                .session_expiry
-                .map(i64::from)
-                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
-            authentication_connector_details: self
-                .authentication_connector_details
-                .map(ForeignInto::foreign_into),
-            payout_link_config,
-            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-            is_extended_card_info_enabled: None,
-            extended_card_info_config: None,
-            use_billing_as_payment_method_billing: self
-                .use_billing_as_payment_method_billing
-                .or(Some(true)),
-            collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector
-                .or(Some(false)),
-            collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector
-                .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
-            tax_connector_id: self.tax_connector_id,
-            is_tax_connector_enabled: self.is_tax_connector_enabled,
-            always_collect_billing_details_from_wallet_connector: self
-                .always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector: self
-                .always_collect_shipping_details_from_wallet_connector,
-        })
+        Ok(domain::BusinessProfile::from(
+            domain::BusinessProfileSetter {
+                profile_id,
+                merchant_id: merchant_account.get_id().clone(),
+                profile_name,
+                created_at: current_time,
+                modified_at: current_time,
+                return_url: self
+                    .return_url
+                    .map(|return_url| return_url.to_string())
+                    .or(merchant_account.return_url.clone()),
+                enable_payment_response_hash: self
+                    .enable_payment_response_hash
+                    .unwrap_or(merchant_account.enable_payment_response_hash),
+                payment_response_hash_key: Some(payment_response_hash_key),
+                redirect_to_merchant_with_http_post: self
+                    .redirect_to_merchant_with_http_post
+                    .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
+                webhook_details: webhook_details.or(merchant_account.webhook_details.clone()),
+                metadata: self.metadata,
+                routing_algorithm: None,
+                intent_fulfillment_time: self
+                    .intent_fulfillment_time
+                    .map(i64::from)
+                    .or(merchant_account.intent_fulfillment_time)
+                    .or(Some(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)),
+                frm_routing_algorithm: self
+                    .frm_routing_algorithm
+                    .or(merchant_account.frm_routing_algorithm.clone()),
+                #[cfg(feature = "payouts")]
+                payout_routing_algorithm: self
+                    .payout_routing_algorithm
+                    .or(merchant_account.payout_routing_algorithm.clone()),
+                #[cfg(not(feature = "payouts"))]
+                payout_routing_algorithm: None,
+                is_recon_enabled: merchant_account.is_recon_enabled,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self
+                    .session_expiry
+                    .map(i64::from)
+                    .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                use_billing_as_payment_method_billing: self
+                    .use_billing_as_payment_method_billing
+                    .or(Some(true)),
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector
+                    .or(Some(false)),
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector
+                    .or(Some(false)),
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                tax_connector_id: self.tax_connector_id,
+                is_tax_connector_enabled: self.is_tax_connector_enabled,
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+            },
+        ))
     }
 
-    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    #[cfg(feature = "v2")]
     async fn create_domain_model_from_request(
         self,
         state: &SessionState,
@@ -3593,61 +3499,63 @@ impl BusinessProfileCreateBridge for api::BusinessProfileCreate {
             })
             .transpose()?;
 
-        Ok(domain::BusinessProfile {
-            profile_id,
-            merchant_id: merchant_id.clone(),
-            profile_name,
-            created_at: current_time,
-            modified_at: current_time,
-            return_url: self.return_url.map(|return_url| return_url.to_string()),
-            enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
-            payment_response_hash_key: Some(payment_response_hash_key),
-            redirect_to_merchant_with_http_post: self
-                .redirect_to_merchant_with_http_post
-                .unwrap_or(true),
-            webhook_details,
-            metadata: self.metadata,
-            is_recon_enabled: false,
-            applepay_verified_domains: self.applepay_verified_domains,
-            payment_link_config,
-            session_expiry: self
-                .session_expiry
-                .map(i64::from)
-                .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
-            authentication_connector_details: self
-                .authentication_connector_details
-                .map(ForeignInto::foreign_into),
-            payout_link_config,
-            is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
-            is_extended_card_info_enabled: None,
-            extended_card_info_config: None,
-            use_billing_as_payment_method_billing: self
-                .use_billing_as_payment_method_billing
-                .or(Some(true)),
-            collect_shipping_details_from_wallet_connector: self
-                .collect_shipping_details_from_wallet_connector_if_required
-                .or(Some(false)),
-            collect_billing_details_from_wallet_connector: self
-                .collect_billing_details_from_wallet_connector_if_required
-                .or(Some(false)),
-            outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
-                .map(Into::into),
-            always_collect_billing_details_from_wallet_connector: self
-                .always_collect_billing_details_from_wallet_connector,
-            always_collect_shipping_details_from_wallet_connector: self
-                .always_collect_shipping_details_from_wallet_connector,
-            routing_algorithm_id: None,
-            frm_routing_algorithm_id: None,
-            payout_routing_algorithm_id: None,
-            order_fulfillment_time: self
-                .order_fulfillment_time
-                .map(|order_fulfillment_time| order_fulfillment_time.into_inner())
-                .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
-            order_fulfillment_time_origin: self.order_fulfillment_time_origin,
-            default_fallback_routing: None,
-            tax_connector_id: self.tax_connector_id,
-            is_tax_connector_enabled: self.is_tax_connector_enabled,
-        })
+        Ok(domain::BusinessProfile::from(
+            domain::BusinessProfileSetter {
+                id: profile_id,
+                merchant_id: merchant_id.clone(),
+                profile_name,
+                created_at: current_time,
+                modified_at: current_time,
+                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
+                payment_response_hash_key: Some(payment_response_hash_key),
+                redirect_to_merchant_with_http_post: self
+                    .redirect_to_merchant_with_http_post
+                    .unwrap_or(true),
+                webhook_details,
+                metadata: self.metadata,
+                is_recon_enabled: false,
+                applepay_verified_domains: self.applepay_verified_domains,
+                payment_link_config,
+                session_expiry: self
+                    .session_expiry
+                    .map(i64::from)
+                    .or(Some(common_utils::consts::DEFAULT_SESSION_EXPIRY)),
+                authentication_connector_details: self
+                    .authentication_connector_details
+                    .map(ForeignInto::foreign_into),
+                payout_link_config,
+                is_connector_agnostic_mit_enabled: self.is_connector_agnostic_mit_enabled,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                use_billing_as_payment_method_billing: self
+                    .use_billing_as_payment_method_billing
+                    .or(Some(true)),
+                collect_shipping_details_from_wallet_connector: self
+                    .collect_shipping_details_from_wallet_connector_if_required
+                    .or(Some(false)),
+                collect_billing_details_from_wallet_connector: self
+                    .collect_billing_details_from_wallet_connector_if_required
+                    .or(Some(false)),
+                outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers
+                    .map(Into::into),
+                always_collect_billing_details_from_wallet_connector: self
+                    .always_collect_billing_details_from_wallet_connector,
+                always_collect_shipping_details_from_wallet_connector: self
+                    .always_collect_shipping_details_from_wallet_connector,
+                routing_algorithm_id: None,
+                frm_routing_algorithm_id: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: self
+                    .order_fulfillment_time
+                    .map(|order_fulfillment_time| order_fulfillment_time.into_inner())
+                    .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
+                order_fulfillment_time_origin: self.order_fulfillment_time_origin,
+                default_fallback_routing: None,
+                tax_connector_id: self.tax_connector_id,
+                is_tax_connector_enabled: self.is_tax_connector_enabled,
+            },
+        ))
     }
 }
 
@@ -3661,20 +3569,17 @@ pub async fn create_business_profile(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "business_profile_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let business_profile = request
         .create_domain_model_from_request(&state, &merchant_account, &key_store)
         .await?;
 
-    #[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+    #[cfg(feature = "v2")]
     let business_profile = request
         .create_domain_model_from_request(&state, &key_store, merchant_account.get_id())
         .await?;
 
-    let profile_id = business_profile.profile_id.clone();
+    let profile_id = business_profile.get_id().to_owned();
 
     let business_profile = db
         .insert_business_profile(key_manager_state, &key_store, business_profile)
@@ -3687,10 +3592,7 @@ pub async fn create_business_profile(
         })
         .attach_printable("Failed to insert Business profile because of duplication error")?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "business_profile_v2")
-    ))]
+    #[cfg(feature = "v1")]
     if merchant_account.default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
         db.update_merchant(
@@ -3713,6 +3615,7 @@ pub async fn create_business_profile(
 pub async fn list_business_profile(
     state: SessionState,
     merchant_id: id_type::MerchantId,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
     let key_store = db
@@ -3728,6 +3631,7 @@ pub async fn list_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         .clone();
+    let profiles = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, profiles);
     let mut business_profiles = Vec::new();
     for profile in profiles {
         let business_profile =
@@ -3787,11 +3691,7 @@ trait BusinessProfileUpdateBridge {
     ) -> RouterResult<domain::BusinessProfileUpdate>;
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[async_trait::async_trait]
 impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
     async fn get_update_business_profile_object(
@@ -3902,7 +3802,7 @@ impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
     }
 }
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "business_profile_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[async_trait::async_trait]
 impl BusinessProfileUpdateBridge for api::BusinessProfileUpdate {
     async fn get_update_business_profile_object(
@@ -4034,21 +3934,13 @@ pub async fn update_business_profile(
     ))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct BusinessProfileWrapper {
     pub profile: domain::BusinessProfile,
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 impl BusinessProfileWrapper {
     pub fn new(profile: domain::BusinessProfile) -> Self {
         Self { profile }
@@ -4056,7 +3948,7 @@ impl BusinessProfileWrapper {
     fn get_routing_config_cache_key(self) -> storage_impl::redis::cache::CacheKind<'static> {
         let merchant_id = self.profile.merchant_id.clone();
 
-        let profile_id = self.profile.profile_id.clone();
+        let profile_id = self.profile.get_id().to_owned();
 
         storage_impl::redis::cache::CacheKind::Routing(
             format!(
@@ -4073,7 +3965,7 @@ impl BusinessProfileWrapper {
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        algorithm_id: common_utils::id_type::RoutingId,
+        algorithm_id: id_type::RoutingId,
         transaction_type: &storage::enums::TransactionType,
     ) -> RouterResult<()> {
         let routing_cache_key = self.clone().get_routing_config_cache_key();
@@ -4144,7 +4036,7 @@ impl BusinessProfileWrapper {
     pub fn get_default_routing_configs_from_profile(
         &self,
     ) -> RouterResult<routing_types::ProfileDefaultRoutingConfig> {
-        let profile_id = self.profile.profile_id.clone();
+        let profile_id = self.profile.get_id().to_owned();
         let connectors = self.get_default_fallback_list_of_connector_under_profile()?;
 
         Ok(routing_types::ProfileDefaultRoutingConfig {

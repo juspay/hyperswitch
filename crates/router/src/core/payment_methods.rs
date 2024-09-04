@@ -626,7 +626,7 @@ pub(crate) async fn get_payment_method_create_request(
                             .flatten(),
                     };
                     let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: payment_method,
+                        payment_method,
                         payment_method_type: payment_method_type
                             .get_required_value("Payment_method_type")
                             .change_context(errors::ApiErrorResponse::MissingRequiredField {

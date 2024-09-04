@@ -33,7 +33,10 @@ use crate::services::email::types as email_types;
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
-    db::domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
+    db::{
+        domain::user_authentication_method::DEFAULT_USER_AUTH_METHOD,
+        user_role::ListUserRolesByUserIdPayload,
+    },
     routes::{app::ReqState, SessionState},
     services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
     types::{domain, transformers::ForeignInto},
@@ -2282,22 +2285,20 @@ pub async fn list_orgs_for_user(
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
     let orgs = state
         .store
-        .list_user_roles_by_user_id(
-            user_from_token.user_id.as_str(),
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: user_from_token.user_id.as_str(),
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: Some(UserStatus::Active),
+            limit: None,
+        })
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .filter_map(|user_role| {
-            (user_role.status == UserStatus::Active)
-                .then_some(user_role.org_id)
-                .flatten()
-        })
+        .filter_map(|user_role| user_role.org_id)
         .collect::<HashSet<_>>();
 
     let resp = futures::future::try_join_all(
@@ -2311,7 +2312,11 @@ pub async fn list_orgs_for_user(
         org_id: org.get_organization_id(),
         org_name: org.get_organization_name(),
     })
-    .collect();
+    .collect::<Vec<_>>();
+
+    if resp.is_empty() {
+        Err(UserErrors::InternalServerError).attach_printable("No orgs found for a user")?;
+    }
 
     Ok(ApplicationResponse::Json(resp))
 }
@@ -2344,26 +2349,24 @@ pub async fn list_merchants_for_user_in_org(
                     merchant_id: merchant_account.get_id().to_owned(),
                 },
             )
-            .collect()
+            .collect::<Vec<_>>()
     } else {
         let merchant_ids = state
             .store
-            .list_user_roles_by_user_id(
-                user_from_token.user_id.as_str(),
-                Some(&user_from_token.org_id),
-                None,
-                None,
-                None,
-                None,
-            )
+            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                user_id: user_from_token.user_id.as_str(),
+                org_id: Some(&user_from_token.org_id),
+                merchant_id: None,
+                profile_id: None,
+                entity_id: None,
+                version: None,
+                status: Some(UserStatus::Active),
+                limit: None,
+            })
             .await
             .change_context(UserErrors::InternalServerError)?
             .into_iter()
-            .filter_map(|user_role| {
-                (user_role.status == UserStatus::Active)
-                    .then_some(user_role.merchant_id)
-                    .flatten()
-            })
+            .filter_map(|user_role| user_role.merchant_id)
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
@@ -2379,8 +2382,12 @@ pub async fn list_merchants_for_user_in_org(
                     merchant_id: merchant_account.get_id().to_owned(),
                 },
             )
-            .collect()
+            .collect::<Vec<_>>()
     };
+
+    if merchant_accounts.is_empty() {
+        Err(UserErrors::InternalServerError).attach_printable("No merchant found for a user")?;
+    }
 
     Ok(ApplicationResponse::Json(merchant_accounts))
 }
@@ -2423,30 +2430,28 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                 .into_iter()
                 .map(
                     |profile| user_api::ListProfilesForUserInOrgAndMerchantAccountResponse {
-                        profile_id: profile.profile_id,
+                        profile_id: profile.get_id().to_owned(),
                         profile_name: profile.profile_name,
                     },
                 )
-                .collect()
+                .collect::<Vec<_>>()
         } else {
             let profile_ids = state
                 .store
-                .list_user_roles_by_user_id(
-                    user_from_token.user_id.as_str(),
-                    Some(&user_from_token.org_id),
-                    Some(&user_from_token.merchant_id),
-                    None,
-                    None,
-                    None,
-                )
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: user_from_token.user_id.as_str(),
+                    org_id: Some(&user_from_token.org_id),
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::Active),
+                    limit: None,
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
-                .filter_map(|user_role| {
-                    (user_role.status == UserStatus::Active)
-                        .then_some(user_role.profile_id)
-                        .flatten()
-                })
+                .filter_map(|user_role| user_role.profile_id)
                 .collect::<HashSet<_>>();
 
             futures::future::try_join_all(profile_ids.iter().map(|profile_id| {
@@ -2461,12 +2466,16 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
             .into_iter()
             .map(
                 |profile| user_api::ListProfilesForUserInOrgAndMerchantAccountResponse {
-                    profile_id: profile.profile_id,
+                    profile_id: profile.get_id().to_owned(),
                     profile_name: profile.profile_name,
                 },
             )
-            .collect()
+            .collect::<Vec<_>>()
         };
+
+    if profiles.is_empty() {
+        Err(UserErrors::InternalServerError).attach_printable("No profile found for a user")?;
+    }
 
     Ok(ApplicationResponse::Json(profiles))
 }
@@ -2503,23 +2512,23 @@ pub async fn switch_org_for_user(
 
     let user_role = state
         .store
-        .list_user_roles_by_user_id(
-            &user_from_token.user_id,
-            Some(&request.org_id),
-            None,
-            None,
-            None,
-            None,
-        )
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: &user_from_token.user_id,
+            org_id: Some(&request.org_id),
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: Some(UserStatus::Active),
+            limit: Some(1),
+        })
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to list user roles by user_id and org_id")?
-        .into_iter()
-        .find(|role| role.status == UserStatus::Active)
+        .pop()
         .ok_or(UserErrors::InvalidRoleOperationWithMessage(
             "No user role found for the requested org_id".to_string(),
-        ))?
-        .to_owned();
+        ))?;
 
     let merchant_id = utils::user_role::get_single_merchant_id(&state, &user_role).await?;
 
@@ -2547,11 +2556,11 @@ pub async fn switch_org_for_user(
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to list business profiles by merchant_id")?
-            .first()
+            .pop()
             .ok_or(UserErrors::InternalServerError)
             .attach_printable("No business profile found for the merchant_id")?
-            .profile_id
-            .clone()
+            .get_id()
+            .to_owned()
     };
 
     let token = utils::user::generate_jwt_auth_token_with_attributes(
@@ -2635,11 +2644,11 @@ pub async fn switch_merchant_for_user_in_org(
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to list business profiles by merchant_id")?
-                .first()
+                .pop()
                 .ok_or(UserErrors::InternalServerError)
                 .attach_printable("No business profile found for the given merchant_id")?
-                .profile_id
-                .clone();
+                .get_id()
+                .to_owned();
 
             (
                 merchant_account.organization_id,
@@ -2688,12 +2697,11 @@ pub async fn switch_merchant_for_user_in_org(
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to list business profiles by merchant_id")?
-                .first()
+                .pop()
                 .ok_or(UserErrors::InternalServerError)
                 .attach_printable("No business profile found for the merchant_id")?
-                .profile_id
-                .clone();
-
+                .get_id()
+                .to_owned();
             (
                 user_from_token.org_id.clone(),
                 merchant_id,
@@ -2705,25 +2713,25 @@ pub async fn switch_merchant_for_user_in_org(
         EntityType::Merchant | EntityType::Profile => {
             let user_role = state
                 .store
-                .list_user_roles_by_user_id(
-                    &user_from_token.user_id,
-                    Some(&user_from_token.org_id),
-                    Some(&request.merchant_id),
-                    None,
-                    None,
-                    None,
-                )
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: &user_from_token.user_id,
+                    org_id: Some(&user_from_token.org_id),
+                    merchant_id: Some(&request.merchant_id),
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::Active),
+                    limit: Some(1),
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable(
                     "Failed to list user roles for the given user_id, org_id and merchant_id",
                 )?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
+                .pop()
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
                     "No user role associated with the requested merchant_id".to_string(),
-                ))?
-                .to_owned();
+                ))?;
 
             let profile_id = if let Some(profile_id) = &user_role.profile_id {
                 profile_id.clone()
@@ -2749,11 +2757,11 @@ pub async fn switch_merchant_for_user_in_org(
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to list business profiles for the given merchant_id")?
-                    .first()
+                    .pop()
                     .ok_or(UserErrors::InternalServerError)
                     .attach_printable("No business profile found for the given merchant_id")?
-                    .profile_id
-                    .clone()
+                    .get_id()
+                    .to_owned()
             };
             (
                 user_from_token.org_id,
@@ -2838,30 +2846,32 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .change_context(UserErrors::InvalidRoleOperationWithMessage(
                     "No such profile found for the merchant".to_string(),
                 ))?
-                .profile_id;
+                .get_id()
+                .to_owned();
             (profile_id, user_from_token.role_id)
         }
 
         EntityType::Profile => {
             let user_role = state
                 .store
-                .list_user_roles_by_user_id(
-                    &user_from_token.user_id,
-                    Some(&user_from_token.org_id),
-                    Some(&user_from_token.merchant_id),
-                    Some(&request.profile_id),
-                    None,
-                    None,
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
+                    user_id:&user_from_token.user_id,
+                    org_id: Some(&user_from_token.org_id),
+                    merchant_id: Some(&user_from_token.merchant_id),
+                    profile_id:Some(&request.profile_id),
+                    entity_id: None,
+                    version:None,
+                    status: Some(UserStatus::Active),
+                    limit: Some(1)
+                }
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to list user roles for the given user_id, org_id, merchant_id and profile_id")?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
+                .pop()
                 .ok_or(UserErrors::InvalidRoleOperationWithMessage(
                     "No user role associated with the profile".to_string(),
-                ))?
-                .to_owned();
+                ))?;
 
             (request.profile_id, user_role.role_id)
         }
