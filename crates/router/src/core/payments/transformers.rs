@@ -40,7 +40,7 @@ pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
@@ -100,22 +100,23 @@ where
         .map(|customer| customer.merchant_reference_id)
         .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)?;
 
-    let unified_address =
-        if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
-            let payment_method_billing = decrypt_generic_data::<Address>(
-                state,
-                payment_method_info.payment_method_billing_address,
-                key_store,
-            )
-            .await
-            .attach_printable("unable to decrypt payment method billing address details")?;
-            payment_data
-                .address
-                .clone()
-                .unify_with_payment_data_billing(payment_method_billing)
-        } else {
-            payment_data.address
-        };
+    let unified_address = if let Some(payment_method_info) =
+        payment_data.payment_method_info.clone()
+    {
+        let payment_method_billing = payment_method_info
+            .payment_method_billing_address
+            .map(|decrypted_data| decrypted_data.into_inner().expose())
+            .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse payment_method_billing_address")?;
+        payment_data
+            .address
+            .clone()
+            .unify_with_payment_data_billing(payment_method_billing)
+    } else {
+        payment_data.address
+    };
 
     let router_data = types::RouterData {
         flow: PhantomData,

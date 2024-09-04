@@ -881,7 +881,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
     let payment_intent = &payment_data.payment_intent.clone();
     let payment_attempt = &payment_data.payment_attempt.clone();
 
-    let test_mode = merchant_connector_account.test_mode;
+    let test_mode: Option<bool> = merchant_connector_account.test_mode;
 
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .connector_account_details

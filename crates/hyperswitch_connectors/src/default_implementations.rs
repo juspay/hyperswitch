@@ -133,7 +133,8 @@ default_imp_for_calculate_tax!(
     connectors::Globepay,
     connectors::Worldline,
     connectors::Powertranz,
-    connectors::Tsys
+    connectors::Tsys,
+    connectors::Deutschebank
 );
 
 macro_rules! default_imp_for_session_update {
@@ -164,7 +165,8 @@ default_imp_for_session_update!(
     connectors::Globepay,
     connectors::Worldline,
     connectors::Powertranz,
-    connectors::Tsys
+    connectors::Tsys,
+    connectors::Deutschebank
 );
 
 use crate::connectors;

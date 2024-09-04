@@ -7,11 +7,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    type_name,
-    types::{
-        keymanager::{Identifier, KeyManagerState},
-        MinorUnit,
-    },
+    types::{keymanager::KeyManagerState, MinorUnit},
 };
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
@@ -601,10 +597,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
                 .as_ref()
                 .get_required_value("business_profile.tax_connector_id")?;
 
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
@@ -619,7 +612,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
                     },
                 )?;
 
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             let mca = db
                 .find_merchant_connector_account_by_id(
                     key_manager_state,
