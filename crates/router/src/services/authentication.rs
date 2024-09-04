@@ -1996,12 +1996,14 @@ pub struct ReconJWT;
 #[cfg(feature = "recon")]
 pub struct ReconUser {
     pub user_id: String,
-    pub profile_id: Option<String>,
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 #[cfg(feature = "recon")]
 impl AuthInfo for ReconUser {
     fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        None
+        Some(self.merchant_id.as_ref())
     }
 }
 #[cfg(all(feature = "olap", feature = "recon"))]
@@ -2017,6 +2019,8 @@ impl AuthenticateAndFetch<ReconUser, SessionState> for ReconJWT {
         Ok((
             ReconUser {
                 user_id: payload.user_id,
+                merchant_id: payload.merchant_id,
+                org_id: payload.org_id,
                 profile_id: payload.profile_id,
             },
             AuthenticationType::NoAuth,

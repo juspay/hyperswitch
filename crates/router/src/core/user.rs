@@ -1507,7 +1507,13 @@ pub async fn verify_token(
         })?;
     let merchant_id = state
         .store
-        .find_user_role_by_user_id(&req.user_id, UserRoleVersion::V1)
+        .find_user_role_by_user_id_and_lineage(
+            &user.user_id,
+            &req.org_id,
+            &req.merchant_id,
+            req.profile_id.as_ref(),
+            UserRoleVersion::V1,
+        )
         .await
         .change_context(UserErrors::InternalServerError)?
         .merchant_id

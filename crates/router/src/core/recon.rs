@@ -118,7 +118,7 @@ pub async fn send_recon_request(
 
 pub async fn generate_recon_token(
     state: SessionState,
-    req: ReconUser,
+    req: UserFromToken,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
@@ -135,13 +135,17 @@ pub async fn generate_recon_token(
         .into();
 
     let user_role = db
-        .find_user_role_by_user_id(&req.user_id, UserRoleVersion::V1)
+        .find_user_role_by_user_id_and_lineage(
+            &user.user_id,
+            &req.org_id,
+            &req.merchant_id,
+            req.profile_id.as_ref(),
+            UserRoleVersion::V1,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    core_utils::validate_profile_id_from_auth_layer(req.profile_id.clone(), &user_role)?;
-
-    let token = ReconToken::new_token(user.0.user_id.clone(), &state.conf, req.profile_id)
+    let token = ReconToken::new_token(&state.conf, &user_role)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     Ok(service_api::ApplicationResponse::Json(

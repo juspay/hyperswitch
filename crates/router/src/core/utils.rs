@@ -1415,7 +1415,7 @@ impl<T, F> GetProfileId for (storage::Payouts, T, F) {
 
 #[cfg(feature = "recon")]
 impl GetProfileId for storage::UserRole {
-    fn get_profile_id(&self) -> Option<&String> {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
     }
 }
