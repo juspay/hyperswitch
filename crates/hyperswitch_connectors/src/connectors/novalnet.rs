@@ -1,5 +1,6 @@
 pub mod transformers;
-
+use base64::Engine;
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -21,12 +22,15 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -36,7 +40,9 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask};
 use transformers as novalnet;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers, types::ResponseRouterData, utils, utils::PaymentsAuthorizeRequestData,
+};
 
 #[derive(Clone)]
 pub struct Novalnet {
@@ -115,9 +121,12 @@ impl ConnectorCommon for Novalnet {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = novalnet::NovalnetAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let api_key: String = auth.payment_access_key.expose();
+        let encoded_api_key = common_utils::consts::BASE64_ENGINE.encode(api_key);
+        router_env::logger::info!("Logging api_key: {:?}", encoded_api_key);
         Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            headers::X_NN_ACCESS_KEY.to_string(),
+            encoded_api_key.into_masked(),
         )])
     }
 
@@ -146,7 +155,56 @@ impl ConnectorCommon for Novalnet {
 }
 
 impl ConnectorValidation for Novalnet {
-    //TODO: implement functions when support enabled
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+        _pmt: Option<enums::PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // if data.encoded_data.is_some() {
+        //     return Ok(());
+        // }else if data
+        // .connector_transaction_id
+        // .get_connector_transaction_id()
+        // .is_ok()
+        // {
+        //     return Ok(());
+        // }
+        // Err(errors::ConnectorError::MissingRequiredField {
+        //     field_name: "encoded_data",
+        // }
+        // .into())
+        Ok(())
+    }
+}
+
+impl ConnectorRedirectResponse for Novalnet {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        action: enums::PaymentAction,
+    ) -> CustomResult<enums::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            enums::PaymentAction::PSync => Ok(enums::CallConnectorAction::Trigger),
+            _ => Ok(enums::CallConnectorAction::Avoid),
+        }
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Novalnet {
@@ -175,10 +233,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        match req.request.is_auto_capture()? {
+            true => Ok(format!("{}/payment", endpoint)),
+            false => Ok(format!("{}/authorize", endpoint)),
+        }
     }
 
     fn get_request_body(
@@ -192,8 +254,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = novalnet::NovalnetRouterData::from((amount, req));
-        let connector_req = novalnet::NovalnetPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data: transformers::NovalnetRouterData<
+            &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
+        > = novalnet::NovalnetRouterData::from((amount, req));
+        let connector_req = novalnet::NovalnetPaymentsRequest::try_from(&connector_router_data)?; //
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -263,9 +327,25 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
     fn get_url(
         &self,
         _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/transaction/details", endpoint))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let encoded_data = req.request.encoded_data.clone();
+        // .get_required_value("encoded_data")
+        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        router_env::logger::info!("abcd {:?}", encoded_data);
+
+        let connector_req = novalnet::NovalnetSyncRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -273,14 +353,17 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
+            Ok(Some(
+                RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                    .set_body(types::PaymentsSyncType::get_request_body(
+                        self, req, connectors,
+                    )?)
+                    .build(),
+            ))
     }
 
     fn handle_response(
@@ -289,7 +372,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: novalnet::NovalnetPaymentsResponse = res
+        let response: novalnet::NovalnetPSyncResponse = res
             .response
             .parse_struct("novalnet PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -327,17 +410,26 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/transaction/capture", endpoint))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = novalnet::NovalnetRouterData::from((amount, req));
+        let connector_req = novalnet::NovalnetCaptureRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -366,7 +458,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: novalnet::NovalnetPaymentsResponse = res
+        let response: novalnet::NovalnetCaptureResponse = res
             .response
             .parse_struct("Novalnet PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -388,8 +480,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Novalnet {}
-
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Novalnet {
     fn get_headers(
         &self,
@@ -406,9 +496,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Novalne
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/transaction/refund", endpoint))
     }
 
     fn get_request_body(
@@ -452,7 +543,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Novalne
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: novalnet::RefundResponse = res
+        let response: novalnet::NovalnetRefundResponse = res
             .response
             .parse_struct("novalnet RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -490,9 +581,19 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Novalnet 
     fn get_url(
         &self,
         _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/transaction/details", endpoint))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = novalnet::NovalnetSyncRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -502,7 +603,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Novalnet 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
@@ -519,12 +620,91 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Novalnet 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: novalnet::RefundResponse = res
+        let response: novalnet::NovalnetRefundSyncResponse = res
             .response
             .parse_struct("novalnet RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Novalnet {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/transaction/cancel", endpoint))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = novalnet::NovalnetCancelRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: novalnet::NovalnetCancelResponse = res
+            .response
+            .parse_struct("NovalnetPaymentsVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
