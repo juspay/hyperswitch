@@ -45,11 +45,7 @@ use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
@@ -421,10 +417,7 @@ pub async fn get_token_pm_type_mandate_details(
                                 let db = &*state.store;
                                 let key_manager_state = &state.into();
 
-                                #[cfg(all(
-                                any(feature = "v1", feature = "v2"),
-                                not(feature = "merchant_connector_account_v2")
-                            ))]
+                                #[cfg(feature = "v1")]
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                     key_manager_state,
@@ -437,7 +430,7 @@ pub async fn get_token_pm_type_mandate_details(
                                     id: mca_id.clone().get_string_repr().to_string(),
                                 })?.connector_name;
 
-                                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                                #[cfg(feature = "v2")]
                             let connector_name = db
                                 .find_merchant_connector_account_by_id(key_manager_state, mca_id, merchant_key_store)
                                 .await
@@ -2960,10 +2953,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
         .transpose()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// Check whether the business details are configured in the merchant account
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,
@@ -3278,10 +3268,7 @@ impl MerchantConnectorAccountType {
         }
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     pub fn is_test_mode_on(&self) -> Option<bool> {
         match self {
             Self::DbVal(val) => val.test_mode,
@@ -3289,7 +3276,7 @@ impl MerchantConnectorAccountType {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     pub fn is_test_mode_on(&self) -> Option<bool> {
         None
     }
@@ -3407,10 +3394,7 @@ pub async fn get_merchant_connector_account(
         None => {
             let mca: RouterResult<domain::MerchantConnectorAccount> =
                 if let Some(merchant_connector_id) = merchant_connector_id {
-                    #[cfg(all(
-                        any(feature = "v1", feature = "v2"),
-                        not(feature = "merchant_connector_account_v2")
-                    ))]
+                    #[cfg(feature = "v1")]
                     {
                         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                             key_manager_state,
@@ -3425,7 +3409,7 @@ pub async fn get_merchant_connector_account(
                             },
                         )
                     }
-                    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                    #[cfg(feature = "v2")]
                     // get mca using id
                     {
                         let _id = merchant_connector_id;
@@ -3436,10 +3420,7 @@ pub async fn get_merchant_connector_account(
                         todo!()
                     }
                 } else {
-                    #[cfg(all(
-                        any(feature = "v1", feature = "v2"),
-                        not(feature = "merchant_connector_account_v2")
-                    ))]
+                    #[cfg(feature = "v1")]
                     {
                         db.find_merchant_connector_account_by_profile_id_connector_name(
                             key_manager_state,
@@ -3457,7 +3438,7 @@ pub async fn get_merchant_connector_account(
                             },
                         )
                     }
-                    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                    #[cfg(feature = "v2")]
                     {
                         todo!()
                     }
@@ -4338,10 +4319,7 @@ where
                 }
             }
         }
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(any(feature = "routing_v2", feature = "business_profile_v2"))
-        ))]
+        #[cfg(feature = "v1")]
         let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             profile_id.get_string_repr(),
@@ -4351,11 +4329,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get merchant default fallback connectors config")?;
 
-        #[cfg(all(
-            feature = "v2",
-            feature = "routing_v2",
-            feature = "business_profile_v2"
-        ))]
+        #[cfg(feature = "v2")]
         let fallback_connetors_list = core_admin::BusinessProfileWrapper::new(business_profile)
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::ApiErrorResponse::InternalServerError)
