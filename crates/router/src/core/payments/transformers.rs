@@ -513,7 +513,7 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
-        let mut amount = MinorUnit::from(payment_data.amount);
+        let mut amount = payment_data.payment_intent.amount;
         let shipping_cost = payment_data.payment_intent.shipping_cost;
         let order_tax_amount = payment_data
             .payment_intent
@@ -1904,7 +1904,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;
-        let amount = MinorUnit::from(payment_data.amount);
+        let amount = payment_data.payment_intent.amount;
 
         Ok(Self {
             net_amount: amount + order_tax_amount, //need to change after we move to connector module

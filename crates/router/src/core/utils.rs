@@ -948,11 +948,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         connector_api_version: None,
         request: types::PaymentsTaxCalculationData {
             amount: payment_intent.amount,
-            shipping_cost: payment_intent.shipping_cost.ok_or(
-                errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "shipping_cost",
-                },
-            )?,
+            shipping_cost: payment_intent.shipping_cost.unwrap_or(MinorUnit::new(0)),
             order_details,
             currency: payment_data.currency,
             shipping_address,
