@@ -1413,13 +1413,6 @@ impl<T, F> GetProfileId for (storage::Payouts, T, F) {
     }
 }
 
-#[cfg(feature = "recon")]
-impl GetProfileId for storage::UserRole {
-    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-        self.profile_id.as_ref()
-    }
-}
-
 /// Filter Objects based on profile ids
 pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
     profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,

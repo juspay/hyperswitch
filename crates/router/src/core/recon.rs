@@ -144,6 +144,7 @@ pub async fn generate_recon_token(
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
+    let key_manager_state = &(&state).into();
 
     let user: UserFromStorage = global_db
         .find_user_by_id(&req.user_id)
@@ -171,7 +172,6 @@ pub async fn generate_recon_token(
         .merchant_id
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
