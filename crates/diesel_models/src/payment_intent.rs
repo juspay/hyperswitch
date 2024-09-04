@@ -1,4 +1,4 @@
-use common_enums::{AuthenticationType, RequestIncrementalAuthorization};
+use common_enums::RequestIncrementalAuthorization;
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
@@ -63,7 +63,7 @@ pub struct PaymentIntent {
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub authentication_type: Option<AuthenticationType>,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
     // TODO: change this to global id
@@ -184,7 +184,7 @@ pub struct PaymentIntentNew {
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub authentication_type: Option<AuthenticationType>,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
     // TODO: change this to global id
