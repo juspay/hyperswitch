@@ -3731,10 +3731,10 @@ pub async fn call_surcharge_decision_management_for_saved_card(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
-    // TODO: Move to business profile surcharge column
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
+    // TODO: Move to business profile surcharge column
     let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
