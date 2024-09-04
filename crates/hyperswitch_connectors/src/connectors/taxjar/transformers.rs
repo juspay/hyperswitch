@@ -54,7 +54,7 @@ pub struct LineItem {
     id: Option<String>,
     quantity: Option<u16>,
     product_tax_code: Option<String>,
-    unit_price: Option<FloatMajorUnit>,
+    unit_price: Option<f64>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -92,10 +92,11 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
                     order_details
                         .iter()
                         .map(|line_item| {
-                            let unit_price =
-                                utils::get_amount_as_f64(currency_unit, line_item.amount, currency)
-                                    .map(FloatMajorUnit::new)?;
-
+                            let unit_price = utils::get_amount_as_f64(
+                                currency_unit,
+                                line_item.amount,
+                                currency,
+                            )?;
                             Ok(LineItem {
                                 id: line_item.product_id.clone(),
                                 quantity: Some(line_item.quantity),
