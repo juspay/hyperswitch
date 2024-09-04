@@ -1,6 +1,11 @@
 //! Commonly used constants
 
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
+
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+use crate::types::CardNetworkPattern;
 
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
@@ -149,3 +154,56 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+
+/// Regex for Identifying Card Network
+pub const CARD_NETWORK_DATA: Lazy<HashMap<common_enums::CardNetwork, CardNetworkPattern>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+    map.insert(common_enums::CardNetwork::Maestro, CardNetworkPattern {
+        regex:  Regex::new(r"^(5018|5081|5044|504681|504993|5020|502260|5038|603845|603123|6304|6759|676[1-3]|6220|504834|504817|504645|504775|600206|627741)[0-9]{0,15}$").ok(), 
+        allowed_card_number_length: vec![12, 13, 14, 15, 16, 17, 18, 19],
+        allowed_cvc_length: vec![3, 4]
+    });
+    map.insert(common_enums::CardNetwork::RuPay, CardNetworkPattern {
+        regex: Regex::new(r"^(508227|508[5-9]|603741|60698[5-9]|60699|607[0-8]|6079[0-7]|60798[0-4]|60800[1-9]|6080[1-9]|608[1-4]|608500|6521[5-9]|652[2-9]|6530|6531[0-4]|817290|817368|817378|353800)[0-9]*$").ok(),
+        allowed_card_number_length: vec![16],
+        allowed_cvc_length: vec![3],
+    });
+    map.insert(common_enums::CardNetwork::DinersClub, 
+        CardNetworkPattern {
+            regex: Regex::new(r"^(36|38|30[0-5])[0-9]{0,17}$").ok(),
+            allowed_card_number_length: vec![14, 15, 16, 17, 18, 19],
+            allowed_cvc_length: vec![3],
+        });
+    map.insert(common_enums::CardNetwork::Discover,
+        CardNetworkPattern {
+            regex: Regex::new(r"^(6011|65|64[4-9]|622)[0-9]*$").ok(),
+            allowed_card_number_length: vec![16],
+            allowed_cvc_length: vec![3],
+        });
+    map.insert(common_enums::CardNetwork::Mastercard,
+        CardNetworkPattern {
+            regex: Regex::new(r"^5[1-5][0-9]{14}$").ok(),
+            allowed_card_number_length: vec![16],
+            allowed_cvc_length: vec![3],
+        });
+    map.insert(common_enums::CardNetwork::AmericanExpress, 
+        CardNetworkPattern {
+            regex: Regex::new(r"^3[47][0-9]{13}$").ok(),
+            allowed_card_number_length: vec![14, 15],
+            allowed_cvc_length: vec![3, 4],
+        });
+    map.insert(common_enums::CardNetwork::Visa,
+        CardNetworkPattern {
+            regex:  Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$").ok(),
+            allowed_card_number_length: vec![13, 14, 15, 16, 19],
+            allowed_cvc_length: vec![3],
+        }); 
+    map.insert(common_enums::CardNetwork::JCB,
+        CardNetworkPattern {
+            regex:  Regex::new(r"^35[0-9]{0,14}$").ok(),
+            allowed_card_number_length: vec![16],
+            allowed_cvc_length: vec![3],
+        });
+    
+    map
+});

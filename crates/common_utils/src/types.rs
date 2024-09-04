@@ -582,6 +582,14 @@ impl StringMajorUnit {
     }
 }
 
+/// Represents the pattern data used to identify a specific card network.
+#[derive(Debug)]
+pub struct CardNetworkPattern {
+    pub regex: Option<regex::Regex>,
+    pub allowed_card_number_length: Vec<i32>,
+    pub allowed_cvc_length: Vec<i32>
+}
+
 #[cfg(test)]
 mod amount_conversion_tests {
     #![allow(clippy::unwrap_used)]

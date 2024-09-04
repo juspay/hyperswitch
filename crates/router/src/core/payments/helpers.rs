@@ -6,6 +6,8 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
 };
+use ::cards::CardNumber;
+
 use base64::Engine;
 use common_enums::ConnectorType;
 use common_utils::{
@@ -18,6 +20,7 @@ use common_utils::{
     },
 };
 use diesel_models::enums::{self};
+
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -50,7 +53,7 @@ use crate::core::admin as core_admin;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, TempLockerEnableConfig},
     connector,
-    consts::{self, BASE64_ENGINE},
+    consts::{self, BASE64_ENGINE, CARD_NETWORK_DATA},
     core::{
         authentication,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -3893,9 +3896,19 @@ pub async fn get_additional_payment_data(
                 }
                 _ => None,
             };
+
+            let card_network = match card_data
+                .card_network
+                .clone()
+                .map(|_| is_cobadged_card(card_data.card_number.clone(), card_data.card_cvc.clone()))
+            {
+                Some(true) => card_data.card_network.clone(),
+                Some(false) | None => None,
+            };
+
             let last4 = Some(card_data.card_number.get_last4());
             if card_data.card_issuer.is_some()
-                && card_data.card_network.is_some()
+                && card_network.is_some()
                 && card_data.card_type.is_some()
                 && card_data.card_issuing_country.is_some()
                 && card_data.bank_code.is_some()
@@ -3903,7 +3916,7 @@ pub async fn get_additional_payment_data(
                 Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
                     api_models::payments::AdditionalCardInfo {
                         card_issuer: card_data.card_issuer.to_owned(),
-                        card_network: card_data.card_network.clone(),
+                        card_network,
                         card_type: card_data.card_type.to_owned(),
                         card_issuing_country: card_data.card_issuing_country.to_owned(),
                         bank_code: card_data.bank_code.to_owned(),
@@ -3933,7 +3946,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network: card_info.card_network.clone(),
+                                card_network,
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
@@ -5264,4 +5277,27 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
         }
     }
     Ok(())
+}
+
+pub fn is_cobadged_card(card_number: CardNumber, card_cvc: masking::Secret<String>) -> bool {
+    let c_card_number_value = card_number.get_card_no();
+    let card_number_length = i32::try_from(c_card_number_value.len()).ok(); // Convert to Option<i32>
+    let cvc_length = i32::try_from(card_cvc.peek().len()).ok();
+    let mut matching_networks = 0;
+
+    for (_, card_network_data) in CARD_NETWORK_DATA.iter() {
+        if let Some(regex) = &card_network_data.regex {
+            if regex.is_match(&c_card_number_value)
+                && card_number_length.map_or(false, |len| {
+                    card_network_data.allowed_card_number_length.contains(&len)
+                })
+                && cvc_length.map_or(false, |len| {
+                    card_network_data.allowed_cvc_length.contains(&len)
+                })
+            {
+                matching_networks += 1;
+            }
+        }
+    }
+    matching_networks > 1
 }

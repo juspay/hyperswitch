@@ -5,8 +5,9 @@ use std::{
 };
 
 use cards::CardNumber;
+use common_enums::CardNetwork;
 use common_utils::{
-    consts::default_payments_list_limit,
+    consts::{default_payments_list_limit, CARD_NETWORK_DATA},
     crypto,
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
@@ -1280,6 +1281,16 @@ impl GetAddressFromPaymentMethodData for Card {
 
 impl Card {
     fn apply_additional_card_info(&self, additional_card_info: AdditionalCardInfo) -> Self {
+        let req_card_brand = self
+            .card_network
+            .clone()
+            .or(additional_card_info.card_network);
+
+        let card_network = match req_card_brand.clone().map(|_| self.is_cobadged_card()) {
+            Some(true) => req_card_brand,
+            Some(false) | None => None,
+        };
+
         Self {
             card_number: self.card_number.clone(),
             card_exp_month: self.card_exp_month.clone(),
@@ -1290,10 +1301,7 @@ impl Card {
                 .card_issuer
                 .clone()
                 .or(additional_card_info.card_issuer),
-            card_network: self
-                .card_network
-                .clone()
-                .or(additional_card_info.card_network),
+            card_network,
             card_type: self.card_type.clone().or(additional_card_info.card_type),
             card_issuing_country: self
                 .card_issuing_country
@@ -1302,6 +1310,28 @@ impl Card {
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
         }
+    }
+    fn is_cobadged_card(&self) -> bool {
+        let c_card_number_value = self.card_number.get_card_no();
+        let card_number_length = i32::try_from(c_card_number_value.len()).ok(); // Convert to Option<i32>
+        let cvc_length = i32::try_from(self.card_cvc.peek().len()).ok();
+        let mut matching_networks = 0;
+
+        for (_, card_network_data) in CARD_NETWORK_DATA.iter() {
+            if let Some(regex) = &card_network_data.regex {
+                if regex.is_match(&c_card_number_value)
+                    && card_number_length.map_or(false, |len| {
+                        card_network_data.allowed_card_number_length.contains(&len)
+                    })
+                    && cvc_length.map_or(false, |len| {
+                        card_network_data.allowed_cvc_length.contains(&len)
+                    })
+                {
+                    matching_networks += 1;
+                }
+            }
+        }
+        matching_networks > 1
     }
 }
 
