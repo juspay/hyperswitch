@@ -637,41 +637,31 @@ async fn handle_existing_user_invitation(
         entity: domain::NoLevel,
     };
 
-    let (_user_role, entity) = match role_info.get_entity_type() {
+    let _user_role = match role_info.get_entity_type() {
         EntityType::Internal => return Err(UserErrors::InvalidRoleId.into()),
         EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
-        EntityType::Merchant => (
+        EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
                 .insert_in_v1_and_v2(state)
-                .await?,
-            email_types::Entity {
-                entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
-                entity_type: EntityType::Merchant,
-            },
-        ),
+                .await?
+        }
         EntityType::Profile => {
             let profile_id = user_from_token
                 .profile_id
                 .clone()
                 .ok_or(UserErrors::InternalServerError)?;
-            (
-                user_role
-                    .add_entity(domain::ProfileLevel {
-                        org_id: user_from_token.org_id.clone(),
-                        merchant_id: user_from_token.merchant_id.clone(),
-                        profile_id: profile_id.clone(),
-                    })
-                    .insert_in_v2(state)
-                    .await?,
-                email_types::Entity {
-                    entity_id: profile_id.get_string_repr().to_owned(),
-                    entity_type: EntityType::Profile,
-                },
-            )
+            user_role
+                .add_entity(domain::ProfileLevel {
+                    org_id: user_from_token.org_id.clone(),
+                    merchant_id: user_from_token.merchant_id.clone(),
+                    profile_id: profile_id.clone(),
+                })
+                .insert_in_v2(state)
+                .await?
         }
     };
 
@@ -679,6 +669,25 @@ async fn handle_existing_user_invitation(
     #[cfg(feature = "email")]
     {
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+        let entity = match role_info.get_entity_type() {
+            EntityType::Internal => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Merchant => email_types::Entity {
+                entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Merchant,
+            },
+            EntityType::Profile => {
+                let profile_id = user_from_token
+                    .profile_id
+                    .clone()
+                    .ok_or(UserErrors::InternalServerError)?;
+                email_types::Entity {
+                    entity_id: profile_id.get_string_repr().to_owned(),
+                    entity_type: EntityType::Profile,
+                }
+            }
+        };
+
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
@@ -747,41 +756,31 @@ async fn handle_new_user_invitation(
         entity: domain::NoLevel,
     };
 
-    let (_user_role, entity) = match role_info.get_entity_type() {
+    let _user_role = match role_info.get_entity_type() {
         EntityType::Internal => return Err(UserErrors::InvalidRoleId.into()),
         EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
-        EntityType::Merchant => (
+        EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
                 .insert_in_v1_and_v2(state)
-                .await?,
-            email_types::Entity {
-                entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
-                entity_type: EntityType::Merchant,
-            },
-        ),
+                .await?
+        }
         EntityType::Profile => {
             let profile_id = user_from_token
                 .profile_id
                 .clone()
                 .ok_or(UserErrors::InternalServerError)?;
-            (
-                user_role
-                    .add_entity(domain::ProfileLevel {
-                        org_id: user_from_token.org_id.clone(),
-                        merchant_id: user_from_token.merchant_id.clone(),
-                        profile_id: profile_id.clone(),
-                    })
-                    .insert_in_v2(state)
-                    .await?,
-                email_types::Entity {
-                    entity_id: profile_id.get_string_repr().to_owned(),
-                    entity_type: EntityType::Profile,
-                },
-            )
+            user_role
+                .add_entity(domain::ProfileLevel {
+                    org_id: user_from_token.org_id.clone(),
+                    merchant_id: user_from_token.merchant_id.clone(),
+                    profile_id: profile_id.clone(),
+                })
+                .insert_in_v2(state)
+                .await?
         }
     };
 
@@ -793,6 +792,25 @@ async fn handle_new_user_invitation(
         // Will be adding actual usage for this variable later
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+        let entity = match role_info.get_entity_type() {
+            EntityType::Internal => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Merchant => email_types::Entity {
+                entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Merchant,
+            },
+            EntityType::Profile => {
+                let profile_id = user_from_token
+                    .profile_id
+                    .clone()
+                    .ok_or(UserErrors::InternalServerError)?;
+                email_types::Entity {
+                    entity_id: profile_id.get_string_repr().to_owned(),
+                    entity_type: EntityType::Profile,
+                }
+            }
+        };
+
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
             user_name: domain::UserName::new(new_user.get_name())?,
