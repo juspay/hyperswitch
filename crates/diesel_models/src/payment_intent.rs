@@ -298,6 +298,7 @@ pub enum PaymentIntentUpdate {
         tax_details: TaxDetails,
         shipping_address_id: Option<String>,
         updated_by: String,
+        shipping_details: Option<Encryption>,
     },
 }
 
@@ -1098,6 +1099,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 tax_details,
                 shipping_address_id,
                 updated_by,
+                shipping_details,
             } => Self {
                 shipping_address_id,
                 amount: None,
@@ -1133,7 +1135,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_details: None,
                 billing_details: None,
                 merchant_order_reference_id: None,
-                shipping_details: None,
+                shipping_details,
                 is_payment_processor_token_flow: None,
             },
         }

@@ -56,7 +56,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
 
-        let mut payment_intent = db
+        let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 &payment_id,
@@ -103,16 +103,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             merchant_account.storage_scheme,
         )
         .await?;
-
-        let shipping_details = shipping_address
-            .clone()
-            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
-
-        payment_intent.shipping_details = shipping_details;
 
         let billing_address = helpers::get_address_by_id(
             state,
@@ -395,14 +385,22 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
     where
         F: 'b + Send,
     {
-        let shipping_details = payment_data
+        let shipping_address = payment_data
             .tax_data
             .clone()
             .map(|tax_data| tax_data.shipping_details);
 
+        let shipping_details = shipping_address
+            .clone()
+            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?;
+
         let shipping_address = helpers::create_or_update_address_for_payment_by_request(
             state,
-            shipping_details.as_ref(),
+            shipping_address.as_ref(),
             payment_data.payment_intent.shipping_address_id.as_deref(),
             &payment_data.payment_intent.merchant_id,
             payment_data.payment_intent.customer_id.as_ref(),
@@ -416,6 +414,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
             tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?,
             shipping_address_id: shipping_address.map(|address| address.address_id),
             updated_by: payment_data.payment_intent.updated_by.clone(),
+            shipping_details,
         };
 
         let db = &*state.store;

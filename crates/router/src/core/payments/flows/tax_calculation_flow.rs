@@ -30,7 +30,7 @@ impl
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
     ) -> RouterResult<types::SdkSessionUpdateRouterData> {
         Box::pin(
-            transformers::construct_router_date_to_update_calculated_tax::<
+            transformers::construct_router_data_to_update_calculated_tax::<
                 api::SdkSessionUpdate,
                 types::SdkPaymentsSessionUpdateData,
             >(

@@ -262,6 +262,7 @@ pub enum PaymentIntentUpdate {
         tax_details: diesel_models::TaxDetails,
         shipping_address_id: Option<String>,
         updated_by: String,
+        shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     },
 }
 
@@ -492,10 +493,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 tax_details,
                 shipping_address_id,
                 updated_by,
+                shipping_details,
             } => Self {
                 tax_details: Some(tax_details),
                 shipping_address_id,
                 updated_by,
+                shipping_details,
                 ..Default::default()
             },
         }
@@ -666,10 +669,12 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 tax_details,
                 shipping_address_id,
                 updated_by,
+                shipping_details,
             } => Self::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
                 updated_by,
+                shipping_details: shipping_details.map(Encryption::from),
             },
         }
     }

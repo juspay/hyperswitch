@@ -36,7 +36,7 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
-pub async fn construct_router_date_to_update_calculated_tax<'a, F, T>(
+pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
     state: &'a SessionState,
     payment_data: PaymentData<F>,
     connector_id: &str,
