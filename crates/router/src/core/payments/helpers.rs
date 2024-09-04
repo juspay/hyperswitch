@@ -4,6 +4,7 @@ use std::{borrow::Cow, str::FromStr};
 use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
+    payment_methods as pm_models,
     payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
 };
 use base64::Engine;
@@ -2513,6 +2514,19 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::OpenBankingPIS
         ),
+    }
+}
+
+pub fn validate_payment_method_data_against_payment_method(
+    payment_method: api_enums::PaymentMethod,
+    payment_method_data: pm_models::PaymentMethodCreateData,
+) -> bool {
+    match payment_method {
+        api_enums::PaymentMethod::Card => matches!(
+            payment_method_data,
+            pm_models::PaymentMethodCreateData::Card(_)
+        ),
+        _ => false,
     }
 }
 

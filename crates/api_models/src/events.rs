@@ -137,6 +137,12 @@ impl_api_event_type!(
     )
 );
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl_api_event_type!(
+    Miscellaneous,
+    (PaymentMethodIntentCreate, PaymentMethodIntentConfirm)
+);
+
 impl_api_event_type!(
     Keymanager,
     (

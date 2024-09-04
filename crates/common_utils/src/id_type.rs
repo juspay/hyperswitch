@@ -12,6 +12,7 @@ mod profile;
 mod routing;
 
 mod global_id;
+mod payment_methods;
 
 pub use customer::CustomerId;
 use diesel::{
@@ -25,6 +26,7 @@ pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
 pub use payment::PaymentId;
+pub use payment_methods::GlobalPaymentMethodId;
 pub use profile::ProfileId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
