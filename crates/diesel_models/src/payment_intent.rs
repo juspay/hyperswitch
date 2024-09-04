@@ -297,6 +297,7 @@ pub enum PaymentIntentUpdate {
     SessionResponseUpdate {
         tax_details: TaxDetails,
         shipping_address_id: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -1096,6 +1097,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
+                updated_by,
             } => Self {
                 shipping_address_id,
                 amount: None,
@@ -1120,7 +1122,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 attempt_count: None,
                 merchant_decision: None,
                 payment_confirm_source: None,
-                updated_by: String::default(),
+                updated_by,
                 surcharge_applicable: None,
                 incremental_authorization_allowed: None,
                 authorization_count: None,

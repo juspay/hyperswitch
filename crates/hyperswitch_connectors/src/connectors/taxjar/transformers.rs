@@ -152,8 +152,7 @@ pub struct TaxjarPaymentsResponse {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Tax {
-    order_total_amount: FloatMajorUnit, //amount + shipping_cost
-    amount_to_collect: FloatMajorUnit,  //calculated_tax_amount
+    amount_to_collect: FloatMajorUnit, //calculated_tax_amount
 }
 
 impl<F>
@@ -177,105 +176,21 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         let currency = item.data.request.currency;
         let amount_to_collect = item.response.tax.amount_to_collect;
-        let order_total_amount = item.response.tax.order_total_amount;
         let calculated_tax = utils::convert_back_amount_to_minor_units(
             &FloatMajorUnitForConnector,
             amount_to_collect,
-            currency,
-        )?;
-        let total_amount = utils::convert_back_amount_to_minor_units(
-            &FloatMajorUnitForConnector,
-            order_total_amount,
             currency,
         )?;
 
         Ok(Self {
             response: Ok(TaxCalculationResponseData {
                 order_tax_amount: calculated_tax,
-                net_amount: (total_amount + calculated_tax),
             }),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-// #[derive(Default, Debug, Serialize)]
-// pub struct TaxjarRefundRequest {
-//     pub amount: StringMinorUnit,
-// }
-
-// impl<F> TryFrom<&TaxjarRouterData<&RefundsRouterData<F>>> for TaxjarRefundRequest {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(item: &TaxjarRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             amount: item.amount.to_owned(),
-//         })
-//     }
-// }
-
-// Type definition for Refund Response
-
-// #[allow(dead_code)]
-// #[derive(Debug, Serialize, Default, Deserialize, Clone)]
-// pub enum RefundStatus {
-//     Succeeded,
-//     Failed,
-//     #[default]
-//     Processing,
-// }
-
-// impl From<RefundStatus> for enums::RefundStatus {
-//     fn from(item: RefundStatus) -> Self {
-//         match item {
-//             RefundStatus::Succeeded => Self::Success,
-//             RefundStatus::Failed => Self::Failure,
-//             RefundStatus::Processing => Self::Pending,
-//             //TODO: Review mapping
-//         }
-//     }
-// }
-
-//TODO: Fill the struct with respective fields
-// #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-// pub struct RefundResponse {
-//     id: String,
-//     status: RefundStatus,
-// }
-
-// impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(
-//         item: RefundsResponseRouterData<Execute, RefundResponse>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             response: Ok(RefundsResponseData {
-//                 connector_refund_id: item.response.id.to_string(),
-//                 refund_status: enums::RefundStatus::from(item.response.status),
-//             }),
-//             ..item.data
-//         })
-//     }
-// }
-
-// impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouterData<RSync> {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(
-//         item: RefundsResponseRouterData<RSync, RefundResponse>,
-//     ) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             response: Ok(RefundsResponseData {
-//                 connector_refund_id: item.response.id.to_string(),
-//                 refund_status: enums::RefundStatus::from(item.response.status),
-//             }),
-//             ..item.data
-//         })
-//     }
-// }
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TaxjarErrorResponse {
     pub status: String,

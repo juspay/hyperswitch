@@ -261,6 +261,7 @@ pub enum PaymentIntentUpdate {
     SessionResponseUpdate {
         tax_details: diesel_models::TaxDetails,
         shipping_address_id: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -490,9 +491,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
+                updated_by,
             } => Self {
                 tax_details: Some(tax_details),
                 shipping_address_id,
+                updated_by,
                 ..Default::default()
             },
         }
@@ -662,9 +665,11 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
+                updated_by,
             } => Self::SessionResponseUpdate {
                 tax_details,
                 shipping_address_id,
+                updated_by,
             },
         }
     }

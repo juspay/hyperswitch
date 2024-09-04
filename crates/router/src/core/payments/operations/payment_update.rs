@@ -535,8 +535,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
             let merchant_connector_id = business_profile
                 .tax_connector_id
                 .as_ref()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing business_profile.tax_connector_id")?;
+                .get_required_value("business_profile.tax_connector_id")?;
 
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),

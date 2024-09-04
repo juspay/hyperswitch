@@ -76,7 +76,6 @@ pub enum PaymentsResponseData {
 #[derive(Debug, Clone)]
 pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
-    pub net_amount: MinorUnit,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

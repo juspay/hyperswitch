@@ -75,27 +75,22 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
-        if connector.connector_name == types::Connector::Klarna {
-            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                api::SdkSessionUpdate,
-                types::SdkPaymentsSessionUpdateData,
-                types::PaymentsResponseData,
-            > = connector.connector.get_connector_integration();
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::SdkSessionUpdate,
+            types::SdkPaymentsSessionUpdateData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
 
-            let resp = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &self,
-                call_connector_action,
-                connector_request,
-            )
-            .await
-            .to_payment_failed_response()?;
-
-            Ok(resp)
-        } else {
-            Ok(self)
-        }
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &self,
+            call_connector_action,
+            connector_request,
+        )
+        .await
+        .to_payment_failed_response()?;
+        Ok(resp)
     }
 
     async fn add_access_token<'a>(

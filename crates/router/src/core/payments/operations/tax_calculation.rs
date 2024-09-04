@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -11,6 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, PaymentData},
         utils as core_utils,
     },
@@ -55,7 +56,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
 
-        let payment_intent = db
+        let mut payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
                 &state.into(),
                 &payment_id,
@@ -91,7 +92,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 
         let amount = payment_attempt.get_total_amount().into();
 
-        payment_attempt.payment_method_type = Some(request.payment_method_type.clone());
+        payment_attempt.payment_method_type = Some(request.payment_method_type);
 
         let shipping_address = helpers::get_address_by_id(
             state,
@@ -102,6 +103,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             merchant_account.storage_scheme,
         )
         .await?;
+
+        let shipping_details = shipping_address
+            .clone()
+            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt shipping details")?;
+
+        payment_intent.shipping_details = shipping_details;
 
         let billing_address = helpers::get_address_by_id(
             state,
@@ -229,8 +240,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
             let merchant_connector_id = business_profile
                 .tax_connector_id
                 .as_ref()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing business_profile.tax_connector_id")?;
+                .get_required_value("business_profile.tax_connector_id")?;
 
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),
@@ -405,6 +415,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
             tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?,
             shipping_address_id: shipping_address.map(|address| address.address_id),
+            updated_by: payment_data.payment_intent.updated_by.clone(),
         };
 
         let db = &*state.store;
