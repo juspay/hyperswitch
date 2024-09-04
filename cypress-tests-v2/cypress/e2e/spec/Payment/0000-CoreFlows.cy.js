@@ -1,4 +1,5 @@
-import State from "../../utils/State";
+import * as fixtures from "../../../fixtures/imports";
+import State from "../../../utils/State";
 
 let globalState;
 
@@ -14,10 +15,24 @@ describe("Core APIs", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("Organization create call", () => {});
-    it("Organization retrieve call", () => {});
-    it("Organization update call", () => {});
-    it("Organization retrieve call", () => {});
+    it("Organization create call", () => {
+      cy.organizationCreateCall(
+        fixtures.organization_body.org_create,
+        globalState
+      );
+    });
+    it("Organization retrieve call", () => {
+      cy.organizationRetrieveCall(globalState);
+    });
+    it("Organization update call", () => {
+      cy.organizationUpdateCall(
+        fixtures.organization_body.org_update,
+        globalState
+      );
+    });
+    it("Organization retrieve call", () => {
+      cy.organizationRetrieveCall(globalState);
+    });
   });
 
   context("Merchant account APIs", () => {
