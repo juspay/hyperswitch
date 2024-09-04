@@ -95,6 +95,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Datatrans,
+    // Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -231,6 +232,7 @@ impl Connector {
             | Self::Cashtocode
             | Self::Coinbase
             | Self::Cryptopay
+			// | Self::Deutschebank
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv

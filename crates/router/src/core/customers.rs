@@ -534,7 +534,11 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    feature = "payment_methods_v2"
+))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -554,7 +558,11 @@ pub async fn delete_customer(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[cfg(all(
+    feature = "v2",
+    feature = "customer_v2",
+    feature = "payment_methods_v2"
+))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for customers::GlobalId {
     async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
@@ -587,28 +595,30 @@ impl CustomerDeleteBridge for customers::GlobalId {
         }
 
         match db
-            .find_payment_method_list_by_global_id(&self.id, None)
+            .find_payment_method_list_by_global_id(key_manager_state, key_store, &self.id, None)
             .await
         {
             // check this in review
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
                     if pm.payment_method == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_from_locker_id(
+                        cards::delete_card_by_locker_id(
                             &state,
                             &self.id,
                             merchant_account.get_id(),
-                            pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                         )
                         .await
                         .switch()?;
                     }
-                    db.delete_payment_method_by_merchant_id_payment_method_id(
-                        merchant_account.get_id(),
-                        &pm.payment_method_id,
-                    )
-                    .await
-                    .switch()?;
+                    // No solution as of now, need to discuss this further with payment_method_v2
+
+                    // db.delete_payment_method(
+                    //     key_manager_state,
+                    //     key_store,
+                    //     pm,
+                    // )
+                    // .await
+                    // .switch()?;
                 }
             }
             Err(error) => {
@@ -696,7 +706,11 @@ trait CustomerDeleteBridge {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -716,7 +730,11 @@ pub async fn delete_customer(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[async_trait::async_trait]
 impl CustomerDeleteBridge for customers::CustomerId {
     async fn fetch_domain_model_and_update_and_generate_delete_customer_response<'a>(
@@ -751,6 +769,8 @@ impl CustomerDeleteBridge for customers::CustomerId {
 
         match db
             .find_payment_method_by_customer_id_merchant_id_list(
+                key_manager_state,
+                &key_store,
                 &self.customer_id,
                 merchant_account.get_id(),
                 None,
@@ -771,6 +791,8 @@ impl CustomerDeleteBridge for customers::CustomerId {
                         .switch()?;
                     }
                     db.delete_payment_method_by_merchant_id_payment_method_id(
+                        key_manager_state,
+                        &key_store,
                         merchant_account.get_id(),
                         &pm.payment_method_id,
                     )

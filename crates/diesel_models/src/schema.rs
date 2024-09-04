@@ -1002,6 +1002,7 @@ diesel::table! {
         payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
+        version -> ApiVersion,
     }
 }
 
