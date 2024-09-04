@@ -703,13 +703,12 @@ impl Routing {
                         )
                     })),
             )
-            .service(web::resource("/list/{profile_id}").route(web::get().to(
-                |state, req, path, query: web::Query<RoutingRetrieveQuery>| {
+            .service(web::resource("/list/profile").route(web::get().to(
+                |state, req, query: web::Query<RoutingRetrieveQuery>| {
                     routing::list_routing_configs_for_profile(
                         state,
                         req,
                         query,
-                        path,
                         &TransactionType::Payment,
                     )
                 },
