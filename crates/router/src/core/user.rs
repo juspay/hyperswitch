@@ -16,7 +16,6 @@ use diesel_models::{
     organization::OrganizationBridge,
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
-    user_role::get_entity_id_and_type,
 };
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -1418,13 +1417,28 @@ pub async fn list_user_roles_details(
         .await
         .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
+    let requestor_role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InternalServerError)
+    .attach_printable("Failed to fetch role info")?;
+
     let user_roles_set: HashSet<_> = state
         .store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: required_user.get_user_id(),
             org_id: Some(&user_from_token.org_id),
-            merchant_id: None,
-            profile_id: None,
+            merchant_id: (requestor_role_info.get_entity_type() <= EntityType::Merchant)
+                .then_some(&user_from_token.merchant_id),
+            profile_id: (requestor_role_info.get_entity_type() <= EntityType::Profile)
+                .then_some(&user_from_token.profile_id)
+                .cloned()
+                .flatten()
+                .as_ref(),
             entity_id: None,
             version: None,
             status: None,
@@ -1452,9 +1466,13 @@ pub async fn list_user_roles_details(
     let (merchant_ids, merchant_profile_ids) = user_roles_set.iter().try_fold(
         (Vec::new(), Vec::new()),
         |(mut merchant, mut merchant_profile), user_role| {
-            let (_, entity_type) = get_entity_id_and_type(user_role);
+            let entity_type = user_role
+                .get_entity_id_and_type()
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("Failed to fetch entity id and type")?
+                .1;
             match entity_type {
-                Some(EntityType::Merchant) => {
+                EntityType::Merchant => {
                     let merchant_id = user_role
                         .merchant_id
                         .clone()
@@ -1464,7 +1482,7 @@ pub async fn list_user_roles_details(
                         )?;
                     merchant.push(merchant_id)
                 }
-                Some(EntityType::Profile) => {
+                EntityType::Profile => {
                     let merchant_id = user_role
                         .merchant_id
                         .clone()
@@ -1483,16 +1501,13 @@ pub async fn list_user_roles_details(
                     merchant.push(merchant_id.clone());
                     merchant_profile.push((merchant_id, profile_id))
                 }
-                Some(EntityType::Internal) => {
+                EntityType::Internal => {
                     return Err(UserErrors::InvalidRoleOperationWithMessage(
                         "Internal roles are not allowed for this operation".to_string(),
                     )
                     .into());
                 }
-                Some(EntityType::Organization) => (),
-                None => {
-                    return Err(UserErrors::InternalServerError.into());
-                }
+                EntityType::Organization => (),
             };
 
             Ok::<_, error_stack::Report<UserErrors>>((merchant, merchant_profile))
@@ -1552,49 +1567,60 @@ pub async fn list_user_roles_details(
     let role_details_list: Vec<_> = user_roles_set
         .iter()
         .map(|user_role| {
-            let (_, entity_type) = get_entity_id_and_type(user_role);
-
-            let merchant = match entity_type.ok_or(UserErrors::InternalServerError)? {
+            let entity_type = user_role
+                .get_entity_id_and_type()
+                .ok_or(UserErrors::InternalServerError)?
+                .1;
+            let (merchant, profile) = match entity_type {
                 EntityType::Internal => {
                     return Err(UserErrors::InvalidRoleOperationWithMessage(
                         "Internal roles are not allowed for this operation".to_string(),
                     ));
                 }
-                EntityType::Organization => None,
-                EntityType::Merchant | EntityType::Profile => {
-                    if let Some(merchant_id) = &user_role.merchant_id {
+                EntityType::Organization => (None, None),
+                EntityType::Merchant => {
+                    let merchant_id = &user_role
+                        .merchant_id
+                        .clone()
+                        .ok_or(UserErrors::InternalServerError)?;
+
+                    (
                         Some(NameIdUnit {
                             id: merchant_id.clone(),
                             name: merchant_map
                                 .get(merchant_id)
                                 .ok_or(UserErrors::InternalServerError)?
                                 .to_owned(),
-                        })
-                    } else {
-                        return Err(UserErrors::InternalServerError);
-                    }
+                        }),
+                        None,
+                    )
                 }
-            };
-
-            let profile = match entity_type.ok_or(UserErrors::InternalServerError)? {
-                EntityType::Internal => {
-                    return Err(UserErrors::InvalidRoleOperationWithMessage(
-                        "Internal roles are not allowed for this operation".to_string(),
-                    ));
-                }
-                EntityType::Organization | EntityType::Merchant => None,
                 EntityType::Profile => {
-                    if let Some(profile_id) = &user_role.profile_id {
+                    let merchant_id = &user_role
+                        .merchant_id
+                        .clone()
+                        .ok_or(UserErrors::InternalServerError)?;
+                    let profile_id = &user_role
+                        .profile_id
+                        .clone()
+                        .ok_or(UserErrors::InternalServerError)?;
+
+                    (
+                        Some(NameIdUnit {
+                            id: merchant_id.clone(),
+                            name: merchant_map
+                                .get(merchant_id)
+                                .ok_or(UserErrors::InternalServerError)?
+                                .to_owned(),
+                        }),
                         Some(NameIdUnit {
                             id: profile_id.clone(),
                             name: profile_map
                                 .get(profile_id)
                                 .ok_or(UserErrors::InternalServerError)?
                                 .to_owned(),
-                        })
-                    } else {
-                        return Err(UserErrors::InternalServerError);
-                    }
+                        }),
+                    )
                 }
             };
 
@@ -1604,7 +1630,7 @@ pub async fn list_user_roles_details(
                 merchant,
                 profile,
                 status: user_role.status.foreign_into(),
-                entity_type: entity_type.ok_or(UserErrors::InternalServerError)?,
+                entity_type,
             })
         })
         .collect::<Result<Vec<_>, UserErrors>>()?;
