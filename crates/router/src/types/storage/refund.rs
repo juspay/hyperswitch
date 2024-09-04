@@ -12,8 +12,8 @@ use diesel_models::{
     schema::refund::dsl,
 };
 use error_stack::ResultExt;
-use crate::{connection, logger};
-use crate::core::errors::StorageError;
+
+use crate::{connection, core::errors::StorageError, logger};
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
@@ -300,8 +300,7 @@ impl RefundDbExt for Refund {
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(RefundStatus, i64)>, StorageError> {
-
-        let mut query = <Refund as HasTable>::table()
+        let mut query = <Self as HasTable>::table()
             .group_by(dsl::refund_status)
             .select((dsl::refund_status, diesel::dsl::count_star()))
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -316,7 +315,7 @@ impl RefundDbExt for Refund {
 
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
-        db_metrics::track_database_call::<<Refund as HasTable>::Table, _, _>(
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             query.get_results_async::<(RefundStatus, i64)>(conn),
             db_metrics::DatabaseOperation::Filter,
         )
@@ -329,5 +328,4 @@ impl RefundDbExt for Refund {
             .into()
         })
     }
-
 }

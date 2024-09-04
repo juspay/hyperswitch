@@ -1,12 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use router_env::{instrument, tracing, Flow};
 
-use crate::types::api::payments as payment_types;
 use super::app::AppState;
 use crate::{
     core::{api_locking, refunds::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::refunds,
+    types::api::{payments as payment_types, refunds},
 };
 
 /// Refunds - Create
@@ -407,8 +406,6 @@ pub async fn get_refunds_aggregates(
     req: HttpRequest,
     payload: web::Query<payment_types::TimeRange>,
 ) -> impl Responder {
-
-
     let flow = Flow::RefundsAggregate;
     let payload = payload.into_inner();
     Box::pin(api::server_wrap(

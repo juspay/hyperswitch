@@ -1042,7 +1042,7 @@ pub async fn get_aggregates_for_refunds(
 ) -> RouterResponse<api::RefundAggregateResponse> {
     let db = state.store.as_ref();
     let refund_status_with_count = db
-        .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme,)
+        .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme)
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
     let mut status_map: HashMap<enums::RefundStatus, i64> =
