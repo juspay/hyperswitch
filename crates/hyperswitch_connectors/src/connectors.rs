@@ -9,9 +9,9 @@ pub mod helcim;
 pub mod nexixpay;
 pub mod novalnet;
 pub mod powertranz;
-pub mod thunes;
 pub mod stax;
 pub mod taxjar;
+pub mod thunes;
 pub mod tsys;
 pub mod worldline;
 
