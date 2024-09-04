@@ -3719,7 +3719,7 @@ pub async fn list_payment_methods(
             request_external_three_ds_authentication,
             collect_shipping_details_from_wallets,
             collect_billing_details_from_wallets,
-            is_tax_calculation_enabled: is_tax_connector_enabled && skip_external_tax_calculation,
+            is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
         },
     ))
 }
