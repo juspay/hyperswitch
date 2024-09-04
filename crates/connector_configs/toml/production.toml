@@ -3011,10 +3011,6 @@ api_secret="Shared Secret"
   payment_method_type = "CartesBancaires"
 [[fiuu.debit]]
   payment_method_type = "UnionPay"
-[[fiuu.wallet]]
-  payment_method_type = "apple_pay"
-[[fiuu.wallet]]
-  payment_method_type = "google_pay"
 [fiuu.connector_auth.SignatureKey]
 api_key="Verify Key"
 key1="Merchant ID"

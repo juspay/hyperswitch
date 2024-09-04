@@ -91,14 +91,14 @@ impl TryFrom<Option<CaptureMethod>> for TxnType {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "UPPERCASE")]
 enum TxnChannel {
-    Creditz,
+    Creditan,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuPaymentsRequest {
     #[serde(rename = "MerchantID")]
-    merchant_id: String,
+    merchant_id: Secret<String>,
     reference_no: String,
     txn_type: TxnType,
     txn_channel: TxnChannel,
@@ -134,24 +134,25 @@ pub fn calculate_signature(
 impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequest {
     type Error = Report<errors::ConnectorError>;
     fn try_from(item: &FiuuRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
-        let auth: FiuuAuthType = FiuuAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth = FiuuAuthType::try_from(&item.router_data.connector_auth_type)?;
         let merchant_id = auth.merchant_id.peek().to_string();
         let txn_currency = item.router_data.request.currency;
         let txn_amount = item.amount.clone();
         let reference_no = item.router_data.connector_request_reference_id.clone();
         let verify_key = auth.verify_key.peek().to_string();
         let signature = calculate_signature(format!(
-            "{txn_amount}{merchant_id}{reference_no}{verify_key}"
+            "{}{merchant_id}{reference_no}{verify_key}",
+            txn_amount.get_amount_as_string()
         ))?;
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => Ok(Self {
-                merchant_id,
+                merchant_id: auth.merchant_id,
                 reference_no,
                 txn_type: match item.router_data.request.is_auto_capture()? {
                     true => TxnType::Sals,
                     false => TxnType::Auts,
                 },
-                txn_channel: TxnChannel::Creditz,
+                txn_channel: TxnChannel::Creditan,
                 txn_currency,
                 txn_amount,
                 signature,
@@ -173,8 +174,6 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentsRequ
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuPaymentsSuccessResponse {
-    #[serde(rename = "MerchantID")]
-    pub merchant_id: String,
     pub reference_no: String,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
@@ -203,9 +202,10 @@ pub struct TxnData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RequestType {
-    REDIRECT,
-    RESPONSE,
+    Redirect,
+    Response,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -324,7 +324,7 @@ impl<F>
 pub struct FiuuRefundRequest {
     pub refund_type: RefundType,
     #[serde(rename = "MerchantID")]
-    pub merchant_id: String,
+    pub merchant_id: Secret<String>,
     #[serde(rename = "RefID")]
     pub ref_id: String,
     #[serde(rename = "TxnID")]
@@ -334,7 +334,15 @@ pub struct FiuuRefundRequest {
 }
 #[derive(Debug, Serialize, Display)]
 pub enum RefundType {
-    P,
+    #[serde(rename = "P")]
+    Partial,
+}
+impl RefundType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Partial => "P",
+        }
+    }
 }
 
 impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest {
@@ -346,15 +354,16 @@ impl TryFrom<&FiuuRouterData<&RefundsRouterData<Execute>>> for FiuuRefundRequest
         let reference_no = item.router_data.connector_request_reference_id.clone();
         let txn_id = item.router_data.request.connector_transaction_id.clone();
         let secret_key = auth.secret_key.peek().to_string();
-        let refund_type = RefundType::P.to_string();
         Ok(Self {
-            refund_type: RefundType::P,
-            merchant_id: merchant_id.clone(),
+            refund_type: RefundType::Partial,
+            merchant_id: auth.merchant_id,
             ref_id: reference_no.clone(),
             txn_id: txn_id.clone(),
             amount: txn_amount.clone(),
             signature: calculate_signature(format!(
-                "{refund_type}{merchant_id}{reference_no}{txn_id}{txn_amount}{secret_key}"
+                "{}{merchant_id}{reference_no}{txn_id}{}{secret_key}",
+                RefundType::Partial.as_str(),
+                txn_amount.get_amount_as_string()
             ))?,
         })
     }
@@ -425,15 +434,40 @@ pub struct FiuuPaymentSyncRequest {
     skey: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct FiuuPaymentSyncResponse {
     stat_code: String,
-    stat_name: String,
+    stat_name: StatName,
     #[serde(rename = "TranID")]
     tran_id: String,
     error_code: String,
     error_desc: String,
+    #[serde(rename = "miscellaneous")]
+    miscellaneous: Option<HashMap<String, Secret<String>>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Display, Clone, Copy, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum StatName {
+    Captured,
+    Settled,
+    Authorized,
+    Failed,
+    Cancelled,
+    Chargeback,
+    Release,
+    #[serde(rename = "reject/hold")]
+    RejectHold,
+    Blocked,
+    #[serde(rename = "ReqCancel")]
+    ReqCancel,
+    #[serde(rename = "ReqChargeback")]
+    ReqChargeback,
+    #[serde(rename = "Pending")]
+    Pending,
+    #[serde(rename = "Unknown")]
+    Unknown,
 }
 impl TryFrom<&PaymentsSyncRouterData> for FiuuPaymentSyncRequest {
     type Error = Report<errors::ConnectorError>;
@@ -453,7 +487,10 @@ impl TryFrom<&PaymentsSyncRouterData> for FiuuPaymentSyncRequest {
             amount: amount.clone(),
             tx_id: txn_id.clone(),
             domain: merchant_id.clone(),
-            skey: calculate_signature(format!("{txn_id}{merchant_id}{verify_key}{amount}"))?,
+            skey: calculate_signature(format!(
+                "{txn_id}{merchant_id}{verify_key}{}",
+                amount.get_amount_as_string()
+            ))?,
         })
     }
 }
@@ -463,10 +500,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>> for Paymen
     fn try_from(
         item: PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let stat_name = item.response.stat_name.as_str();
+        let stat_name = item.response.stat_name;
         let status = match item.response.stat_code.as_str() {
             "00" => {
-                if stat_name == "settled" || stat_name == "captured" {
+                if stat_name == StatName::Captured || stat_name == StatName::Settled {
                     Ok(enums::AttemptStatus::Charged)
                 } else {
                     Ok(enums::AttemptStatus::Authorized)
@@ -482,9 +519,9 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentSyncResponse>> for Paymen
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: item.response.stat_code.as_str().to_owned(),
-                message: item.response.stat_name.clone(),
-                reason: Some(item.response.stat_name),
-                attempt_status: None,
+                message: item.response.stat_name.clone().to_string(),
+                reason: Some(item.response.stat_name.clone().to_string()),
+                attempt_status: Some(enums::AttemptStatus::Failure),
                 connector_transaction_id: None,
             })
         } else {
@@ -535,7 +572,10 @@ impl TryFrom<&FiuuRouterData<&PaymentsCaptureRouterData>> for PaymentCaptureRequ
         let amount = item.amount.clone();
         let txn_id = item.router_data.request.connector_transaction_id.clone();
         let verify_key = auth.verify_key.peek().to_string();
-        let signature = calculate_signature(format!("{txn_id}{amount}{merchant_id}{verify_key}"))?;
+        let signature = calculate_signature(format!(
+            "{txn_id}{}{merchant_id}{verify_key}",
+            amount.get_amount_as_string()
+        ))?;
         Ok(Self {
             domain: merchant_id,
             tran_id: txn_id,
@@ -638,6 +678,8 @@ pub struct FiuuPaymentCancelResponse {
     #[serde(rename = "TranID")]
     tran_id: String,
     stat_code: String,
+    #[serde(rename = "miscellaneous")]
+    miscellaneous: Option<HashMap<String, Secret<String>>>,
 }
 
 impl TryFrom<&PaymentsCancelRouterData> for FiuuPaymentCancelRequest {
@@ -655,7 +697,7 @@ impl TryFrom<&PaymentsCancelRouterData> for FiuuPaymentCancelRequest {
         })
     }
 }
-// Reminder
+
 fn void_status_codes() -> HashMap<&'static str, &'static str> {
     [
         ("00", "Success (will proceed the request)"),

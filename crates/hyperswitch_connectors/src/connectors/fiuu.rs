@@ -1,4 +1,5 @@
 pub mod transformers;
+
 use std::collections::HashMap;
 
 use common_enums::{CaptureMethod, PaymentMethodType};
@@ -35,6 +36,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use masking::Secret;
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -46,18 +48,40 @@ fn parse_response<T>(data: &[u8]) -> Result<T, errors::ConnectorError>
 where
     T: for<'de> Deserialize<'de>,
 {
-    let response_str = String::from_utf8_lossy(data);
-    let mut map = HashMap::new();
+    let response_str = String::from_utf8(data.to_vec()).map_err(|e| {
+        router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
+
+    let mut json = serde_json::Map::new();
+    let mut miscellaneous: HashMap<String, Secret<String>> = HashMap::new();
+
     for line in response_str.lines() {
         if let Some((key, value)) = line.split_once('=') {
-            map.insert(key.to_string(), value.to_string());
+            if key.trim().is_empty() {
+                router_env::logger::error!("Null or empty key encountered in response.");
+                continue;
+            }
+
+            if let Some(old_value) = json.insert(key.to_string(), Value::String(value.to_string()))
+            {
+                router_env::logger::warn!("Repeated key encountered: {}", key);
+                miscellaneous.insert(key.to_string(), Secret::new(old_value.to_string()));
+            }
         }
     }
-    let json = serde_json::to_string(&map)
-        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+    if !miscellaneous.is_empty() {
+        let misc_value = serde_json::to_value(miscellaneous).map_err(|e| {
+            router_env::logger::error!("Error serializing miscellaneous data: {:?}", e);
+            errors::ConnectorError::ResponseDeserializationFailed
+        })?;
+        json.insert("miscellaneous".to_string(), misc_value);
+    }
 
-    let response: T = serde_json::from_str(&json)
-        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+    let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
+        router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
 
     Ok(response)
 }
@@ -148,18 +172,23 @@ impl ConnectorCommon for Fiuu {
 }
 pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_errors::ParsingError> {
     let mut form = Form::new();
-    let serialized = serde_json::to_value(&data)
-        .map_err(|_| common_errors::ParsingError::EncodeError("json-value"))?;
-    let serialized_object = serialized
-        .as_object()
-        .ok_or(common_errors::ParsingError::EncodeError("Expected object"))?;
-
+    let serialized = serde_json::to_value(&data).map_err(|e| {
+        router_env::logger::error!("Error serializing data to JSON value: {:?}", e);
+        common_errors::ParsingError::EncodeError("json-value")
+    })?;
+    let serialized_object = serialized.as_object().ok_or_else(|| {
+        router_env::logger::error!("Error: Expected JSON object but got something else");
+        common_errors::ParsingError::EncodeError("Expected object")
+    })?;
     for (key, values) in serialized_object {
         let value = match values {
             Value::String(s) => s.clone(),
             Value::Number(n) => n.to_string(),
             Value::Bool(b) => b.to_string(),
-            _ => "".to_string(),
+            Value::Array(_) | Value::Object(_) | Value::Null => {
+                router_env::logger::error!(serialization_error =? "Form Construction Failed.");
+                "".to_string()
+            }
         };
         form = form.text(key.clone(), value.clone());
     }

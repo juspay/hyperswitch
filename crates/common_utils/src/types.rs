@@ -582,12 +582,6 @@ impl StringMajorUnit {
     }
 }
 
-impl Display for StringMajorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 #[cfg(test)]
 mod amount_conversion_tests {
     #![allow(clippy::unwrap_used)]
