@@ -26,7 +26,10 @@
 
 //  cy.task can only be used in support files (spec files or commands file)
 
-import { getValueByKey } from "../e2e/configs/Payment/Utils.js";
+import {
+  getValueByKey,
+  isoTimeTomorrow,
+} from "../e2e/configs/Payment/Utils.js";
 
 function logRequestId(xRequestId) {
   if (xRequestId) {
@@ -195,7 +198,7 @@ Cypress.Commands.add(
           expect(response.body)
             .to.have.property("publishable_key")
             .and.to.include("pk_snd").and.to.not.be.empty;
-        else
+        else if (base_url.includes("localhost"))
           expect(response.body)
             .to.have.property("publishable_key")
             .and.to.include("pk_dev").and.to.not.be.empty;
@@ -617,7 +620,9 @@ Cypress.Commands.add(
         expect(response.body.id).to.include("mca_").and.to.not.be.empty;
         expect(response.body.status).to.equal("active");
         expect(response.body.profile_id).to.equal(profile_id);
-        expect(response.body.connector_webhook_details.merchant_secret).to.equal(mcaUpdateBody.connector_webhook_details.merchant_secret);
+        expect(
+          response.body.connector_webhook_details.merchant_secret
+        ).to.equal(mcaUpdateBody.connector_webhook_details.merchant_secret);
 
         if (
           merchant_connector_id === undefined ||
@@ -637,14 +642,166 @@ Cypress.Commands.add(
 );
 
 // API Key API calls
-Cypress.Commands.add("apiKeyCreateCall", () => {
-  cy.request({}).then((response) => {});
+Cypress.Commands.add("apiKeyCreateCall", (apiKeyCreateBody, globalState) => {
+  // Define the necessary variables and constant
+
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  // We do not want to keep API Key forever,
+  // so we set the expiry to tomorrow as new merchant accounts are created with every run
+  const expiry = isoTimeTomorrow();
+  const merchant_id = globalState.get("merchantId");
+  const url = `${base_url}/v2/api_keys`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  // Update request body
+  apiKeyCreateBody.expiration = expiry;
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+      ...customHeaders,
+    },
+    body: apiKeyCreateBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body.merchant_id).to.equal(merchant_id);
+      expect(response.body.description).to.equal(apiKeyCreateBody.description);
+
+      // API Key assertions are intentionally excluded to avoid being exposed in the logs
+      if (base_url.includes("sandbox") || base_url.includes("integ")) {
+        expect(response.body).to.have.property("key_id").and.to.include("snd_")
+          .and.to.not.be.empty;
+      } else if (base_url.includes("localhost")) {
+        expect(response.body).to.have.property("key_id").and.to.include("dev_")
+          .and.to.not.be.empty;
+      }
+
+      globalState.set("apiKeyId", response.body.key_id);
+      globalState.set("apiKey", response.body.api_key);
+
+      cy.task("setGlobalState", globalState.data);
+    } else {
+      // to be updated
+      throw new Error(
+        `API Key create call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
 });
-Cypress.Commands.add("apiKeyRetrieveCall", () => {
-  cy.request({}).then((response) => {});
+Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
+  // Define the necessary variables and constant
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const api_key_id = globalState.get("apiKeyId");
+  const url = `${base_url}/v2/api_keys/${api_key_id}`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+      ...customHeaders,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body.merchant_id).to.equal(merchant_id);
+
+      // API Key assertions are intentionally excluded to avoid being exposed in the logs
+      if (base_url.includes("sandbox") || base_url.includes("integ")) {
+        expect(response.body).to.have.property("key_id").and.to.include("snd_")
+          .and.to.not.be.empty;
+      } else if (base_url.includes("localhost")) {
+        expect(response.body).to.have.property("key_id").and.to.include("dev_")
+          .and.to.not.be.empty;
+      }
+
+      if (api_key === undefined || api_key === null) {
+        globalState.set("apiKey", response.body.api_key);
+        cy.task("setGlobalState", globalState.data);
+      }
+    } else {
+      // to be updated
+      throw new Error(
+        `API Key create call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
 });
-Cypress.Commands.add("apiKeyUpdateCall", () => {
-  cy.request({}).then((response) => {});
+Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
+  // Define the necessary variables and constant
+
+  const api_key = globalState.get("adminApiKey");
+  const api_key_id = globalState.get("apiKeyId");
+  const base_url = globalState.get("baseUrl");
+  // We do not want to keep API Key forever,
+  // so we set the expiry to tomorrow as new merchant accounts are created with every run
+  const expiry = isoTimeTomorrow();
+  const merchant_id = globalState.get("merchantId");
+  const url = `${base_url}/v2/api_keys/${api_key_id}`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  // Update request body
+  apiKeyUpdateBody.expiration = expiry;
+
+  cy.request({
+    method: "PUT",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+      ...customHeaders,
+    },
+    body: apiKeyUpdateBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body.merchant_id).to.equal(merchant_id);
+      expect(response.body.description).to.equal(apiKeyUpdateBody.description);
+
+      // API Key assertions are intentionally excluded to avoid being exposed in the logs
+      if (base_url.includes("sandbox") || base_url.includes("integ")) {
+        expect(response.body).to.have.property("key_id").and.to.include("snd_")
+          .and.to.not.be.empty;
+      } else if (base_url.includes("localhost")) {
+        expect(response.body).to.have.property("key_id").and.to.include("dev_")
+          .and.to.not.be.empty;
+      }
+
+      if (api_key === undefined || api_key === null) {
+        globalState.set("apiKey", response.body.api_key);
+        cy.task("setGlobalState", globalState.data);
+      }
+    } else {
+      // to be updated
+      throw new Error(
+        `API Key create call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
 });
 
 // Routing API calls

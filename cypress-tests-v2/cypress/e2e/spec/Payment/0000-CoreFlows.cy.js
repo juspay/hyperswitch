@@ -133,7 +133,27 @@ describe("Core APIs", () => {
     it.skip("[Payout] Merchant connector account update call", () => {});
   });
 
-  context.skip("API Key", () => {});
+  context("API Key APIs", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("API Key create call", () => {
+      cy.apiKeyCreateCall(fixtures.api_key_body.api_key_create, globalState);
+    });
+    it("API Key retrieve call", () => {
+      cy.apiKeyRetrieveCall(globalState);
+    });
+    it("API Key update call", () => {
+      cy.apiKeyUpdateCall(fixtures.api_key_body.api_key_update, globalState);
+    });
+  });
 
   context.skip("Routing", () => {});
 });
