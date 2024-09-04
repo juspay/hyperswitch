@@ -1,12 +1,13 @@
+use common_utils::{ext_traits::OptionExt, id_type};
+use error_stack::ResultExt;
+use masking::Secret;
+
 use super::jwt;
 use crate::{
     configs::Settings,
     consts,
     core::{self, errors::RouterResult},
 };
-use common_utils::{ext_traits::OptionExt, id_type};
-use error_stack::ResultExt;
-use masking::Secret;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ReconToken {
