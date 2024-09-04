@@ -1,13 +1,10 @@
 use api_models::recon as recon_api;
 use diesel_models::enums::UserRoleVersion;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    core::{
-        errors::{self, RouterResponse, StorageErrorExt, UserErrors},
-        utils as core_utils,
-    },
+    core::errors::{self, RouterResponse, StorageErrorExt, UserErrors},
     services::{
         api as service_api,
         authentication::{ReconUser, UserFromToken},
@@ -29,21 +26,21 @@ pub async fn send_recon_request(
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
-    let user_from_db = global_db
-        .find_user_by_id(&user.user_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let key_manager_state = &(&state).into();
+
     let user_role = db
-        .find_user_role_by_user_id(&user.user_id, UserRoleVersion::V1)
+        .find_user_role_by_user_id_and_lineage(
+            &user.user_id,
+            &user.org_id,
+            &user.merchant_id,
+            user.profile_id.as_ref(),
+            UserRoleVersion::V1,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    core_utils::validate_profile_id_from_auth_layer(user.profile_id, &user_role)?;
-
     let merchant_id = user_role
         .merchant_id
         .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
@@ -52,11 +49,36 @@ pub async fn send_recon_request(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Ensure the merchant in user role is the parent of the business profile
+    match user.profile_id {
+        Some(profile_id) => {
+            let business_profile = db
+                .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+            if user.merchant_id != merchant_id || user.merchant_id != business_profile.merchant_id {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Profile id authentication failed. Please use the correct JWT token"
+                        .to_string(),
+                }))
+            } else {
+                Ok(())
+            }
+        }
+        None => Ok(()),
+    }?;
+
     let merchant_account = db
         .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let user_from_db = global_db
+        .find_user_by_id(&user.user_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let email_contents = email_types::ProFeatureRequest {
         feature_name: "RECONCILIATION & SETTLEMENT".to_string(),
         merchant_id: merchant_id.clone(),
@@ -118,10 +140,11 @@ pub async fn send_recon_request(
 
 pub async fn generate_recon_token(
     state: SessionState,
-    req: UserFromToken,
+    req: ReconUser,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
+
     let user: UserFromStorage = global_db
         .find_user_by_id(&req.user_id)
         .await
@@ -133,10 +156,9 @@ pub async fn generate_recon_token(
             }
         })?
         .into();
-
     let user_role = db
         .find_user_role_by_user_id_and_lineage(
-            &user.user_id,
+            &user.0.user_id,
             &req.org_id,
             &req.merchant_id,
             req.profile_id.as_ref(),
@@ -145,9 +167,44 @@ pub async fn generate_recon_token(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let merchant_id = user_role
+        .merchant_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+    let key_manager_state = &(&state).into();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Ensure the merchant in user role is the parent of the business profile
+    match req.profile_id {
+        Some(profile_id) => {
+            let business_profile = db
+                .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+            if req.merchant_id != merchant_id || req.merchant_id != business_profile.merchant_id {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Profile id authentication failed. Please use the correct JWT token"
+                        .to_string(),
+                }))
+            } else {
+                Ok(())
+            }
+        }
+        None => Ok(()),
+    }?;
+
     let token = ReconToken::new_token(&state.conf, &user_role)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     Ok(service_api::ApplicationResponse::Json(
         recon_api::ReconTokenResponse { token },
     ))
@@ -159,12 +216,11 @@ pub async fn recon_merchant_account_update(
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
     let merchant_id = &req.merchant_id.clone();
     let user_email = &req.user_email.clone();
-
     let db = &*state.store;
-
+    let key_manager_state = &(&state).into();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            &(&state).into(),
+            key_manager_state,
             &req.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
@@ -172,7 +228,7 @@ pub async fn recon_merchant_account_update(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&(&state).into(), merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -182,7 +238,7 @@ pub async fn recon_merchant_account_update(
 
     let response = db
         .update_merchant(
-            &(&state).into(),
+            key_manager_state,
             merchant_account,
             updated_merchant_account,
             &key_store,

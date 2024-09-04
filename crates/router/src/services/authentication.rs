@@ -2003,7 +2003,7 @@ pub struct ReconUser {
 #[cfg(feature = "recon")]
 impl AuthInfo for ReconUser {
     fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        Some(self.merchant_id.as_ref())
+        Some(&self.merchant_id)
     }
 }
 #[cfg(all(feature = "olap", feature = "recon"))]
