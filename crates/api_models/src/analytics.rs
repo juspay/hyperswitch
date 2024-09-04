@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use common_utils::{events::ApiEventMetric, pii::EmailStrategy};
+use common_utils::{events::ApiEventMetric, pii::EmailStrategy, types::authentication::AuthInfo};
 use masking::Secret;
 
 use self::{
@@ -114,7 +114,8 @@ pub struct ReportRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GenerateReportRequest {
     pub request: ReportRequest,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub auth: AuthInfo,
     pub email: Secret<String, EmailStrategy>,
 }
 
