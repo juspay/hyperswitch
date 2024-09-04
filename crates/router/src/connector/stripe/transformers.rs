@@ -22,7 +22,7 @@ pub mod connect;
 pub use self::connect::*;
 use crate::{
     collect_missing_value_keys,
-    connector::utils::{self as connector_util, ApplePay, ApplePayDecrypt, RouterData},
+    connector::utils::{self as connector_util, ApplePay, ApplePayDecrypt, RouterData, PaymentsPreProcessingData},
     consts,
     core::errors,
     services,
@@ -3245,7 +3245,7 @@ impl
                             transfer_type: StripeCreditTransferTypes::Multibanco,
                             currency,
                             payment_method_data: MultibancoTransferData {
-                                email: item.get_billing_email()?,
+                                email: item.get_billing_email().or(item.request.get_email())?,
                             },
                             amount: Some(amount),
                             return_url: Some(item.get_return_url()?),
@@ -3255,7 +3255,7 @@ impl
                         Ok(Self::AchBankTansfer(AchCreditTransferSourceRequest {
                             transfer_type: StripeCreditTransferTypes::AchCreditTransfer,
                             payment_method_data: AchTransferData {
-                                email: item.get_billing_email()?,
+                                email: item.get_billing_email().or(item.request.get_email())?,
                             },
                             currency,
                         }))
