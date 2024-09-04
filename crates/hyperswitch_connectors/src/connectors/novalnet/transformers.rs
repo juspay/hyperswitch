@@ -133,7 +133,7 @@ fn result_to_option_secret_string(result: Result<Secret<String>, Error>) -> Opti
     result.ok()
 }
 
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 impl fmt::Display for NovalnetPaymentsRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -359,7 +359,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
             .response
             .result
             .redirect_url
-            .map(|x| RedirectForm::from((x, Method::Get)));
+            .map(|x|  RedirectForm::Form {
+                endpoint: x.to_string(),
+                method:  Method::Get,
+                form_fields: HashMap::new(),
+            });
 
         let transaction_id = match item.response.transaction.clone() {
             Some(transaction) => match transaction.tid.clone() {
