@@ -1042,9 +1042,10 @@ pub async fn toggle_connector_agnostic_mit(
         |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::RoutingWrite,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

@@ -24,9 +24,10 @@ pub async fn payment_connector_verify(
         |state, auth: auth::AuthenticationData, req, _| {
             verify_connector::verify_connector_credentials(state, req, auth.profile_id)
         },
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::MerchantConnectorAccountWrite,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

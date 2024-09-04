@@ -5,7 +5,7 @@ use api_models::{
     errors::types::ApiErrorResponse,
     user::{self as user_api},
 };
-use common_enums::{EntityType,TokenPurpose};
+use common_enums::{EntityType, TokenPurpose};
 use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
 
@@ -175,9 +175,10 @@ pub async fn set_dashboard_metadata(
         &req,
         payload,
         user_core::dashboard_metadata::set_metadata,
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -259,9 +260,10 @@ pub async fn user_merchant_account_create(
         |state, auth: auth::UserFromToken, json_payload, _| {
             user_core::create_merchant_account(state, auth, json_payload)
         },
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::MerchantAccountCreate,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -282,9 +284,10 @@ pub async fn generate_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::generate_sample_data_for_user,
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::PaymentWrite,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -304,9 +307,10 @@ pub async fn delete_sample_data(
         &http_req,
         payload.into_inner(),
         sample_data::delete_sample_data_for_user,
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -338,9 +342,10 @@ pub async fn get_user_role_details(
         &req,
         payload.into_inner(),
         user_core::get_user_details_in_merchant_account,
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -357,9 +362,10 @@ pub async fn list_users_for_merchant_account(
         &req,
         (),
         |state, user, _, _| user_core::list_users_for_merchant_account(state, user),
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::UsersRead,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -439,9 +445,10 @@ pub async fn invite_multiple_user(
         |state, user, payload, req_state| {
             user_core::invite_multiple_user(state, user, payload, req_state, auth_id.clone())
         },
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -464,9 +471,10 @@ pub async fn resend_invite(
         |state, user, req_payload, _| {
             user_core::resend_invite(state, user, req_payload, auth_id.clone())
         },
-        &auth::JWTAuth{
+        &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant},
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

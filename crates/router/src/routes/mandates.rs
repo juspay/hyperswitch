@@ -132,9 +132,10 @@ pub async fn retrieve_mandates_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::MandateRead,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

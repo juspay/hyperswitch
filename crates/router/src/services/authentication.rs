@@ -1004,7 +1004,7 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct JWTAuth{
+pub(crate) struct JWTAuth {
     pub permission: Permission,
     pub minimum_entity_level: EntityType,
 }

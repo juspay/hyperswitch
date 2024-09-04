@@ -196,9 +196,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -234,9 +235,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -268,9 +270,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -302,9 +305,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -340,9 +344,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -379,9 +384,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -418,9 +424,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -442,9 +449,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -470,9 +478,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -494,9 +503,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -518,9 +528,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -546,9 +557,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -570,9 +582,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -596,9 +609,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -620,9 +634,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -664,9 +679,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -708,9 +724,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -752,9 +769,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -790,9 +808,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -814,9 +833,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -838,9 +858,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -880,9 +901,10 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -922,9 +944,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -946,9 +969,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -979,9 +1003,10 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await

@@ -37,9 +37,10 @@ pub async fn add_entry_to_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -75,9 +76,10 @@ pub async fn remove_entry_from_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -115,9 +117,10 @@ pub async fn list_blocked_payment_methods(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -155,9 +158,10 @@ pub async fn toggle_blocklist_guard(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth{
+            &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant},
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
