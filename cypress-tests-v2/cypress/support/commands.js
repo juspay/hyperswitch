@@ -94,15 +94,17 @@ Cypress.Commands.add("organizationRetrieveCall", (globalState) => {
         .to.have.property("organization_id")
         .and.to.include("org_")
         .and.to.be.a("string").and.not.be.empty;
-      globalState.set("organizationId", response.body.organization_id);
-      cy.task("setGlobalState", globalState.data);
       expect(response.body.organization_name)
         .to.have.include("Hyperswitch")
         .and.to.be.a("string").and.not.be.empty;
+
+      globalState.set("organizationId", response.body.organization_id);
+
+      cy.task("setGlobalState", globalState.data);
     } else {
       // to be updated
       throw new Error(
-        `Organization create call failed with status ${response.status} and message ${response.body.message}`
+        `Organization retrieve call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -133,14 +135,16 @@ Cypress.Commands.add(
           .to.have.property("organization_id")
           .and.to.include("org_")
           .and.to.be.a("string").and.not.be.empty;
-        globalState.set("organizationId", response.body.organization_id);
-        cy.task("setGlobalState", globalState.data);
         expect(response.body).to.have.property("metadata").and.to.be.a("object")
           .and.not.be.empty;
+
+        globalState.set("organizationId", response.body.organization_id);
+
+        cy.task("setGlobalState", globalState.data);
       } else {
         // to be updated
         throw new Error(
-          `Organization create call failed with status ${response.status} and message ${response.body.message}`
+          `Organization update call failed with status ${response.status} and message ${response.body.message}`
         );
       }
     });
@@ -151,19 +155,149 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "merchantAccountCreateCall",
   (merchantAccountCreateBody, globalState) => {
-    cy.request({}).then((response) => {});
+    // Define the necessary variables and constants
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const organization_id = globalState.get("organizationId");
+    const url = `${base_url}/v2/accounts`;
+
+    const merchant_name = merchantAccountCreateBody.merchant_name
+      .replaceAll(" ", "")
+      .toLowerCase();
+
+    // Update request body
+    merchantAccountCreateBody.organization_id = organization_id;
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": api_key,
+      },
+      body: merchantAccountCreateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body)
+          .to.have.property("id")
+          .and.to.include(`${merchant_name}_`)
+          .and.to.be.a("string").and.not.be.empty;
+
+        if (base_url.includes("sandbox") || base_url.includes("integ"))
+          expect(response.body)
+            .to.have.property("publishable_key")
+            .and.to.include("pk_snd").and.to.not.be.empty;
+        else
+          expect(response.body)
+            .to.have.property("publishable_key")
+            .and.to.include("pk_dev").and.to.not.be.empty;
+
+        globalState.set("merchantId", response.body.id);
+        globalState.set("publishableKey", response.body.publishable_key);
+
+        cy.task("setGlobalState", globalState.data);
+      } else {
+        // to be updated
+        throw new Error(
+          `Merchant create call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
   }
 );
-Cypress.Commands.add(
-  "merchantAccountRetrieveCall",
-  (merchantAccountRetrieveBody, globalState) => {
-    cy.request({}).then((response) => {});
-  }
-);
+Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const url = `${base_url}/v2/accounts/${merchant_id}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body).to.have.property("id").and.to.be.a("string").and.not
+        .be.empty;
+
+      if (base_url.includes("sandbox") || base_url.includes("integ"))
+        expect(response.body)
+          .to.have.property("publishable_key")
+          .and.to.include("pk_snd").and.to.not.be.empty;
+      else
+        expect(response.body)
+          .to.have.property("publishable_key")
+          .and.to.include("pk_dev").and.to.not.be.empty;
+
+      globalState.set("merchantId", response.body.id);
+      globalState.set("publishableKey", response.body.publishable_key);
+
+      cy.task("setGlobalState", globalState.data);
+    } else {
+      // to be updated
+      throw new Error(
+        `Merchant retrieve call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
+});
 Cypress.Commands.add(
   "merchantAccountUpdateCall",
   (merchantAccountUpdateBody, globalState) => {
-    cy.request({}).then((response) => {});
+    // Define the necessary variables and constants
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const merchant_id = globalState.get("merchantId");
+    const url = `${base_url}/v2/accounts/${merchant_id}`;
+
+    const merchant_name = merchantAccountUpdateBody.merchant_name;
+
+    cy.request({
+      method: "PUT",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": api_key,
+      },
+      body: merchantAccountUpdateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body.id).to.equal(merchant_id);
+
+        if (base_url.includes("sandbox") || base_url.includes("integ"))
+          expect(response.body)
+            .to.have.property("publishable_key")
+            .and.to.include("pk_snd").and.to.not.be.empty;
+        else
+          expect(response.body)
+            .to.have.property("publishable_key")
+            .and.to.include("pk_dev").and.to.not.be.empty;
+        expect(response.body.merchant_name).to.equal(merchant_name);
+
+        globalState.set("merchantId", response.body.id);
+        globalState.set("publishableKey", response.body.publishable_key);
+
+        cy.task("setGlobalState", globalState.data);
+      } else {
+        // to be updated
+        throw new Error(
+          `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
   }
 );
 

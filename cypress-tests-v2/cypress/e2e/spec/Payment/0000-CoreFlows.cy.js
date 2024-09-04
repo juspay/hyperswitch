@@ -46,10 +46,24 @@ describe("Core APIs", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("Merchant account create call", () => {});
-    it("Merchant account retrieve call", () => {});
-    it("Merchant account update call", () => {});
-    it("Merchant account retrieve call", () => {});
+    it("Merchant account create call", () => {
+      cy.merchantAccountCreateCall(
+        fixtures.merchant_account_body.ma_create,
+        globalState
+      );
+    });
+    it("Merchant account retrieve call", () => {
+      cy.merchantAccountRetrieveCall(globalState);
+    });
+    it("Merchant account update call", () => {
+      cy.merchantAccountUpdateCall(
+        fixtures.merchant_account_body.ma_update,
+        globalState
+      );
+    });
+    it("Merchant account retrieve call", () => {
+      cy.merchantAccountRetrieveCall(globalState);
+    });
   });
 
   context("Business profile APIs", () => {
