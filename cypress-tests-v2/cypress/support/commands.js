@@ -98,9 +98,10 @@ Cypress.Commands.add("organizationRetrieveCall", (globalState) => {
         .to.have.include("Hyperswitch")
         .and.to.be.a("string").and.not.be.empty;
 
-      globalState.set("organizationId", response.body.organization_id);
-
-      cy.task("setGlobalState", globalState.data);
+      if (organization_id === undefined || organization_id === null) {
+        globalState.set("organizationId", response.body.organization_id);
+        cy.task("setGlobalState", globalState.data);
+      }
     } else {
       // to be updated
       throw new Error(
@@ -138,9 +139,10 @@ Cypress.Commands.add(
         expect(response.body).to.have.property("metadata").and.to.be.a("object")
           .and.not.be.empty;
 
-        globalState.set("organizationId", response.body.organization_id);
-
-        cy.task("setGlobalState", globalState.data);
+        if (organization_id === undefined || organization_id === null) {
+          globalState.set("organizationId", response.body.organization_id);
+          cy.task("setGlobalState", globalState.data);
+        }
       } else {
         // to be updated
         throw new Error(
@@ -239,10 +241,11 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
           .to.have.property("publishable_key")
           .and.to.include("pk_dev").and.to.not.be.empty;
 
-      globalState.set("merchantId", response.body.id);
-      globalState.set("publishableKey", response.body.publishable_key);
-
-      cy.task("setGlobalState", globalState.data);
+      if (merchant_id === undefined || merchant_id === null) {
+        globalState.set("merchantId", response.body.id);
+        globalState.set("publishableKey", response.body.publishable_key);
+        cy.task("setGlobalState", globalState.data);
+      }
     } else {
       // to be updated
       throw new Error(
@@ -287,10 +290,11 @@ Cypress.Commands.add(
             .and.to.include("pk_dev").and.to.not.be.empty;
         expect(response.body.merchant_name).to.equal(merchant_name);
 
-        globalState.set("merchantId", response.body.id);
-        globalState.set("publishableKey", response.body.publishable_key);
-
-        cy.task("setGlobalState", globalState.data);
+        if (merchant_id === undefined || merchant_id === null) {
+          globalState.set("merchantId", response.body.id);
+          globalState.set("publishableKey", response.body.publishable_key);
+          cy.task("setGlobalState", globalState.data);
+        }
       } else {
         // to be updated
         throw new Error(
@@ -375,9 +379,10 @@ Cypress.Commands.add("businessProfileRetrieveCall", (globalState) => {
       expect(response.body.merchant_id).to.equal(merchant_id);
       expect(response.body.id).to.include("pro_").and.to.not.be.empty;
 
-      globalState.set("profileId", response.body.id);
-
-      cy.task("setGlobalState", globalState.data);
+      if (profile_id === undefined || profile_id === null) {
+        globalState.set("profileId", response.body.id);
+        cy.task("setGlobalState", globalState.data);
+      }
     } else {
       // to be updated
       throw new Error(
@@ -420,9 +425,10 @@ Cypress.Commands.add(
           businessProfileUpdateBody.profile_name
         );
 
-        globalState.set("profileId", response.body.id);
-
-        cy.task("setGlobalState", globalState.data);
+        if (profile_id === undefined || profile_id === null) {
+          globalState.set("profileId", response.body.id);
+          cy.task("setGlobalState", globalState.data);
+        }
       } else {
         // to be updated
         throw new Error(
