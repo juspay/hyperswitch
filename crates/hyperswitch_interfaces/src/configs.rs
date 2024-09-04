@@ -29,6 +29,7 @@ pub struct Connectors {
     pub cryptopay: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub datatrans: ConnectorParams,
+    pub deutschebank: ConnectorParams,
     pub dlocal: ConnectorParams,
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: ConnectorParams,

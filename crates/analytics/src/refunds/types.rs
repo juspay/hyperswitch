@@ -36,6 +36,12 @@ where
                 .attach_printable("Error adding auth type filter")?;
         }
 
+        if !self.profile_id.is_empty() {
+            builder
+                .add_filter_in_range_clause(RefundDimensions::ProfileId, &self.profile_id)
+                .attach_printable("Error adding profile id filter")?;
+        }
+
         Ok(())
     }
 }

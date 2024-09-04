@@ -23,6 +23,7 @@ use super::{
     PaymentIntentMetricsAccumulator,
 };
 use crate::{
+    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics,
     payment_intents::PaymentIntentMetricAccumulator,
@@ -43,7 +44,7 @@ pub enum TaskType {
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     req: GetPaymentIntentMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -62,14 +63,14 @@ pub async fn get_metrics(
 
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
-        let merchant_id_scoped = merchant_id.to_owned();
+        let auth_scoped = auth.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_payment_intent_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &merchant_id_scoped,
+                        &auth_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -215,6 +216,7 @@ pub async fn get_filters(
         .filter_map(|fil: PaymentIntentFilterRow| match dim {
             PaymentIntentDimensions::PaymentIntentStatus => fil.status.map(|i| i.as_ref().to_string()),
             PaymentIntentDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
+            PaymentIntentDimensions::ProfileId => fil.profile_id,
         })
         .collect::<Vec<String>>();
         res.query_data.push(PaymentIntentFilterValue {
