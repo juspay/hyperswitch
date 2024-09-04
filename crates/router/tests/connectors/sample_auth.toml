@@ -274,3 +274,6 @@ api_key = "API Key"
 
 [novalnet]
 api_key="API Key"
+
+[deutschebank]
+api_key="API Key"

@@ -2,21 +2,15 @@ use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::enums as storage_enums;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::merchant_account;
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::merchant_account;
 
 /// Note: The order of fields in the struct is important.
 /// This should be in the same order as the fields in the schema.rs file, otherwise the code will not compile
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the fields read / written will be interchanged
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone,
     Debug,
@@ -59,10 +53,7 @@ pub struct MerchantAccount {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub struct MerchantAccountSetter {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub return_url: Option<String>,
@@ -94,10 +85,7 @@ pub struct MerchantAccountSetter {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
@@ -136,7 +124,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
 /// Note: The order of fields in the struct is important.
 /// This should be in the same order as the fields in the schema.rs file, otherwise the code will not compile
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the fields read / written will be interchanged
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone,
     Debug,
@@ -158,11 +146,11 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
-    pub id: common_utils::id_type::MerchantId,
     pub version: common_enums::ApiVersion,
+    pub id: common_utils::id_type::MerchantId,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
@@ -181,7 +169,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub struct MerchantAccountSetter {
     pub id: common_utils::id_type::MerchantId,
     pub merchant_name: Option<Encryption>,
@@ -197,25 +185,19 @@ pub struct MerchantAccountSetter {
 }
 
 impl MerchantAccount {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.merchant_id
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.id
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountNew {
@@ -248,7 +230,7 @@ pub struct MerchantAccountNew {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountNew {
@@ -264,7 +246,7 @@ pub struct MerchantAccountNew {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
@@ -278,10 +260,7 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {

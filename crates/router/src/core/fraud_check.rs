@@ -119,7 +119,7 @@ where
     Ok(router_data_res)
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn should_call_frm<F: Send + Clone>(
     _merchant_account: &domain::MerchantAccount,
     _payment_data: &payments::PaymentData<F>,
@@ -136,7 +136,7 @@ pub async fn should_call_frm<F: Send + Clone>(
     todo!()
 }
 
-#[cfg(all(feature = "v1", not(feature = "merchant_account_v2")))]
+#[cfg(feature = "v1")]
 pub async fn should_call_frm<F: Send + Clone>(
     merchant_account: &domain::MerchantAccount,
     payment_data: &payments::PaymentData<F>,
@@ -171,10 +171,7 @@ pub async fn should_call_frm<F: Send + Clone>(
                 .attach_printable("profile_id is not set in payment_intent")?
                 .clone();
 
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             let merchant_connector_account_from_db_option = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     &state.into(),
@@ -204,7 +201,7 @@ pub async fn should_call_frm<F: Send + Clone>(
                     }
                 });
 
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             let merchant_connector_account_from_db_option: Option<
                 domain::MerchantConnectorAccount,
             > = {

@@ -656,10 +656,7 @@ pub async fn call_decision_manager<O>(
 where
     O: Send + Clone,
 {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -670,7 +667,7 @@ where
         .unwrap_or_default();
 
     // TODO: Move to business profile surcharge column
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
     let output = perform_decision_management(
@@ -803,10 +800,7 @@ where
             .map(|session_connector_data| session_connector_data.payment_method_type)
             .collect();
 
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = _merchant_account
             .routing_algorithm
             .clone()
@@ -817,7 +811,7 @@ where
             .unwrap_or_default();
 
         // TODO: Move to business profile surcharge column
-        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        #[cfg(feature = "v2")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
         let surcharge_results =
@@ -2751,7 +2745,7 @@ where
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<domain::PaymentMethodData>,
-    pub payment_method_info: Option<storage::PaymentMethod>,
+    pub payment_method_info: Option<domain::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
@@ -3789,7 +3783,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                             mandate_reference_record.connector_mandate_id.clone(),
                                         ),
                                         payment_method_id: Some(
-                                            payment_method_info.payment_method_id.clone(),
+                                            payment_method_info.get_id().clone(),
                                         ),
                                         update_history: None,
                                     },
@@ -3877,7 +3871,7 @@ pub fn is_network_transaction_id_flow(
     state: &SessionState,
     is_connector_agnostic_mit_enabled: Option<bool>,
     connector: enums::Connector,
-    payment_method_info: &storage::PaymentMethod,
+    payment_method_info: &domain::PaymentMethod,
 ) -> bool {
     let ntid_supported_connectors = &state
         .conf
@@ -4018,11 +4012,7 @@ where
     Ok(final_list)
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,
@@ -4107,10 +4097,7 @@ where
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,

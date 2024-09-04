@@ -400,7 +400,7 @@ fn generate_task_id_for_payment_method_status_update_workflow(
 
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
-    payment_method: &diesel_models::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
     prev_status: enums::PaymentMethodStatus,
     curr_status: enums::PaymentMethodStatus,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -410,7 +410,7 @@ pub async fn add_payment_method_status_update_task(
         created_at.saturating_add(Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
     let tracking_data = storage::PaymentMethodStatusTrackingData {
-        payment_method_id: payment_method.payment_method_id.clone(),
+        payment_method_id: payment_method.get_id().clone(),
         prev_status,
         curr_status,
         merchant_id: merchant_id.to_owned(),
@@ -421,7 +421,7 @@ pub async fn add_payment_method_status_update_task(
     let tag = [PAYMENT_METHOD_STATUS_TAG];
 
     let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
-        payment_method.payment_method_id.as_str(),
+        payment_method.get_id().as_str(),
         &runner,
         task,
     );
@@ -443,7 +443,7 @@ pub async fn add_payment_method_status_update_task(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
-                payment_method.payment_method_id.clone()
+                payment_method.get_id().clone()
             )
         })?;
 
@@ -626,7 +626,7 @@ pub(crate) async fn get_payment_method_create_request(
                             .flatten(),
                     };
                     let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: payment_method,
+                        payment_method,
                         payment_method_type: payment_method_type
                             .get_required_value("Payment_method_type")
                             .change_context(errors::ApiErrorResponse::MissingRequiredField {

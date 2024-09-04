@@ -11,8 +11,6 @@ use api_models::{
 use api_models::{payment_methods::PaymentMethodsData, payments::AdditionalPaymentData};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{type_name, types::keymanager::Identifier};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -27,7 +25,6 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::payment_methods::cards::create_encrypted_data,
     events::audit_events::{AuditEvent, AuditEventType},
-    types::domain::types::{crypto_operation, CryptoOperation},
 };
 use crate::{
     core::{
@@ -600,6 +597,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
             let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
                 state,
+                key_store,
                 &token_data,
                 storage_scheme,
             )
@@ -1161,24 +1159,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
-        let key_manager_state = &state.into();
-        let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
-            let key = key_store.key.get_inner().peek();
 
-            let card_detail_from_locker: Option<api::CardDetailFromLocker> =
-                crypto_operation::<serde_json::Value, masking::WithType>(
-                    key_manager_state,
-                    type_name!(storage::PaymentMethod),
-                    CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
-                    Identifier::Merchant(key_store.merchant_id.clone()),
-                    key,
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-                .change_context(errors::StorageError::DecryptionError)
-                .attach_printable("unable to decrypt card details")
-                .ok()
-                .flatten()
+        let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
+                .payment_method_data
+                .clone()
                 .map(|x| x.into_inner().expose())
                 .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
                 .and_then(|pmd| match pmd {

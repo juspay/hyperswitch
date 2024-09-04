@@ -13,10 +13,7 @@ use masking::{PeekInterface, Secret};
 use super::behaviour;
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
@@ -45,17 +42,14 @@ pub struct MerchantConnectorAccount {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
@@ -80,17 +74,14 @@ pub struct MerchantConnectorAccount {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug)]
 pub enum MerchantConnectorAccountUpdate {
     Update {
@@ -116,7 +107,7 @@ pub enum MerchantConnectorAccountUpdate {
     },
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug)]
 pub enum MerchantConnectorAccountUpdate {
     Update {
@@ -139,10 +130,7 @@ pub enum MerchantConnectorAccountUpdate {
     },
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
     type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
@@ -296,7 +284,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
     type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
@@ -432,10 +420,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
     fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
         match merchant_connector_account_update {
@@ -502,7 +487,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
     fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
         match merchant_connector_account_update {

@@ -292,7 +292,7 @@ where
     > {
         Ok((
             Box::new(self),
-            helpers::get_customer_from_details(
+            helpers::get_customer_details_even_for_redacted_customer(
                 state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,
