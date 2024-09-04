@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user_role::{self as user_role_api, role as role_api};
-use common_enums::TokenPurpose;
+use common_enums::{EntityType, TokenPurpose};
 use router_env::Flow;
 
 use super::AppState;
@@ -29,7 +29,9 @@ pub async fn get_authorization_info(
         |state, _: (), _, _| async move {
             user_role_core::get_authorization_info_with_groups(state).await
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth{
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -64,7 +66,9 @@ pub async fn create_role(
         &req,
         json_payload.into_inner(),
         role_core::create_role,
-        &auth::JWTAuth(Permission::UsersWrite),
+        &auth::JWTAuth{
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -80,7 +84,9 @@ pub async fn list_all_roles(state: web::Data<AppState>, req: HttpRequest) -> Htt
         |state, user, _, _| async move {
             role_core::list_invitable_roles_with_groups(state, user).await
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth{
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -103,7 +109,9 @@ pub async fn get_role(
         |state, user, payload, _| async move {
             role_core::get_role_with_groups(state, user, payload).await
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth{
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -124,7 +132,9 @@ pub async fn update_role(
         &req,
         json_payload.into_inner(),
         |state, user, req, _| role_core::update_role(state, user, req, &role_id),
-        &auth::JWTAuth(Permission::UsersWrite),
+        &auth::JWTAuth{
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -143,7 +153,9 @@ pub async fn update_user_role(
         &req,
         payload,
         user_role_core::update_user_role,
-        &auth::JWTAuth(Permission::UsersWrite),
+        &auth::JWTAuth{
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -201,7 +213,9 @@ pub async fn delete_user_role(
         &req,
         payload.into_inner(),
         user_role_core::delete_user_role,
-        &auth::JWTAuth(Permission::UsersWrite),
+        &auth::JWTAuth{
+            permission: Permission::UsersWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -221,7 +235,9 @@ pub async fn get_role_information(
         |_, _: (), _, _| async move {
             user_role_core::get_authorization_info_with_group_tag().await
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth{
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -253,7 +269,9 @@ pub async fn list_roles_with_info(state: web::Data<AppState>, req: HttpRequest) 
         &req,
         (),
         |state, user_from_token, _, _| role_core::list_roles_with_info(state, user_from_token),
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth{
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -279,7 +297,9 @@ pub async fn list_invitable_roles_at_entity_level(
                 role_api::RoleCheckType::Invite,
             )
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth{
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -305,7 +325,9 @@ pub async fn list_updatable_roles_at_entity_level(
                 role_api::RoleCheckType::Update,
             )
         },
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth{
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await

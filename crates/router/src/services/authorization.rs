@@ -26,7 +26,7 @@ where
         return Ok(role_info.clone());
     }
 
-    if let Ok(role_info) = get_permissions_from_cache(state, &token.role_id)
+    if let Ok(role_info) = get_role_info_from_cache(state, &token.role_id)
         .await
         .map_err(|e| logger::error!("Failed to get permissions from cache {e:?}"))
     {
@@ -47,7 +47,7 @@ where
     Ok(role_info)
 }
 
-async fn get_permissions_from_cache<A>(state: &A, role_id: &str) -> RouterResult<roles::RoleInfo>
+async fn get_role_info_from_cache<A>(state: &A, role_id: &str) -> RouterResult<roles::RoleInfo>
 where
     A: SessionStateInfo + Sync,
 {
@@ -97,7 +97,7 @@ where
         .change_context(ApiErrorResponse::InternalServerError)
 }
 
-pub fn check_authorization(
+pub fn check_permission(
     required_permission: &permissions::Permission,
     role_info: &roles::RoleInfo,
 ) -> RouterResult<()> {
@@ -110,6 +110,19 @@ pub fn check_authorization(
             }
             .into(),
         )
+}
+
+pub fn check_entity(
+    required_minimum_entity: common_enums::EntityType,
+    role_info: &roles::RoleInfo,
+) -> RouterResult<()> {
+    if required_minimum_entity > role_info.get_entity_type() {
+        Err(ApiErrorResponse::AccessForbidden {
+            resource: required_minimum_entity.to_string(),
+        })
+        .attach_printable("")?;
+    }
+    Ok(())
 }
 
 fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {

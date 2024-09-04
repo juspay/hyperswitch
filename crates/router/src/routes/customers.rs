@@ -1,6 +1,7 @@
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use actix_web::Responder;
 use actix_web::{web, HttpRequest, HttpResponse};
+use common_enums::EntityType;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
@@ -27,7 +28,9 @@ pub async fn customers_create(
         |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth{
+                permission: Permission::CustomerWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -50,7 +53,9 @@ pub async fn customers_retrieve(
     .into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
-        Box::new(auth::JWTAuth(Permission::CustomerRead))
+        Box::new(auth::JWTAuth{
+            permission: Permission::CustomerRead,
+        minimum_entity_level: EntityType::Merchant})
     } else {
         match auth::is_ephemeral_auth(req.headers()) {
             Ok(auth) => auth,
@@ -90,7 +95,9 @@ pub async fn customers_retrieve(
     let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
-        Box::new(auth::JWTAuth(Permission::CustomerRead))
+        Box::new(auth::JWTAuth{
+            permission: Permission::CustomerRead,
+        minimum_entity_level: EntityType::Merchant})
     } else {
         match auth::is_ephemeral_auth(req.headers()) {
             Ok(auth) => auth,
@@ -135,7 +142,9 @@ pub async fn customers_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerRead),
+            &auth::JWTAuth{
+                permission: Permission::CustomerRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -171,7 +180,9 @@ pub async fn customers_update(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth{
+                permission: Permission::CustomerWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -206,7 +217,9 @@ pub async fn customers_update(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth{
+                permission: Permission::CustomerWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -235,7 +248,9 @@ pub async fn customers_delete(
         |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth{
+                permission: Permission::CustomerWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -270,7 +285,9 @@ pub async fn get_customer_mandates(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MandateRead),
+            &auth::JWTAuth{
+                permission: Permission::MandateRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

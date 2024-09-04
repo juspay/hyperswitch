@@ -1,4 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -1041,7 +1042,9 @@ pub async fn toggle_connector_agnostic_mit(
         |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

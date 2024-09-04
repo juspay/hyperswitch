@@ -5,6 +5,7 @@
 
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
+use common_enums::EntityType;
 use router_env::{
     tracing::{self, instrument},
     Flow,
@@ -41,11 +42,15 @@ pub async fn routing_create_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -81,11 +86,15 @@ pub async fn routing_link_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -124,11 +133,15 @@ pub async fn routing_link_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -159,11 +172,15 @@ pub async fn routing_retrieve_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuth{
+            permission: Permission::RoutingRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -194,11 +211,15 @@ pub async fn list_routing_configs(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuth{
+            permission: Permission::RoutingRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -230,11 +251,15 @@ pub async fn routing_unlink_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -270,11 +295,15 @@ pub async fn routing_unlink_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -314,11 +343,15 @@ pub async fn routing_update_default_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -352,11 +385,15 @@ pub async fn routing_update_default_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -390,11 +427,15 @@ pub async fn routing_retrieve_default_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuth{
+            permission: Permission::RoutingRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -422,11 +463,15 @@ pub async fn routing_retrieve_default_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuth{
+            permission: Permission::RoutingRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -456,11 +501,15 @@ pub async fn upsert_surcharge_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+            &auth::JWTAuth{
+                permission: Permission::SurchargeDecisionManagerWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+        &auth::JWTAuth{
+            permission: Permission::SurchargeDecisionManagerWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -487,11 +536,15 @@ pub async fn delete_surcharge_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+            &auth::JWTAuth{
+                permission: Permission::SurchargeDecisionManagerWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+        &auth::JWTAuth{
+            permission: Permission::SurchargeDecisionManagerWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -518,11 +571,15 @@ pub async fn retrieve_surcharge_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+            &auth::JWTAuth{
+                permission: Permission::SurchargeDecisionManagerRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+        &auth::JWTAuth{
+            permission: Permission::SurchargeDecisionManagerRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -552,11 +609,15 @@ pub async fn upsert_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+            &auth::JWTAuth{
+                permission: Permission::SurchargeDecisionManagerRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+        &auth::JWTAuth{
+            permission: Permission::SurchargeDecisionManagerRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -584,11 +645,15 @@ pub async fn delete_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+            &auth::JWTAuth{
+                permission: Permission::SurchargeDecisionManagerWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::SurchargeDecisionManagerWrite),
+        &auth::JWTAuth{
+            permission: Permission::SurchargeDecisionManagerWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -612,11 +677,15 @@ pub async fn retrieve_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+            &auth::JWTAuth{
+                permission: Permission::SurchargeDecisionManagerRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::SurchargeDecisionManagerRead),
+        &auth::JWTAuth{
+            permission: Permission::SurchargeDecisionManagerRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     )
     .await
@@ -653,11 +722,15 @@ pub async fn routing_retrieve_linked_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuth{
+            permission: Permission::RoutingRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -701,11 +774,15 @@ pub async fn routing_retrieve_linked_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingRead),
+        &auth::JWTAuth{
+            permission: Permission::RoutingRead,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -734,13 +811,17 @@ pub async fn routing_retrieve_default_config_for_profiles(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingRead),
+            &auth::JWTAuth{
+                permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -779,11 +860,15 @@ pub async fn routing_update_default_config_for_profile(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::RoutingWrite),
+            &auth::JWTAuth{
+                permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth(Permission::RoutingWrite),
+        &auth::JWTAuth{
+            permission: Permission::RoutingWrite,
+            minimum_entity_level: EntityType::Merchant},
         api_locking::LockAction::NotApplicable,
     ))
     .await
