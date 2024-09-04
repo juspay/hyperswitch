@@ -802,13 +802,13 @@ pub async fn payouts_list_core(
                             // We have to do this because the function that is being used to create / get address is from payments
                             // which expects a payment_id
                             let payout_id_as_payment_id_type =
-                                common_utils::id_type::PaymentId::try_from(
-                                    std::borrow::Cow::Owned(payout.payout_id.to_string()),
-                                )
-                                .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                                    message: "payout_id contains invalid data".to_string(),
-                                })
-                                .attach_printable("Error converting payout_id to PaymentId type")?;
+                                common_utils::id_type::PaymentId::wrap(payout.payout_id.clone())
+                                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                                        message: "payout_id contains invalid data".to_string(),
+                                    })
+                                    .attach_printable(
+                                        "Error converting payout_id to PaymentId type",
+                                    )?;
                             match payment_helpers::create_or_find_address_for_payment_by_request(
                                 &state,
                                 None,
@@ -915,7 +915,7 @@ pub async fn payouts_filtered_list_core(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PayoutCreateResponse> =
-        join_all(list.into_iter().map(|(p, pa, c, b)| async {
+        join_all(list.into_iter().map(|(p, pa, c, address)| async {
             c.async_and_then(|cust| async {
                 match domain::Customer::convert_back(
                     &(&state).into(),
@@ -925,7 +925,7 @@ pub async fn payouts_filtered_list_core(
                 )
                 .await
                 {
-                    Ok(domain_cust) => match b {
+                    Ok(domain_customer) => match address {
                         Some(addr) => {
                             let payment_addr: Option<payment_enums::Address> =
                                 domain::Address::convert_back(
@@ -945,9 +945,9 @@ pub async fn payouts_filtered_list_core(
                                 })
                                 .ok();
 
-                            Some((p, pa, Some(domain_cust), payment_addr))
+                            Some((p, pa, Some(domain_customer), payment_addr))
                         }
-                        None => Some((p, pa, Some(domain_cust), None)),
+                        None => Some((p, pa, Some(domain_customer), None)),
                     },
                     Err(err) => {
                         let msg = format!("failed to convert customer for id: {:?}", p.customer_id);
