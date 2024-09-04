@@ -12,18 +12,21 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{PaymentMethodToken, RecurringMandatePaymentData},
+    router_data::{ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData},
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::{api, consts, errors, types};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use router_env::{logger, metrics::add_attributes};
 use serde::Serializer;
+
+use crate::metrics;
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -1316,4 +1319,38 @@ macro_rules! unimplemented_payment_method {
             $payment_method, $flow, $connector
         ))
     };
+}
+
+// validate json format for the error
+pub fn handle_json_response_deserialization_failure(
+    res: types::Response,
+    connector: &'static str,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("connector", connector)]),
+    );
+
+    let response_data = String::from_utf8(res.response.to_vec())
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    // check for whether the response is in json format
+    match serde_json::from_str::<serde_json::Value>(&response_data) {
+        // in case of unexpected response but in json format
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
+        Err(error_msg) => {
+            logger::error!(deserialization_error=?error_msg);
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        }
+    }
 }

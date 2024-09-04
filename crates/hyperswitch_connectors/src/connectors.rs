@@ -1,4 +1,5 @@
 pub mod bambora;
+pub mod bamboraapac;
 pub mod bitpay;
 pub mod deutschebank;
 pub mod fiserv;
@@ -15,8 +16,8 @@ pub mod tsys;
 pub mod worldline;
 
 pub use self::{
-    bambora::Bambora, bitpay::Bitpay, deutschebank::Deutschebank, fiserv::Fiserv,
-    fiservemea::Fiservemea, fiuu::Fiuu, globepay::Globepay, helcim::Helcim, nexixpay::Nexixpay,
-    novalnet::Novalnet, powertranz::Powertranz, stax::Stax, taxjar::Taxjar, tsys::Tsys,
-    worldline::Worldline,
+    bambora::Bambora, bamboraapac::Bamboraapac, bitpay::Bitpay, deutschebank::Deutschebank,
+    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, globepay::Globepay, helcim::Helcim,
+    nexixpay::Nexixpay, novalnet::Novalnet, powertranz::Powertranz, stax::Stax, taxjar::Taxjar,
+    tsys::Tsys, worldline::Worldline,
 };

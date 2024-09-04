@@ -1,13 +1,26 @@
+use common_enums::enums;
 use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::consts;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_request_types::{
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
+    },
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{consts, errors};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
-    types::{self, domain, storage::enums, transformers::ForeignFrom},
+    transformers::ForeignFrom,
+    types::ResponseRouterData,
+    utils::{
+        self as connector_utils, CardData as _, PaymentsAuthorizeRequestData, RouterData as _,
+    },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -92,7 +105,7 @@ fn get_transaction_body(
 
 fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
     let card_data = match &req.request.payment_method_data {
-        domain::PaymentMethodData::Card(card) => {
+        PaymentMethodData::Card(card) => {
             let card_holder_name = req.get_billing_full_name()?;
 
             if req.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {
@@ -132,7 +145,7 @@ fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Err
                 )
             }
         }
-        domain::PaymentMethodData::MandatePayment => {
+        PaymentMethodData::MandatePayment => {
             format!(
                 r#"
                 <CreditCard>
@@ -145,7 +158,7 @@ fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Err
         }
         _ => {
             return Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Bambora APAC"),
+                connector_utils::get_unimplemented_payment_method_error_message("Bambora APAC"),
             ))?
         }
     };
@@ -166,11 +179,11 @@ pub struct BamboraapacAuthType {
     account_number: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BamboraapacAuthType {
+impl TryFrom<&ConnectorAuthType> for BamboraapacAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -236,21 +249,21 @@ fn get_attempt_status(
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             BamboraapacPaymentsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BamboraapacPaymentsResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item
@@ -277,7 +290,7 @@ impl<F>
                     .submit_single_payment_result
                     .response
                     .credit_card_token;
-                Some(types::MandateReference {
+                Some(MandateReference {
                     connector_mandate_id,
                     payment_method_id: None,
                 })
@@ -288,8 +301,8 @@ impl<F>
         if response_code == 0 {
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
                     ),
                     redirection_data: None,
@@ -324,7 +337,7 @@ impl<F>
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code,
                     message: declined_message.to_owned(),
@@ -342,7 +355,7 @@ pub fn get_setup_mandate_body(req: &types::SetupMandateRouterData) -> Result<Vec
     let card_holder_name = req.get_billing_full_name()?;
     let auth_details = BamboraapacAuthType::try_from(&req.connector_auth_type)?;
     let body = match &req.request.payment_method_data {
-        domain::PaymentMethodData::Card(card) => {
+        PaymentMethodData::Card(card) => {
             format!(
                 r#"
                 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
@@ -377,7 +390,7 @@ pub fn get_setup_mandate_body(req: &types::SetupMandateRouterData) -> Result<Vec
         }
         _ => {
             return Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Bambora APAC"),
+                connector_utils::get_unimplemented_payment_method_error_message("Bambora APAC"),
             ))?;
         }
     };
@@ -419,21 +432,21 @@ pub struct MandateResponseBody {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             BamboraapacMandateResponse,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
+            SetupMandateRequestData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>
+    > for RouterData<F, SetupMandateRequestData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BamboraapacMandateResponse,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
+            SetupMandateRequestData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item
@@ -457,10 +470,10 @@ impl<F>
         if response_code == 0 {
             Ok(Self {
                 status: enums::AttemptStatus::Charged,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data: None,
-                    mandate_reference: Some(types::MandateReference {
+                    mandate_reference: Some(MandateReference {
                         connector_mandate_id: Some(connector_mandate_id),
                         payment_method_id: None,
                     }),
@@ -477,7 +490,7 @@ impl<F>
         else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code: consts::NO_ERROR_CODE.to_string(),
                     message: consts::NO_ERROR_MESSAGE.to_string(),
@@ -564,21 +577,21 @@ pub struct CaptureResponse {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             BamboraapacCaptureResponse,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
+            PaymentsCaptureData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BamboraapacCaptureResponse,
-            types::PaymentsCaptureData,
-            types::PaymentsResponseData,
+            PaymentsCaptureData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item
@@ -604,8 +617,8 @@ impl<F>
         if response_code == 0 {
             Ok(Self {
                 status: enums::AttemptStatus::Charged,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
                     ),
                     redirection_data: None,
@@ -639,7 +652,7 @@ impl<F>
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code,
                     message: declined_message.to_owned(),
@@ -654,8 +667,8 @@ impl<F>
 }
 
 // refund body in soap format
-pub fn get_refund_body(
-    req: &BamboraapacRouterData<&types::RefundExecuteRouterData>,
+pub fn get_refund_body<F>(
+    req: &BamboraapacRouterData<&types::RefundsRouterData<F>>,
 ) -> Result<Vec<u8>, Error> {
     let receipt = req.router_data.request.connector_transaction_id.to_owned();
     let auth_details = BamboraapacAuthType::try_from(&req.router_data.connector_auth_type)?;
@@ -737,24 +750,12 @@ impl ForeignFrom<u8> for enums::RefundStatus {
     }
 }
 
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            BamboraapacRefundsResponse,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
-    > for types::RouterData<F, types::RefundsData, types::RefundsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, BamboraapacRefundsResponse, RefundsData, RefundsResponseData>>
+    for RouterData<F, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            BamboraapacRefundsResponse,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
+        item: ResponseRouterData<F, BamboraapacRefundsResponse, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response_code = item
             .response
@@ -772,7 +773,7 @@ impl<F>
             .receipt;
 
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: connector_refund_id.to_owned(),
                 refund_status: enums::RefundStatus::foreign_from(response_code),
             }),
@@ -865,22 +866,16 @@ pub struct SyncResponse {
 }
 
 impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            BamboraapacSyncResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, BamboraapacSyncResponse, PaymentsSyncData, PaymentsResponseData>>
+    for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             BamboraapacSyncResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
+            PaymentsSyncData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item
@@ -903,8 +898,8 @@ impl<F>
         if response_code == 0 {
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         connector_transaction_id.to_owned(),
                     ),
                     redirection_data: None,
@@ -940,7 +935,7 @@ impl<F>
                 .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
             Ok(Self {
                 status: get_attempt_status(response_code, item.data.request.capture_method),
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code,
                     message: declined_message.to_owned(),
@@ -993,24 +988,12 @@ pub fn get_refund_sync_body(req: &types::RefundSyncRouterData) -> Result<Vec<u8>
     Ok(body.as_bytes().to_vec())
 }
 
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            BamboraapacSyncResponse,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
-    > for types::RouterData<F, types::RefundsData, types::RefundsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, BamboraapacSyncResponse, RefundsData, RefundsResponseData>>
+    for RouterData<F, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            BamboraapacSyncResponse,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
+        item: ResponseRouterData<F, BamboraapacSyncResponse, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response_code = item
             .response
@@ -1029,7 +1012,7 @@ impl<F>
             .response
             .receipt;
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: connector_refund_id.to_owned(),
                 refund_status: enums::RefundStatus::foreign_from(response_code),
             }),
