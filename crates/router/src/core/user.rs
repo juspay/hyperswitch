@@ -1492,7 +1492,7 @@ pub async fn send_verification_mail(
 #[cfg(feature = "recon")]
 pub async fn verify_token(
     state: SessionState,
-    req: auth::ReconUser,
+    req: auth::UserFromToken,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
     let user = state
         .global_store

@@ -7,7 +7,7 @@ use crate::{
     core::{api_locking, recon},
     services::{
         api,
-        authentication::{self as auth, ReconUser, UserFromToken},
+        authentication::{self as auth, UserFromToken},
     },
 };
 
@@ -50,7 +50,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         state,
         &req,
         (),
-        |state, user: ReconUser, _, _| recon::generate_recon_token(state, user),
+        |state, user: UserFromToken, _, _| recon::generate_recon_token(state, user),
         &auth::ReconJWT,
         api_locking::LockAction::NotApplicable,
     ))

@@ -7,9 +7,8 @@ use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt, UserErrors},
     services::{
         api as service_api,
-        authentication::{ReconUser, UserFromToken},
+        authentication::{AuthToken, UserFromToken},
         email::types as email_types,
-        recon::ReconToken,
     },
     types::{
         api::{self as api_types, enums},
@@ -140,7 +139,7 @@ pub async fn send_recon_request(
 
 pub async fn generate_recon_token(
     state: SessionState,
-    req: ReconUser,
+    req: UserFromToken,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
@@ -183,9 +182,9 @@ pub async fn generate_recon_token(
 
     // Ensure the merchant in user role is the parent of the business profile
     match req.profile_id {
-        Some(profile_id) => {
+        Some(ref profile_id) => {
             let business_profile = db
-                .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+                .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -201,12 +200,21 @@ pub async fn generate_recon_token(
         None => Ok(()),
     }?;
 
-    let token = ReconToken::new_token(&state.conf, &user_role)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let token = AuthToken::new_token(
+        req.user_id,
+        req.merchant_id,
+        req.role_id,
+        &state.conf,
+        req.org_id,
+        req.profile_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        recon_api::ReconTokenResponse { token },
+        recon_api::ReconTokenResponse {
+            token: token.into(),
+        },
     ))
 }
 
@@ -261,7 +269,7 @@ pub async fn recon_merchant_account_update(
     };
 
     if req.recon_status == enums::ReconStatus::Active {
-        let _is_email_sent = state
+        let _ = state
             .email_client
             .compose_and_send_email(
                 Box::new(email_contents),

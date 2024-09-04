@@ -24,8 +24,6 @@ use self::detached::{ExtractedPayload, GetAuthType};
 use super::authorization::{self, permissions::Permission};
 #[cfg(feature = "olap")]
 use super::jwt;
-#[cfg(feature = "recon")]
-use super::recon::ReconToken;
 #[cfg(feature = "olap")]
 use crate::configs::Settings;
 #[cfg(feature = "olap")]
@@ -1993,34 +1991,23 @@ where
 
 #[cfg(feature = "recon")]
 pub struct ReconJWT;
-#[cfg(feature = "recon")]
-pub struct ReconUser {
-    pub user_id: String,
-    pub merchant_id: id_type::MerchantId,
-    pub org_id: id_type::OrganizationId,
-    pub profile_id: Option<id_type::ProfileId>,
-}
-#[cfg(feature = "recon")]
-impl AuthInfo for ReconUser {
-    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        Some(&self.merchant_id)
-    }
-}
+
 #[cfg(all(feature = "olap", feature = "recon"))]
 #[async_trait]
-impl AuthenticateAndFetch<ReconUser, SessionState> for ReconJWT {
+impl AuthenticateAndFetch<UserFromToken, SessionState> for ReconJWT {
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
         state: &SessionState,
-    ) -> RouterResult<(ReconUser, AuthenticationType)> {
-        let payload = parse_jwt_payload::<SessionState, ReconToken>(request_headers, state).await?;
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        let payload = parse_jwt_payload::<SessionState, AuthToken>(request_headers, state).await?;
 
         Ok((
-            ReconUser {
-                user_id: payload.user_id,
-                merchant_id: payload.merchant_id,
+            UserFromToken {
+                user_id: payload.user_id.clone(),
+                merchant_id: payload.merchant_id.clone(),
                 org_id: payload.org_id,
+                role_id: payload.role_id,
                 profile_id: payload.profile_id,
             },
             AuthenticationType::NoAuth,
