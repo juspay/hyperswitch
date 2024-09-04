@@ -1034,6 +1034,30 @@ pub async fn get_filters_for_refunds(
     ))
 }
 
+#[cfg(feature = "olap")]
+pub async fn get_aggregates_for_refunds(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    time_range: api::TimeRange,
+) -> RouterResponse<api::RefundAggregateResponse> {
+    let db = state.store.as_ref();
+    let refund_status_with_count = db
+        .get_refund_status_with_count(merchant.get_id(), &time_range, merchant.storage_scheme,)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+    let mut status_map: HashMap<enums::RefundStatus, i64> =
+        refund_status_with_count.into_iter().collect();
+    for status in enums::RefundStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api::RefundAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
+}
+
 impl ForeignFrom<storage::Refund> for api::RefundResponse {
     fn foreign_from(refund: storage::Refund) -> Self {
         let refund = refund;

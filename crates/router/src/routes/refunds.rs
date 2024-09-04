@@ -1,6 +1,7 @@
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use router_env::{instrument, tracing, Flow};
 
+use crate::types::api::payments as payment_types;
 use super::app::AppState;
 use crate::{
     core::{api_locking, refunds::*},
@@ -394,6 +395,31 @@ pub async fn get_refunds_filters_profile(
             &auth::JWTAuth(Permission::RefundRead),
             req.headers(),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RefundsAggregate))]
+#[cfg(feature = "olap")]
+pub async fn get_refunds_aggregates(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    payload: web::Query<payment_types::TimeRange>,
+) -> impl Responder {
+
+
+    let flow = Flow::RefundsAggregate;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            get_aggregates_for_refunds(state, auth.merchant_account, req)
+        },
+        &auth::JWTAuth(Permission::RefundRead),
         api_locking::LockAction::NotApplicable,
     ))
     .await

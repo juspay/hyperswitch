@@ -12,13 +12,13 @@ use diesel_models::{
     schema::refund::dsl,
 };
 use error_stack::ResultExt;
-
-use crate::{connection::PgPooledConn, logger};
+use crate::{connection, logger};
+use crate::core::errors::StorageError;
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
         limit: i64,
@@ -26,22 +26,28 @@ pub trait RefundDbExt: Sized {
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn filter_by_meta_constraints(
-        conn: &PgPooledConn,
+        conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     async fn get_refunds_count(
-        conn: &PgPooledConn,
+        conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
     ) -> CustomResult<i64, errors::DatabaseError>;
+
+    async fn get_refund_status_with_count(
+        conn: &connection::PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> CustomResult<Vec<(RefundStatus, i64)>, StorageError>;
 }
 
 #[async_trait::async_trait]
 impl RefundDbExt for Refund {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
         limit: i64,
@@ -149,7 +155,7 @@ impl RefundDbExt for Refund {
     }
 
     async fn filter_by_meta_constraints(
-        conn: &PgPooledConn,
+        conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::payments::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
@@ -204,7 +210,7 @@ impl RefundDbExt for Refund {
     }
 
     async fn get_refunds_count(
-        conn: &PgPooledConn,
+        conn: &connection::PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
     ) -> CustomResult<i64, errors::DatabaseError> {
@@ -288,4 +294,40 @@ impl RefundDbExt for Refund {
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
     }
+
+    async fn get_refund_status_with_count(
+        conn: &connection::PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        time_range: &api_models::payments::TimeRange,
+    ) -> error_stack::Result<Vec<(RefundStatus, i64)>, StorageError> {
+
+        let mut query = <Refund as HasTable>::table()
+            .group_by(dsl::refund_status)
+            .select((dsl::refund_status, diesel::dsl::count_star()))
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .into_boxed();
+
+        query = query.filter(dsl::created_at.ge(time_range.start_time));
+
+        query = match time_range.end_time {
+            Some(ending_at) => query.filter(dsl::created_at.le(ending_at)),
+            None => query,
+        };
+
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<Refund as HasTable>::Table, _, _>(
+            query.get_results_async::<(RefundStatus, i64)>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .map_err(|er| {
+            StorageError::DatabaseError(
+                error_stack::report!(errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering refund records"),
+            )
+            .into()
+        })
+    }
+
 }
