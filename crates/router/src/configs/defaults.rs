@@ -8474,6 +8474,15 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                    value: None,
+                                                }
+                                            ),
                                             ]
                                         ),
                                     }
@@ -9369,6 +9378,15 @@ impl Default for super::settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
+                                                    "billing.phone.country_code".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                        display_name: "dialing_code".to_string(),
+                                                        field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
                                                     "billing.email".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.email".to_string(),
@@ -9481,6 +9499,15 @@ impl Default for super::settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
+                                                    "billing.phone.country_code".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                        display_name: "dialing_code".to_string(),
+                                                        field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
                                                     "billing.email".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.email".to_string(),
@@ -9584,6 +9611,15 @@ impl Default for super::settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
+                                                    "billing.phone.country_code".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                        display_name: "dialing_code".to_string(),
+                                                        field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
                                                     "billing.email".to_string(),
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.billing.email".to_string(),
@@ -9674,6 +9710,15 @@ impl Default for super::settings::RequiredFields {
                                                         required_field: "billing.phone.number".to_string(),
                                                         display_name: "phone_number".to_string(),
                                                         field_type: enums::FieldType::UserPhoneNumber,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "billing.phone.country_code".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                        display_name: "dialing_code".to_string(),
+                                                        field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                         value: None,
                                                     }
                                                 ),
@@ -9787,6 +9832,15 @@ impl Default for super::settings::RequiredFields {
                                                         required_field: "billing.phone.number".to_string(),
                                                         display_name: "phone_number".to_string(),
                                                         field_type: enums::FieldType::UserPhoneNumber,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "billing.phone.country_code".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                        display_name: "dialing_code".to_string(),
+                                                        field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                         value: None,
                                                     }
                                                 ),
@@ -10142,6 +10196,15 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                    value: None,
+                                                }
+                                            )
                                             ]
                                         ),
                                         common : HashMap::new(),
@@ -10192,6 +10255,15 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.billing.phone.number".to_string(),
                                                     display_name: "phone".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                     value: None,
                                                 }
                                             ),
@@ -10248,6 +10320,15 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                    value: None,
+                                                }
+                                            ),
                                             ]
                                         ),
                                         common : HashMap::new(),
@@ -10298,6 +10379,15 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.billing.phone.number".to_string(),
                                                     display_name: "phone".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                     value: None,
                                                 }
                                             ),
@@ -10354,6 +10444,15 @@ impl Default for super::settings::RequiredFields {
                                                     value: None,
                                                 }
                                             ),
+                                            (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                    value: None,
+                                                }
+                                            ),
                                             ]
                                         ),
                                         common : HashMap::new(),
@@ -10404,6 +10503,15 @@ impl Default for super::settings::RequiredFields {
                                                     required_field: "payment_method_data.billing.phone.number".to_string(),
                                                     display_name: "phone".to_string(),
                                                     field_type: enums::FieldType::UserPhoneNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.phone.country_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                    display_name: "dialing_code".to_string(),
+                                                    field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                     value: None,
                                                 }
                                             ),
@@ -11521,6 +11629,15 @@ impl Default for super::settings::RequiredFields {
                                                         }
                                                     ),
                                                     (
+                                                        "billing.phone.country_code".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                            display_name: "dialing_code".to_string(),
+                                                            field_type: enums::FieldType::UserPhoneNumberCountryCode,
+                                                            value: None,
+                                                        }
+                                                    ),
+                                                    (
                                                         "billing.email".to_string(),
                                                         RequiredFieldInfo {
                                                             required_field: "payment_method_data.billing.email".to_string(),
@@ -11570,6 +11687,15 @@ impl Default for super::settings::RequiredFields {
                                                             required_field: "payment_method_data.billing.phone.number".to_string(),
                                                             display_name: "phone".to_string(),
                                                             field_type: enums::FieldType::UserPhoneNumber,
+                                                            value: None,
+                                                        }
+                                                    ),
+                                                    (
+                                                        "billing.phone.country_code".to_string(),
+                                                        RequiredFieldInfo {
+                                                            required_field: "payment_method_data.billing.phone.country_code".to_string(),
+                                                            display_name: "dialing_code".to_string(),
+                                                            field_type: enums::FieldType::UserPhoneNumberCountryCode,
                                                             value: None,
                                                         }
                                                     ),
