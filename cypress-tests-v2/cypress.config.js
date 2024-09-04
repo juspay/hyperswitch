@@ -40,8 +40,7 @@ module.exports = defineConfig({
         const newPath = path.join(path.dirname(screenshotPath), newName);
 
         try {
-          await fs
-            .rename(screenshotPath, newPath);
+          await fs.rename(screenshotPath, newPath);
           console.log("Screenshot renamed successfully");
           return { path: newPath };
         } catch (err) {

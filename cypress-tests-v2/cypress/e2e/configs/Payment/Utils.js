@@ -10,7 +10,6 @@ const connectorDetails = {
   stripe: stripeConnectorDetails,
 };
 
-
 export default function getConnectorDetails(connectorId) {
   let x = mergeDetails(connectorId);
   return x;
