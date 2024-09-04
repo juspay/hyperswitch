@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.30.0-hotfix1
+
+### Features
+
+- Populate payment method details in payments response ([#5790](https://github.com/juspay/hyperswitch/pull/5790)) ([`438c124`](https://github.com/juspay/hyperswitch/commit/438c124a90866859f1f7f03a205ba78e4a3a755d))
+- Feat(analytics): refactor and introduce analytics APIs to accommodate OrgLevel, MerchantLevel and ProfileLevel authentication ([#5784](https://github.com/juspay/hyperswitch/pull/5784)) ([`a6c9ed2`](https://github.com/juspay/hyperswitch/commit/a6c9ed2c13b6824dcf9a268282b72e8dd15394b6))
+
+### Miscellaneous Tasks
+
+- **config:** Add support for some more country and currencies for Mifinity Wallet ([#5797](https://github.com/juspay/hyperswitch/pull/5797)) ([`97e516d`](https://github.com/juspay/hyperswitch/commit/97e516db629cc0c67f3b246beeb6723bd831497d))
+
+- - -
+
 ## 2024.08.30.0
 
 ### Features
