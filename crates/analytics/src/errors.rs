@@ -10,6 +10,8 @@ pub enum AnalyticsError {
     NotImplemented(&'static str),
     #[error("Unknown Analytics Error")]
     UnknownError,
+    #[error("Access Forbidden Analytics Error")]
+    AccessForbiddenError,
 }
 
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
@@ -27,6 +29,9 @@ impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
                 "Something went wrong",
                 None,
             )),
+            Self::AccessForbiddenError => {
+                ApiErrorResponse::Unauthorized(ApiError::new("IR", 0, "Access Forbidden", None))
+            }
         }
     }
 }

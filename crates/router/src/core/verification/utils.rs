@@ -1,3 +1,4 @@
+use api_models::payments::PaymentIdType;
 use common_utils::errors::CustomResult;
 use error_stack::{Report, ResultExt};
 
@@ -8,8 +9,9 @@ use crate::{
     },
     logger,
     routes::SessionState,
-    types,
-    types::storage,
+    services::authentication::AuthenticationData,
+    types::{self, storage},
+    utils::find_payment_intent_from_payment_id_type,
 };
 
 pub async fn check_existence_and_add_domain_to_db(
@@ -135,4 +137,21 @@ pub fn log_applepay_verification_response_if_error(
         res.as_ref()
             .map_err(|error| logger::error!(applepay_domain_verification_error= ?error))
     });
+}
+
+pub async fn check_if_profile_id_is_present_in_payment_intent(
+    payment_id: String,
+    state: &SessionState,
+    auth_data: &AuthenticationData,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let payment_id_type = PaymentIdType::PaymentIntentId(payment_id);
+    let payment_intent = find_payment_intent_from_payment_id_type(
+        state,
+        payment_id_type,
+        &auth_data.merchant_account,
+        &auth_data.key_store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::Unauthorized)?;
+    utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
 }
