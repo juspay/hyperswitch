@@ -265,11 +265,11 @@ mod storage {
             merchant_id: &&common_utils::id_type::MerchantId,
             time_range: &api_models::payments::TimeRange,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> error_stack::Result<Vec<(common_enums::RefundStatus, i64)>, errors::DataStorageError>
+        ) -> error_stack::Result<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError>
         {
-            self.diesel_store
-                .get_refund_status_with_count(merchant_id, time_range)
-                .await
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refund_status_with_count(&conn, merchant_id, constraints)
+            .await
         }
 
         #[cfg(feature = "olap")]
