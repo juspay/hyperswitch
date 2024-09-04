@@ -642,10 +642,7 @@ pub async fn call_decision_manager<O>(
 where
     O: Send + Clone,
 {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let algorithm_ref: api::routing::RoutingAlgorithmRef = merchant_account
         .routing_algorithm
         .clone()
@@ -656,7 +653,7 @@ where
         .unwrap_or_default();
 
     // TODO: Move to business profile surcharge column
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
     let output = perform_decision_management(
@@ -789,10 +786,7 @@ where
             .map(|session_connector_data| session_connector_data.payment_method_type)
             .collect();
 
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = _merchant_account
             .routing_algorithm
             .clone()
@@ -803,7 +797,7 @@ where
             .unwrap_or_default();
 
         // TODO: Move to business profile surcharge column
-        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        #[cfg(feature = "v2")]
         let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
 
         let surcharge_results =
@@ -3996,11 +3990,7 @@ where
     Ok(final_list)
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,
@@ -4085,10 +4075,7 @@ where
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1<F>(
     state: &SessionState,

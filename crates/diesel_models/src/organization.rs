@@ -1,22 +1,16 @@
 use common_utils::{id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
-#[cfg(all(
-    any(any(feature = "v1", feature = "v2"), feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::organization;
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::organization;
 pub trait OrganizationBridge {
     fn get_organization_id(&self) -> id_type::OrganizationId;
     fn get_organization_name(&self) -> Option<String>;
     fn set_organization_name(&mut self, organization_name: String);
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
 #[diesel(
     table_name = organization,
@@ -36,7 +30,7 @@ pub struct Organization {
     organization_name: Option<String>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
 #[diesel(
     table_name = organization,
@@ -52,10 +46,7 @@ pub struct Organization {
     organization_name: Option<String>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl Organization {
     pub fn new(org_new: OrganizationNew) -> Self {
         let OrganizationNew {
@@ -81,7 +72,7 @@ impl Organization {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl Organization {
     pub fn new(org_new: OrganizationNew) -> Self {
         let OrganizationNew {
@@ -103,10 +94,7 @@ impl Organization {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = organization, primary_key(org_id))]
 pub struct OrganizationNew {
@@ -120,7 +108,7 @@ pub struct OrganizationNew {
     pub modified_at: time::PrimitiveDateTime,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable)]
 #[diesel(table_name = organization, primary_key(id))]
 pub struct OrganizationNew {
@@ -132,10 +120,7 @@ pub struct OrganizationNew {
     pub modified_at: time::PrimitiveDateTime,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl OrganizationNew {
     pub fn new(id: id_type::OrganizationId, organization_name: Option<String>) -> Self {
         Self {
@@ -151,7 +136,7 @@ impl OrganizationNew {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl OrganizationNew {
     pub fn new(id: id_type::OrganizationId, organization_name: Option<String>) -> Self {
         Self {
@@ -165,10 +150,7 @@ impl OrganizationNew {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = organization)]
 pub struct OrganizationUpdateInternal {
@@ -179,7 +161,7 @@ pub struct OrganizationUpdateInternal {
     modified_at: time::PrimitiveDateTime,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset)]
 #[diesel(table_name = organization)]
 pub struct OrganizationUpdateInternal {
@@ -197,10 +179,7 @@ pub enum OrganizationUpdate {
     },
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<OrganizationUpdate> for OrganizationUpdateInternal {
     fn from(value: OrganizationUpdate) -> Self {
         match value {
@@ -218,7 +197,7 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
         }
     }
 }
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 
 impl From<OrganizationUpdate> for OrganizationUpdateInternal {
     fn from(value: OrganizationUpdate) -> Self {
@@ -237,10 +216,7 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl OrganizationBridge for Organization {
     fn get_organization_id(&self) -> id_type::OrganizationId {
         self.org_id.clone()
@@ -253,10 +229,7 @@ impl OrganizationBridge for Organization {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl OrganizationBridge for OrganizationNew {
     fn get_organization_id(&self) -> id_type::OrganizationId {
         self.org_id.clone()
@@ -269,7 +242,7 @@ impl OrganizationBridge for OrganizationNew {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl OrganizationBridge for Organization {
     fn get_organization_id(&self) -> id_type::OrganizationId {
         self.id.clone()
@@ -282,7 +255,7 @@ impl OrganizationBridge for Organization {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl OrganizationBridge for OrganizationNew {
     fn get_organization_id(&self) -> id_type::OrganizationId {
         self.id.clone()

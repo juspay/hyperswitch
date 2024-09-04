@@ -52,11 +52,7 @@ pub async fn routing_create_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "routing_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_link_config(
     state: web::Data<AppState>,
@@ -93,7 +89,7 @@ pub async fn routing_link_config(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn routing_link_config(
     state: web::Data<AppState>,
@@ -250,7 +246,51 @@ pub async fn list_routing_configs_for_profile(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "olap")]
+#[instrument(skip_all)]
+pub async fn list_routing_configs_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<RoutingRetrieveQuery>,
+    path: web::Path<common_utils::id_type::ProfileId>,
+    transaction_type: &enums::TransactionType,
+) -> impl Responder {
+    let flow = Flow::RoutingRetrieveDictionary;
+    let path = path.into_inner();
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: auth::AuthenticationData, query_params, _| {
+            routing::retrieve_merchant_routing_dictionary(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                query_params,
+                transaction_type,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: path,
+                required_permission: Permission::RoutingRead,
+            },
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: path,
+            required_permission: Permission::RoutingRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
@@ -293,11 +333,7 @@ pub async fn routing_unlink_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "routing_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_unlink_config(
     state: web::Data<AppState>,
@@ -334,12 +370,7 @@ pub async fn routing_unlink_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn routing_update_default_config(
     state: web::Data<AppState>,
@@ -378,11 +409,7 @@ pub async fn routing_update_default_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_update_default_config(
     state: web::Data<AppState>,
@@ -416,12 +443,7 @@ pub async fn routing_update_default_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
@@ -461,11 +483,7 @@ pub async fn routing_retrieve_default_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
@@ -683,11 +701,7 @@ pub async fn retrieve_decision_manager_config(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,
@@ -761,12 +775,7 @@ pub async fn routing_retrieve_linked_config(
     }
 }
 
-#[cfg(all(
-    feature = "olap",
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_linked_config(
     state: web::Data<AppState>,

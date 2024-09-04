@@ -36,7 +36,6 @@ pub async fn get_authorization_info_with_groups(
         ),
     ))
 }
-
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
@@ -262,7 +261,6 @@ pub async fn accept_invitation(
         .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
         .await
         .change_context(UserErrors::InternalServerError)?;
-
     let update_result =
         futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
             let (update_v1_result, update_v2_result) =

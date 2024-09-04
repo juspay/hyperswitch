@@ -1145,10 +1145,7 @@ pub fn get_connector_label(
         })
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 /// If profile_id is not passed, use default profile if available, or
 /// If business_details (business_country and business_label) are passed, get the business_profile
 /// or return a `MissingRequiredField` error
@@ -1240,7 +1237,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     try {{
                                         // if inside iframe, send post message to parent for redirection
                                         if (window.self !== window.parent) {{
-                                            window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                            window.parent.postMessage({{poll_status: poll_status_data}}, '*')
                                         // if parent, redirect self to return_url
                                         }} else {{
                                             window.location.href = return_url
@@ -1248,7 +1245,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     }}
                                     catch(err) {{
                                         // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
-                                        window.top.postMessage({{poll_status: poll_status_data}}, '*')
+                                        window.parent.postMessage({{poll_status: poll_status_data}}, '*')
                                         setTimeout(function() {{
                                             window.location.href = return_url
                                         }}, 10000);
@@ -1270,7 +1267,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     try {{
                                         // if inside iframe, send post message to parent for redirection
                                         if (window.self !== window.parent) {{
-                                            window.top.postMessage({{openurl_if_required: return_url}}, '*')
+                                            window.parent.postMessage({{openurl_if_required: return_url}}, '*')
                                         // if parent, redirect self to return_url
                                         }} else {{
                                             window.location.href = return_url
@@ -1278,7 +1275,7 @@ pub fn get_html_redirect_response_for_external_authentication(
                                     }}
                                     catch(err) {{
                                         // if error occurs, send post message to parent and wait for 10 secs to redirect. if doesn't redirect, redirect self to return_url
-                                        window.top.postMessage({{openurl_if_required: return_url}}, '*')
+                                        window.parent.postMessage({{openurl_if_required: return_url}}, '*')
                                         setTimeout(function() {{
                                             window.location.href = return_url
                                         }}, 10000);
@@ -1368,14 +1365,14 @@ impl GetProfileId for diesel_models::Refund {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 impl GetProfileId for api_models::routing::RoutingConfigRequest {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         self.profile_id.as_ref()
     }
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 impl GetProfileId for api_models::routing::RoutingConfigRequest {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)
