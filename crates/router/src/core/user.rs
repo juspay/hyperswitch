@@ -1371,19 +1371,29 @@ pub async fn list_user_roles_details(
                     let merchant_id = user_role
                         .merchant_id
                         .clone()
-                        .ok_or(UserErrors::InternalServerError)?;
+                        .ok_or(UserErrors::InternalServerError)
+                        .attach_printable(
+                            "Merchant id not found in user role for merchant level entity",
+                        )?;
                     merchant.push(merchant_id)
                 }
                 Some(EntityType::Profile) => {
                     let merchant_id = user_role
                         .merchant_id
                         .clone()
-                        .ok_or(UserErrors::InternalServerError)?;
+                        .ok_or(UserErrors::InternalServerError)
+                        .attach_printable(
+                            "Merchant id not found in user role for merchant level entity",
+                        )?;
                     let profile_id = user_role
                         .profile_id
                         .clone()
-                        .ok_or(UserErrors::InternalServerError)?;
+                        .ok_or(UserErrors::InternalServerError)
+                        .attach_printable(
+                            "Profile id not found in user role for profile level entity",
+                        )?;
 
+                    merchant.push(merchant_id.clone());
                     merchant_profile.push((merchant_id, profile_id))
                 }
                 Some(EntityType::Internal) => {
@@ -1406,7 +1416,8 @@ pub async fn list_user_roles_details(
         .store
         .list_multiple_merchant_accounts(&(&state).into(), merchant_ids)
         .await
-        .change_context(UserErrors::InternalServerError)?
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error while listing merchant accounts")?
         .into_iter()
         .map(|merchant_account| {
             (
@@ -1445,7 +1456,8 @@ pub async fn list_user_roles_details(
             },
         ))
         .await
-        .change_context(UserErrors::InternalServerError)?
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to construct proifle map")?
         .into_iter()
         .map(|profile| (profile.get_id().to_owned(), profile.profile_name))
         .collect();
@@ -1472,7 +1484,7 @@ pub async fn list_user_roles_details(
                                 .to_owned(),
                         })
                     } else {
-                        None
+                        return Err(UserErrors::InternalServerError);
                     }
                 }
             };
@@ -1494,7 +1506,7 @@ pub async fn list_user_roles_details(
                                 .to_owned(),
                         })
                     } else {
-                        None
+                        return Err(UserErrors::InternalServerError);
                     }
                 }
             };
