@@ -216,11 +216,9 @@ pub async fn list_routing_configs_for_profile(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<RoutingRetrieveQuery>,
-    path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingRetrieveDictionary;
-    let path = path.into_inner();
     Box::pin(oss_api::server_wrap(
         flow,
         state,
@@ -238,17 +236,11 @@ pub async fn list_routing_configs_for_profile(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuthProfileFromRoute {
-                profile_id: path,
-                required_permission: Permission::RoutingRead,
-            },
+            &auth::JWTAuth(Permission::RoutingRead),
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuthProfileFromRoute {
-            profile_id: path,
-            required_permission: Permission::RoutingRead,
-        },
+        &auth::JWTAuth(Permission::RoutingRead),
         api_locking::LockAction::NotApplicable,
     ))
     .await

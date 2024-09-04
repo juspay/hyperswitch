@@ -1,16 +1,23 @@
 const successfulNo3DSCardDetails = {
-  card_number: "5204740000001002",
-  card_exp_month: "10",
-  card_exp_year: "24",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "002",
+  card_number: "5105105105105100",
+  card_exp_month: "12",
+  card_exp_year: "2030",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
 };
 
+const successfulThreeDSTestCardDetails = {
+  card_number: "5105105105105100",
+  card_exp_month: "12",
+  card_exp_year: "2030",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -21,13 +28,47 @@ export const connectorDetails = {
         },
       },
     },
+    "3DSManualCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    "3DSAutoCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -44,7 +85,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -61,7 +102,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
       },
       Response: {
@@ -101,13 +142,13 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -117,13 +158,13 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -133,73 +174,13 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
-        },
-      },
-    },
-    ZeroAuthMandate: {
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Fiservemea is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    SaveCardUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
+          status: "pending",
         },
       },
     },

@@ -1,11 +1,15 @@
 use common_enums::TokenPurpose;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use diesel_models::{
+    enums::{UserRoleVersion, UserStatus},
+    user_role::UserRole,
+};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 
 use super::UserFromStorage;
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResult},
+    core::errors::{UserErrors, UserResult},
+    db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::authentication as auth,
     utils,
@@ -284,11 +288,22 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-                let user_role = self
-                    .user
-                    .get_preferred_or_active_user_role_from_db(state)
+                let user_role = state
+                    .store
+                    .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                        user_id: self.user.get_user_id(),
+                        org_id: None,
+                        merchant_id: None,
+                        profile_id: None,
+                        entity_id: None,
+                        version: Some(UserRoleVersion::V1),
+                        status: Some(UserStatus::Active),
+                        limit: Some(1),
+                    })
                     .await
-                    .to_not_found_response(UserErrors::InternalServerError)?;
+                    .change_context(UserErrors::InternalServerError)?
+                    .pop()
+                    .ok_or(UserErrors::InternalServerError)?;
                 utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
                     .await;
 
