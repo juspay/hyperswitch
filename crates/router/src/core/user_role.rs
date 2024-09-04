@@ -296,7 +296,7 @@ pub async fn accept_invitation(
     Ok(ApplicationResponse::StatusOk)
 }
 
-pub async fn accept_invitation_v2(
+pub async fn accept_invitations_v2(
     state: SessionState,
     user_from_token: auth::UserFromToken,
     req: user_role_api::AcceptInvitationsV2Request,
@@ -311,7 +311,7 @@ pub async fn accept_invitation_v2(
     }))
     .await?
     .into_iter()
-    .filter_map(|lineage| lineage)
+    .flatten()
     .collect::<Vec<_>>();
 
     let update_results = futures::future::join_all(lineages.iter().map(
@@ -409,7 +409,7 @@ pub async fn merchant_select_token_only_flow(
     auth::cookies::set_cookie_response(response, token)
 }
 
-pub async fn merchant_select_v2(
+pub async fn accept_invitations_pre_auth(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
     req: user_role_api::MerchantSelectV2Request,
@@ -424,7 +424,7 @@ pub async fn merchant_select_v2(
     }))
     .await?
     .into_iter()
-    .filter_map(|lineage| lineage)
+    .flatten()
     .collect::<Vec<_>>();
 
     let update_results = futures::future::join_all(lineages.iter().map(

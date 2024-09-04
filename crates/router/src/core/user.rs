@@ -494,12 +494,16 @@ pub async fn invite_multiple_user(
     let responses = futures::future::join_all(requests.into_iter().map(|request| async {
         match handle_invitation(&state, &user_from_token, &request, &req_state, &auth_id).await {
             Ok(response) => response,
-            Err(error) => InviteMultipleUserResponse {
-                email: request.email,
-                is_email_sent: false,
-                password: None,
-                error: Some(error.current_context().get_error_message().to_string()),
-            },
+            Err(error) => {
+                logger::error!(invite_error=?error);
+
+                InviteMultipleUserResponse {
+                    email: request.email,
+                    is_email_sent: false,
+                    password: None,
+                    error: Some(error.current_context().get_error_message().to_string()),
+                }
+            }
         }
     }))
     .await;
@@ -642,7 +646,7 @@ async fn handle_existing_user_invitation(
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
-                .insert_in_v1_and_v2(&state)
+                .insert_in_v1_and_v2(state)
                 .await?,
             email_types::Entity {
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
@@ -661,7 +665,7 @@ async fn handle_existing_user_invitation(
                         merchant_id: user_from_token.merchant_id.clone(),
                         profile_id: profile_id.clone(),
                     })
-                    .insert_in_v2(&state)
+                    .insert_in_v2(state)
                     .await?,
                 email_types::Entity {
                     entity_id: profile_id.get_string_repr().to_owned(),
@@ -752,7 +756,7 @@ async fn handle_new_user_invitation(
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
-                .insert_in_v1_and_v2(&state)
+                .insert_in_v1_and_v2(state)
                 .await?,
             email_types::Entity {
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
@@ -771,7 +775,7 @@ async fn handle_new_user_invitation(
                         merchant_id: user_from_token.merchant_id.clone(),
                         profile_id: profile_id.clone(),
                     })
-                    .insert_in_v2(&state)
+                    .insert_in_v2(state)
                     .await?,
                 email_types::Entity {
                     entity_id: profile_id.get_string_repr().to_owned(),

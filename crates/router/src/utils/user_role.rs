@@ -262,8 +262,8 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
-        EntityType::Internal => return Err(UserErrors::InvalidRoleOperation.into()),
-        EntityType::Organization => return Err(UserErrors::InvalidRoleOperation.into()),
+        EntityType::Internal => Err(UserErrors::InvalidRoleOperation.into()),
+        EntityType::Organization => Err(UserErrors::InvalidRoleOperation.into()),
         EntityType::Merchant => {
             let merchant_id = id_type::MerchantId::wrap(entity_id)
                 .change_context(UserErrors::InternalServerError)?;
