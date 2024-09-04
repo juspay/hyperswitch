@@ -21,30 +21,31 @@ impl PaymentIntentNew {
 
 impl PaymentIntent {
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
-    pub async fn update_by_id(
+    pub async fn update(
+        self,
         conn: &PgPooledConn,
-        id: String,
-        payment_intent: PaymentIntentUpdateInternal,
+        payment_intent: PaymentIntentUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            id.clone(),
-            payment_intent,
+            self.id.to_owned(),
+            PaymentIntentUpdateInternal::from(payment_intent),
         )
         .await
         {
             Err(error) => match error.current_context() {
-                errors::DatabaseError::NoFieldsToUpdate => {
-                    generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id).await
-                }
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
-            result => result,
+            Ok(payment_intent) => Ok(payment_intent),
         }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_v2"))]
-    pub async fn find_by_global_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_global_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::PaymentId,
+    ) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 

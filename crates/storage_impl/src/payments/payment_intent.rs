@@ -73,8 +73,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let merchant_id = payment_intent.merchant_id.clone();
-        let payment_id = payment_intent.payment_id.clone();
-        let field = payment_intent.payment_id.get_hash_key_for_kv_store();
+        let payment_id = payment_intent.get_id().to_owned();
+        let field = payment_intent.get_id().get_hash_key_for_kv_store();
         let key = PartitionKey::MerchantIdPaymentId {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
@@ -148,12 +148,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let merchant_id = this.merchant_id.clone();
-        let payment_id = this.payment_id.clone();
+        let payment_id = this.get_id().to_owned();
         let key = PartitionKey::MerchantIdPaymentId {
             merchant_id: &merchant_id,
             payment_id: &payment_id,
         };
-        let field = format!("pi_{}", this.payment_id.get_string_repr());
+        let field = format!("pi_{}", this.get_id().get_string_repr());
         let storage_scheme = decide_storage_scheme::<_, DieselPaymentIntent>(
             self,
             storage_scheme,
@@ -225,6 +225,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
@@ -280,6 +281,35 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn find_payment_intent_by_id(
+        &self,
+        state: &KeyManagerState,
+        id: &common_utils::id_type::PaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })?;
+
+        let merchant_id = diesel_payment_intent.merchant_id.clone();
+
+        PaymentIntent::convert_back(
+            state,
+            diesel_payment_intent,
+            merchant_key_store.key.get_inner(),
+            merchant_id.to_owned().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
+    }
+
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,
@@ -307,7 +337,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -327,7 +361,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -346,7 +384,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             )
             .await
     }
-    #[cfg(feature = "olap")]
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -357,7 +400,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -377,7 +424,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -459,6 +510,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
@@ -489,6 +541,35 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[instrument(skip_all)]
+    async fn find_payment_intent_by_id(
+        &self,
+        state: &KeyManagerState,
+        id: &common_utils::id_type::PaymentId,
+        merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })?;
+
+        let merchant_id = diesel_payment_intent.merchant_id.clone();
+
+        PaymentIntent::convert_back(
+            state,
+            diesel_payment_intent,
+            merchant_key_store.key.get_inner(),
+            merchant_id.to_owned().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
+    }
+
     #[instrument(skip_all)]
     async fn get_active_payment_attempt(
         &self,
@@ -517,7 +598,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         }
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn filter_payment_intent_by_constraints(
         &self,
@@ -643,7 +728,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
@@ -665,7 +754,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn get_intent_status_with_count(
         &self,
@@ -704,7 +797,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn get_filtered_payment_intents_attempt(
         &self,
@@ -897,7 +994,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_v2"),
+        feature = "olap"
+    ))]
     #[instrument(skip_all)]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,

@@ -66,7 +66,8 @@ pub struct PaymentIntent {
     pub authentication_type: Option<AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
-    pub id: String,
+    // TODO: change this to global id
+    pub id: common_utils::id_type::PaymentId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -186,7 +187,8 @@ pub struct PaymentIntentNew {
     pub authentication_type: Option<AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
-    pub id: String,
+    // TODO: change this to global id
+    pub id: common_utils::id_type::PaymentId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]

@@ -71,6 +71,18 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
 }
 
+impl PaymentIntent {
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2"),))]
+    pub fn get_id(&self) -> &id_type::PaymentId {
+        &self.payment_id
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_v2",))]
+    pub fn get_id(&self) -> &id_type::PaymentId {
+        &self.id
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payment_v2"))]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaymentIntent {
@@ -122,7 +134,7 @@ pub struct PaymentIntent {
     pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
     pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub id: String,
+    pub id: common_utils::id_type::PaymentId,
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
