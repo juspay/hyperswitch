@@ -1901,7 +1901,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .tax_details
             .clone()
             .and_then(|tax| tax.pmt.map(|pmt| pmt.order_tax_amount))
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "order_tax_amount" })?;
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "order_tax_amount",
+            })?;
         let amount = MinorUnit::from(payment_data.amount);
 
         Ok(Self {

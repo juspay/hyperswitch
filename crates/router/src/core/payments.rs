@@ -192,42 +192,18 @@ where
     )
     .await?;
 
-    let connector = if format!("{operation:?}").as_str() == "PaymentSessionUpdate" {
-        Some(ConnectorCallType::PreDetermined(
-            api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                "klarna",
-                api::GetToken::Connector,
-                None,
-            )?,
-        ))
-    } else {
-        get_connector_choice(
-            &operation,
-            state,
-            &req,
-            &merchant_account,
-            &business_profile,
-            &key_store,
-            &mut payment_data,
-            eligible_connectors,
-            mandate_type,
-        )
-        .await?
-    };
-
-    // let connector = get_connector_choice(
-    //     &operation,
-    //     state,
-    //     &req,
-    //     &merchant_account,
-    //     &business_profile,
-    //     &key_store,
-    //     &mut payment_data,
-    //     eligible_connectors,
-    //     mandate_type,
-    // )
-    // .await?;
+    let connector = get_connector_choice(
+        &operation,
+        state,
+        &req,
+        &merchant_account,
+        &business_profile,
+        &key_store,
+        &mut payment_data,
+        eligible_connectors,
+        mandate_type,
+    )
+    .await?;
 
     let should_add_task_to_process_tracker = should_add_task_to_process_tracker(&payment_data);
 

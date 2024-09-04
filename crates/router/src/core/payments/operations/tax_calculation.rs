@@ -77,7 +77,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
 
         helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
 
-        let payment_attempt = db
+        let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
@@ -90,6 +90,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         let currency = payment_intent.currency.get_required_value("currency")?;
 
         let amount = payment_attempt.get_total_amount().into();
+
+        payment_attempt.payment_method_type = Some(request.payment_method_type.clone());
 
         let shipping_address = helpers::get_address_by_id(
             state,
