@@ -129,10 +129,7 @@ pub async fn create_link_token(
         .and_then(|address| address.country)
         .map(|country| country.to_string());
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -146,7 +143,7 @@ pub async fn create_link_token(
             id: merchant_account.get_id().get_string_repr().to_owned(),
         })?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let merchant_connector_account = {
         let _ = billing_country;
         todo!()
@@ -234,10 +231,7 @@ pub async fn exchange_token_core(
 
     let connector = PaymentAuthConnectorData::get_connector_by_name(connector_name)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -251,7 +245,7 @@ pub async fn exchange_token_core(
             id: merchant_account.get_id().get_string_repr().to_owned(),
         })?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let merchant_connector_account: domain::MerchantConnectorAccount = {
         let _ = merchant_account;
         let _ = connector;
@@ -782,10 +776,7 @@ pub async fn retrieve_payment_method_from_auth_service(
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
@@ -806,7 +797,7 @@ pub async fn retrieve_payment_method_from_auth_service(
             "error while fetching merchant_connector_account from merchant_id and connector name",
         )?;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let mca = {
         let _ = merchant_account;
         let _ = connector;
