@@ -4,7 +4,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -190,7 +190,7 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
 
         let shipping = utils::convert_amount(
             self.amount_converter,
-            req.request.shipping_cost,
+            req.request.shipping_cost.unwrap_or(MinorUnit::new(0)),
             req.request.currency,
         )?;
 

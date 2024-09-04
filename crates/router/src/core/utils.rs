@@ -921,7 +921,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
-        customer_id: payment_intent.customer_id.to_owned(),
+        customer_id: None,
         connector_customer: None,
         connector: merchant_connector_account.connector_name.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
@@ -929,15 +929,13 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         status: payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type,
-        description: payment_intent.description.clone(),
-        return_url: payment_intent.return_url.clone(),
+        description: None,
+        return_url: None,
         address: add,
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: None,
         connector_wallets_details: None,
-        amount_captured: payment_intent
-            .amount_captured
-            .map(|amt| amt.get_amount_as_i64()),
+        amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -948,7 +946,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         connector_api_version: None,
         request: types::PaymentsTaxCalculationData {
             amount: payment_intent.amount,
-            shipping_cost: payment_intent.shipping_cost.unwrap_or(MinorUnit::new(0)),
+            shipping_cost: payment_intent.shipping_cost,
             order_details,
             currency: payment_data.currency,
             shipping_address,
@@ -972,7 +970,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         dispute_id: None,
         connector_response: None,
         payment_method_status: None,
-        minor_amount_captured: payment_intent.amount_captured,
+        minor_amount_captured: None,
         integrity_check: Ok(()),
     };
     Ok(router_data)

@@ -132,37 +132,32 @@ where
         status: payment_data.payment_attempt.status,
         payment_method: diesel_models::enums::PaymentMethod::default(),
         connector_auth_type: auth_type,
-        description: payment_data.payment_intent.description.clone(),
-        return_url: payment_data.payment_intent.return_url.clone(),
+        description: None,
+        return_url: None,
         address: unified_address,
         auth_type: payment_data
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
         connector_meta_data: None,
-        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        connector_wallets_details: None,
         request: T::try_from(additional_data)?,
         response,
-        amount_captured: payment_data
-            .payment_intent
-            .amount_captured
-            .map(|amt| amt.get_amount_as_i64()),
-        minor_amount_captured: payment_data.payment_intent.amount_captured,
+        amount_captured: None,
+        minor_amount_captured: None,
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_status: payment_data.payment_method_info.map(|info| info.status),
-        payment_method_token: payment_data
-            .pm_token
-            .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
-        connector_customer: payment_data.connector_customer_id,
-        recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
+        payment_method_status: None,
+        payment_method_token: None,
+        connector_customer: None,
+        recurring_mandate_payment_data: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             merchant_account.get_id(),
             &payment_data.payment_attempt,
         ),
-        preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
+        preprocessing_id: None,
         #[cfg(feature = "payouts")]
         payout_method_data: None,
         #[cfg(feature = "payouts")]
