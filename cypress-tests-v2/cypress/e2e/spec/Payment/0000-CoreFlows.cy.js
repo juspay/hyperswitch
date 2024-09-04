@@ -77,10 +77,24 @@ describe("Core APIs", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("Business profile create call", () => {});
-    it("Business profile retrieve call", () => {});
-    it("Business profile update call", () => {});
-    it("Business profile retrieve call", () => {});
+    it("Business profile create call", () => {
+      cy.businessProfileCreateCall(
+        fixtures.business_profile_body.bp_create,
+        globalState
+      );
+    });
+    it("Business profile retrieve call", () => {
+      cy.businessProfileRetrieveCall(globalState);
+    });
+    it("Business profile update call", () => {
+      cy.businessProfileUpdateCall(
+        fixtures.business_profile_body.bp_update,
+        globalState
+      );
+    });
+    it("Business profile retrieve call", () => {
+      cy.businessProfileRetrieveCall(globalState);
+    });
   });
 
   context.skip("MCA", () => {});

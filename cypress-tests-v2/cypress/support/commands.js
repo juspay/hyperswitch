@@ -305,18 +305,130 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "businessProfileCreateCall",
   (businessProfileCreateBody, globalState) => {
-    cy.request({}).then((response) => {});
+    // Define the necessary variables and constants
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const merchant_id = globalState.get("merchantId");
+    const url = `${base_url}/v2/profiles`;
+
+    const customHeaders = {
+      "x-merchant-id": merchant_id,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": api_key,
+        ...customHeaders,
+      },
+      body: businessProfileCreateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body.merchant_id).to.equal(merchant_id);
+        expect(response.body.id).to.include("pro_").and.to.not.be.empty;
+        expect(response.body.profile_name).to.equal(
+          businessProfileCreateBody.profile_name
+        );
+
+        globalState.set("profileId", response.body.id);
+
+        cy.task("setGlobalState", globalState.data);
+      } else {
+        // to be updated
+        throw new Error(
+          `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
   }
 );
-Cypress.Commands.add(
-  "businessProfileRetrieveCall",
-  (businessProfileRetrieveBody, globalState) => {
-    cy.request({}).then((response) => {});
-  }
-);
+Cypress.Commands.add("businessProfileRetrieveCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const profile_id = globalState.get("profileId");
+  const url = `${base_url}/v2/profiles/${profile_id}`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+      ...customHeaders,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body.merchant_id).to.equal(merchant_id);
+      expect(response.body.id).to.include("pro_").and.to.not.be.empty;
+
+      globalState.set("profileId", response.body.id);
+
+      cy.task("setGlobalState", globalState.data);
+    } else {
+      // to be updated
+      throw new Error(
+        `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
+});
 Cypress.Commands.add(
   "businessProfileUpdateCall",
   (businessProfileUpdateBody, globalState) => {
-    cy.request({}).then((response) => {});
+    // Define the necessary variables and constants
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const merchant_id = globalState.get("merchantId");
+    const profile_id = globalState.get("profileId");
+    const url = `${base_url}/v2/profiles/${profile_id}`;
+
+    const customHeaders = {
+      "x-merchant-id": merchant_id,
+    };
+
+    cy.request({
+      method: "PUT",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": api_key,
+        ...customHeaders,
+      },
+      body: businessProfileUpdateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body.merchant_id).to.equal(merchant_id);
+        expect(response.body.id).to.include("pro_").and.to.not.be.empty;
+        expect(response.body.profile_name).to.equal(
+          businessProfileUpdateBody.profile_name
+        );
+
+        globalState.set("profileId", response.body.id);
+
+        cy.task("setGlobalState", globalState.data);
+      } else {
+        // to be updated
+        throw new Error(
+          `Merchant update call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
   }
 );
