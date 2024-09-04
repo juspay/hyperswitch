@@ -25,6 +25,9 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 //  cy.task can only be used in support files (spec files or commands file)
+
+import { getValueByKey } from "../e2e/configs/Payment/Utils.js";
+
 function logRequestId(xRequestId) {
   if (xRequestId) {
     cy.task("cli_log", "x-request-id: " + xRequestId);
@@ -438,3 +441,231 @@ Cypress.Commands.add(
     });
   }
 );
+
+// Merchant Connector Account API calls
+// Payments API calls
+Cypress.Commands.add(
+  "mcaCreateCall",
+  (
+    connectorLabel,
+    connectorName,
+    connectorType,
+    globalState,
+    mcaCreateBody,
+    paymentMethodsEnabled
+  ) => {
+    // Define the necessary variables and constants
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const merchant_id = globalState.get("merchantId");
+    const profile_id = globalState.get("profileId");
+    const url = `${base_url}/v2/connector_accounts`;
+
+    const customHeaders = {
+      "x-merchant-id": merchant_id,
+    };
+
+    // Update request body
+    mcaCreateBody.profile_id = profile_id;
+    mcaCreateBody.connector_label = connectorLabel;
+    mcaCreateBody.connector_name = connectorName;
+    mcaCreateBody.connector_type = connectorType;
+    mcaCreateBody.payment_methods_enabled = paymentMethodsEnabled;
+
+    // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
+    // it is best to use then() to handle the response within the same block of code
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const jsonString = JSON.stringify(jsonContent);
+        const key =
+          connectorType === "payment_processor"
+            ? connectorName
+            : `${connectorName}_payout`;
+        const authDetails = getValueByKey(jsonString, key);
+
+        mcaCreateBody.connector_account_details =
+          authDetails.connector_account_details;
+
+        if (authDetails && authDetails.metadata) {
+          createConnectorBody.metadata = {
+            ...createConnectorBody.metadata, // Preserve existing metadata fields
+            ...authDetails.metadata, // Merge with authDetails.metadata
+          };
+        }
+
+        cy.request({
+          method: "POST",
+          url: url,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": api_key,
+            ...customHeaders,
+          },
+          body: mcaCreateBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          if (response.status === 200) {
+            expect(response.body.connector_name).to.equal(connectorName);
+            expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+            expect(response.body.status).to.equal("active");
+            expect(response.body.profile_id).to.equal(profile_id);
+
+            globalState.set("merchantConnectorId", response.body.id);
+
+            cy.task("setGlobalState", globalState.data);
+          } else {
+            // to be updated
+            throw new Error(
+              `MCA create call failed with status ${response.status} and message ${response.body.message}`
+            );
+          }
+        });
+      }
+    );
+  }
+);
+Cypress.Commands.add("mcaRetrieveCall", (globalState) => {
+  // Define the necessary variables and constants
+  const api_key = globalState.get("adminApiKey");
+  const base_url = globalState.get("baseUrl");
+  const connector_name = globalState.get("connectorId");
+  const merchant_connector_id = globalState.get("merchantConnectorId");
+  const merchant_id = globalState.get("merchantId");
+  const url = `${base_url}/v2/connector_accounts/${merchant_connector_id}`;
+
+  const customHeaders = {
+    "x-merchant-id": merchant_id,
+  };
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+      ...customHeaders,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body.connector_name).to.equal(connector_name);
+      expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+      expect(response.body.status).to.equal("active");
+
+      if (
+        merchant_connector_id === undefined ||
+        merchant_connector_id === null
+      ) {
+        globalState.set("merchantConnectorId", response.body.id);
+        cy.task("setGlobalState", globalState.data);
+      }
+    } else {
+      // to be updated
+      throw new Error(
+        `MCA create call failed with status ${response.status} and message ${response.body.message}`
+      );
+    }
+  });
+});
+Cypress.Commands.add(
+  "mcaUpdateCall",
+  (
+    connectorLabel,
+    connectorName,
+    connectorType,
+    globalState,
+    mcaUpdateBody,
+    paymentMethodsEnabled
+  ) => {
+    // Define the necessary variables and constants
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const merchant_connector_id = globalState.get("merchantConnectorId");
+    const merchant_id = globalState.get("merchantId");
+    const profile_id = globalState.get("profileId");
+    const url = `${base_url}/v2/connector_accounts/${merchant_connector_id}`;
+
+    const customHeaders = {
+      "x-merchant-id": merchant_id,
+    };
+
+    // Update request body
+    mcaUpdateBody.merchant_id = merchant_id;
+    mcaUpdateBody.connector_label = connectorLabel;
+    mcaUpdateBody.connector_type = connectorType;
+    mcaUpdateBody.payment_methods_enabled = paymentMethodsEnabled;
+
+    cy.request({
+      method: "PUT",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": api_key,
+        ...customHeaders,
+      },
+      body: mcaUpdateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        expect(response.body.connector_name).to.equal(connectorName);
+        expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+        expect(response.body.status).to.equal("active");
+        expect(response.body.profile_id).to.equal(profile_id);
+        expect(response.body.connector_webhook_details.merchant_secret).to.equal(mcaUpdateBody.connector_webhook_details.merchant_secret);
+
+        if (
+          merchant_connector_id === undefined ||
+          merchant_connector_id === null
+        ) {
+          globalState.set("merchantConnectorId", response.body.id);
+          cy.task("setGlobalState", globalState.data);
+        }
+      } else {
+        // to be updated
+        throw new Error(
+          `MCA create call failed with status ${response.status} and message ${response.body.message}`
+        );
+      }
+    });
+  }
+);
+
+// API Key API calls
+Cypress.Commands.add("apiKeyCreateCall", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("apiKeyRetrieveCall", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("apiKeyUpdateCall", () => {
+  cy.request({}).then((response) => {});
+});
+
+// Routing API calls
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});
+Cypress.Commands.add("", () => {
+  cy.request({}).then((response) => {});
+});

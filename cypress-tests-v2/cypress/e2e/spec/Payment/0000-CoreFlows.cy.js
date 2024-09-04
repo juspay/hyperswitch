@@ -1,3 +1,4 @@
+import { payment_methods_enabled } from "../../../../../cypress-tests/cypress/e2e/PaymentUtils/Commons";
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 
@@ -30,9 +31,6 @@ describe("Core APIs", () => {
         globalState
       );
     });
-    it("Organization retrieve call", () => {
-      cy.organizationRetrieveCall(globalState);
-    });
   });
 
   context("Merchant account APIs", () => {
@@ -60,9 +58,6 @@ describe("Core APIs", () => {
         fixtures.merchant_account_body.ma_update,
         globalState
       );
-    });
-    it("Merchant account retrieve call", () => {
-      cy.merchantAccountRetrieveCall(globalState);
     });
   });
 
@@ -92,12 +87,51 @@ describe("Core APIs", () => {
         globalState
       );
     });
-    it("Business profile retrieve call", () => {
-      cy.businessProfileRetrieveCall(globalState);
-    });
   });
 
-  context.skip("MCA", () => {});
+  context("Merchant connector account APIs", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("[Payment] Merchant connector account create call", () => {
+      // `globalState` can only be accessed in the `it` block
+      const connector_name = globalState.data.connectorId;
+      cy.mcaCreateCall(
+        `${connector_name}_default`,
+        connector_name,
+        "payment_processor",
+        globalState,
+        fixtures.merchant_connector_account_body.mca_create,
+        payment_methods_enabled
+      );
+    });
+    it("[Payment] Merchant connector account retrieve call", () => {
+      cy.mcaRetrieveCall(globalState);
+    });
+    it("[Payment] Merchant connector account update call", () => {
+      // `globalState` can only be accessed in the `it` block
+      const connector_name = globalState.data.connectorId;
+      cy.mcaUpdateCall(
+        `${connector_name}_default`,
+        connector_name,
+        "payment_processor",
+        globalState,
+        fixtures.merchant_connector_account_body.mca_update,
+        payment_methods_enabled
+      );
+    });
+
+    it.skip("[Payout] Merchant connector account create call", () => {});
+    it.skip("[Payout] Merchant connector account retrieve call", () => {});
+    it.skip("[Payout] Merchant connector account update call", () => {});
+  });
 
   context.skip("API Key", () => {});
 

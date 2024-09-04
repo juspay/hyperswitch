@@ -1,8 +1,107 @@
 // This file is the default. To override, add to connector.js
 
-import { getCustomExchange } from "./Utils";
+import { getCustomExchange } from "./_Reusable";
+
+const successfulNo3DSCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "08",
+  card_exp_year: "25",
+  card_holder_name: "joseph Doe",
+  card_cvc: "999",
+};
+
+const successfulThreeDSTestCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "10",
+  card_exp_year: "25",
+  card_holder_name: "morino",
+  card_cvc: "999",
+};
+
+const singleUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
 
 export const payment_methods_enabled = [
+  {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "ach",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: -1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "bacs",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: -1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "becs",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: -1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sepa",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: -1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
   {
     payment_method: "bank_redirect",
     payment_method_types: [
@@ -89,10 +188,43 @@ export const payment_methods_enabled = [
     payment_method: "bank_transfer",
     payment_method_types: [
       {
+        payment_method_type: "ach",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: -1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "bacs",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: -1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
         payment_method_type: "pix",
-        minimum_amount: 0,
+        minimum_amount: -1,
         maximum_amount: 68607706,
         recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sepa",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: -1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
         installment_payment_enabled: true,
       },
     ],
@@ -113,7 +245,7 @@ export const payment_methods_enabled = [
           "UnionPay",
           "RuPay",
         ],
-        minimum_amount: 0,
+        minimum_amount: -1,
         maximum_amount: 68607706,
         recurring_enabled: false,
         installment_payment_enabled: true,
@@ -131,9 +263,25 @@ export const payment_methods_enabled = [
           "UnionPay",
           "RuPay",
         ],
-        minimum_amount: 0,
+        minimum_amount: -1,
         maximum_amount: 68607706,
         recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "card_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "card_redirect",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
         installment_payment_enabled: true,
       },
     ],
