@@ -396,18 +396,11 @@ pub async fn merchant_select_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_role = user_from_db
-        .get_active_user_role_from_db(&state)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
     let current_flow =
         domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
-    let token = next_flow
-        .get_token_with_user_role(&state, &user_role)
-        .await?;
+    let token = next_flow.get_token(&state).await?;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -472,30 +465,11 @@ pub async fn merchant_select_v2(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_role = state
-        .store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-            user_id: user_token.user_id.as_str(),
-            org_id: None,
-            merchant_id: None,
-            profile_id: None,
-            entity_id: None,
-            version: None,
-            status: Some(UserStatus::Active),
-            limit: Some(1),
-        })
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .pop()
-        .ok_or(UserErrors::InternalServerError)?;
-
     let current_flow =
         domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
-    let token = next_flow
-        .get_token_with_user_role(&state, &user_role)
-        .await?;
+    let token = next_flow.get_token(&state).await?;
 
     let response = user_api::TokenResponse {
         token: token.clone(),

@@ -18,7 +18,6 @@ use diesel_models::{
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
 };
 use error_stack::{report, ResultExt};
-#[cfg(feature = "email")]
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use router_env::env;
@@ -1019,14 +1018,7 @@ pub async fn accept_invite_from_email_token_only_flow(
     )?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
-    let user_role = user_from_db
-        .get_active_user_role_from_db(&state)
-        .await
-        .change_context(UserErrors::InternalServerError)?;
-
-    let token = next_flow
-        .get_token_with_user_role(&state, &user_role)
-        .await?;
+    let token = next_flow.get_token(&state).await?;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -2332,23 +2324,35 @@ pub async fn list_orgs_for_user(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<user_api::ListOrgsForUserResponse>> {
-    let orgs = state
-        .store
-        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-            user_id: user_from_token.user_id.as_str(),
-            org_id: None,
-            merchant_id: None,
-            profile_id: None,
-            entity_id: None,
-            version: None,
-            status: Some(UserStatus::Active),
-            limit: None,
-        })
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|user_role| user_role.org_id)
-        .collect::<HashSet<_>>();
+    let role_info = roles::RoleInfo::from_role_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
+
+    let orgs = match role_info.get_entity_type() {
+        EntityType::Internal => return Err(UserErrors::InvalidRoleOperation.into()),
+        EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
+            .store
+            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                user_id: user_from_token.user_id.as_str(),
+                org_id: None,
+                merchant_id: None,
+                profile_id: None,
+                entity_id: None,
+                version: None,
+                status: Some(UserStatus::Active),
+                limit: None,
+            })
+            .await
+            .change_context(UserErrors::InternalServerError)?
+            .into_iter()
+            .filter_map(|user_role| user_role.org_id)
+            .collect::<HashSet<_>>(),
+    };
 
     let resp = futures::future::try_join_all(
         orgs.iter()
@@ -2382,63 +2386,59 @@ pub async fn list_merchants_for_user_in_org(
     )
     .await
     .change_context(UserErrors::InternalServerError)?;
-    let merchant_accounts = if role_info.get_entity_type() == EntityType::Organization {
-        state
+    let merchant_accounts = match role_info.get_entity_type() {
+        EntityType::Organization | EntityType::Merchant | EntityType::Internal => state
             .store
             .list_merchant_accounts_by_organization_id(
                 &(&state).into(),
                 user_from_token.org_id.get_string_repr(),
             )
             .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .map(
-                |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
-                    merchant_name: merchant_account.merchant_name.clone(),
-                    merchant_id: merchant_account.get_id().to_owned(),
-                },
-            )
-            .collect::<Vec<_>>()
-    } else {
-        let merchant_ids = state
-            .store
-            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                user_id: user_from_token.user_id.as_str(),
-                org_id: Some(&user_from_token.org_id),
-                merchant_id: None,
-                profile_id: None,
-                entity_id: None,
-                version: None,
-                status: Some(UserStatus::Active),
-                limit: None,
-            })
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .filter_map(|user_role| user_role.merchant_id)
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        state
-            .store
-            .list_multiple_merchant_accounts(&(&state).into(), merchant_ids)
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .map(
-                |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
-                    merchant_name: merchant_account.merchant_name.clone(),
-                    merchant_id: merchant_account.get_id().to_owned(),
-                },
-            )
-            .collect::<Vec<_>>()
+            .change_context(UserErrors::InternalServerError)?,
+        EntityType::Profile => {
+            let merchant_ids = state
+                .store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id: user_from_token.user_id.as_str(),
+                    org_id: Some(&user_from_token.org_id),
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::Active),
+                    limit: None,
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .filter_map(|user_role| user_role.merchant_id)
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+
+            state
+                .store
+                .list_multiple_merchant_accounts(&(&state).into(), merchant_ids)
+                .await
+                .change_context(UserErrors::InternalServerError)?
+        }
     };
 
     if merchant_accounts.is_empty() {
         Err(UserErrors::InternalServerError).attach_printable("No merchant found for a user")?;
     }
 
-    Ok(ApplicationResponse::Json(merchant_accounts))
+    Ok(ApplicationResponse::Json(
+        merchant_accounts
+            .into_iter()
+            .map(
+                |merchant_account| user_api::ListMerchantsForUserInOrgResponse {
+                    merchant_name: merchant_account.merchant_name.clone(),
+                    merchant_id: merchant_account.get_id().to_owned(),
+                },
+            )
+            .collect::<Vec<_>>(),
+    ))
 }
 
 pub async fn list_profiles_for_user_in_org_and_merchant_account(
@@ -2464,27 +2464,17 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
         )
         .await
         .change_context(UserErrors::InternalServerError)?;
-    let user_role_level = role_info.get_entity_type();
-    let profiles =
-        if user_role_level == EntityType::Organization || user_role_level == EntityType::Merchant {
-            state
-                .store
-                .list_business_profile_by_merchant_id(
-                    key_manager_state,
-                    &key_store,
-                    &user_from_token.merchant_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)?
-                .into_iter()
-                .map(
-                    |profile| user_api::ListProfilesForUserInOrgAndMerchantAccountResponse {
-                        profile_id: profile.get_id().to_owned(),
-                        profile_name: profile.profile_name,
-                    },
-                )
-                .collect::<Vec<_>>()
-        } else {
+    let profiles = match role_info.get_entity_type() {
+        EntityType::Organization | EntityType::Merchant | EntityType::Internal => state
+            .store
+            .list_business_profile_by_merchant_id(
+                key_manager_state,
+                &key_store,
+                &user_from_token.merchant_id,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?,
+        EntityType::Profile => {
             let profile_ids = state
                 .store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
@@ -2512,6 +2502,15 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
             }))
             .await
             .change_context(UserErrors::InternalServerError)?
+        }
+    };
+
+    if profiles.is_empty() {
+        Err(UserErrors::InternalServerError).attach_printable("No profile found for a user")?;
+    }
+
+    Ok(ApplicationResponse::Json(
+        profiles
             .into_iter()
             .map(
                 |profile| user_api::ListProfilesForUserInOrgAndMerchantAccountResponse {
@@ -2519,14 +2518,8 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                     profile_name: profile.profile_name,
                 },
             )
-            .collect::<Vec<_>>()
-        };
-
-    if profiles.is_empty() {
-        Err(UserErrors::InternalServerError).attach_printable("No profile found for a user")?;
-    }
-
-    Ok(ApplicationResponse::Json(profiles))
+            .collect::<Vec<_>>(),
+    ))
 }
 
 pub async fn switch_org_for_user(

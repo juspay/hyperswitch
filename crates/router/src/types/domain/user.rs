@@ -948,22 +948,6 @@ impl UserFromStorage {
             .await
     }
 
-    pub async fn get_active_user_role_from_db(
-        &self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        state
-            .store
-            .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
-            .await?
-            .into_iter()
-            .find(|role| role.status == UserStatus::Active)
-            .ok_or(
-                errors::StorageError::ValueNotFound("No active role found for user".to_string())
-                    .into(),
-            )
-    }
-
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
         let master_key = state.store.get_master_key();
         let key_manager_state = &state.into();
