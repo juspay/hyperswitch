@@ -11595,6 +11595,7 @@
           "shipping_cost": {
             "type": "integer",
             "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -11946,6 +11947,7 @@
           "shipping_cost": {
             "type": "integer",
             "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -12925,6 +12927,7 @@
           "shipping_cost": {
             "type": "integer",
             "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -14029,6 +14032,7 @@
           "shipping_cost": {
             "type": "integer",
             "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
