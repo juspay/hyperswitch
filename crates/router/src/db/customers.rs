@@ -281,7 +281,7 @@ mod storage {
                 MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdCustomerId {
                         merchant_id,
-                        customer_id: customer_id.get_string_repr(),
+                        customer_id,
                     };
                     let field = format!("cust_{}", customer_id.get_string_repr());
                     Box::pin(db_utils::try_redis_get_else_try_database_get(
