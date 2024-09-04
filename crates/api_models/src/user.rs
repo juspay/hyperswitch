@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use common_enums::{PermissionGroup, RoleScope, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
@@ -182,7 +184,6 @@ pub struct GetUserRoleDetailsResponse {
 #[derive(Debug, serde::Serialize)]
 pub struct GetUserRoleDetailsResponseV2 {
     pub role_id: String,
-    pub role_name: String,
     pub org: NameIdUnit<Option<String>, id_type::OrganizationId>,
     pub merchant: Option<NameIdUnit<OptionalEncryptableName, id_type::MerchantId>>,
     pub profile: Option<NameIdUnit<String, id_type::ProfileId>>,
@@ -190,8 +191,8 @@ pub struct GetUserRoleDetailsResponseV2 {
     pub entity_type: common_enums::EntityType,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct NameIdUnit<N, I> {
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct NameIdUnit<N: Debug + Clone, I: Debug + Clone> {
     pub name: N,
     pub id: I,
 }

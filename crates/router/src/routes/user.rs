@@ -339,7 +339,7 @@ pub async fn get_user_role_details(
 pub async fn list_user_roles_details(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<user_api::GetUserRoleDetailsRequest>,
+    payload: web::Json<user_api::GetUserRoleDetailsRequest>,
 ) -> HttpResponse {
     let flow = Flow::GetUserRoleDetails;
     Box::pin(api::server_wrap(
