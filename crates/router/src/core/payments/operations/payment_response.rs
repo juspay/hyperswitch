@@ -494,32 +494,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsTaxCalculatio
 {
     async fn update_tracker<'b>(
         &'b self,
-        db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<
+        _db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _router_data: types::RouterData<
             F,
             types::PaymentsTaxCalculationData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-        locale: &Option<String>,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_data = Box::pin(payment_response_update_tracker(
-            db,
-            payment_id,
-            payment_data,
-            router_data,
-            key_store,
-            storage_scheme,
-            locale,
-        ))
-        .await?;
-
         Ok(payment_data)
     }
 }
@@ -530,17 +519,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
 {
     async fn update_tracker<'b>(
         &'b self,
-        db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<
+        _db: &'b SessionState,
+        _payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        _router_data: types::RouterData<
             F,
             types::SdkPaymentsSessionUpdateData,
             types::PaymentsResponseData,
         >,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-        locale: &Option<String>,
+        _key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+        _locale: &Option<String>,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
@@ -592,17 +581,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
 
         // let _shipping_address = payment_data.address.get_shipping();
         // let _amount = payment_data.amount;
-
-        payment_data = Box::pin(payment_response_update_tracker(
-            db,
-            payment_id,
-            payment_data,
-            router_data,
-            key_store,
-            storage_scheme,
-            locale,
-        ))
-        .await?;
 
         Ok(payment_data)
     }

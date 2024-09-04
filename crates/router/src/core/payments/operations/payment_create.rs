@@ -598,91 +598,98 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         key_store: &domain::MerchantKeyStore,
         merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let db = state.store.as_ref();
+        if business_profile.is_tax_connector_enabled {
+            let db = state.store.as_ref();
 
-        let key_manager_state: &KeyManagerState = &state.into();
+            let key_manager_state: &KeyManagerState = &state.into();
 
-        let merchant_connector_id = business_profile
-            .tax_connector_id
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("missing business_profile.tax_connector_id")?;
+            let merchant_connector_id = business_profile
+                .tax_connector_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing business_profile.tax_connector_id")?;
 
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_connector_account_v2")
-        ))]
-        let mca = db
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                key_manager_state,
-                &business_profile.merchant_id,
-                merchant_connector_id,
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "merchant_connector_account_v2")
+            ))]
+            let mca = db
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    key_manager_state,
+                    &business_profile.merchant_id,
+                    merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.get_string_repr().to_string(),
+                    },
+                )?;
+
+            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            let mca = db
+                .find_merchant_connector_account_by_id(
+                    key_manager_state,
+                    merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.get_string_repr().to_string(),
+                    },
+                )?;
+
+            let connector_data =
+                api::TaxCalculateConnectorData::get_connector_by_name(&mca.connector_name)?;
+
+            let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
+                state,
+                merchant_account,
                 key_store,
+                payment_data,
+                &mca,
+            )
+            .await?;
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::CalculateTax,
+                types::PaymentsTaxCalculationData,
+                types::TaxCalculationResponseData,
+            > = connector_data.connector.get_connector_integration();
+
+            let response = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.get_string_repr().to_string(),
-            })?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Tax connector Response Failed")?;
 
-        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
-        let mca = db
-            .find_merchant_connector_account_by_id(
-                key_manager_state,
-                merchant_connector_id,
-                key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_connector_id.get_string_repr().to_string(),
-            })?;
-
-        let connector_data =
-            api::TaxCalculateConnectorData::get_connector_by_name(&mca.connector_name)?;
-
-        let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
-            state,
-            merchant_account,
-            key_store,
-            payment_data,
-            &mca,
-        )
-        .await?;
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::CalculateTax,
-            types::PaymentsTaxCalculationData,
-            types::TaxCalculationResponseData,
-        > = connector_data.connector.get_connector_integration();
-
-        let response = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Tax connector Response Failed")?;
-
-        let tax_response =
-            response
-                .response
-                .map_err(|err| errors::ApiErrorResponse::ExternalConnectorError {
+            let tax_response = response.response.map_err(|err| {
+                errors::ApiErrorResponse::ExternalConnectorError {
                     code: err.code,
                     message: err.message,
                     connector: connector_data.connector_name.clone().to_string(),
                     status_code: err.status_code,
                     reason: err.reason,
-                })?;
+                }
+            })?;
 
-        payment_data.payment_intent.tax_details = Some(diesel_models::TaxDetails {
-            default: Some(diesel_models::DefaultTax {
-                order_tax_amount: tax_response.order_tax_amount,
-            }),
-            pmt: None,
-        });
+            payment_data.payment_intent.tax_details = Some(diesel_models::TaxDetails {
+                default: Some(diesel_models::DefaultTax {
+                    order_tax_amount: tax_response.order_tax_amount,
+                }),
+                pmt: None,
+            });
 
-        Ok(())
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     #[instrument(skip_all)]

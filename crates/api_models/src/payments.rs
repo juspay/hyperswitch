@@ -294,6 +294,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_to_capture: Option<MinorUnit>,
 
+    /// The shipping cost for the payment. This is required for tax calculation in some regions.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub shipping_cost: Option<MinorUnit>,
 

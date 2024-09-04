@@ -954,9 +954,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
                 },
             )?,
             order_details,
-            currency: payment_intent
-                .currency
-                .ok_or(errors::ApiErrorResponse::InternalServerError)?,
+            currency: payment_data.currency,
             shipping_address,
         },
         response: Err(ErrorResponse::default()),
