@@ -465,7 +465,7 @@ impl super::RedisConnectionPool {
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
-                        tracing::error!(?err);
+                        tracing::error!(redis_err=?err);
                         None
                     }
                 }
