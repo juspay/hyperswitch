@@ -27,7 +27,9 @@ use crate::{
 pub struct PaymentStart;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest, PaymentData<F>>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -38,7 +40,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest>> {
+    ) -> RouterResult<
+        operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
+    > {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
 
@@ -204,7 +208,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest, PaymentData<F>>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -218,7 +224,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest>,
+        BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>,
         PaymentData<F>,
     )>
     where
@@ -228,14 +234,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest, PaymentData<F>>
+    for PaymentStart
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest>,
+        BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>,
         operations::ValidateResult,
     )> {
         let request_merchant_id = Some(&request.merchant_id);
@@ -260,10 +268,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsStartRequest>>
-    Domain<F, api::PaymentsStartRequest> for Op
+impl<
+        F: Clone + Send,
+        Op: Send + Sync + Operation<F, api::PaymentsStartRequest, Data = PaymentData<F>>,
+    > Domain<F, api::PaymentsStartRequest, PaymentData<F>> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsStartRequest>,
+    for<'a> &'a Op: Operation<F, api::PaymentsStartRequest, Data = PaymentData<F>>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -275,7 +285,7 @@ where
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsStartRequest>,
+            BoxedOperation<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -302,7 +312,7 @@ where
         customer: &Option<domain::Customer>,
         business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsStartRequest>,
+        BoxedOperation<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
         Option<api::PaymentMethodData>,
         Option<String>,
     )> {

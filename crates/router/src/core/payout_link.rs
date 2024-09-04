@@ -280,7 +280,7 @@ pub async fn filter_payout_methods(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     // fetch all mca based on profile id
     let filtered_mca_on_profile =
-        helpers::filter_mca_based_on_business_profile(all_mcas, Some(payout.profile_id.clone()));
+        helpers::filter_mca_based_on_business_profile(all_mcas, Some(&payout.profile_id));
     //Since we just need payout connectors here, filter mca based on connector type.
     let filtered_mca = helpers::filter_mca_based_on_connector_type(
         filtered_mca_on_profile.clone(),

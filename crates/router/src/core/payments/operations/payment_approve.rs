@@ -28,7 +28,7 @@ use crate::{
 pub struct PaymentApprove;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest, PaymentData<F>>
     for PaymentApprove
 {
     #[instrument(skip_all)]
@@ -41,7 +41,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest>> {
+    ) -> RouterResult<
+        operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, PaymentData<F>>,
+    > {
         let db = &*state.store;
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
@@ -196,7 +198,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for PaymentApprove {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest, PaymentData<F>>
+    for PaymentApprove
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -210,7 +214,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
         frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest, PaymentData<F>>,
         PaymentData<F>,
     )>
     where
@@ -253,14 +257,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentApprove {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest, PaymentData<F>>
+    for PaymentApprove
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest, PaymentData<F>>,
         operations::ValidateResult,
     )> {
         let request_merchant_id = request.merchant_id.as_ref();

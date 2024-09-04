@@ -14,7 +14,7 @@ use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
-use super::{flows::Feature, types::AuthenticationData, PaymentData};
+use super::{flows::Feature, types::AuthenticationData, PaymentData, PaymentDataGetters};
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     connector::{Helcim, Nexinets},
@@ -210,10 +210,11 @@ where
     Ok(router_data)
 }
 
-pub trait ToResponse<D, Op>
+pub trait ToResponse<F, D, Op>
 where
     Self: Sized,
     Op: Debug,
+    D: PaymentDataGetters<F>,
 {
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
@@ -229,14 +230,15 @@ where
     ) -> RouterResponse<Self>;
 }
 
-impl<F, Op> ToResponse<PaymentData<F>, Op> for api::PaymentsResponse
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsResponse
 where
     F: Clone,
     Op: Debug,
+    D: PaymentDataGetters<F>,
 {
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
-        payment_data: PaymentData<F>,
+        payment_data: D,
         customer: Option<domain::Customer>,
         auth_flow: services::AuthFlow,
         base_url: &str,
@@ -248,7 +250,7 @@ where
     ) -> RouterResponse<Self> {
         let captures =
             payment_data
-                .multiple_capture_data
+                .get_multiple_capture_data()
                 .clone()
                 .and_then(|multiple_capture_data| {
                     multiple_capture_data
@@ -279,14 +281,15 @@ where
     }
 }
 
-impl<F, Op> ToResponse<PaymentData<F>, Op> for api::PaymentsSessionResponse
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsSessionResponse
 where
     F: Clone,
     Op: Debug,
+    D: PaymentDataGetters<F>,
 {
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
-        payment_data: PaymentData<F>,
+        payment_data: D,
         _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
@@ -298,11 +301,12 @@ where
     ) -> RouterResponse<Self> {
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
-                session_token: payment_data.sessions_token,
-                payment_id: payment_data.payment_attempt.payment_id,
+                session_token: payment_data.get_sessions_token(),
+                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
                 client_secret: payment_data
-                    .payment_intent
+                    .get_payment_intent()
                     .client_secret
+                    .clone()
                     .get_required_value("client_secret")?
                     .into(),
             },
@@ -311,14 +315,15 @@ where
     }
 }
 
-impl<F, Op> ToResponse<PaymentData<F>, Op> for api::VerifyResponse
+impl<F, Op, D> ToResponse<F, D, Op> for api::VerifyResponse
 where
     F: Clone,
     Op: Debug,
+    D: PaymentDataGetters<F>,
 {
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
-        data: PaymentData<F>,
+        payment_data: D,
         customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
@@ -329,7 +334,8 @@ where
         _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
-            data.payment_attempt
+            payment_data
+                .get_payment_attempt()
                 .payment_method_data
                 .clone()
                 .map(|data| data.parse_value("payment_method_data"))
@@ -341,9 +347,13 @@ where
             additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
-                verify_id: Some(data.payment_intent.payment_id),
-                merchant_id: Some(data.payment_intent.merchant_id),
-                client_secret: data.payment_intent.client_secret.map(Secret::new),
+                verify_id: Some(payment_data.get_payment_intent().payment_id.clone()),
+                merchant_id: Some(payment_data.get_payment_intent().merchant_id.clone()),
+                client_secret: payment_data
+                    .get_payment_intent()
+                    .client_secret
+                    .clone()
+                    .map(Secret::new),
                 customer_id: customer.as_ref().map(|x| x.customer_id.clone()),
                 email: customer
                     .as_ref()
@@ -354,14 +364,14 @@ where
                 phone: customer
                     .as_ref()
                     .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-                mandate_id: data
-                    .mandate_id
-                    .and_then(|mandate_ids| mandate_ids.mandate_id),
-                payment_method: data.payment_attempt.payment_method,
+                mandate_id: payment_data
+                    .get_mandate_id()
+                    .and_then(|mandate_ids| mandate_ids.mandate_id.clone()),
+                payment_method: payment_data.get_payment_attempt().payment_method,
                 payment_method_data: payment_method_data_response,
-                payment_token: data.token,
-                error_code: data.payment_attempt.error_code,
-                error_message: data.payment_attempt.error_message,
+                payment_token: payment_data.get_token().clone().map(ToString::to_string),
+                error_code: payment_data.get_payment_attempt().clone().error_code,
+                error_message: payment_data.get_payment_attempt().clone().error_message,
             },
             vec![],
         )))
@@ -372,8 +382,8 @@ where
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
 #[allow(clippy::too_many_arguments)]
-pub fn payments_to_payments_response<Op, F: Clone>(
-    payment_data: PaymentData<F>,
+pub fn payments_to_payments_response<Op, F: Clone, D>(
+    payment_data: D,
     captures: Option<Vec<storage::Capture>>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
@@ -386,10 +396,11 @@ pub fn payments_to_payments_response<Op, F: Clone>(
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
+    D: PaymentDataGetters<F>,
 {
-    let payment_attempt = payment_data.payment_attempt;
-    let payment_intent = payment_data.payment_intent;
-    let payment_link_data = payment_data.payment_link_data;
+    let payment_attempt = payment_data.get_payment_attempt().clone();
+    let payment_intent = payment_data.get_payment_intent().clone();
+    let payment_link_data = payment_data.get_payment_link_data();
 
     let currency = payment_attempt
         .currency
@@ -401,36 +412,40 @@ where
             field_name: "amount",
         })?;
     let mandate_id = payment_attempt.mandate_id.clone();
-    let refunds_response = if payment_data.refunds.is_empty() {
+
+    // TODO(jarnura) handle it better way
+    let refunds_response = if payment_data.get_refunds().is_empty() {
         None
     } else {
         Some(
             payment_data
-                .refunds
+                .get_refunds()
                 .into_iter()
                 .map(ForeignInto::foreign_into)
                 .collect(),
         )
     };
 
-    let disputes_response = if payment_data.disputes.is_empty() {
+    // TODO(jarnura) handle it better way
+    let disputes_response = if payment_data.get_disputes().is_empty() {
         None
     } else {
         Some(
             payment_data
-                .disputes
+                .get_disputes()
                 .into_iter()
                 .map(ForeignInto::foreign_into)
                 .collect(),
         )
     };
 
-    let incremental_authorizations_response = if payment_data.authorizations.is_empty() {
+    // TODO(jarnura) handle it better way
+    let incremental_authorizations_response = if payment_data.get_authorizations().is_empty() {
         None
     } else {
         Some(
             payment_data
-                .authorizations
+                .get_authorizations()
                 .into_iter()
                 .map(ForeignInto::foreign_into)
                 .collect(),
@@ -438,11 +453,10 @@ where
     };
 
     let external_authentication_details = payment_data
-        .authentication
-        .as_ref()
+        .get_authentication()
         .map(ForeignInto::foreign_into);
 
-    let attempts_response = payment_data.attempts.map(|attempts| {
+    let attempts_response = payment_data.get_attempts().map(|attempts| {
         attempts
             .into_iter()
             .map(ForeignInto::foreign_into)
@@ -484,20 +498,20 @@ where
                 tax_amount: payment_attempt.tax_amount,
             });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
-    let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
+    let frm_message = payment_data.get_frm_message().map(FrmMessage::foreign_from);
 
     let payment_method_data =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
     let payment_method_data_response = (payment_method_data.is_some()
         || payment_data
-            .address
+            .get_address()
             .get_request_payment_method_billing()
             .is_some())
     .then_some(api_models::payments::PaymentMethodDataResponseWithBilling {
         payment_method_data,
         billing: payment_data
-            .address
+            .get_address()
             .get_request_payment_method_billing()
             .cloned(),
     });
@@ -575,6 +589,7 @@ where
     {
         let redirection_data = payment_attempt
             .authentication_data
+            .clone()
             .get_required_value("redirection_data")?;
 
         let form: RedirectForm = serde_json::from_value(redirection_data)
@@ -582,7 +597,7 @@ where
 
         services::ApplicationResponse::Form(Box::new(services::RedirectionFormData {
             redirect_form: form,
-            payment_method_data: payment_data.payment_method_data,
+            payment_method_data: payment_data.get_payment_method_data().cloned(),
             amount,
             currency: currency.to_string(),
         }))
@@ -610,7 +625,7 @@ where
             || next_action_containing_wait_screen.is_some()
             || papal_sdk_next_action.is_some()
             || next_action_containing_fetch_qr_code_url.is_some()
-            || payment_data.authentication.is_some()
+            || payment_data.get_authentication().is_some()
         {
             next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -651,11 +666,11 @@ where
                                 ),
                             }
                         }))
-                        .or(match payment_data.authentication.as_ref(){
+                        .or(match payment_data.get_authentication().as_ref(){
                             Some(authentication) => {
                                 if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication.cavv.is_none() && authentication.is_separate_authn_required(){
                                     // if preAuthn and separate authentication needed.
-                                    let poll_config = payment_data.poll_config.unwrap_or_default();
+                                    let poll_config = payment_data.get_poll_config().unwrap_or_default();
                                     let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
                                     let payment_connector_name = payment_attempt.connector
                                         .as_ref()
@@ -697,7 +712,7 @@ where
         if third_party_sdk_session_next_action(&payment_attempt, operation) {
             next_action_response = Some(
                 api_models::payments::NextActionData::ThirdPartySdkSessionToken {
-                    session_token: payment_data.sessions_token.first().cloned(),
+                    session_token: payment_data.get_sessions_token().first().cloned(),
                 },
             )
         }
@@ -738,7 +753,7 @@ where
 
         services::ApplicationResponse::JsonWithHeaders((
             response
-                .set_net_amount(payment_attempt.net_amount)
+                .set_net_amount(payment_attempt.net_amount.clone())
                 .set_payment_id(Some(payment_attempt.payment_id))
                 .set_merchant_id(Some(payment_attempt.merchant_id))
                 .set_status(payment_intent.status)
@@ -768,8 +783,8 @@ where
                 )
                 .set_mandate_id(mandate_id)
                 .set_mandate_data(
-                    payment_data.setup_mandate.map(|d| api::MandateData {
-                        customer_acceptance: d.customer_acceptance.map(|d| {
+                    payment_data.get_setup_mandate().map(|d| api::MandateData {
+                        customer_acceptance: d.customer_acceptance.clone().map(|d| {
                             api::CustomerAcceptance {
                                 acceptance_type: match d.acceptance_type {
                                     hyperswitch_domain_models::mandates::AcceptanceType::Online => {
@@ -786,7 +801,7 @@ where
                                 }),
                             }
                         }),
-                        mandate_type: d.mandate_type.map(|d| match d {
+                        mandate_type: d.mandate_type.clone().map(|d| match d {
                             hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                                 api::MandateType::MultiUse(Some(api::MandateAmountData {
                                     amount: i.amount,
@@ -809,7 +824,7 @@ where
                                 api::MandateType::MultiUse(None)
                             }
                         }),
-                        update_mandate_id: d.update_mandate_id,
+                        update_mandate_id: d.update_mandate_id.clone(),
                     }),
                     auth_flow == services::AuthFlow::Merchant,
                 )
@@ -833,8 +848,8 @@ where
                         .or(payment_attempt.error_message),
                 )
                 .set_error_code(payment_attempt.error_code)
-                .set_shipping(payment_data.address.get_shipping().cloned())
-                .set_billing(payment_data.address.get_payment_billing().cloned())
+                .set_shipping(payment_data.get_address().get_shipping().cloned())
+                .set_billing(payment_data.get_address().get_payment_billing().cloned())
                 .set_next_action(next_action_response)
                 .set_return_url(payment_intent.return_url)
                 .set_cancellation_reason(payment_attempt.cancellation_reason)
@@ -852,7 +867,7 @@ where
                 .set_business_label(payment_intent.business_label)
                 .set_business_sub_label(payment_attempt.business_sub_label)
                 .set_allowed_payment_method_types(payment_intent.allowed_payment_method_types)
-                .set_ephemeral_key(payment_data.ephemeral_key.map(ForeignFrom::foreign_from))
+                .set_ephemeral_key(payment_data.get_ephemeral_key().map(ForeignFrom::foreign_from))
                 .set_frm_message(frm_message)
                 .set_merchant_decision(merchant_decision)
                 .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
@@ -875,7 +890,7 @@ where
                     payment_intent.incremental_authorization_allowed,
                 )
                 .set_external_authentication_details(external_authentication_details)
-                .set_fingerprint(payment_intent.fingerprint_id)
+                .set_fingerprint(payment_intent.fingerprint_id.clone())
                 .set_authorization_count(payment_intent.authorization_count)
                 .set_incremental_authorizations(incremental_authorizations_response)
                 .set_expires_on(payment_intent.session_expiry)
@@ -883,7 +898,7 @@ where
                     payment_attempt.external_three_ds_authentication_attempted,
                 )
                 .set_payment_method_id(payment_attempt.payment_method_id)
-                .set_payment_method_status(payment_data.payment_method_info.map(|info| info.status))
+                .set_payment_method_status(payment_data.get_payment_method_info().map(|info| info.status))
                 .set_customer(customer_details_response.clone())
                 .set_browser_info(payment_attempt.browser_info)
                 .set_updated(Some(payment_intent.modified_at))

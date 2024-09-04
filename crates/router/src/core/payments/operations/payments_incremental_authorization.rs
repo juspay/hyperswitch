@@ -32,8 +32,12 @@ pub struct PaymentIncrementalAuthorization;
 
 #[async_trait]
 impl<F: Send + Clone>
-    GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
-    for PaymentIncrementalAuthorization
+    GetTracker<
+        F,
+        payments::PaymentData<F>,
+        PaymentsIncrementalAuthorizationRequest,
+        payments::PaymentData<F>,
+    > for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -45,8 +49,14 @@ impl<F: Send + Clone>
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsIncrementalAuthorizationRequest>>
-    {
+    ) -> RouterResult<
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            PaymentsIncrementalAuthorizationRequest,
+            payments::PaymentData<F>,
+        >,
+    > {
         let db = &*state.store;
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
@@ -171,8 +181,13 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
-    for PaymentIncrementalAuthorization
+impl<F: Clone>
+    UpdateTracker<
+        F,
+        payments::PaymentData<F>,
+        PaymentsIncrementalAuthorizationRequest,
+        payments::PaymentData<F>,
+    > for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -187,7 +202,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
+        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>,
         payments::PaymentData<F>,
     )>
     where
@@ -263,7 +278,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest>
+impl<F: Send + Clone>
+    ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -272,7 +288,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest
         request: &PaymentsIncrementalAuthorizationRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
+        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>,
         operations::ValidateResult,
     )> {
         Ok((
@@ -288,7 +304,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
+impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -301,7 +317,12 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
+            BoxedOperation<
+                'a,
+                F,
+                PaymentsIncrementalAuthorizationRequest,
+                payments::PaymentData<F>,
+            >,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -319,7 +340,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _customer: &Option<domain::Customer>,
         _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
+        BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>,
         Option<api::PaymentMethodData>,
         Option<String>,
     )> {

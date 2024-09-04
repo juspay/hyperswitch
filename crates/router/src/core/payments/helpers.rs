@@ -118,13 +118,13 @@ pub fn create_certificate(
 
 pub fn filter_mca_based_on_business_profile(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(profile_id) = profile_id {
         merchant_connector_accounts
             .into_iter()
             .filter(|mca| {
-                mca.profile_id.as_ref() == Some(&profile_id)
+                mca.profile_id.as_deref() == Some(profile_id)
                     && mca.connector_type == ConnectorType::PaymentProcessor
             })
             .collect::<Vec<_>>()
@@ -1323,10 +1323,10 @@ where
     }
 }
 
-pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R>
+pub fn response_operation<'a, F, R, D>() -> BoxedOperation<'a, F, R, D>
 where
     F: Send + Clone,
-    PaymentResponse: Operation<F, R>,
+    PaymentResponse: Operation<F, R, Data = D>,
 {
     Box::new(PaymentResponse)
 }
@@ -1414,11 +1414,12 @@ pub(crate) async fn get_payment_method_create_request(
     }
 }
 
-pub async fn get_customer_from_details<F: Clone>(
+// pub async fn get_customer_from_details<F: Clone>(
+pub async fn get_customer_from_details(
     state: &SessionState,
     customer_id: Option<id_type::CustomerId>,
     merchant_id: &id_type::MerchantId,
-    payment_data: &mut PaymentData<F>,
+    // payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
@@ -1426,6 +1427,7 @@ pub async fn get_customer_from_details<F: Clone>(
         None => Ok(None),
         Some(customer_id) => {
             let db = &*state.store;
+            // TODO(jarnura) verify this is a dupilcate call?
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(
                     &state.into(),
@@ -1435,14 +1437,15 @@ pub async fn get_customer_from_details<F: Clone>(
                     storage_scheme,
                 )
                 .await?;
-            payment_data.email = payment_data.email.clone().or_else(|| {
-                customer.as_ref().and_then(|inner| {
-                    inner
-                        .email
-                        .clone()
-                        .map(|encrypted_value| encrypted_value.into())
-                })
-            });
+            // TODO(jarnura) this needs to be moved outside of this function
+            // payment_data.email = payment_data.email.clone().or_else(|| {
+            //     customer.as_ref().and_then(|inner| {
+            //         inner
+            //             .email
+            //             .clone()
+            //             .map(|encrypted_value| encrypted_value.into())
+            //     })
+            // });
             Ok(customer)
         }
     }
@@ -1536,15 +1539,15 @@ pub async fn get_connector_default(
 
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     state: &SessionState,
-    operation: BoxedOperation<'a, F, R>,
+    operation: BoxedOperation<'a, F, R, D>,
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -1978,8 +1981,8 @@ pub async fn retrieve_payment_token_data(
     Ok(token_data)
 }
 
-pub async fn make_pm_data<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+pub async fn make_pm_data<'a, F: Clone, R, D>(
+    operation: BoxedOperation<'a, F, R, D>,
     state: &'a SessionState,
     payment_data: &mut PaymentData<F>,
     merchant_key_store: &domain::MerchantKeyStore,
@@ -1987,7 +1990,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     storage_scheme: common_enums::enums::MerchantStorageScheme,
     business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
 ) -> RouterResult<(
-    BoxedOperation<'a, F, R>,
+    BoxedOperation<'a, F, R, D>,
     Option<api::PaymentMethodData>,
     Option<String>,
 )> {
@@ -3330,7 +3333,7 @@ impl MerchantConnectorAccountType {
 pub async fn get_merchant_connector_account(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
-    creds_identifier: Option<String>,
+    creds_identifier: Option<&str>,
     key_store: &domain::MerchantKeyStore,
     profile_id: &String,
     connector_name: &str,
@@ -4240,19 +4243,20 @@ pub fn get_applepay_metadata(
 }
 
 #[cfg(feature = "retry")]
-pub async fn get_apple_pay_retryable_connectors<F>(
+pub async fn get_apple_pay_retryable_connectors<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    payment_data: &mut PaymentData<F>,
+    payment_data: &D,
     key_store: &domain::MerchantKeyStore,
     pre_routing_connector_data_list: &[api::ConnectorData],
     merchant_connector_id: Option<&String>,
 ) -> CustomResult<Option<Vec<api::ConnectorData>>, errors::ApiErrorResponse>
 where
     F: Send + Clone,
+    D: payments::PaymentDataGetters<F> + Send,
 {
     let profile_id = &payment_data
-        .payment_intent
+        .get_payment_intent()
         .profile_id
         .clone()
         .get_required_value("profile_id")
@@ -4267,7 +4271,7 @@ where
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
         merchant_account.get_id(),
-        payment_data.creds_identifier.to_owned(),
+        payment_data.get_creds_identifier(),
         key_store,
         profile_id,
         &pre_decided_connector_data_first.connector_name.to_string(),
@@ -4293,10 +4297,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile_specific_merchant_connector_account_list = filter_mca_based_on_business_profile(
-            merchant_connector_account_list,
-            Some(profile_id.to_string()),
-        );
+        let profile_specific_merchant_connector_account_list =
+            filter_mca_based_on_business_profile(merchant_connector_account_list, Some(profile_id));
 
         let mut connector_data_list = vec![pre_decided_connector_data_first.clone()];
 
@@ -5129,21 +5131,31 @@ pub async fn config_skip_saving_wallet_at_connector(
     })
 }
 
-pub async fn override_setup_future_usage_to_on_session<F: Clone>(
+pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
-    payment_data: &mut PaymentData<F>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    if payment_data.payment_intent.setup_future_usage == Some(enums::FutureUsage::OffSession) {
-        let skip_saving_wallet_at_connector_optional =
-            config_skip_saving_wallet_at_connector(db, &payment_data.payment_intent.merchant_id)
-                .await?;
+    payment_data: &mut D,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: payments::PaymentDataGetters<F> + Send,
+{
+    if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
+    {
+        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
+            db,
+            &payment_data.get_payment_intent().merchant_id,
+        )
+        .await?;
 
         if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
-            if let Some(payment_method_type) = payment_data.payment_attempt.payment_method_type {
+            if let Some(payment_method_type) =
+                payment_data.get_payment_attempt().payment_method_type
+            {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
                     logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data.payment_intent.setup_future_usage =
-                        Some(enums::FutureUsage::OnSession);
+                    payment_data.set_setup_future_usage_in_payment_intent(Some(
+                        enums::FutureUsage::OnSession,
+                    ));
                 }
             }
         };

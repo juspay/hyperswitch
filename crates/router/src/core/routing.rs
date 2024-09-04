@@ -12,6 +12,7 @@ use diesel_models::routing_algorithm::RoutingAlgorithm;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v2", feature = "routing_v2"))]
 use masking::Secret;
 use rustc_hash::FxHashSet;
@@ -31,18 +32,49 @@ use crate::{
     routes::SessionState,
     services::api as service_api,
     types::{
-        domain,
+        api, domain,
+        storage::{self, enums as storage_enums},
         transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt, ValueExt},
 };
-pub enum TransactionData<'a, F>
-where
-    F: Clone,
+pub enum TransactionData<'a>
+// where
+//     F: Clone,
 {
-    Payment(&'a mut payments::PaymentData<F>),
+    Payment(PaymentsDslInput<'a>),
     #[cfg(feature = "payouts")]
     Payout(&'a payouts::PayoutData),
+}
+
+#[derive(Clone)]
+pub struct PaymentsDslInput<'a> {
+    pub setup_mandate: Option<&'a mandates::MandateData>,
+    pub payment_attempt: &'a storage::PaymentAttempt,
+    pub payment_intent: &'a storage::PaymentIntent,
+    pub payment_method_data: Option<&'a api::PaymentMethodData>,
+    pub address: &'a payment_address::PaymentAddress,
+    pub currency: storage_enums::Currency,
+}
+
+impl<'a> PaymentsDslInput<'a> {
+    pub fn new(
+        setup_mandate: Option<&'a mandates::MandateData>,
+        payment_attempt: &'a storage::PaymentAttempt,
+        payment_intent: &'a storage::PaymentIntent,
+        payment_method_data: Option<&'a api::PaymentMethodData>,
+        address: &'a payment_address::PaymentAddress,
+        currency: storage_enums::Currency,
+    ) -> Self {
+        Self {
+            setup_mandate,
+            payment_attempt,
+            payment_intent,
+            payment_method_data,
+            address,
+            currency,
+        }
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "routing_v2"))]

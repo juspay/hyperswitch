@@ -21,6 +21,7 @@ use euclid::{
     enums as euclid_enums,
     frontend::{ast, dir as euclid_dir},
 };
+use hyperswitch_domain_models::{mandates, payment_address};
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -75,7 +76,7 @@ pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<String, api::GetToken>,
-    profile_id: Option<String>,
+    profile_id: Option<&'a str>,
 }
 
 type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
@@ -147,92 +148,87 @@ pub fn make_dsl_input_for_payouts(
     })
 }
 
-pub fn make_dsl_input<F>(
-    payment_data: &payments_oss::PaymentData<F>,
+pub fn make_dsl_input(
+    // payment_data: &D,
+    input: &routing::PaymentsDslInput<'_>, // setup_mandate: Option<&mandates::MandateData>,
+                                           // payment_attempt: &oss_storage::PaymentAttempt,
+                                           // payment_intent: &oss_storage::PaymentIntent,
+                                           // payment_method_data: &Option<api::PaymentMethodData>,
+                                           // address: &payment_address::PaymentAddress,
+                                           // currency: storage_enums::Currency,
 ) -> RoutingResult<dsl_inputs::BackendInput>
-where
-    F: Clone,
+// where
+//     F: Clone,
+//     D: payments_oss::PaymentDataGetters<F>,
 {
     let mandate_data = dsl_inputs::MandateData {
-        mandate_acceptance_type: payment_data
-            .setup_mandate
-            .as_ref()
-            .and_then(|mandate_data| {
-                mandate_data
-                    .customer_acceptance
-                    .clone()
-                    .map(|cat| match cat.acceptance_type {
-                        hyperswitch_domain_models::mandates::AcceptanceType::Online => {
-                            euclid_enums::MandateAcceptanceType::Online
-                        }
-                        hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
-                            euclid_enums::MandateAcceptanceType::Offline
-                        }
-                    })
-            }),
-        mandate_type: payment_data
-            .setup_mandate
-            .as_ref()
-            .and_then(|mandate_data| {
-                mandate_data.mandate_type.clone().map(|mt| match mt {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
-                        euclid_enums::MandateType::SingleUse
+        mandate_acceptance_type: input.setup_mandate.and_then(|mandate_data| {
+            mandate_data
+                .customer_acceptance
+                .clone()
+                .map(|cat| match cat.acceptance_type {
+                    hyperswitch_domain_models::mandates::AcceptanceType::Online => {
+                        euclid_enums::MandateAcceptanceType::Online
                     }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
-                        euclid_enums::MandateType::MultiUse
+                    hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
+                        euclid_enums::MandateAcceptanceType::Offline
                     }
                 })
-            }),
-        payment_type: Some(payment_data.setup_mandate.clone().map_or_else(
+        }),
+        mandate_type: input.setup_mandate.and_then(|mandate_data| {
+            mandate_data.mandate_type.clone().map(|mt| match mt {
+                hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                    euclid_enums::MandateType::SingleUse
+                }
+                hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                    euclid_enums::MandateType::MultiUse
+                }
+            })
+        }),
+        payment_type: Some(input.setup_mandate.clone().map_or_else(
             || euclid_enums::PaymentType::NonMandate,
             |_| euclid_enums::PaymentType::SetupMandate,
         )),
     };
     let payment_method_input = dsl_inputs::PaymentMethodInput {
-        payment_method: payment_data.payment_attempt.payment_method,
-        payment_method_type: payment_data.payment_attempt.payment_method_type,
-        card_network: payment_data
-            .payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                api::PaymentMethodData::Card(card) => card.card_network.clone(),
+        payment_method: input.payment_attempt.payment_method,
+        payment_method_type: input.payment_attempt.payment_method_type,
+        card_network: input.payment_method_data.and_then(|pm_data| match pm_data {
+            api::PaymentMethodData::Card(card) => card.card_network.clone(),
 
-                _ => None,
-            }),
+            _ => None,
+        }),
     };
 
     let payment_input = dsl_inputs::PaymentInput {
-        amount: payment_data.payment_intent.amount,
-        card_bin: payment_data
-            .payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                api::PaymentMethodData::Card(card) => {
-                    Some(card.card_number.peek().chars().take(6).collect())
-                }
-                _ => None,
-            }),
-        currency: payment_data.currency,
-        authentication_type: payment_data.payment_attempt.authentication_type,
-        capture_method: payment_data
+        amount: input.payment_intent.amount,
+        card_bin: input.payment_method_data.and_then(|pm_data| match pm_data {
+            api::PaymentMethodData::Card(card) => {
+                Some(card.card_number.peek().chars().take(6).collect())
+            }
+            _ => None,
+        }),
+        currency: input.currency,
+        authentication_type: input.payment_attempt.authentication_type,
+        capture_method: input
             .payment_attempt
             .capture_method
             .and_then(|cm| cm.foreign_into()),
-        business_country: payment_data
+        business_country: input
             .payment_intent
             .business_country
             .map(api_enums::Country::from_alpha2),
-        billing_country: payment_data
+        billing_country: input
             .address
             .get_payment_method_billing()
             .and_then(|bic| bic.address.as_ref())
             .and_then(|add| add.country)
             .map(api_enums::Country::from_alpha2),
-        business_label: payment_data.payment_intent.business_label.clone(),
-        setup_future_usage: payment_data.payment_intent.setup_future_usage,
+        business_label: input.payment_intent.business_label.clone(),
+        setup_future_usage: input.payment_intent.setup_future_usage,
     };
 
-    let metadata = payment_data
+    let metadata = input
         .payment_intent
         .metadata
         .clone()
@@ -250,11 +246,11 @@ where
     })
 }
 
-pub async fn perform_static_routing_v1<F: Clone>(
+pub async fn perform_static_routing_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     algorithm_ref: routing_types::RoutingAlgorithmRef,
-    transaction_data: &routing::TransactionData<'_, F>,
+    transaction_data: &routing::TransactionData<'_>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let profile_id = match transaction_data {
         routing::TransactionData::Payment(payment_data) => payment_data
@@ -283,7 +279,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         state,
         merchant_id,
         &algorithm_id,
-        Some(profile_id).cloned(),
+        Some(profile_id),
         &api_enums::TransactionType::from(transaction_data),
     )
     .await?;
@@ -314,7 +310,7 @@ async fn ensure_algorithm_cached_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: &str,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
     let key = {
@@ -358,7 +354,7 @@ async fn ensure_algorithm_cached_v1(
 
 pub fn perform_straight_through_routing(
     algorithm: &routing_types::StraightThroughAlgorithm,
-    creds_identifier: Option<String>,
+    creds_identifier: Option<&str>,
 ) -> RoutingResult<(Vec<routing_types::RoutableConnectorChoice>, bool)> {
     Ok(match algorithm {
         routing_types::StraightThroughAlgorithm::Single(conn) => {
@@ -402,7 +398,7 @@ pub async fn refresh_routing_cache_v1(
     state: &SessionState,
     key: String,
     algorithm_id: &str,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
     let algorithm = {
         let algorithm = state
@@ -487,14 +483,13 @@ pub fn perform_volume_split(
 pub async fn get_merchant_cgraph<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let merchant_id = &key_store.merchant_id;
 
     let key = {
         let profile_id = profile_id
-            .clone()
             .get_required_value("profile_id")
             .change_context(errors::RoutingError::ProfileIdMissing)?;
         match transaction_type {
@@ -530,7 +525,7 @@ pub async fn refresh_cgraph_cache<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     key: String,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
@@ -621,7 +616,7 @@ async fn perform_cgraph_filtering(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let context = euclid_graph::AnalysisContext::from_dir_values(
@@ -659,13 +654,13 @@ async fn perform_cgraph_filtering(
     Ok(final_selection)
 }
 
-pub async fn perform_eligibility_analysis<F: Clone>(
+pub async fn perform_eligibility_analysis(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
-    transaction_data: &routing::TransactionData<'_, F>,
+    transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -685,13 +680,14 @@ pub async fn perform_eligibility_analysis<F: Clone>(
     .await
 }
 
-pub async fn perform_fallback_routing<F: Clone>(
+pub async fn perform_fallback_routing(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    transaction_data: &routing::TransactionData<'_, F>,
+    transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    // TODO(jarnura): Checking profile id from payment intent but passing profile id from the argument for subsequent calls
     let fallback_config = routing_helpers::get_merchant_default_config(
         &*state.store,
         match transaction_data {
@@ -727,13 +723,13 @@ pub async fn perform_fallback_routing<F: Clone>(
     .await
 }
 
-pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
+pub async fn perform_eligibility_analysis_with_fallback(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     chosen: Vec<routing_types::RoutableConnectorChoice>,
-    transaction_data: &routing::TransactionData<'_, F>,
+    transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
-    profile_id: Option<String>,
+    profile_id: Option<&str>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let mut final_selection = perform_eligibility_analysis(
         state,
@@ -889,7 +885,7 @@ pub async fn perform_session_flow_routing(
             backend_input: backend_input.clone(),
             allowed_connectors,
 
-            profile_id: session_input.payment_intent.profile_id.clone(),
+            profile_id: session_input.payment_intent.profile_id.as_deref(),
         };
         let routable_connector_choice_option =
             perform_session_routing_for_pm_type(&session_pm_input, transaction_type).await?;
@@ -936,7 +932,7 @@ async fn perform_session_routing_for_pm_type(
                     &session_pm_input.state.clone(),
                     merchant_id,
                     algorithm_id,
-                    session_pm_input.profile_id.clone(),
+                    session_pm_input.profile_id.as_deref(),
                     transaction_type,
                 )
                 .await?;
@@ -975,7 +971,7 @@ async fn perform_session_routing_for_pm_type(
         chosen_connectors,
         session_pm_input.backend_input.clone(),
         None,
-        session_pm_input.profile_id.clone(),
+        session_pm_input.profile_id.as_deref(),
         transaction_type,
     )
     .await?;
@@ -999,7 +995,7 @@ async fn perform_session_routing_for_pm_type(
             fallback,
             session_pm_input.backend_input.clone(),
             None,
-            session_pm_input.profile_id.clone(),
+            session_pm_input.profile_id.as_deref(),
             transaction_type,
         )
         .await?;

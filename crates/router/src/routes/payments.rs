@@ -195,7 +195,7 @@ pub async fn payments_start(
                 _,
                 _,
                 _,
-
+                payments::PaymentData<api_types::Authorize>,
             >(
                 state,
                 req_state,
@@ -272,7 +272,14 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::PSync,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PSync>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -346,7 +353,14 @@ pub async fn payments_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::PSync,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PSync>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -554,7 +568,14 @@ pub async fn payments_capture(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Capture,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Capture>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -624,6 +645,7 @@ pub async fn payments_connector_session(
                 _,
                 _,
                 _,
+                payments::PaymentData<api_types::Session>,
             >(
                 state,
                 req_state,
@@ -857,6 +879,7 @@ pub async fn payments_complete_authorize(
                 _,
                 _,
                 _,
+                payments::PaymentData<api_types::CompleteAuthorize>,
             >(
                 state.clone(),
                 req_state,
@@ -917,7 +940,14 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Void,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Void>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -1084,7 +1114,14 @@ pub async fn payments_approve(
         &http_req,
         payload.clone(),
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Capture,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Capture>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -1139,7 +1176,14 @@ pub async fn payments_reject(
         &http_req,
         payload.clone(),
         |state, auth, req, req_state| {
-            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Void,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Void>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
@@ -1185,10 +1229,14 @@ where
     Op: Sync
         + Clone
         + std::fmt::Debug
-        + payments::operations::Operation<api_types::Authorize, api_models::payments::PaymentsRequest>
         + payments::operations::Operation<
+            api_types::Authorize,
+            api_models::payments::PaymentsRequest,
+            Data = payments::PaymentData<api_types::Authorize>,
+        > + payments::operations::Operation<
             api_types::SetupMandate,
             api_models::payments::PaymentsRequest,
+            Data = payments::PaymentData<api_types::SetupMandate>,
         >,
 {
     // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
@@ -1201,26 +1249,29 @@ where
     match req.payment_type.unwrap_or_default() {
         api_models::enums::PaymentType::Normal
         | api_models::enums::PaymentType::RecurringMandate
-        | api_models::enums::PaymentType::NewMandate => payments::payments_core::<
-            api_types::Authorize,
-            payment_types::PaymentsResponse,
-            _,
-            _,
-            _,
-        >(
-            state,
-            req_state,
-            merchant_account,
-            None,
-            key_store,
-            operation,
-            req,
-            auth_flow,
-            payments::CallConnectorAction::Trigger,
-            eligible_connectors,
-            header_payload,
-        )
-        .await,
+        | api_models::enums::PaymentType::NewMandate => {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Authorize>,
+            >(
+                state,
+                req_state,
+                merchant_account,
+                None,
+                key_store,
+                operation,
+                req,
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+                eligible_connectors,
+                header_payload,
+            )
+            .await
+        }
         api_models::enums::PaymentType::SetupMandate => {
             payments::payments_core::<
                 api_types::SetupMandate,
@@ -1228,6 +1279,7 @@ where
                 _,
                 _,
                 _,
+                payments::PaymentData<api_types::SetupMandate>,
             >(
                 state,
                 req_state,
@@ -1291,6 +1343,7 @@ pub async fn payments_incremental_authorization(
                 _,
                 _,
                 _,
+                payments::PaymentData<api_types::IncrementalAuthorization>,
             >(
                 state,
                 req_state,

@@ -244,7 +244,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.get_id(),
-        creds_identifier,
+        creds_identifier.as_deref(),
         key_store,
         &profile_id,
         connector_id,
