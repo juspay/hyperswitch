@@ -1817,6 +1817,7 @@ impl User {
         route = route.service(
             web::scope("/user")
                 .service(web::resource("").route(web::get().to(get_user_role_details)))
+                .service(web::resource("/v2").route(web::post().to(list_user_roles_details)))
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
