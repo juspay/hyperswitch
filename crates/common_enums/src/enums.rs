@@ -160,7 +160,6 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
-    Thunes,
     // Nexixpay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
