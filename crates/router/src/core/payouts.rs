@@ -300,7 +300,7 @@ pub async fn payouts_create_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
-    locale: &String,
+    locale: &str,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer) =
@@ -2220,10 +2220,10 @@ pub async fn payout_create_db_entries(
     _merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     _req: &payouts::PayoutCreateRequest,
-    _payout_id: &String,
-    _profile_id: &String,
+    _payout_id: &str,
+    _profile_id: &str,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
-    _locale: &String,
+    _locale: &str,
     _customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     todo!()
@@ -2240,7 +2240,7 @@ pub async fn payout_create_db_entries(
     payout_id: &String,
     profile_id: &common_utils::id_type::ProfileId,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
-    locale: &String,
+    locale: &str,
     customer: Option<&domain::Customer>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
@@ -2652,8 +2652,8 @@ pub async fn create_payout_link(
     customer_id: &CustomerId,
     merchant_id: &common_utils::id_type::MerchantId,
     req: &payouts::PayoutCreateRequest,
-    payout_id: &String,
-    locale: &String,
+    payout_id: &str,
+    locale: &str,
 ) -> RouterResult<PayoutLink> {
     let payout_link_config_req = req.payout_link_config.to_owned();
 

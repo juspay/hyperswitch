@@ -1911,7 +1911,7 @@ impl<'a> MerchantDefaultConfigUpdate<'a> {
 ))]
 struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
-    merchant_connector_id: &'a common_utils::id_type::MerchantConnectorAccountId,
+    merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
     store: &'a dyn StorageInterface,
     business_profile: domain::BusinessProfile,
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
@@ -3717,6 +3717,7 @@ pub async fn create_business_profile(
 pub async fn list_business_profile(
     state: SessionState,
     merchant_id: id_type::MerchantId,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
     let db = state.store.as_ref();
     let key_store = db
@@ -3732,6 +3733,7 @@ pub async fn list_business_profile(
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         .clone();
+    let profiles = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, profiles);
     let mut business_profiles = Vec::new();
     for profile in profiles {
         let business_profile =
@@ -4077,7 +4079,7 @@ impl BusinessProfileWrapper {
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        algorithm_id: common_utils::id_type::RoutingId,
+        algorithm_id: id_type::RoutingId,
         transaction_type: &storage::enums::TransactionType,
     ) -> RouterResult<()> {
         let routing_cache_key = self.clone().get_routing_config_cache_key();
