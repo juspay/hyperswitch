@@ -770,7 +770,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
         match db
             .find_payment_method_by_customer_id_merchant_id_list(
                 key_manager_state,
-                &key_store,
+                key_store,
                 &self.customer_id,
                 merchant_account.get_id(),
                 None,
@@ -792,7 +792,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
                     }
                     db.delete_payment_method_by_merchant_id_payment_method_id(
                         key_manager_state,
-                        &key_store,
+                        key_store,
                         merchant_account.get_id(),
                         &pm.payment_method_id,
                     )

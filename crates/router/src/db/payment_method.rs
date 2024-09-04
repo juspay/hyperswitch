@@ -57,6 +57,7 @@ pub trait PaymentMethodInterface {
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
         state: &KeyManagerState,
