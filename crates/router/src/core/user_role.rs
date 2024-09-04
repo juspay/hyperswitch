@@ -412,7 +412,7 @@ pub async fn merchant_select_token_only_flow(
 pub async fn accept_invitations_pre_auth(
     state: SessionState,
     user_token: auth::UserFromSinglePurposeToken,
-    req: user_role_api::MerchantSelectV2Request,
+    req: user_role_api::AcceptInvitationsPreAuthRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     let lineages = futures::future::try_join_all(req.into_iter().map(|entity| {
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(

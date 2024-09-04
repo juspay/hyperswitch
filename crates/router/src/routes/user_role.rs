@@ -211,7 +211,7 @@ pub async fn merchant_select(
 pub async fn accept_invitations_pre_auth(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<user_role_api::MerchantSelectV2Request>,
+    json_payload: web::Json<user_role_api::AcceptInvitationsPreAuthRequest>,
 ) -> HttpResponse {
     let flow = Flow::AcceptInvitationsPreAuth;
     let payload = json_payload.into_inner();

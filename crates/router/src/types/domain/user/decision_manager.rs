@@ -1,5 +1,8 @@
 use common_enums::TokenPurpose;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use diesel_models::{
+    enums::{UserRoleVersion, UserStatus},
+    user_role::UserRole,
+};
 use error_stack::{report, ResultExt};
 use masking::Secret;
 
@@ -293,7 +296,7 @@ impl NextFlow {
                         merchant_id: None,
                         profile_id: None,
                         entity_id: None,
-                        version: None,
+                        version: Some(UserRoleVersion::V1),
                         status: Some(UserStatus::Active),
                         limit: Some(1),
                     })

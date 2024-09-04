@@ -1393,16 +1393,3 @@ impl NewUserRole<ProfileLevel> {
             .ok_or(report!(UserErrors::InternalServerError))
     }
 }
-//
-// pub struct Entity {
-//     pub entity_id: String,
-//     pub entity_type: EntityType,
-// }
-//
-// impl Entity {
-//     fn get_user_role_from_db_for_user(
-//         &state: &SessionState,
-//         user_id: &str,
-//     ) -> UserResult<Option<UserRole>> {
-//     }
-// }

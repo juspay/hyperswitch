@@ -30,28 +30,16 @@ impl UserRole {
     pub fn get_entity_id_and_type(&self) -> Option<(String, EntityType)> {
         match (self.version, self.role_id.as_str()) {
             (enums::UserRoleVersion::V1, consts::ROLE_ID_ORGANIZATION_ADMIN) => {
-                let org_id = self
-                    .org_id
-                    .clone()
-                    .map(|org_id| org_id.get_string_repr().to_string())?;
-
+                let org_id = self.org_id.clone()?.get_string_repr().to_string();
                 Some((org_id, EntityType::Organization))
             }
             (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER)
             | (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_ADMIN) => {
-                let merchant_id = self
-                    .merchant_id
-                    .clone()
-                    .map(|merchant_id| merchant_id.get_string_repr().to_string())?;
-
+                let merchant_id = self.merchant_id.clone()?.get_string_repr().to_string();
                 Some((merchant_id, EntityType::Internal))
             }
             (enums::UserRoleVersion::V1, _) => {
-                let merchant_id = self
-                    .merchant_id
-                    .clone()
-                    .map(|merchant_id| merchant_id.get_string_repr().to_string())?;
-
+                let merchant_id = self.merchant_id.clone()?.get_string_repr().to_string();
                 Some((merchant_id, EntityType::Merchant))
             }
             (enums::UserRoleVersion::V2, _) => self.entity_id.clone().zip(self.entity_type),

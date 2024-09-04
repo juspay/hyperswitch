@@ -262,11 +262,13 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
-        EntityType::Internal => Err(UserErrors::InvalidRoleOperation.into()),
-        EntityType::Organization => Err(UserErrors::InvalidRoleOperation.into()),
+        EntityType::Internal | EntityType::Organization => {
+            Err(UserErrors::InvalidRoleOperation.into())
+        }
         EntityType::Merchant => {
-            let merchant_id = id_type::MerchantId::wrap(entity_id)
-                .change_context(UserErrors::InternalServerError)?;
+            let Ok(merchant_id) = id_type::MerchantId::wrap(entity_id) else {
+                return Ok(None);
+            };
 
             let user_roles = state
                 .store
@@ -286,7 +288,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Err(UserErrors::InternalServerError.into());
+                return Ok(None);
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
@@ -295,7 +297,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     .ok_or(UserErrors::InternalServerError)?;
 
                 if entity_type != EntityType::Merchant {
-                    return Err(UserErrors::InternalServerError.into());
+                    return Ok(None);
                 }
 
                 return Ok(Some((
@@ -308,8 +310,10 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
             Ok(None)
         }
         EntityType::Profile => {
-            let profile_id = id_type::ProfileId::try_from(std::borrow::Cow::from(entity_id))
-                .change_context(UserErrors::InternalServerError)?;
+            let Ok(profile_id) = id_type::ProfileId::try_from(std::borrow::Cow::from(entity_id))
+            else {
+                return Ok(None);
+            };
 
             let user_roles = state
                 .store
@@ -329,7 +333,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .collect::<HashSet<_>>();
 
             if user_roles.len() > 1 {
-                return Err(UserErrors::InternalServerError.into());
+                return Ok(None);
             }
 
             if let Some(user_role) = user_roles.into_iter().next() {
@@ -338,7 +342,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     .ok_or(UserErrors::InternalServerError)?;
 
                 if entity_type != EntityType::Profile {
-                    return Err(UserErrors::InternalServerError.into());
+                    return Ok(None);
                 }
 
                 return Ok(Some((

@@ -149,7 +149,7 @@ pub struct ListInvitationForUserResponse {
 }
 
 pub type AcceptInvitationsV2Request = Vec<Entity>;
-pub type MerchantSelectV2Request = Vec<Entity>;
+pub type AcceptInvitationsPreAuthRequest = Vec<Entity>;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct Entity {

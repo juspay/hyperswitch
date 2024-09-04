@@ -876,26 +876,31 @@ pub async fn resend_invite(
         )
         .await
     {
-        Ok(user_role) => user_role,
+        Ok(user_role) => Some(user_role),
         Err(err) => {
             if err.current_context().is_db_not_found() {
-                state
-                    .store
-                    .find_user_role_by_user_id_and_lineage(
-                        user.get_user_id(),
-                        &user_from_token.org_id,
-                        &user_from_token.merchant_id,
-                        user_from_token.profile_id.as_ref(),
-                        UserRoleVersion::V1,
-                    )
-                    .await
-                    .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
-                        "User not found in records".to_string(),
-                    ))?
+                None
             } else {
                 return Err(report!(UserErrors::InternalServerError));
             }
         }
+    };
+
+    let user_role = match user_role {
+        Some(user_role) => user_role,
+        None => state
+            .store
+            .find_user_role_by_user_id_and_lineage(
+                user.get_user_id(),
+                &user_from_token.org_id,
+                &user_from_token.merchant_id,
+                user_from_token.profile_id.as_ref(),
+                UserRoleVersion::V1,
+            )
+            .await
+            .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
+                "User not found in records".to_string(),
+            ))?,
     };
 
     if !matches!(user_role.status, UserStatus::InvitationSent) {
@@ -2391,7 +2396,7 @@ pub async fn list_merchants_for_user_in_org(
     .await
     .change_context(UserErrors::InternalServerError)?;
     let merchant_accounts = match role_info.get_entity_type() {
-        EntityType::Organization | EntityType::Merchant | EntityType::Internal => state
+        EntityType::Organization | EntityType::Internal => state
             .store
             .list_merchant_accounts_by_organization_id(
                 &(&state).into(),
@@ -2399,7 +2404,7 @@ pub async fn list_merchants_for_user_in_org(
             )
             .await
             .change_context(UserErrors::InternalServerError)?,
-        EntityType::Profile => {
+        EntityType::Merchant | EntityType::Profile => {
             let merchant_ids = state
                 .store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
