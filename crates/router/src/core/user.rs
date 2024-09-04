@@ -1365,7 +1365,7 @@ pub async fn list_user_roles_details(
     let (merchant_ids, merchant_profile_ids) = user_roles_set.iter().try_fold(
         (Vec::new(), Vec::new()),
         |(mut merchant, mut merchant_profile), user_role| {
-            let (_, entity_type) = get_entity_id_and_type(&user_role);
+            let (_, entity_type) = get_entity_id_and_type(user_role);
             match entity_type {
                 Some(EntityType::Merchant) => {
                     let merchant_id = user_role
@@ -1459,8 +1459,7 @@ pub async fn list_user_roles_details(
                 EntityType::Internal => {
                     return Err(UserErrors::InvalidRoleOperationWithMessage(
                         "Internal roles are not allowed for this operation".to_string(),
-                    )
-                    .into());
+                    ));
                 }
                 EntityType::Organization => None,
                 EntityType::Merchant | EntityType::Profile => {
@@ -1482,8 +1481,7 @@ pub async fn list_user_roles_details(
                 EntityType::Internal => {
                     return Err(UserErrors::InvalidRoleOperationWithMessage(
                         "Internal roles are not allowed for this operation".to_string(),
-                    )
-                    .into());
+                    ));
                 }
                 EntityType::Organization | EntityType::Merchant => None,
                 EntityType::Profile => {
