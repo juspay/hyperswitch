@@ -907,7 +907,8 @@ impl Customers {
                 .service(
                     web::resource("/{id}")
                         .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve)),
+                        .route(web::post().to(customers_retrieve))
+                        .route(web::delete().to(customers_delete)),
                 )
         }
         #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
