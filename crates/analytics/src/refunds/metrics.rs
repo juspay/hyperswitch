@@ -18,7 +18,6 @@ use refund_success_count::RefundSuccessCount;
 use refund_success_rate::RefundSuccessRate;
 
 use crate::{
-    enums::AuthInfo,
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
@@ -29,7 +28,6 @@ pub struct RefundMetricRow {
     pub refund_status: Option<DBEnumWrapper<storage_enums::RefundStatus>>,
     pub connector: Option<String>,
     pub refund_type: Option<DBEnumWrapper<RefundType>>,
-    pub profile_id: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -53,7 +51,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -74,7 +72,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[RefundDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -83,22 +81,50 @@ where
         match self {
             Self::RefundSuccessRate => {
                 RefundSuccessRate::default()
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::RefundCount => {
                 RefundCount::default()
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::RefundSuccessCount => {
                 RefundSuccessCount::default()
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::RefundProcessedAmount => {
                 RefundProcessedAmount::default()
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
         }

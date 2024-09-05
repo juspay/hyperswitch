@@ -5,7 +5,6 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
@@ -13,14 +12,14 @@ use crate::{
     },
 };
 
-pub trait PaymentFilterAnalytics: LoadRow<PaymentFilterRow> {}
+pub trait PaymentFilterAnalytics: LoadRow<FilterRow> {}
 
 pub async fn get_payment_filter_for_dimension<T>(
     dimension: PaymentDimensions,
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
-) -> FiltersResult<Vec<PaymentFilterRow>>
+) -> FiltersResult<Vec<FilterRow>>
 where
     T: AnalyticsDataSource + PaymentFilterAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -37,19 +36,21 @@ where
         .attach_printable("Error filtering time range")
         .switch()?;
 
-    auth.set_filter_clause(&mut query_builder).switch()?;
+    query_builder
+        .add_filter_clause("merchant_id", merchant_id)
+        .switch()?;
 
     query_builder.set_distinct();
 
     query_builder
-        .execute_query::<PaymentFilterRow, _>(pool)
+        .execute_query::<FilterRow, _>(pool)
         .await
         .change_context(FiltersError::QueryBuildingError)?
         .change_context(FiltersError::QueryExecutionFailure)
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
-pub struct PaymentFilterRow {
+pub struct FilterRow {
     pub currency: Option<DBEnumWrapper<Currency>>,
     pub status: Option<DBEnumWrapper<AttemptStatus>>,
     pub connector: Option<String>,
@@ -58,5 +59,4 @@ pub struct PaymentFilterRow {
     pub payment_method_type: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub profile_id: Option<String>,
 }

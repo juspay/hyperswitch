@@ -8,7 +8,6 @@ use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo,
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
@@ -40,7 +39,6 @@ pub struct PaymentMetricRow {
     pub payment_method_type: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub profile_id: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -59,7 +57,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -80,7 +78,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -89,37 +87,86 @@ where
         match self {
             Self::PaymentSuccessRate => {
                 PaymentSuccessRate
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::PaymentCount => {
                 PaymentCount
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::PaymentSuccessCount => {
                 PaymentSuccessCount
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::PaymentProcessedAmount => {
                 PaymentProcessedAmount
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::AvgTicketSize => {
                 AvgTicketSize
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::RetriesCount => {
                 RetriesCount
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::ConnectorSuccessRate => {
                 ConnectorSuccessRate
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
         }

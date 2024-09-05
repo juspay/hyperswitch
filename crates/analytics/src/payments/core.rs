@@ -19,12 +19,11 @@ use router_env::{
 
 use super::{
     distribution::PaymentDistributionRow,
-    filters::{get_payment_filter_for_dimension, PaymentFilterRow},
+    filters::{get_payment_filter_for_dimension, FilterRow},
     metrics::PaymentMetricRow,
     PaymentMetricsAccumulator,
 };
 use crate::{
-    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics,
     payments::{PaymentDistributionAccumulator, PaymentMetricAccumulator},
@@ -46,7 +45,7 @@ pub enum TaskType {
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetPaymentMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<MetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
@@ -65,14 +64,14 @@ pub async fn get_metrics(
 
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
-        let auth_scoped = auth.to_owned();
+        let merchant_id_scoped = merchant_id.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_payment_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &auth_scoped,
+                        &merchant_id_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -93,14 +92,14 @@ pub async fn get_metrics(
             payment_distribution = distribution.distribution_for.as_ref()
         );
 
-        let auth_scoped = auth.to_owned();
+        let merchant_id_scoped = merchant_id.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_payment_distribution(
                         &distribution,
                         &req.group_by_names.clone(),
-                        &auth_scoped,
+                        &merchant_id_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,
@@ -223,31 +222,31 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetPaymentFiltersRequest,
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<PaymentFiltersResponse> {
     let mut res = PaymentFiltersResponse::default();
 
     for dim in req.group_by_names {
         let values = match pool {
                         AnalyticsProvider::Sqlx(pool) => {
-                get_payment_filter_for_dimension(dim, auth, &req.time_range, pool)
+                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
                     .await
             }
                         AnalyticsProvider::Clickhouse(pool) => {
-                get_payment_filter_for_dimension(dim, auth, &req.time_range, pool)
+                get_payment_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
                     .await
             }
                     AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    auth,
+                    merchant_id,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    auth,
+                    merchant_id,
                     &req.time_range,
                     sqlx_poll,
                 )
@@ -263,14 +262,14 @@ pub async fn get_filters(
                     AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
                 let ckh_result = get_payment_filter_for_dimension(
                     dim,
-                    auth,
+                    merchant_id,
                     &req.time_range,
                     ckh_pool,
                 )
                 .await;
                 let sqlx_result = get_payment_filter_for_dimension(
                     dim,
-                    auth,
+                    merchant_id,
                     &req.time_range,
                     sqlx_poll,
                 )
@@ -286,7 +285,7 @@ pub async fn get_filters(
         }
         .change_context(AnalyticsError::UnknownError)?
         .into_iter()
-        .filter_map(|fil: PaymentFilterRow| match dim {
+        .filter_map(|fil: FilterRow| match dim {
             PaymentDimensions::Currency => fil.currency.map(|i| i.as_ref().to_string()),
             PaymentDimensions::PaymentStatus => fil.status.map(|i| i.as_ref().to_string()),
             PaymentDimensions::Connector => fil.connector,
@@ -295,7 +294,6 @@ pub async fn get_filters(
             PaymentDimensions::PaymentMethodType => fil.payment_method_type,
             PaymentDimensions::ClientSource => fil.client_source,
             PaymentDimensions::ClientVersion => fil.client_version,
-            PaymentDimensions::ProfileId => fil.profile_id,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

@@ -1,9 +1,6 @@
 //! Types that can be used in other crates
 pub mod keymanager;
 
-/// Enum for Authentication Level
-pub mod authentication;
-
 use std::{
     fmt::Display,
     ops::{Add, Sub},

@@ -29,7 +29,6 @@ where
     query_builder
         .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
-
     query_builder
         .add_filter_clause("payment_id", query_param.payment_id)
         .switch()?;

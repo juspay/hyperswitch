@@ -4,7 +4,6 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
@@ -12,7 +11,7 @@ pub trait DisputeFilterAnalytics: LoadRow<DisputeFilterRow> {}
 
 pub async fn get_dispute_filter_for_dimension<T>(
     dimension: DisputeDimensions,
-    auth: &AuthInfo,
+    merchant: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<DisputeFilterRow>>
@@ -32,7 +31,9 @@ where
         .attach_printable("Error filtering time range")
         .switch()?;
 
-    auth.set_filter_clause(&mut query_builder).switch()?;
+    query_builder
+        .add_filter_clause("merchant_id", merchant)
+        .switch()?;
 
     query_builder.set_distinct();
 
