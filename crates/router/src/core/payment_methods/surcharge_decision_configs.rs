@@ -246,8 +246,8 @@ pub async fn perform_surcharge_decision_management_for_session_flow(
         (None, None) => return Ok(surcharge_metadata),
     };
     let mut backend_input = make_dsl_input_for_surcharge(
-        &payment_attempt,
-        &payment_intent,
+        payment_attempt,
+        payment_intent,
         // payment_data.address.get_payment_method_billing().cloned(),
         billing_address,
     )
@@ -258,7 +258,7 @@ pub async fn perform_surcharge_decision_management_for_session_flow(
         backend_input.payment_method.payment_method = Some(payment_method_type.to_owned().into());
         surcharge_source.generate_surcharge_details_and_populate_surcharge_metadata(
             &backend_input,
-            &payment_attempt,
+            payment_attempt,
             (
                 &mut surcharge_metadata,
                 types::SurchargeKey::PaymentMethodData(

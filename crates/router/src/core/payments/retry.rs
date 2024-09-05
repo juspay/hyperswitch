@@ -401,7 +401,6 @@ where
                     payment_method_id: payment_data.get_payment_attempt().payment_method_id.clone(),
                     mandate_id: payment_data
                         .get_mandate_id()
-                        .clone()
                         .and_then(|mandate| mandate.mandate_id.clone()),
                     connector_metadata,
                     payment_token: None,

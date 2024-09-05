@@ -1000,7 +1000,6 @@ where
     let payment_id = payment_data.get_payment_intent().payment_id.clone();
     let captures = payment_data
         .get_multiple_capture_data()
-        .clone()
         .map(|multiple_capture_data| {
             multiple_capture_data
                 .get_all_captures()

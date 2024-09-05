@@ -4,7 +4,6 @@ use api_models::{admin::FrmConfigs, enums as api_enums};
 use common_enums::CaptureMethod;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
-use operation::FraudCheckPost;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -53,7 +52,7 @@ pub mod types;
 pub async fn call_frm_service<D: Clone, F, Req, Da>(
     state: &SessionState,
     // payment_data: &mut payments::PaymentData<D>,
-    payment_data: &mut Da,
+    payment_data: &Da,
     frm_data: &mut FrmData,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,

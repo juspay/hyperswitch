@@ -10,10 +10,7 @@ use super::{
     FrmData,
 };
 use crate::{
-    core::{
-        errors::{self, RouterResult},
-        payments,
-    },
+    core::errors::{self, RouterResult},
     routes::{app::ReqState, SessionState},
     types::{domain, fraud_check::FrmRouterData},
 };

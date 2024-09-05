@@ -17,7 +17,6 @@ use hyperswitch_domain_models::{mandates, payment_address};
 use masking::Secret;
 use rustc_hash::FxHashSet;
 
-use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]

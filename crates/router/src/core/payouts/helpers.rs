@@ -809,7 +809,6 @@ pub async fn decide_payout_connector(
         payout_data,
         routing_data,
         eligible_connectors,
-        None,
     )
     .await
 }

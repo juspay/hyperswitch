@@ -248,23 +248,21 @@ where
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
-        let captures =
-            payment_data
-                .get_multiple_capture_data()
-                .clone()
-                .and_then(|multiple_capture_data| {
-                    multiple_capture_data
-                        .expand_captures
-                        .and_then(|should_expand| {
-                            should_expand.then_some(
-                                multiple_capture_data
-                                    .get_all_captures()
-                                    .into_iter()
-                                    .cloned()
-                                    .collect(),
-                            )
-                        })
-                });
+        let captures = payment_data
+            .get_multiple_capture_data()
+            .and_then(|multiple_capture_data| {
+                multiple_capture_data
+                    .expand_captures
+                    .and_then(|should_expand| {
+                        should_expand.then_some(
+                            multiple_capture_data
+                                .get_all_captures()
+                                .into_iter()
+                                .cloned()
+                                .collect(),
+                        )
+                    })
+            });
 
         payments_to_payments_response(
             payment_data,
@@ -369,7 +367,7 @@ where
                     .and_then(|mandate_ids| mandate_ids.mandate_id.clone()),
                 payment_method: payment_data.get_payment_attempt().payment_method,
                 payment_method_data: payment_method_data_response,
-                payment_token: payment_data.get_token().clone().map(ToString::to_string),
+                payment_token: payment_data.get_token().map(ToString::to_string),
                 error_code: payment_data.get_payment_attempt().clone().error_code,
                 error_message: payment_data.get_payment_attempt().clone().error_message,
             },
@@ -753,7 +751,7 @@ where
 
         services::ApplicationResponse::JsonWithHeaders((
             response
-                .set_net_amount(payment_attempt.net_amount.clone())
+                .set_net_amount(payment_attempt.net_amount)
                 .set_payment_id(Some(payment_attempt.payment_id))
                 .set_merchant_id(Some(payment_attempt.merchant_id))
                 .set_status(payment_intent.status)

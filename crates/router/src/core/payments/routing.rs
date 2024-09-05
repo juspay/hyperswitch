@@ -21,7 +21,6 @@ use euclid::{
     enums as euclid_enums,
     frontend::{ast, dir as euclid_dir},
 };
-use hyperswitch_domain_models::{mandates, payment_address};
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -185,7 +184,7 @@ pub fn make_dsl_input(
                 }
             })
         }),
-        payment_type: Some(input.setup_mandate.clone().map_or_else(
+        payment_type: Some(input.setup_mandate.map_or_else(
             || euclid_enums::PaymentType::NonMandate,
             |_| euclid_enums::PaymentType::SetupMandate,
         )),
@@ -315,7 +314,6 @@ async fn ensure_algorithm_cached_v1(
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
     let key = {
         let profile_id = profile_id
-            .clone()
             .get_required_value("profile_id")
             .change_context(errors::RoutingError::ProfileIdMissing)?;
 
@@ -404,7 +402,7 @@ pub async fn refresh_routing_cache_v1(
         let algorithm = state
             .store
             .find_routing_algorithm_by_profile_id_algorithm_id(
-                &profile_id.unwrap_or_default(),
+                profile_id.unwrap_or_default(),
                 algorithm_id,
             )
             .await
@@ -737,7 +735,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         chosen,
         transaction_data,
         eligible_connectors.as_ref(),
-        profile_id.clone(),
+        profile_id,
     )
     .await?;
 
@@ -932,7 +930,7 @@ async fn perform_session_routing_for_pm_type(
                     &session_pm_input.state.clone(),
                     merchant_id,
                     algorithm_id,
-                    session_pm_input.profile_id.as_deref(),
+                    session_pm_input.profile_id,
                     transaction_type,
                 )
                 .await?;
@@ -971,7 +969,7 @@ async fn perform_session_routing_for_pm_type(
         chosen_connectors,
         session_pm_input.backend_input.clone(),
         None,
-        session_pm_input.profile_id.as_deref(),
+        session_pm_input.profile_id,
         transaction_type,
     )
     .await?;
@@ -995,7 +993,7 @@ async fn perform_session_routing_for_pm_type(
             fallback,
             session_pm_input.backend_input.clone(),
             None,
-            session_pm_input.profile_id.as_deref(),
+            session_pm_input.profile_id,
             transaction_type,
         )
         .await?;

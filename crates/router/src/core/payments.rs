@@ -170,9 +170,9 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    call_decision_manager(state, &merchant_account, &mut payment_data).await?;
+    call_decision_manager(state, &merchant_account, &payment_data).await?;
 
-    call_decision_manager(state, &merchant_account, &mut payment_data).await?;
+    call_decision_manager(state, &merchant_account, &payment_data).await?;
 
     let authentication_type =
         call_decision_manager(state, &merchant_account, &payment_data).await?;
@@ -619,7 +619,7 @@ where
 }
 
 #[instrument(skip_all)]
-pub async fn call_decision_manager<F: Clone, D>(
+pub async fn call_decision_manager<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &D,
@@ -1533,8 +1533,7 @@ where
     *payment_data = pd;
 
     // Validating the blocklist guard and generate the fingerprint
-    // TODO(jarnura): Add this back
-    // blocklist_guard(state, merchant_account, key_store, operation, payment_data).await?;
+    blocklist_guard(state, merchant_account, key_store, operation, payment_data).await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -1680,7 +1679,7 @@ where
             .to_domain()?
             .add_task_to_process_tracker(
                 state,
-                &payment_data.get_payment_attempt(),
+                payment_data.get_payment_attempt(),
                 validate_result.requeue,
                 schedule_time,
             )
@@ -1874,7 +1873,7 @@ where
         let merchant_connector_account = construct_profile_id_and_get_mca(
             state,
             merchant_account,
-            &mut payment_data,
+            &payment_data,
             &session_connector_data.connector.connector_name.to_string(),
             session_connector_data
                 .connector
@@ -2094,31 +2093,17 @@ where
         return Ok((router_data, should_continue_payment));
     }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
-    let router_data_and_should_continue_payment =
-        match payment_data.get_payment_method_data().clone() {
-            Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref()
+    let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
+        Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
+            api_models::payments::BankTransferData::AchBankTransfer { .. }
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+                if connector.connector_name == router_types::Connector::Stripe =>
             {
-                api_models::payments::BankTransferData::AchBankTransfer { .. }
-                | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
-                    if connector.connector_name == router_types::Connector::Stripe =>
+                if payment_data
+                    .get_payment_attempt()
+                    .preprocessing_step_id
+                    .is_none()
                 {
-                    if payment_data
-                        .get_payment_attempt()
-                        .preprocessing_step_id
-                        .is_none()
-                    {
-                        (
-                            router_data.preprocessing_steps(state, connector).await?,
-                            false,
-                        )
-                    } else {
-                        (router_data, should_continue_payment)
-                    }
-                }
-                _ => (router_data, should_continue_payment),
-            },
-            Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
-                if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                     (
                         router_data.preprocessing_steps(state, connector).await?,
                         false,
@@ -2127,92 +2112,104 @@ where
                     (router_data, should_continue_payment)
                 }
             }
-            Some(api_models::payments::PaymentMethodData::Card(_)) => {
-                if connector.connector_name == router_types::Connector::Payme
-                    && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
-                {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                    let is_error_in_response = router_data.response.is_err();
-                    // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                    (router_data, !is_error_in_response)
-                } else if connector.connector_name == router_types::Connector::Nmi
-                    && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
-                    && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-                    && !matches!(
-                        payment_data
-                            .get_payment_attempt()
-                            .external_three_ds_authentication_attempted,
-                        Some(true)
-                    )
-                {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                    (router_data, false)
-                } else if connector.connector_name == router_types::Connector::Cybersource
-                    && is_operation_complete_authorize(&operation)
-                    && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
-                {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
-
-                    // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
-                    let should_continue = matches!(
-                        router_data.response,
-                        Ok(router_types::PaymentsResponseData::TransactionResponse {
-                            redirection_data: None,
-                            ..
-                        })
-                    ) && router_data.status
-                        != common_enums::AttemptStatus::AuthenticationFailed;
-                    (router_data, should_continue)
-                } else if (connector.connector_name == router_types::Connector::Nuvei
-                    || connector.connector_name == router_types::Connector::Shift4)
-                    && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
-                    && !is_operation_complete_authorize(&operation)
-                {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
-                    (router_data, should_continue_payment)
-                } else {
-                    (router_data, should_continue_payment)
-                }
+            _ => (router_data, should_continue_payment),
+        },
+        Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+            if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
+                (
+                    router_data.preprocessing_steps(state, connector).await?,
+                    false,
+                )
+            } else {
+                (router_data, should_continue_payment)
             }
-            Some(api_models::payments::PaymentMethodData::GiftCard(_)) => {
-                if connector.connector_name == router_types::Connector::Adyen {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
+        }
+        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+            if connector.connector_name == router_types::Connector::Payme
+                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
 
-                    let is_error_in_response = router_data.response.is_err();
-                    // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                    (router_data, !is_error_in_response)
-                } else {
-                    (router_data, should_continue_payment)
-                }
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else if connector.connector_name == router_types::Connector::Nmi
+                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+                && !matches!(
+                    payment_data
+                        .get_payment_attempt()
+                        .external_three_ds_authentication_attempted,
+                    Some(true)
+                )
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                (router_data, false)
+            } else if connector.connector_name == router_types::Connector::Cybersource
+                && is_operation_complete_authorize(&operation)
+                && router_data.auth_type == storage_enums::AuthenticationType::ThreeDs
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                // Should continue the flow only if no redirection_data is returned else a response with redirection form shall be returned
+                let should_continue = matches!(
+                    router_data.response,
+                    Ok(router_types::PaymentsResponseData::TransactionResponse {
+                        redirection_data: None,
+                        ..
+                    })
+                ) && router_data.status
+                    != common_enums::AttemptStatus::AuthenticationFailed;
+                (router_data, should_continue)
+            } else if (connector.connector_name == router_types::Connector::Nuvei
+                || connector.connector_name == router_types::Connector::Shift4)
+                && router_data.auth_type == common_enums::AuthenticationType::ThreeDs
+                && !is_operation_complete_authorize(&operation)
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                (router_data, should_continue_payment)
+            } else {
+                (router_data, should_continue_payment)
             }
-            Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
-                if connector.connector_name == router_types::Connector::Gocardless {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
-                    let is_error_in_response = router_data.response.is_err();
-                    // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                    (router_data, !is_error_in_response)
-                } else {
-                    (router_data, should_continue_payment)
-                }
+        }
+        Some(api_models::payments::PaymentMethodData::GiftCard(_)) => {
+            if connector.connector_name == router_types::Connector::Adyen {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
             }
-            _ => {
-                // 3DS validation for paypal cards after verification (authorize call)
-                if connector.connector_name == router_types::Connector::Paypal
-                    && payment_data.get_payment_attempt().payment_method
-                        == Some(storage_enums::PaymentMethod::Card)
-                    && matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
-                {
-                    router_data = router_data.preprocessing_steps(state, connector).await?;
-                    let is_error_in_response = router_data.response.is_err();
-                    // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
-                    (router_data, !is_error_in_response)
-                } else {
-                    (router_data, should_continue_payment)
-                }
+        }
+        Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
+            if connector.connector_name == router_types::Connector::Gocardless {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
             }
-        };
+        }
+        _ => {
+            // 3DS validation for paypal cards after verification (authorize call)
+            if connector.connector_name == router_types::Connector::Paypal
+                && payment_data.get_payment_attempt().payment_method
+                    == Some(storage_enums::PaymentMethod::Card)
+                && matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+            {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
+    };
 
     Ok(router_data_and_should_continue_payment)
 }
@@ -2250,7 +2247,7 @@ where
         )
         .await?;
 
-    match payment_data.get_payment_method_data().clone() {
+    match payment_data.get_payment_method_data() {
         Some(api_models::payments::PaymentMethodData::OpenBanking(
             api_models::payments::OpenBankingData::OpenBankingPIS { .. },
         )) => {
@@ -2289,7 +2286,7 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
 pub async fn construct_profile_id_and_get_mca<'a, F, D>(
     state: &'a SessionState,
     merchant_account: &domain::MerchantAccount,
-    payment_data: &mut D,
+    payment_data: &D,
     connector_name: &str,
     merchant_connector_id: Option<&String>,
     key_store: &domain::MerchantKeyStore,
@@ -2834,8 +2831,7 @@ where
     &'a PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
 {
     if confirm.unwrap_or(false) {
-        let payment_confirm = Box::new(PaymentConfirm);
-        payment_confirm
+        Box::new(PaymentConfirm)
     } else {
         match status {
             storage_enums::IntentStatus::RequiresConfirmation
@@ -3273,7 +3269,7 @@ where
             merchant_account,
             &state.clone(),
             req,
-            &payment_data.get_payment_intent(),
+            payment_data.get_payment_intent(),
             key_store,
         )
         .await?;
@@ -3992,8 +3988,8 @@ where
             .and_then(|details| details.country),
         key_store,
         merchant_account,
-        payment_attempt: &payment_data.get_payment_attempt(),
-        payment_intent: &payment_data.get_payment_intent(),
+        payment_attempt: payment_data.get_payment_attempt(),
+        payment_intent: payment_data.get_payment_intent(),
 
         chosen,
     };
@@ -4031,7 +4027,6 @@ pub async fn route_connector_v1_for_payouts(
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
-    mandate_type: Option<api::MandateTransactionType>,
 ) -> RouterResult<ConnectorCallType> {
     let (profile_id, routing_algorithm) = (
         Some(transaction_data.payout_attempt.profile_id.as_ref()),
@@ -4523,8 +4518,6 @@ pub async fn payments_manual_update(
     }
     Ok(services::ApplicationResponse::StatusOk)
 }
-
-trait OperationDataGetters<F> {}
 
 pub trait PaymentDataGetters<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;

@@ -3343,7 +3343,7 @@ pub async fn get_merchant_connector_account(
     let key_manager_state: &KeyManagerState = &state.into();
     match creds_identifier {
         Some(creds_identifier) => {
-            let key = merchant_id.get_creds_identifier_key(&creds_identifier);
+            let key = merchant_id.get_creds_identifier_key(creds_identifier);
             let cloned_key = key.clone();
             let redis_fetch = || async {
                 db.get_redis_conn()
