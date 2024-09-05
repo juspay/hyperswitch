@@ -1,5 +1,5 @@
-use common_enums::EntityType;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use common_enums::EntityType;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
