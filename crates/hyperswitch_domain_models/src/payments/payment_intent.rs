@@ -184,7 +184,6 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
-    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -309,7 +308,6 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
-    pub skip_external_tax_calculation: Option<bool>,
 }
 
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
@@ -568,7 +566,6 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     shipping_details: value.shipping_details.map(Encryption::from),
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                     tax_details: value.tax_details,
-                    skip_external_tax_calculation: value.skip_external_tax_calculation,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -725,7 +722,6 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_details,
             is_payment_processor_token_flow,
             tax_details,
-            skip_external_tax_calculation,
         } = value;
 
         Self {
@@ -765,7 +761,6 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_details: shipping_details.map(Encryption::from),
             is_payment_processor_token_flow,
             tax_details,
-            skip_external_tax_calculation,
         }
     }
 }

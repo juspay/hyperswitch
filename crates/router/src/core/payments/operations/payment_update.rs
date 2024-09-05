@@ -861,7 +861,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_intent
             .merchant_order_reference_id
             .clone();
-
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -897,7 +896,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     shipping_details,
                     is_payment_processor_token_flow: None,
                     tax_details: None,
-                    skip_external_tax_calculation: None,
                 })),
                 key_store,
                 storage_scheme,

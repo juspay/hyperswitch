@@ -3676,13 +3676,7 @@ pub async fn list_payment_methods(
 
     let is_tax_connector_enabled = business_profile
         .as_ref()
-        .map_or(false,|business_profile| {
-            let is_tax_connector_enabled = business_profile.is_tax_connector_enabled;
-            match &business_profile.tax_connector_id {
-                Some(id) if !id.is_empty() => is_tax_connector_enabled,
-                _ => false,
-            }
-        });
+        .map_or(false,|business_profile| business_profile.get_is_tax_connector_enabled());
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {

@@ -334,7 +334,6 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
-    pub skip_external_tax_calculation: Option<bool>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -377,7 +376,6 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryption>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<TaxDetails>,
-    pub skip_external_tax_calculation: Option<bool>,
 }
 
 impl PaymentIntentUpdate {
@@ -419,7 +417,6 @@ impl PaymentIntentUpdate {
             shipping_details,
             is_payment_processor_token_flow,
             tax_details,
-            skip_external_tax_calculation,
         } = self.into();
         PaymentIntent {
             amount: amount.unwrap_or(source.amount),
@@ -465,7 +462,6 @@ impl PaymentIntentUpdate {
             is_payment_processor_token_flow: is_payment_processor_token_flow
                 .or(source.is_payment_processor_token_flow),
             tax_details: tax_details.or(source.tax_details),
-            skip_external_tax_calculation: skip_external_tax_calculation.or(source.skip_external_tax_calculation),
             ..source
         }
     }
@@ -514,7 +510,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -554,7 +549,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 authorization_count: None,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                 tax_details: None,
-                skip_external_tax_calculation: value.skip_external_tax_calculation,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -601,7 +595,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -644,7 +637,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -688,7 +680,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -740,7 +731,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -783,7 +773,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -827,7 +816,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -870,7 +858,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -913,7 +900,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -955,7 +941,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -994,7 +979,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1035,7 +1019,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1076,7 +1059,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_details: None,
                 is_payment_processor_token_flow: None,
                 tax_details: None,
-                skip_external_tax_calculation: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1158,7 +1140,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: None,
                 shipping_details,
                 is_payment_processor_token_flow: None,
-                skip_external_tax_calculation: None,
             },
         }
     }
