@@ -1988,29 +1988,3 @@ where
         Ok(((), AuthenticationType::NoAuth))
     }
 }
-
-#[cfg(feature = "recon")]
-pub struct ReconJWT;
-
-#[cfg(all(feature = "olap", feature = "recon"))]
-#[async_trait]
-impl AuthenticateAndFetch<UserFromToken, SessionState> for ReconJWT {
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &SessionState,
-    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
-        let payload = parse_jwt_payload::<SessionState, AuthToken>(request_headers, state).await?;
-
-        Ok((
-            UserFromToken {
-                user_id: payload.user_id.clone(),
-                merchant_id: payload.merchant_id.clone(),
-                org_id: payload.org_id,
-                role_id: payload.role_id,
-                profile_id: payload.profile_id,
-            },
-            AuthenticationType::NoAuth,
-        ))
-    }
-}

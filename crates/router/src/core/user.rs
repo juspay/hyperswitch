@@ -1492,11 +1492,11 @@ pub async fn send_verification_mail(
 #[cfg(feature = "recon")]
 pub async fn verify_token(
     state: SessionState,
-    req: auth::UserFromToken,
+    user: auth::UserFromToken,
 ) -> UserResponse<user_api::VerifyTokenResponse> {
-    let user = state
+    let user_in_db = state
         .global_store
-        .find_user_by_id(&req.user_id)
+        .find_user_by_id(&user.user_id)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -1504,24 +1504,36 @@ pub async fn verify_token(
             } else {
                 e.change_context(UserErrors::InternalServerError)
             }
+        })
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to fetch the user from DB for user_id - {}",
+                user.user_id
+            )
         })?;
     let merchant_id = state
         .store
         .find_user_role_by_user_id_and_lineage(
-            &user.user_id,
-            &req.org_id,
-            &req.merchant_id,
-            req.profile_id.as_ref(),
+            &user_in_db.user_id,
+            &user.org_id,
+            &user.merchant_id,
+            user.profile_id.as_ref(),
             UserRoleVersion::V1,
         )
         .await
-        .change_context(UserErrors::InternalServerError)?
+        .change_context(UserErrors::RoleNotFound)?
+        .attach_printable_lazy(|| {
+            format!(
+                "UserRole not found for [user_id, org_id, mid, pid] [{}, {}, {}, {}]",
+                user.user_id, user.org_id, user.merchant_id, user.profile_id,
+            )
+        })
         .merchant_id
-        .ok_or(UserErrors::InternalServerError)?;
+        .ok_or(UserErrors::MerchantIdNotFound)?;
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
         merchant_id: merchant_id.to_owned(),
-        user_email: user.email,
+        user_email: user_in_db.email,
     }))
 }
 

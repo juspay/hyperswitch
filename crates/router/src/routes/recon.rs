@@ -51,7 +51,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         &req,
         (),
         |state, user: UserFromToken, _, _| recon::generate_recon_token(state, user),
-        &auth::ReconJWT,
+        &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

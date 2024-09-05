@@ -27,19 +27,19 @@ pub async fn send_recon_request(
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
-    let user_role = db
-        .find_user_role_by_user_id_and_lineage(
-            &user.user_id,
-            &user.org_id,
-            &user.merchant_id,
-            user.profile_id.as_ref(),
-            UserRoleVersion::V1,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    let merchant_id = user_role
-        .merchant_id
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+    // Ensure user role exists
+    db.find_user_role_by_user_id_and_lineage(
+        &user.user_id,
+        &user.org_id,
+        &user.merchant_id,
+        user.profile_id.as_ref(),
+        UserRoleVersion::V1,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "User's role could not be found".to_string(),
+    })?;
+
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             key_manager_state,
@@ -48,26 +48,6 @@ pub async fn send_recon_request(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    // Ensure the merchant in user role is the parent of the business profile
-    match user.profile_id {
-        Some(profile_id) => {
-            let business_profile = db
-                .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-            if user.merchant_id != merchant_id || user.merchant_id != business_profile.merchant_id {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Profile id authentication failed. Please use the correct JWT token"
-                        .to_string(),
-                }))
-            } else {
-                Ok(())
-            }
-        }
-        None => Ok(()),
-    }?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
@@ -139,77 +119,41 @@ pub async fn send_recon_request(
 
 pub async fn generate_recon_token(
     state: SessionState,
-    req: UserFromToken,
+    user: UserFromToken,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
-    let user: UserFromStorage = global_db
-        .find_user_by_id(&req.user_id)
-        .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(errors::ApiErrorResponse::InvalidJwtToken)
-            } else {
-                e.change_context(errors::ApiErrorResponse::InternalServerError)
-            }
-        })?
-        .into();
-    let user_role = db
-        .find_user_role_by_user_id_and_lineage(
-            &user.0.user_id,
-            &req.org_id,
-            &req.merchant_id,
-            req.profile_id.as_ref(),
-            UserRoleVersion::V1,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let merchant_id = user_role
-        .merchant_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    // Ensure the merchant in user role is the parent of the business profile
-    match req.profile_id {
-        Some(ref profile_id) => {
-            let business_profile = db
-                .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-            if req.merchant_id != merchant_id || req.merchant_id != business_profile.merchant_id {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Profile id authentication failed. Please use the correct JWT token"
-                        .to_string(),
-                }))
-            } else {
-                Ok(())
-            }
-        }
-        None => Ok(()),
-    }?;
-
-    let token = AuthToken::new_token(
-        req.user_id,
-        req.merchant_id,
-        req.role_id,
-        &state.conf,
-        req.org_id,
-        req.profile_id,
+    // Ensure the user role exists
+    db.find_user_role_by_user_id_and_lineage(
+        &user.user_id,
+        &user.org_id,
+        &user.merchant_id,
+        user.profile_id.as_ref(),
+        UserRoleVersion::V1,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "User's role could not be found".to_string(),
+    })?;
+
+    let token = AuthToken::new_token(
+        user.user_id,
+        user.merchant_id,
+        user.role_id,
+        &state.conf,
+        user.org_id,
+        user.profile_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "Failed to create recon token for params [user_id, org_id, mid, pid] [{}, {}, {}, {}]",
+            user.user_id, user.org_id, user.merchant_id, user.profile_id,
+        )
+    })?;
 
     Ok(service_api::ApplicationResponse::Json(
         recon_api::ReconTokenResponse {
@@ -233,7 +177,9 @@ pub async fn recon_merchant_account_update(
             &db.get_master_key().to_vec().into(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "merchant's key store not found".to_string(),
+        })?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
