@@ -252,7 +252,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data: transformers::NovalnetRouterData<
             &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         > = novalnet::NovalnetRouterData::from((amount, req));
-        let connector_req = novalnet::NovalnetPaymentsRequest::try_from(&connector_router_data)?; //
+        let connector_req = novalnet::NovalnetPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
