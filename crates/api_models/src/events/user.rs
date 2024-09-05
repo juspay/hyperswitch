@@ -14,11 +14,11 @@ use crate::user::{
     ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
     CreateUserAuthenticationMethodRequest, DashboardEntryResponse, ForgotPasswordRequest,
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
-    GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, InviteUserRequest, ListUsersResponse,
-    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
-    SendVerifyEmailRequest, SignInResponse, SignUpRequest, SignUpWithMerchantIdRequest,
-    SsoSignInRequest, SwitchMerchantIdRequest, TokenOrPayloadResponse, TokenResponse,
-    TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponse, GetUserRoleDetailsResponseV2,
+    InviteUserRequest, ListUsersResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
+    RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest,
+    SsoSignInRequest, SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest,
+    TokenResponse, TwoFactorAuthStatusResponse, UpdateUserAccountDetailsRequest,
     UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantCreate,
     VerifyEmailRequest, VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
@@ -40,12 +40,6 @@ impl ApiEventMetric for VerifyTokenResponse {
     }
 }
 
-impl<T> ApiEventMetric for TokenOrPayloadResponse<T> {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
-    }
-}
-
 common_utils::impl_api_event_type!(
     Miscellaneous,
     (
@@ -56,7 +50,9 @@ common_utils::impl_api_event_type!(
         GetMetaDataResponse,
         GetMetaDataRequest,
         SetMetaDataRequest,
-        SwitchMerchantIdRequest,
+        SwitchOrganizationRequest,
+        SwitchMerchantRequest,
+        SwitchProfileRequest,
         CreateInternalUserRequest,
         UserMerchantCreate,
         ListUsersResponse,
@@ -70,11 +66,11 @@ common_utils::impl_api_event_type!(
         VerifyEmailRequest,
         SendVerifyEmailRequest,
         AcceptInviteFromEmailRequest,
-        SignInResponse,
         UpdateUserAccountDetailsRequest,
         GetUserDetailsResponse,
         GetUserRoleDetailsRequest,
         GetUserRoleDetailsResponse,
+        GetUserRoleDetailsResponseV2,
         TokenResponse,
         TwoFactorAuthStatusResponse,
         UserFromEmailRequest,

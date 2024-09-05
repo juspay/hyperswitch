@@ -20,13 +20,13 @@
     }
   ],
   "paths": {
-    "/organization": {
+    "/v2/organization": {
       "post": {
         "tags": [
           "Organization"
         ],
         "summary": "Organization - Create",
-        "description": "Organization - Create\n\nCreate a new organization",
+        "description": "Create a new organization",
         "operationId": "Create an Organization",
         "requestBody": {
           "content": {
@@ -67,13 +67,13 @@
         ]
       }
     },
-    "/organization/{organization_id}": {
+    "/v2/organization/{organization_id}": {
       "get": {
         "tags": [
           "Organization"
         ],
         "summary": "Organization - Retrieve",
-        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
+        "description": "Retrieve an existing organization",
         "operationId": "Retrieve an Organization",
         "parameters": [
           {
@@ -112,7 +112,7 @@
           "Organization"
         ],
         "summary": "Organization - Update",
-        "description": "Organization - Update\n\nCreate a new organization for .",
+        "description": "Create a new organization for .",
         "operationId": "Update an Organization",
         "parameters": [
           {
@@ -170,7 +170,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Create",
-        "description": "Merchant Connector - Create\n\nCreates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
+        "description": "Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -247,7 +247,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Retrieve",
-        "description": "Merchant Connector - Retrieve\n\nRetrieves details of a Connector account",
+        "description": "Retrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -290,7 +290,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Update",
-        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
+        "description": "To update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -362,7 +362,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Delete",
-        "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
+        "description": "Delete or Detach a Merchant Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -407,7 +407,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Create",
-        "description": "Merchant Account - Create\n\nCreate a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
+        "description": "Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
         "operationId": "Create a Merchant Account",
         "requestBody": {
           "content": {
@@ -475,7 +475,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Retrieve",
-        "description": "Merchant Account - Retrieve\n\nRetrieve a *merchant* account details.",
+        "description": "Retrieve a *merchant* account details.",
         "operationId": "Retrieve a Merchant Account",
         "parameters": [
           {
@@ -514,7 +514,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Update",
-        "description": "Merchant Account - Update\n\nUpdates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "description": "Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
@@ -581,7 +581,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Create",
-        "description": "Business Profile - Create\n\nCreates a new *business profile* for a merchant",
+        "description": "Creates a new *business profile* for a merchant",
         "operationId": "Create A Business Profile",
         "requestBody": {
           "content": {
@@ -628,7 +628,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Retrieve",
-        "description": "Business Profile - Retrieve\n\nRetrieve existing *business profile*",
+        "description": "Retrieve existing *business profile*",
         "operationId": "Retrieve a Business Profile",
         "parameters": [
           {
@@ -667,7 +667,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Update",
-        "description": "Business Profile - Update\n\nUpdate the *business profile*",
+        "description": "Update the *business profile*",
         "operationId": "Update a Business Profile",
         "parameters": [
           {
@@ -710,6 +710,585 @@
           },
           "400": {
             "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/activate_routing_algorithm": {
+      "patch": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Activate routing algorithm",
+        "description": "Activates a routing algorithm under a business profile",
+        "operationId": "Activates a routing algorithm under a business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingAlgorithmId"
+              },
+              "examples": {
+                "Activate a routing algorithm": {
+                  "value": {
+                    "routing_algorithm_id": "routing_algorithm_123"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm is activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/deactivate_routing_algorithm": {
+      "patch": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Deactivate routing algorithm",
+        "description": "Deactivates a routing algorithm under a business profile",
+        "operationId": " Deactivates a routing algorithm under a business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully deactivated routing config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request"
+          },
+          "403": {
+            "description": "Malformed request"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/fallback_routing": {
+      "post": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Update Default Fallback Routing Algorithm",
+        "description": "Update the default fallback routing algorithm for the business profile",
+        "operationId": "Update the default fallback routing algorithm for the business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RoutableConnectorChoice"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully updated the default fallback routing algorithm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoutableConnectorChoice"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Retrieve Default Fallback Routing Algorithm",
+        "description": "Retrieve the default fallback routing algorithm for the business profile",
+        "operationId": "Retrieve the default fallback routing algorithm for the business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved default fallback routing algorithm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoutableConnectorChoice"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/profiles/{profile_id}/routing_algorithm": {
+      "get": {
+        "tags": [
+          "Business Profile"
+        ],
+        "summary": "Business Profile - Retrieve Active Routing Algorithm",
+        "description": "Retrieve active routing algorithm under the business profile",
+        "operationId": "Retrieve the active routing algorithm under the business profile",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "description": "The unique identifier for the business profile",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of records of the algorithms to be returned",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "The record offset of the algorithm from which to start gathering the results",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved active config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedRoutingConfigRetrieveResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/routing_algorithm": {
+      "post": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Create",
+        "description": "Create a routing algorithm",
+        "operationId": "Create a routing algprithm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutingConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Routing Algorithm created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body is malformed"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "422": {
+            "description": "Unprocessable request"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/routing_algorithm/{routing_algorithm_id}": {
+      "get": {
+        "tags": [
+          "Routing"
+        ],
+        "summary": "Routing - Retrieve",
+        "description": "Retrieve a routing algorithm with its algorithm id",
+        "operationId": "Retrieve a routing algorithm with its algorithm id",
+        "parameters": [
+          {
+            "name": "routing_algorithm_id",
+            "in": "path",
+            "description": "The unique identifier for a routing algorithm",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully fetched routing algorithm",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantRoutingAlgorithm"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Resource missing"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/v2/api_keys": {
+      "post": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Create",
+        "description": "Create a new API Key for accessing our APIs from your servers. The plaintext API Key will be\ndisplayed only once on creation, so ensure you store it securely.",
+        "operationId": "Create an API Key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/api_keys/{key_id}": {
+      "get": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Retrieve",
+        "description": "Retrieve information about the specified API Key.",
+        "operationId": "Retrieve an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Update",
+        "description": "Update information for the specified API Key.",
+        "operationId": "Update an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "API Key updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "API Key"
+        ],
+        "summary": "API Key - Revoke",
+        "description": "Revoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
+        "operationId": "Revoke an API Key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "description": "The unique identifier for the API Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API Key revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "API Key not found"
           }
         },
         "security": [
@@ -2953,7 +3532,15 @@
             "$ref": "#/components/schemas/BusinessGenericLinkConfig"
           },
           {
-            "type": "object"
+            "type": "object",
+            "properties": {
+              "payout_test_mode": {
+                "type": "boolean",
+                "description": "Allows for removing any validations / pre-requisites which are necessary in a production environment",
+                "default": false,
+                "nullable": true
+              }
+            }
           }
         ]
       },
@@ -3105,6 +3692,15 @@
             "type": "object",
             "description": "These key-value pairs are sent as additional custom headers in the outgoing webhook request. It is recommended not to use more than four key-value pairs.",
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         },
         "additionalProperties": false
@@ -3116,7 +3712,8 @@
           "id",
           "profile_name",
           "enable_payment_response_hash",
-          "redirect_to_merchant_with_http_post"
+          "redirect_to_merchant_with_http_post",
+          "is_tax_connector_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -3277,6 +3874,15 @@
               }
             ],
             "nullable": true
+          },
+          "tax_connector_id": {
+            "type": "string",
+            "description": "Merchant Connector id to be stored for tax_calculator connector",
+            "nullable": true
+          },
+          "is_tax_connector_enabled": {
+            "type": "boolean",
+            "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
           }
         }
       },
@@ -3868,6 +4474,8 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
+          "fiuu",
           "forte",
           "globalpay",
           "globepay",
@@ -4596,13 +5204,14 @@
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
-          "customer_id",
+          "merchant_reference_id",
           "customer_deleted",
           "address_deleted",
-          "payment_methods_deleted"
+          "payment_methods_deleted",
+          "id"
         ],
         "properties": {
-          "customer_id": {
+          "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
@@ -4622,6 +5231,10 @@
             "type": "boolean",
             "description": "Whether payment methods deleted or not",
             "example": false
+          },
+          "id": {
+            "type": "string",
+            "description": "Global id"
           }
         }
       },
@@ -7492,8 +8105,7 @@
         "required": [
           "connector_type",
           "connector_name",
-          "profile_id",
-          "merchant_id"
+          "profile_id"
         ],
         "properties": {
           "connector_type": {
@@ -7510,7 +8122,8 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account"
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
+            "maxLength": 64
           },
           "connector_account_details": {
             "allOf": [
@@ -7593,12 +8206,6 @@
             "example": "\n[{\"gateway\":\"stripe\",\"payment_methods\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\",\"action\":\"cancel_txn\"},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\"],\"flow\":\"pre\"}]}]}]\n",
             "nullable": true
           },
-          "merchant_connector_id": {
-            "type": "string",
-            "description": "Unique ID of the connector",
-            "example": "mca_5apGeP94tMts6rg3U3kR",
-            "nullable": true
-          },
           "pm_auth_config": {
             "type": "object",
             "description": "pm_auth_config will relate MCA records to their respective chosen auth services, based on payment_method and pmt",
@@ -7611,13 +8218,6 @@
               }
             ],
             "nullable": true
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
           },
           "additional_merchant_data": {
             "allOf": [
@@ -8080,6 +8680,14 @@
             "example": "y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 64,
             "minLength": 1
+          },
+          "additional_merchant_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdditionalMerchantData"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -9493,58 +10101,6 @@
           "link_wallet",
           "invoke_payment_app",
           "display_wait_screen"
-        ]
-      },
-      "PaymentIdType": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "PaymentIntentId"
-            ],
-            "properties": {
-              "PaymentIntentId": {
-                "type": "string",
-                "description": "The identifier for payment intent"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "ConnectorTransactionId"
-            ],
-            "properties": {
-              "ConnectorTransactionId": {
-                "type": "string",
-                "description": "The identifier for connector transaction"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PaymentAttemptId"
-            ],
-            "properties": {
-              "PaymentAttemptId": {
-                "type": "string",
-                "description": "The identifier for payment attempt"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PreprocessingId"
-            ],
-            "properties": {
-              "PreprocessingId": {
-                "type": "string",
-                "description": "The identifier for preprocessing step"
-              }
-            }
-          }
         ]
       },
       "PaymentLinkConfig": {
@@ -11712,11 +12268,12 @@
       "PaymentsCreateResponseOpenApi": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -11726,7 +12283,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -11734,7 +12290,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -11768,7 +12323,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -12765,11 +13321,12 @@
       "PaymentsResponse": {
         "type": "object",
         "required": [
+          "payment_id",
+          "merchant_id",
           "status",
           "amount",
           "net_amount",
           "amount_capturable",
-          "amount_received",
           "currency",
           "payment_method",
           "attempt_count"
@@ -12779,7 +13336,6 @@
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
             "maxLength": 30,
             "minLength": 30
           },
@@ -12787,7 +13343,6 @@
             "type": "string",
             "description": "This is an identifier for the merchant account. This is inferred from the API key\nprovided during the request",
             "example": "merchant_1668273825",
-            "nullable": true,
             "maxLength": 255
           },
           "status": {
@@ -12821,7 +13376,8 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount which is already captured from the payment, this helps in the cases where merchants can't capture all capturable amount at once.",
-            "example": 6540
+            "example": 6540,
+            "nullable": true
           },
           "connector": {
             "type": "string",
@@ -13314,7 +13870,8 @@
         ],
         "properties": {
           "resource_id": {
-            "$ref": "#/components/schemas/PaymentIdType"
+            "type": "string",
+            "description": "The type of ID (ex: payment intent id, payment attempt id or connector txn id)"
           },
           "merchant_id": {
             "type": "string",
@@ -13415,28 +13972,6 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
-          }
-        }
-      },
-      "PaymentsStartRequest": {
-        "type": "object",
-        "required": [
-          "payment_id",
-          "merchant_id",
-          "attempt_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account."
-          },
-          "attempt_id": {
-            "type": "string",
-            "description": "The identifier for the payment transaction"
           }
         }
       },
@@ -13907,6 +14442,12 @@
                 },
                 "description": "List of payout methods shown on collect UI",
                 "example": "[{\"payment_method\": \"bank_transfer\", \"payment_method_types\": [\"ach\", \"bacs\"]}]",
+                "nullable": true
+              },
+              "test_mode": {
+                "type": "boolean",
+                "description": "`test_mode` allows for opening payout links without any restrictions. This removes\n- domain name validations\n- check for making sure link is accessed within an iframe",
+                "example": false,
                 "nullable": true
               }
             }
@@ -14915,19 +15456,15 @@
         "type": "object",
         "description": "Processor payment token for MIT payments where payment_method_data is not available",
         "required": [
-          "processor_payment_token",
-          "connector",
-          "merchant_connector_id"
+          "processor_payment_token"
         ],
         "properties": {
           "processor_payment_token": {
             "type": "string"
           },
-          "connector": {
-            "$ref": "#/components/schemas/Connector"
-          },
           "merchant_connector_id": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -15801,6 +16338,8 @@
           "dlocal",
           "ebanx",
           "fiserv",
+          "fiservemea",
+          "fiuu",
           "forte",
           "globalpay",
           "globepay",
@@ -15929,6 +16468,17 @@
         "description": "Routing Algorithm kind",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "RoutingAlgorithmId": {
+        "type": "object",
+        "required": [
+          "routing_algorithm_id"
+        ],
+        "properties": {
+          "routing_algorithm_id": {
+            "type": "string"
+          }
         }
       },
       "RoutingAlgorithmKind": {

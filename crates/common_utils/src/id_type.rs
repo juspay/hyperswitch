@@ -5,7 +5,11 @@ use std::{borrow::Cow, fmt::Debug};
 
 mod customer;
 mod merchant;
+mod merchant_connector_account;
 mod organization;
+mod payment;
+mod profile;
+mod routing;
 
 mod global_id;
 
@@ -18,7 +22,11 @@ use diesel::{
     sql_types,
 };
 pub use merchant::MerchantId;
+pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
+pub use payment::PaymentId;
+pub use profile::ProfileId;
+pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -196,6 +204,12 @@ where
         let string_val = String::from_sql(value)?;
         Ok(Self(AlphaNumericId::new_unchecked(string_val)))
     }
+}
+
+/// An interface to generate object identifiers.
+pub trait GenerateId {
+    /// Generates a random object identifier.
+    fn generate() -> Self;
 }
 
 #[cfg(test)]

@@ -1,6 +1,4 @@
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use actix_web::Responder;
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
@@ -110,22 +108,27 @@ pub async fn customers_retrieve(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
-pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn customers_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<customers::CustomerListRequest>,
+) -> HttpResponse {
     let flow = Flow::CustomersList;
+    let payload = query.into_inner();
 
     api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, auth, _, _| {
+        payload,
+        |state, auth, request, _| {
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
                 None,
                 auth.key_store,
+                request,
             )
         },
         auth::auth_type(
@@ -209,6 +212,32 @@ pub async fn customers_update(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
+pub async fn customers_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::CustomersDelete;
+    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::CustomerWrite),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
@@ -216,7 +245,7 @@ pub async fn customers_delete(
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
-    let flow = Flow::CustomersCreate;
+    let flow = Flow::CustomersDelete;
     let payload = web::Json(customers::CustomerId {
         customer_id: path.into_inner(),
     })

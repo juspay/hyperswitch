@@ -16,10 +16,7 @@ use router_env::logger;
 
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     merchant_id: common_utils::id_type::MerchantId,
@@ -45,17 +42,14 @@ pub struct MerchantAccount {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
+    pub default_profile: Option<common_utils::id_type::ProfileId>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 /// Set the private fields of merchant account
 pub struct MerchantAccountSetter {
@@ -82,17 +76,14 @@ pub struct MerchantAccountSetter {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
+    pub default_profile: Option<common_utils::id_type::ProfileId>,
     pub recon_status: diesel_models::enums::ReconStatus,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         Self {
@@ -128,7 +119,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone)]
 /// Set the private fields of merchant account
 pub struct MerchantAccountSetter {
@@ -144,7 +135,7 @@ pub struct MerchantAccountSetter {
     pub recon_status: diesel_models::enums::ReconStatus,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl From<MerchantAccountSetter> for MerchantAccount {
     fn from(item: MerchantAccountSetter) -> Self {
         let MerchantAccountSetter {
@@ -174,7 +165,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantAccount {
     id: common_utils::id_type::MerchantId,
@@ -190,26 +181,25 @@ pub struct MerchantAccount {
 }
 
 impl MerchantAccount {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.merchant_id
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
         &self.id
     }
+
+    /// Get the organization_id from MerchantAccount
+    pub fn get_org_id(&self) -> &common_utils::id_type::OrganizationId {
+        &self.organization_id
+    }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
@@ -231,7 +221,7 @@ pub enum MerchantAccountUpdate {
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
-        default_profile: Option<Option<String>>,
+        default_profile: Option<Option<common_utils::id_type::ProfileId>>,
         payment_link_config: Option<serde_json::Value>,
         pm_collect_link_config: Option<serde_json::Value>,
     },
@@ -245,7 +235,7 @@ pub enum MerchantAccountUpdate {
     ModifiedAtUpdate,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
@@ -264,10 +254,7 @@ pub enum MerchantAccountUpdate {
     ModifiedAtUpdate,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
@@ -434,7 +421,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         let now = date_time::now();
@@ -489,7 +476,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
@@ -593,10 +580,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;

@@ -45,7 +45,7 @@ pub async fn list_initial_delivery_attempts(
                 .await,
                 MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => store
                 .list_initial_events_by_profile_id_primary_object_id(key_manager_state,
-                    &business_profile.profile_id,
+                    business_profile.get_id(),
                     &object_id,
                     &key_store,
                 )
@@ -85,7 +85,7 @@ pub async fn list_initial_delivery_attempts(
                 .await,
                 MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => store
                 .list_initial_events_by_profile_id_constraints(key_manager_state,
-                    &business_profile.profile_id,
+                    business_profile.get_id(),
                     created_after,
                     created_before,
                     limit,
@@ -208,7 +208,7 @@ pub async fn retry_delivery_attempt(
         primary_object_type: event_to_retry.primary_object_type,
         created_at: now,
         merchant_id: Some(business_profile.merchant_id.clone()),
-        business_profile_id: Some(business_profile.profile_id.clone()),
+        business_profile_id: Some(business_profile.get_id().to_owned()),
         primary_object_created_at: event_to_retry.primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id),
         initial_attempt_id: event_to_retry.initial_attempt_id,
@@ -265,7 +265,7 @@ pub async fn retry_delivery_attempt(
 async fn get_account_and_key_store(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> errors::RouterResult<(MerchantAccountOrBusinessProfile, domain::MerchantKeyStore)> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -292,13 +292,13 @@ async fn get_account_and_key_store(
                 .await
                 .attach_printable_lazy(|| {
                     format!(
-                        "Failed to find business profile by merchant_id `{merchant_id:?}` and profile_id `{profile_id}`. \
-                        The merchant_id associated with the business profile `{profile_id}` may be \
+                        "Failed to find business profile by merchant_id `{merchant_id:?}` and profile_id `{profile_id:?}`. \
+                        The merchant_id associated with the business profile `{profile_id:?}` may be \
                         different than the merchant_id specified (`{merchant_id:?}`)."
                     )
                 })
                 .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id,
+                    id: profile_id.get_string_repr().to_owned(),
                 })?;
 
             Ok((

@@ -46,7 +46,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
-    utils::{self as helper_utils, generate_id, OptionExt},
+    utils::{self as helper_utils, generate_id},
 };
 #[cfg(feature = "payouts")]
 use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
@@ -347,14 +347,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 )?,
         };
 
-        let profile_id = merchant_connector_account.profile_id.as_ref();
+        let profile_id = &merchant_connector_account.profile_id;
 
         let business_profile = state
             .store
             .find_business_profile_by_profile_id(key_manager_state, &key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         match flow_type {
@@ -520,7 +520,7 @@ async fn payments_incoming_webhook_flow(
 
             let lock_action = api_locking::LockAction::Hold {
                 input: api_locking::LockingInput {
-                    unique_locking_key: payment_id,
+                    unique_locking_key: payment_id.get_string_repr().to_owned(),
                     api_identifier: lock_utils::ApiIdentifier::Payments,
                     override_lock_retries: None,
                 },
@@ -596,12 +596,7 @@ async fn payments_incoming_webhook_flow(
 
     match payments_response {
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-            let payment_id = payments_response
-                .payment_id
-                .clone()
-                .get_required_value("payment_id")
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("payment id not received from payments core")?;
+            let payment_id = payments_response.payment_id.clone();
 
             let status = payments_response.status;
 
@@ -617,7 +612,7 @@ async fn payments_incoming_webhook_flow(
                     &key_store,
                     outgoing_event_type,
                     enums::EventClass::Payments,
-                    payment_id.clone(),
+                    payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                     primary_object_created_at,
@@ -907,6 +902,7 @@ async fn get_or_update_dispute_object(
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &common_utils::id_type::MerchantId,
+    organization_id: &common_utils::id_type::OrganizationId,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     event_type: webhooks::IncomingWebhookEvent,
     business_profile: &domain::BusinessProfile,
@@ -936,10 +932,11 @@ async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
-                profile_id: Some(business_profile.profile_id.clone()),
+                profile_id: Some(business_profile.get_id().to_owned()),
                 evidence: None,
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
+                organization_id: organization_id.clone(),
             };
             state
                 .store
@@ -1087,12 +1084,8 @@ async fn external_authentication_incoming_webhook_flow(
                 .await?;
                 match payments_response {
                     services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                        let payment_id = payments_response
-                            .payment_id
-                            .clone()
-                            .get_required_value("payment_id")
-                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                            .attach_printable("payment id not received from payments core")?;
+                        let payment_id = payments_response.payment_id.clone();
+
                         let status = payments_response.status;
                         let event_type: Option<enums::EventType> =
                             payments_response.status.foreign_into();
@@ -1124,7 +1117,7 @@ async fn external_authentication_incoming_webhook_flow(
                                 &key_store,
                                 outgoing_event_type,
                                 enums::EventClass::Payments,
-                                payment_id.clone(),
+                                payment_id.get_string_repr().to_owned(),
                                 enums::EventObjectType::PaymentDetails,
                                 api::OutgoingWebhookContent::PaymentDetails(payments_response),
                                 primary_object_created_at,
@@ -1316,12 +1309,7 @@ async fn frm_incoming_webhook_flow(
         };
         match payment_response {
             services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-                let payment_id = payments_response
-                    .payment_id
-                    .clone()
-                    .get_required_value("payment_id")
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("payment id not received from payments core")?;
+                let payment_id = payments_response.payment_id.clone();
                 let status = payments_response.status;
                 let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
                 if let Some(outgoing_event_type) = event_type {
@@ -1333,7 +1321,7 @@ async fn frm_incoming_webhook_flow(
                         &key_store,
                         outgoing_event_type,
                         enums::EventClass::Payments,
-                        payment_id.clone(),
+                        payment_id.get_string_repr().to_owned(),
                         enums::EventObjectType::PaymentDetails,
                         api::OutgoingWebhookContent::PaymentDetails(payments_response),
                         primary_object_created_at,
@@ -1391,6 +1379,7 @@ async fn disputes_incoming_webhook_flow(
             option_dispute,
             dispute_details,
             merchant_account.get_id(),
+            &merchant_account.organization_id,
             &payment_attempt,
             event_type,
             &business_profile,
@@ -1480,12 +1469,7 @@ async fn bank_transfer_webhook_flow(
 
     match response? {
         services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
-            let payment_id = payments_response
-                .payment_id
-                .clone()
-                .get_required_value("payment_id")
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("did not receive payment id from payments core response")?;
+            let payment_id = payments_response.payment_id.clone();
 
             let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
             let status = payments_response.status;
@@ -1500,7 +1484,7 @@ async fn bank_transfer_webhook_flow(
                     &key_store,
                     outgoing_event_type,
                     enums::EventClass::Payments,
-                    payment_id.clone(),
+                    payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                     primary_object_created_at,
@@ -1516,16 +1500,15 @@ async fn bank_transfer_webhook_flow(
     }
 }
 
-#[inline]
 async fn get_payment_id(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
     merchant_id: &common_utils::id_type::MerchantId,
     storage_scheme: enums::MerchantStorageScheme,
-) -> errors::RouterResult<String> {
+) -> errors::RouterResult<common_utils::id_type::PaymentId> {
     let pay_id = || async {
         match payment_id {
-            api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_string()),
+            api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_owned()),
             api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
                 .find_payment_attempt_by_merchant_id_connector_txn_id(
                     merchant_id,
@@ -1617,7 +1600,7 @@ async fn verify_webhook_source_verification_call(
 fn get_connector_by_connector_name(
     state: &SessionState,
     connector_name: &str,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> CustomResult<(ConnectorEnum, String), errors::ApiErrorResponse> {
     let authentication_connector =
         api_models::enums::convert_authentication_connector(connector_name);
@@ -1677,15 +1660,19 @@ async fn fetch_optional_mca_and_connector(
 > {
     let db = &state.store;
     if connector_name_or_mca_id.starts_with("mca_") {
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_connector_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &state.into(),
                 merchant_account.get_id(),
-                connector_name_or_mca_id,
+                &common_utils::id_type::MerchantConnectorAccountId::wrap(
+                    connector_name_or_mca_id.to_owned(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Error while converting MerchanConnectorAccountId from string
+                    ",
+                )?,
                 key_store,
             )
             .await
@@ -1695,7 +1682,7 @@ async fn fetch_optional_mca_and_connector(
             .attach_printable(
                 "error while fetching merchant_connector_account from connector_id",
             )?;
-        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        #[cfg(feature = "v2")]
         let mca: domain::MerchantConnectorAccount = {
             let _ = merchant_account;
             let _ = key_store;

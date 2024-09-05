@@ -34,11 +34,7 @@ use rand::{
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 use crate::core::admin;
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -81,40 +77,30 @@ pub struct SessionRoutingPmTypeInput<'a> {
     routing_algorithm: &'a MerchantAccountRoutingAlgorithm,
     backend_input: dsl_inputs::BackendInput,
     allowed_connectors: FxHashMap<String, api::GetToken>,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
 }
 
 type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum MerchantAccountRoutingAlgorithm {
     V1(routing_types::RoutingAlgorithmRef),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 impl Default for MerchantAccountRoutingAlgorithm {
     fn default() -> Self {
         Self::V1(routing_types::RoutingAlgorithmRef::default())
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum MerchantAccountRoutingAlgorithm {
-    V1(Option<String>),
+    V1(Option<common_utils::id_type::RoutingId>),
 }
 
 #[cfg(feature = "payouts")]
@@ -208,10 +194,21 @@ where
                     }
                 })
             }),
-        payment_type: Some(payment_data.setup_mandate.clone().map_or_else(
-            || euclid_enums::PaymentType::NonMandate,
-            |_| euclid_enums::PaymentType::SetupMandate,
-        )),
+        payment_type: Some(
+            if payment_data.recurring_details.as_ref().is_some_and(|data| {
+                matches!(
+                    data,
+                    api_models::mandates::RecurringDetails::ProcessorPaymentToken(_)
+                )
+            }) {
+                euclid_enums::PaymentType::PptMandate
+            } else {
+                payment_data.setup_mandate.clone().map_or_else(
+                    || euclid_enums::PaymentType::NonMandate,
+                    |_| euclid_enums::PaymentType::SetupMandate,
+                )
+            },
+        ),
     };
     let payment_method_input = dsl_inputs::PaymentMethodInput {
         payment_method: payment_data.payment_attempt.payment_method,
@@ -278,29 +275,22 @@ where
 pub async fn perform_static_routing_v1<F: Clone>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    algorithm_id: Option<String>,
+    algorithm_id: Option<common_utils::id_type::RoutingId>,
     business_profile: &domain::BusinessProfile,
     transaction_data: &routing::TransactionData<'_, F>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let algorithm_id = if let Some(id) = algorithm_id {
         id
     } else {
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(any(feature = "routing_v2", feature = "business_profile_v2"))
-        ))]
+        #[cfg(feature = "v1")]
         let fallback_config = routing::helpers::get_merchant_default_config(
             &*state.clone().store,
-            &business_profile.profile_id,
+            business_profile.get_id().get_string_repr(),
             &api_enums::TransactionType::from(transaction_data),
         )
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
-        #[cfg(all(
-            feature = "v2",
-            feature = "routing_v2",
-            feature = "business_profile_v2"
-        ))]
+        #[cfg(feature = "v2")]
         let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
@@ -311,7 +301,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         state,
         merchant_id,
         &algorithm_id,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         &api_enums::TransactionType::from(transaction_data),
     )
     .await?;
@@ -341,23 +331,25 @@ pub async fn perform_static_routing_v1<F: Clone>(
 async fn ensure_algorithm_cached_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    algorithm_id: &str,
-    profile_id: String,
+    algorithm_id: &common_utils::id_type::RoutingId,
+    profile_id: common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
     let key = {
         match transaction_type {
             common_enums::TransactionType::Payment => {
                 format!(
-                    "routing_config_{}_{profile_id}",
-                    merchant_id.get_string_repr()
+                    "routing_config_{}_{}",
+                    merchant_id.get_string_repr(),
+                    profile_id.get_string_repr(),
                 )
             }
             #[cfg(feature = "payouts")]
             common_enums::TransactionType::Payout => {
                 format!(
-                    "routing_config_po_{}_{profile_id}",
-                    merchant_id.get_string_repr()
+                    "routing_config_po_{}_{}",
+                    merchant_id.get_string_repr(),
+                    profile_id.get_string_repr()
                 )
             }
         }
@@ -424,8 +416,8 @@ fn execute_dsl_and_get_connector_v1(
 pub async fn refresh_routing_cache_v1(
     state: &SessionState,
     key: String,
-    algorithm_id: &str,
-    profile_id: String,
+    algorithm_id: &common_utils::id_type::RoutingId,
+    profile_id: common_utils::id_type::ProfileId,
 ) -> RoutingResult<Arc<CachedAlgorithm>> {
     let algorithm = {
         let algorithm = state
@@ -507,7 +499,7 @@ pub fn perform_volume_split(
 pub async fn get_merchant_cgraph<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let merchant_id = &key_store.merchant_id;
@@ -515,11 +507,19 @@ pub async fn get_merchant_cgraph<'a>(
     let key = {
         match transaction_type {
             api_enums::TransactionType::Payment => {
-                format!("cgraph_{}_{}", merchant_id.get_string_repr(), profile_id)
+                format!(
+                    "cgraph_{}_{}",
+                    merchant_id.get_string_repr(),
+                    profile_id.get_string_repr()
+                )
             }
             #[cfg(feature = "payouts")]
             api_enums::TransactionType::Payout => {
-                format!("cgraph_po_{}_{}", merchant_id.get_string_repr(), profile_id)
+                format!(
+                    "cgraph_po_{}_{}",
+                    merchant_id.get_string_repr(),
+                    profile_id.get_string_repr()
+                )
             }
         }
     };
@@ -546,7 +546,7 @@ pub async fn refresh_cgraph_cache<'a>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     key: String,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
@@ -645,7 +645,7 @@ async fn perform_cgraph_filtering(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let context = euclid_graph::AnalysisContext::from_dir_values(
@@ -689,7 +689,7 @@ pub async fn perform_eligibility_analysis<F: Clone>(
     chosen: Vec<routing_types::RoutableConnectorChoice>,
     transaction_data: &routing::TransactionData<'_, F>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -716,10 +716,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::BusinessProfile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(any(feature = "routing_v2", feature = "business_profile_v2"))
-    ))]
+    #[cfg(feature = "v1")]
     let fallback_config = routing::helpers::get_merchant_default_config(
         &*state.store,
         match transaction_data {
@@ -728,19 +725,18 @@ pub async fn perform_fallback_routing<F: Clone>(
                 .profile_id
                 .as_ref()
                 .get_required_value("profile_id")
-                .change_context(errors::RoutingError::ProfileIdMissing)?,
+                .change_context(errors::RoutingError::ProfileIdMissing)?
+                .get_string_repr(),
             #[cfg(feature = "payouts")]
-            routing::TransactionData::Payout(payout_data) => &payout_data.payout_attempt.profile_id,
+            routing::TransactionData::Payout(payout_data) => {
+                payout_data.payout_attempt.profile_id.get_string_repr()
+            }
         },
         &api_enums::TransactionType::from(transaction_data),
     )
     .await
     .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
-    #[cfg(all(
-        feature = "v2",
-        feature = "routing_v2",
-        feature = "business_profile_v2"
-    ))]
+    #[cfg(feature = "v2")]
     let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
         .get_default_fallback_list_of_connector_under_profile()
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
@@ -756,7 +752,7 @@ pub async fn perform_fallback_routing<F: Clone>(
         fallback_config,
         backend_input,
         eligible_connectors,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         &api_enums::TransactionType::from(transaction_data),
     )
     .await
@@ -776,7 +772,7 @@ pub async fn perform_eligibility_analysis_with_fallback<F: Clone>(
         chosen,
         transaction_data,
         eligible_connectors.as_ref(),
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
     )
     .await?;
 
@@ -833,18 +829,11 @@ pub async fn perform_session_flow_routing(
         )
         .await
         .change_context(errors::RoutingError::ProfileNotFound)?;
-    #[cfg(all(
-        feature = "v2",
-        feature = "routing_v2",
-        feature = "business_profile_v2"
-    ))]
+    #[cfg(feature = "v2")]
     let routing_algorithm =
         MerchantAccountRoutingAlgorithm::V1(business_profile.routing_algorithm_id.clone());
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(any(feature = "routing_v2", feature = "business_profile_v2"))
-    ))]
+    #[cfg(feature = "v1")]
     let routing_algorithm: MerchantAccountRoutingAlgorithm = {
         business_profile
             .routing_algorithm
@@ -975,10 +964,7 @@ pub async fn perform_session_flow_routing(
     Ok(result)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
@@ -1015,7 +1001,7 @@ async fn perform_session_routing_for_pm_type(
     } else {
         routing::helpers::get_merchant_default_config(
             &*session_pm_input.state.clone().store,
-            &session_pm_input.profile_id,
+            session_pm_input.profile_id.get_string_repr(),
             transaction_type,
         )
         .await
@@ -1036,7 +1022,7 @@ async fn perform_session_routing_for_pm_type(
     if final_selection.is_empty() {
         let fallback = routing::helpers::get_merchant_default_config(
             &*session_pm_input.state.clone().store,
-            &session_pm_input.profile_id,
+            session_pm_input.profile_id.get_string_repr(),
             transaction_type,
         )
         .await
@@ -1061,11 +1047,7 @@ async fn perform_session_routing_for_pm_type(
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,

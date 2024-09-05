@@ -1,5 +1,6 @@
 use common_enums::PermissionGroup;
 use common_utils::pii;
+use masking::Secret;
 
 pub mod role;
 
@@ -121,9 +122,8 @@ pub enum UserStatus {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct MerchantSelectRequest {
     pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
-    // TODO: Remove this once the token only api is being used
-    pub need_dashboard_entry_response: Option<bool>,
 }
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AcceptInvitationRequest {
     pub merchant_ids: Vec<common_utils::id_type::MerchantId>,
@@ -134,7 +134,25 @@ pub struct DeleteUserRoleRequest {
     pub email: pii::Email,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct TransferOrgOwnershipRequest {
+#[derive(Debug, serde::Serialize)]
+pub struct ListUsersInEntityResponse {
     pub email: pii::Email,
+    pub roles: Vec<role::MinimalRoleInfo>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListInvitationForUserResponse {
+    pub entity_id: String,
+    pub entity_type: common_enums::EntityType,
+    pub entity_name: Option<Secret<String>>,
+    pub role_id: String,
+}
+
+pub type AcceptInvitationsV2Request = Vec<Entity>;
+pub type AcceptInvitationsPreAuthRequest = Vec<Entity>;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct Entity {
+    pub entity_id: String,
+    pub entity_type: common_enums::EntityType,
 }

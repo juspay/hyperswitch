@@ -11,7 +11,7 @@ use crate::{enums as storage_enums, schema::captures};
 #[diesel(table_name = captures, primary_key(capture_id), check_for_backend(diesel::pg::Pg))]
 pub struct Capture {
     pub capture_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::CaptureStatus,
     pub amount: MinorUnit,
@@ -36,7 +36,7 @@ pub struct Capture {
 #[diesel(table_name = captures)]
 pub struct CaptureNew {
     pub capture_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: storage_enums::CaptureStatus,
     pub amount: MinorUnit,

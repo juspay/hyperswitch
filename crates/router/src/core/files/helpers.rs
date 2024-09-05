@@ -245,8 +245,8 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
     (
         String,
         api_models::enums::FileUploadProvider,
-        Option<String>,
-        Option<String>,
+        Option<common_utils::id_type::ProfileId>,
+        Option<common_utils::id_type::MerchantConnectorAccountId>,
     ),
     errors::ApiErrorResponse,
 > {

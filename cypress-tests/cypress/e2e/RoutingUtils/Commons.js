@@ -1,15 +1,7 @@
-const card_data = {
-  card_number: "4242424242424242",
-  card_exp_month: "03",
-  card_exp_year: "30",
-  card_holder_name: "morino",
-  card_cvc: "737",
-};
-
 export const connectorDetails = {
-  routing: {
+  priorityRouting: {
     Request: {
-      name: "stripe config",
+      name: "priority routing",
       description: "some desc",
       algorithm: {
         type: "priority",
@@ -29,23 +21,41 @@ export const connectorDetails = {
       body: {},
     },
   },
-  card_pm: {
-    Confirm: {
-      Request: {
-        payment_method_data: {
-          card: card_data,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
+  volumeBasedRouting: {
+    Request: {
+      name: "volume routing",
+      description: "some desc",
+      algorithm: {
+        type: "volume_split",
+        data: [],
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          connector: "stripe",
-        },
+      profile_id: "{{profile_id}}",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  ruleBasedRouting: {
+    Request: {
+      name: "Rule Based routing",
+      description: "Rule Based routing",
+      algorithm: {
+        type: "advanced",
+        data: [],
       },
+      profile_id: "{{profile_id}}",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  jwt: {
+    Request: {},
+    Response: {
+      status: 200,
+      body: {},
     },
   },
 };
