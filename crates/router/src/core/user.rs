@@ -1521,13 +1521,13 @@ pub async fn verify_token(
             UserRoleVersion::V1,
         )
         .await
-        .change_context(UserErrors::RoleNotFound)?
+        .change_context(UserErrors::RoleNotFound)
         .attach_printable_lazy(|| {
             format!(
-                "UserRole not found for [user_id, org_id, mid, pid] [{}, {}, {}, {}]",
+                "UserRole not found for [user_id, org_id, mid, pid] [{}, {:?}, {:?}, {:?}]",
                 user.user_id, user.org_id, user.merchant_id, user.profile_id,
             )
-        })
+        })?
         .merchant_id
         .ok_or(UserErrors::MerchantIdNotFound)?;
 

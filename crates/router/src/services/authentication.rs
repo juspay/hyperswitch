@@ -32,8 +32,6 @@ use crate::consts;
 use crate::core::errors::UserResult;
 #[cfg(feature = "partial-auth")]
 use crate::core::metrics;
-#[cfg(feature = "recon")]
-use crate::routes::SessionState;
 use crate::{
     core::{
         api_keys,

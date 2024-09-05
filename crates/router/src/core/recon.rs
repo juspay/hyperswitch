@@ -1,6 +1,5 @@
 use api_models::recon as recon_api;
-use diesel_models::enums::UserRoleVersion;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
@@ -12,7 +11,7 @@ use crate::{
     },
     types::{
         api::{self as api_types, enums},
-        domain::{UserEmail, UserFromStorage, UserName},
+        domain::{UserEmail, UserName},
         storage,
         transformers::ForeignTryFrom,
     },
@@ -26,19 +25,7 @@ pub async fn send_recon_request(
     let global_db = &*state.global_store;
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-
-    // Ensure user role exists
-    db.find_user_role_by_user_id_and_lineage(
-        &user.user_id,
-        &user.org_id,
-        &user.merchant_id,
-        user.profile_id.as_ref(),
-        UserRoleVersion::V1,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "User's role could not be found".to_string(),
-    })?;
+    let merchant_id = user.merchant_id;
 
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
@@ -121,36 +108,19 @@ pub async fn generate_recon_token(
     state: SessionState,
     user: UserFromToken,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
-    let global_db = &*state.global_store;
-    let db = &*state.store;
-    let key_manager_state = &(&state).into();
-
-    // Ensure the user role exists
-    db.find_user_role_by_user_id_and_lineage(
-        &user.user_id,
-        &user.org_id,
-        &user.merchant_id,
-        user.profile_id.as_ref(),
-        UserRoleVersion::V1,
-    )
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "User's role could not be found".to_string(),
-    })?;
-
     let token = AuthToken::new_token(
-        user.user_id,
-        user.merchant_id,
-        user.role_id,
+        user.user_id.clone(),
+        user.merchant_id.clone(),
+        user.role_id.clone(),
         &state.conf,
-        user.org_id,
-        user.profile_id,
+        user.org_id.clone(),
+        user.profile_id.clone(),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| {
         format!(
-            "Failed to create recon token for params [user_id, org_id, mid, pid] [{}, {}, {}, {}]",
+            "Failed to create recon token for params [user_id, org_id, mid, pid] [{}, {:?}, {:?}, {:?}]",
             user.user_id, user.org_id, user.merchant_id, user.profile_id,
         )
     })?;
