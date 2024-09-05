@@ -120,9 +120,16 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let (payment_information, solution) = match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard.card_network.clone().and_then(get_cybersource_card_type) {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => ccard.get_card_issuer().ok().map(|issuer| String::from(issuer))
+                    None => ccard
+                        .get_card_issuer()
+                        .ok()
+                        .map(|issuer| String::from(issuer)),
                 };
                 (
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -1036,9 +1043,16 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
 
-        let card_type = match ccard.card_network.clone().and_then(get_cybersource_card_type) {
+        let card_type = match ccard
+            .card_network
+            .clone()
+            .and_then(get_cybersource_card_type)
+        {
             Some(card_network) => Some(card_network.to_string()),
-            None => ccard.get_card_issuer().ok().map(|issuer| String::from(issuer))
+            None => ccard
+                .get_card_issuer()
+                .ok()
+                .map(|issuer| String::from(issuer)),
         };
 
         let security_code = if item
@@ -1126,9 +1140,16 @@ impl
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
-        let card_type = match ccard.card_network.clone().and_then(get_cybersource_card_type) {
+        let card_type = match ccard
+            .card_network
+            .clone()
+            .and_then(get_cybersource_card_type)
+        {
             Some(card_network) => Some(card_network.to_string()),
-            None => ccard.get_card_issuer().ok().map(|issuer| String::from(issuer))
+            None => ccard
+                .get_card_issuer()
+                .ok()
+                .map(|issuer| String::from(issuer)),
         };
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -1530,9 +1551,16 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard.card_network.clone().and_then(get_cybersource_card_type) {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => ccard.get_card_issuer().ok().map(|issuer| String::from(issuer))
+                    None => ccard
+                        .get_card_issuer()
+                        .ok()
+                        .map(|issuer| String::from(issuer)),
                 };
                 let payment_information =
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2252,9 +2280,16 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
         )?;
         let payment_information = match payment_method_data {
             domain::PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard.card_network.clone().and_then(get_cybersource_card_type) {
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_cybersource_card_type)
+                {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => ccard.get_card_issuer().ok().map(|issuer| String::from(issuer))
+                    None => ccard
+                        .get_card_issuer()
+                        .ok()
+                        .map(|issuer| String::from(issuer)),
                 };
                 Ok(PaymentInformation::Cards(Box::new(
                     CardPaymentInformation {
@@ -3518,8 +3553,6 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         common_enums::CardNetwork::UnionPay => Some("062"),
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
-        common_enums::CardNetwork::Interac
-        | common_enums::CardNetwork::RuPay => None,
-      
+        common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
     }
 }

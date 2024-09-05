@@ -587,7 +587,7 @@ impl StringMajorUnit {
 pub struct CardNetworkPattern {
     pub regex: Option<regex::Regex>,
     pub allowed_card_number_length: Vec<i32>,
-    pub allowed_cvc_length: Vec<i32>
+    pub allowed_cvc_length: Vec<i32>,
 }
 
 #[cfg(test)]

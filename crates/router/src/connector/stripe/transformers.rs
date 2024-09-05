@@ -1359,7 +1359,7 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         common_enums::CardNetwork::Visa => Some(StripeCardNetwork::Visa),
         common_enums::CardNetwork::Mastercard => Some(StripeCardNetwork::Mastercard),
         common_enums::CardNetwork::CartesBancaires => Some(StripeCardNetwork::CartesBancaires),
-        common_enums:: CardNetwork::AmericanExpress
+        common_enums::CardNetwork::AmericanExpress
         | common_enums::CardNetwork::JCB
         | common_enums::CardNetwork::DinersClub
         | common_enums::CardNetwork::Discover

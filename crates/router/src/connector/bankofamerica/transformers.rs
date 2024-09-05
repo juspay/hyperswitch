@@ -546,9 +546,7 @@ fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static
         common_enums::CardNetwork::UnionPay => Some("062"),
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
-        common_enums::CardNetwork::Interac
-        | common_enums::CardNetwork::RuPay => None,
-      
+        common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
     }
 }
 
@@ -2434,10 +2432,13 @@ impl TryFrom<&domain::Card> for PaymentInformation {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(ccard: &domain::Card) -> Result<Self, Self::Error> {
-    let card_type = match ccard.card_network.clone().and_then(get_boa_card_type) {
-        Some(card_network) => Some(card_network.to_string()),
-        None => ccard.get_card_issuer().ok().map(|issuer| String::from(issuer))
-    };
+        let card_type = match ccard.card_network.clone().and_then(get_boa_card_type) {
+            Some(card_network) => Some(card_network.to_string()),
+            None => ccard
+                .get_card_issuer()
+                .ok()
+                .map(|issuer| String::from(issuer)),
+        };
         Ok(Self::Cards(Box::new(CardPaymentInformation {
             card: Card {
                 number: ccard.card_number.clone(),

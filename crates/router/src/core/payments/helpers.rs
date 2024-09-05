@@ -1,13 +1,12 @@
 use std::{borrow::Cow, str::FromStr};
 
+use ::cards::CardNumber;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
     payments::{AddressDetailsWithPhone, RequestSurchargeDetails},
 };
-use ::cards::CardNumber;
-
 use base64::Engine;
 use common_enums::ConnectorType;
 use common_utils::{
@@ -20,7 +19,6 @@ use common_utils::{
     },
 };
 use diesel_models::enums::{self};
-
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -3897,11 +3895,9 @@ pub async fn get_additional_payment_data(
                 _ => None,
             };
 
-            let card_network = match card_data
-                .card_network
-                .clone()
-                .map(|_| is_cobadged_card(card_data.card_number.clone(), card_data.card_cvc.clone()))
-            {
+            let card_network = match card_data.card_network.clone().map(|_| {
+                is_cobadged_card(card_data.card_number.clone(), card_data.card_cvc.clone())
+            }) {
                 Some(true) => card_data.card_network.clone(),
                 Some(false) | None => None,
             };

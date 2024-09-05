@@ -2581,10 +2581,10 @@ impl<'a>
             payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
                     domain::PaymentMethodData::Card(ref card) => {
-                        let brand = match card.card_network.clone().and_then(get_adyen_card_network) {
+                        let brand = match card.card_network.clone().and_then(get_adyen_card_network)
+                        {
                             Some(card_network) => card_network,
-                            None => 
-                                CardBrand::try_from(&card.get_card_issuer()?)?
+                            None => CardBrand::try_from(&card.get_card_issuer()?)?,
                         };
 
                         let card_holder_name = item.router_data.get_optional_billing_full_name();
