@@ -66,6 +66,8 @@ pub struct PaymentIntent {
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
     // TODO: change this to global id
     pub id: common_utils::id_type::PaymentId,
 }
@@ -187,6 +189,8 @@ pub struct PaymentIntentNew {
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
     // TODO: change this to global id
     pub id: common_utils::id_type::PaymentId,
 }

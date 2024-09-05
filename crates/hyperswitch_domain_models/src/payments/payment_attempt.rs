@@ -544,6 +544,8 @@ impl behaviour::Conversion for PaymentIntent {
             amount_to_capture: self.amount_to_capture,
             prerouting_algorithm: self.prerouting_algorithm,
             merchant_reference_id: self.merchant_reference_id,
+            surcharge_amount: self.surcharge_amount,
+            tax_on_surcharge: self.tax_on_surcharge,
             organization_id: self.organization_id,
         })
     }
@@ -625,6 +627,8 @@ impl behaviour::Conversion for PaymentIntent {
                 authentication_type: storage_model.authentication_type,
                 amount_to_capture: storage_model.amount_to_capture,
                 prerouting_algorithm: storage_model.prerouting_algorithm,
+                surcharge_amount: storage_model.surcharge_amount,
+                tax_on_surcharge: storage_model.tax_on_surcharge,
             })
         }
         .await
@@ -680,6 +684,8 @@ impl behaviour::Conversion for PaymentIntent {
             authentication_type: self.authentication_type,
             amount_to_capture: self.amount_to_capture,
             prerouting_algorithm: self.prerouting_algorithm,
+            surcharge_amount: self.surcharge_amount,
+            tax_on_surcharge: self.tax_on_surcharge,
             organization_id: self.organization_id,
         })
     }

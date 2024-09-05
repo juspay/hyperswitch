@@ -886,6 +886,8 @@ diesel::table! {
         authentication_type -> Nullable<AuthenticationType>,
         amount_to_capture -> Nullable<Int8>,
         prerouting_algorithm -> Nullable<Jsonb>,
+        surcharge_amount -> Nullable<Int8>,
+        tax_on_surcharge -> Nullable<Int8>,
         #[max_length = 64]
         id -> Varchar,
     }

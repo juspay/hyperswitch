@@ -138,5 +138,7 @@ pub struct PaymentIntent {
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
     pub organization_id: id_type::OrganizationId,
 }
