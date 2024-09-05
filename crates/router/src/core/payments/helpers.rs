@@ -1817,75 +1817,154 @@ pub async fn retrieve_card_with_permanent_token(
             message: "no customer id provided for the payment".to_string(),
         })?;
 
-    if business_profile.is_network_tokenization_enabled {
-        if let Some(mandate_ids) = mandate_id {
-            if let Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(nt_data)) =
-                mandate_ids.mandate_reference_id
-            {
-                if let Some(ref pm_data) = payment_method_info {
-                    if let Some(network_token_locker_id) = &pm_data.network_token_locker_id {
-                        let mut token_data = cards::get_card_from_locker(
+    if !business_profile.is_network_tokenization_enabled {
+        fetch_card_details_from_locker(
+            state,
+            customer_id,
+            &payment_intent.merchant_id,
+            locker_id,
+            card_token_data,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to fetch card information from the permanent locker")
+    } else {
+        match (payment_method_info, mandate_id) {
+            (None, _) => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Payment method data is not present"),
+            (Some(ref pm_data), None) => {
+                // Regular (non-mandate) Payment flow
+                if let Some(token_ref) = pm_data.network_token_requestor_reference_id.clone() {
+                    match network_tokenization::get_token_from_tokenization_service(
+                        state,
+                        merchant_key_store,
+                        token_ref,
+                        pm_data,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "failed to fetch network token data from tokenization service",
+                    ) {
+                        Ok(network_token_data) => {
+                            Ok(domain::PaymentMethodData::NetworkToken(network_token_data))
+                        }
+                        Err(err) => {
+                            logger::info!("Failed to fetch network token data from tokenization service {err:?}");
+                            logger::info!("Falling back to fetch card details from locker");
+                            fetch_card_details_from_locker(
+                                state,
+                                customer_id,
+                                &payment_intent.merchant_id,
+                                locker_id,
+                                card_token_data,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "failed to fetch card information from the permanent locker",
+                            )
+                        }
+                    }
+                } else {
+                    fetch_card_details_from_locker(
+                        state,
+                        customer_id,
+                        &payment_intent.merchant_id,
+                        locker_id,
+                        card_token_data,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "failed to fetch card information from the permanent locker",
+                    )
+                }
+            },
+            (Some(ref pm_data), Some(mandate_ids)) => {
+                // Mandate Payment flow
+                match mandate_ids.mandate_reference_id {
+                    Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(nt_data)) => {
+                        {
+                            if let Some(network_token_locker_id) =
+                                    pm_data.network_token_locker_id.as_ref()
+                                {
+                                    let mut token_data = cards::get_card_from_locker(
+                                    state,
+                                    customer_id,
+                                    &payment_intent.merchant_id,
+                                    network_token_locker_id,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable(
+                                    "failed to fetch network token information from the permanent locker",
+                                )?;
+                                    let expiry =
+                                        nt_data.token_exp_month.zip(nt_data.token_exp_year);
+                                    if let Some((exp_month, exp_year)) = expiry {
+                                        token_data.card_exp_month = exp_month;
+                                        token_data.card_exp_year = exp_year;
+                                    }
+                                    let network_token_data = domain::NetworkTokenData {
+                                        token_number: token_data.card_number,
+                                        token_cryptogram: None,
+                                        token_exp_month: token_data.card_exp_month,
+                                        token_exp_year: token_data.card_exp_year,
+                                        nick_name: token_data.nick_name.map(masking::Secret::new),
+                                        card_issuer: None,
+                                        card_network: None,
+                                        card_type: None,
+                                        card_issuing_country: None,
+                                        bank_code: None,
+                                    };
+                                    Ok(domain::PaymentMethodData::NetworkToken(network_token_data))
+                                } else {
+                                    // Mandate but network token locker id is not present
+                                    Err(errors::ApiErrorResponse::InternalServerError)
+                                        .attach_printable("Network token locker id is not present")
+                                }
+                        }
+                    },
+
+                    Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
+                        fetch_card_details_from_locker(
                             state,
                             customer_id,
                             &payment_intent.merchant_id,
-                            network_token_locker_id.as_ref(),
+                            locker_id,
+                            card_token_data,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "failed to fetch network token information from the permanent locker",
-                        )?;
-                        let expiry = nt_data.token_exp_month.zip(nt_data.token_exp_year);
-                        if let Some((exp_month, exp_year)) = expiry {
-                            token_data.card_exp_month = exp_month;
-                            token_data.card_exp_year = exp_year;
-                        }
-                        let network_token_data = domain::NetworkTokenData {
-                            token_number: token_data.card_number,
-                            token_cryptogram: None,
-                            token_exp_month: token_data.card_exp_month,
-                            token_exp_year: token_data.card_exp_year,
-                            nick_name: token_data.nick_name.map(masking::Secret::new),
-                            card_issuer: None,
-                            card_network: None,
-                            card_type: None,
-                            card_issuing_country: None,
-                            bank_code: None,
-                        };
-                        return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
+                        .attach_printable("failed to fetch card information from the permanent locker")
+                    },
+
+                    Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
+                        Err(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Payment method data is not present")
                     }
                 }
             }
         }
-
-        if let Some(ref pm_data) = payment_method_info {
-            if let Some(token_ref) = pm_data.network_token_requestor_reference_id.clone() {
-                let network_token_data = network_tokenization::get_token_from_tokenization_service(
-                    state,
-                    merchant_key_store,
-                    token_ref,
-                    pm_data,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to fetch network token data from tokenization service");
-                if let Ok(network_token_data) = network_token_data {
-                    return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
-                }
-            }
-        }
     }
+}
 
-
-    let card =
-        cards::get_card_from_locker(state, customer_id, &payment_intent.merchant_id, locker_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to fetch card information from the permanent locker")?;
+pub async fn fetch_card_details_from_locker(
+    state: &SessionState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    locker_id: &str,
+    card_token_data: Option<&domain::CardToken>,
+) -> RouterResult<domain::PaymentMethodData> {
+    let card = cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to fetch card information from the permanent locker")?;
 
     // The card_holder_name from locker retrieved card is considered if it is a non-empty string or else card_holder_name is picked
-     // from payment_method_data.card_token object
-     let name_on_card = if let Some(name) = card.name_on_card.clone() {
+    // from payment_method_data.card_token object
+    let name_on_card = if let Some(name) = card.name_on_card.clone() {
         if name.clone().expose().is_empty() {
             card_token_data
                 .and_then(|token_data| token_data.card_holder_name.clone())
@@ -1910,14 +1989,14 @@ pub async fn retrieve_card_with_permanent_token(
         card_issuer: None,
         nick_name: card.nick_name.map(masking::Secret::new),
         card_network: card
-        .card_brand
-        .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
-        .transpose()
-        .map_err(|e| {
-            logger::error!("Failed to parse card network {e:?}");
-        })
-        .ok()
-        .flatten(),
+            .card_brand
+            .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
+            .transpose()
+            .map_err(|e| {
+                logger::error!("Failed to parse card network {e:?}");
+            })
+            .ok()
+            .flatten(),
         card_type: None,
         card_issuing_country: None,
         bank_code: None,

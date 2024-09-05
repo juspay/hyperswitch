@@ -2196,6 +2196,9 @@ pub struct BusinessProfileResponse {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
 
+    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// If set to `true` is_network_tokenization_enabled will be checked.
+    #[schema(default = false, example = false)]
     pub is_network_tokenization_enabled: bool,
 }
 

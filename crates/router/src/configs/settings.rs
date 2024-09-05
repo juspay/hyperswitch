@@ -402,16 +402,16 @@ pub struct NetworkTokenizationSupportedCardNetworks {
     pub card_networks: HashSet<enums::CardNetwork>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct NetworkTokenizationService {
-    pub generate_token_url: String,
-    pub fetch_token_url: String,
+    pub generate_token_url: url::Url,
+    pub fetch_token_url: url::Url,
     pub token_service_api_key: Secret<String>,
     pub public_key: Secret<String>,
     pub private_key: Secret<String>,
     pub key_id: String,
-    pub delete_token_url: String,
-    pub check_token_status_url: String,
+    pub delete_token_url: url::Url,
+    pub check_token_status_url: url::Url,
 }
 
 #[derive(Debug, Deserialize, Clone)]

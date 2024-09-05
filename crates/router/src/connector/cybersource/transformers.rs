@@ -792,7 +792,7 @@ impl
                         ),
                         None => None,
                     };
-                    commerce_indicator = "recurring".to_string();
+                    commerce_indicator = "recurring".to_string(); //
                     (
                         None,
                         None,
@@ -803,7 +803,7 @@ impl
                                 stored_credential_used: Some(true),
                             }),
                             merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
-                                reason: Some("7".to_string()),
+                                reason: Some("7".to_string()), // 7 is for MIT using NTI
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(
                                     mandate_data.network_transaction_id,
