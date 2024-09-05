@@ -826,3 +826,9 @@ Cypress.Commands.add("", () => {
 Cypress.Commands.add("", () => {
   cy.request({}).then((response) => {});
 });
+
+// User API calls
+Cypress.Commands.add("userLogin", () => {
+
+  cy.request({}).then((response) => {});
+});

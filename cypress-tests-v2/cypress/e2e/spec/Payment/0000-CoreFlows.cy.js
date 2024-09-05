@@ -127,10 +127,6 @@ describe("Core APIs", () => {
         payment_methods_enabled
       );
     });
-
-    it.skip("[Payout] Merchant connector account create call", () => {});
-    it.skip("[Payout] Merchant connector account retrieve call", () => {});
-    it.skip("[Payout] Merchant connector account update call", () => {});
   });
 
   context("API Key APIs", () => {
@@ -153,25 +149,5 @@ describe("Core APIs", () => {
     it("API Key update call", () => {
       cy.apiKeyUpdateCall(fixtures.api_key_body.api_key_update, globalState);
     });
-  });
-
-  context.skip("Routing APIs", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    after("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    it("Routing algorithm create call", () => {});
-    it("Routing algorithm activate call", () => {});
-    it("Routing algorithm retrieve call", () => {});
-    it("Routing algorithm deactivate call", () => {});
-    it("Routing algorithm retrieve call", () => {});
-    it("Routing algorithm default fallback update call", () => {});
-    it("Routing algorithm retrieve call", () => {});
   });
 });
