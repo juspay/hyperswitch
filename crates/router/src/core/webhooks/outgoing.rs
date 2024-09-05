@@ -71,7 +71,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         || webhook_url_result.as_ref().is_ok_and(String::is_empty)
     {
         logger::debug!(
-            business_profile_id=?business_profile.profile_id,
+            business_profile_id=?business_profile.get_id(),
             %idempotent_event_id,
             "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
              could not be obtained; skipping outgoing webhooks for event"
@@ -107,7 +107,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         primary_object_type,
         created_at: now,
         merchant_id: Some(business_profile.merchant_id.clone()),
-        business_profile_id: Some(business_profile.profile_id.clone()),
+        business_profile_id: Some(business_profile.get_id().to_owned()),
         primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
@@ -533,7 +533,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
 
     let tracking_data = types::OutgoingWebhookTrackingData {
         merchant_id: business_profile.merchant_id.clone(),
-        business_profile_id: business_profile.profile_id.clone(),
+        business_profile_id: business_profile.get_id().to_owned(),
         event_type: event.event_type,
         event_class: event.event_class,
         primary_object_id: event.primary_object_id.clone(),

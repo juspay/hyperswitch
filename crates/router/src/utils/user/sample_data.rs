@@ -44,10 +44,7 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
             serde_json::from_value(merchant_from_db.primary_business_details.clone())
@@ -72,7 +69,7 @@ pub async fn generate_sample_data(
         (profile_id, business_country_default, business_label_default)
     };
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let profile_id = req
             .profile_id.clone()
@@ -98,8 +95,8 @@ pub async fn generate_sample_data(
                 .attach_printable("Failed to get business profile")?
                 .first()
                 .ok_or(SampleDataError::InternalServerError)?
-                .profile_id
-                .clone()
+                .get_id()
+                .to_owned()
         }
     };
 
@@ -172,12 +169,9 @@ pub async fn generate_sample_data(
             .change_context(SampleDataError::InternalServerError)?;
 
     for num in 1..=sample_data_size {
-        let payment_id = common_utils::generate_id_with_default_len("test");
-        let attempt_id = crate::utils::get_payment_attempt_id(&payment_id, 1);
-        let client_secret = common_utils::generate_id(
-            consts::ID_LENGTH,
-            format!("{}_secret", payment_id.clone()).as_str(),
-        );
+        let payment_id = id_type::PaymentId::generate_test_payment_id_for_sample_data();
+        let attempt_id = payment_id.get_attempt_id(1);
+        let client_secret = payment_id.generate_client_secret();
         let amount = thread_rng().gen_range(min_amount..=max_amount);
 
         let created_at @ modified_at @ last_synced =

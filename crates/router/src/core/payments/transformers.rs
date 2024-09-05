@@ -18,7 +18,6 @@ use crate::{
     connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payment_methods::cards::decrypt_generic_data,
         payments::{self, helpers},
         utils as core_utils,
     },
@@ -67,7 +66,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -158,22 +157,23 @@ where
         Some(merchant_connector_account),
     );
 
-    let unified_address =
-        if let Some(payment_method_info) = payment_data.payment_method_info.clone() {
-            let payment_method_billing = decrypt_generic_data::<Address>(
-                state,
-                payment_method_info.payment_method_billing_address,
-                key_store,
-            )
-            .await
-            .attach_printable("unable to decrypt payment method billing address details")?;
-            payment_data
-                .address
-                .clone()
-                .unify_with_payment_data_billing(payment_method_billing)
-        } else {
-            payment_data.address
-        };
+    let unified_address = if let Some(payment_method_info) =
+        payment_data.payment_method_info.clone()
+    {
+        let payment_method_billing = payment_method_info
+            .payment_method_billing_address
+            .map(|decrypted_data| decrypted_data.into_inner().expose())
+            .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to parse payment_method_billing_address")?;
+        payment_data
+            .address
+            .clone()
+            .unify_with_payment_data_billing(payment_method_billing)
+    } else {
+        payment_data.address
+    };
 
     crate::logger::debug!("unified address details {:?}", unified_address);
 
@@ -182,7 +182,11 @@ where
         merchant_id: merchant_account.get_id().clone(),
         customer_id,
         connector: connector_id.to_owned(),
-        payment_id: payment_data.payment_attempt.payment_id.clone(),
+        payment_id: payment_data
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
         payment_method,
@@ -597,36 +601,50 @@ where
     let customer_table_response: Option<CustomerDetailsResponse> =
         customer.as_ref().map(ForeignInto::foreign_into);
 
-    // If we have customer data in Payment Intent, We are populating the Retrieve response from the
-    // same
+    // If we have customer data in Payment Intent and if the customer is not deleted, We are populating the Retrieve response from the
+    // same. If the customer is deleted then we use the customer table to populate customer details
     let customer_details_response =
         if let Some(customer_details_raw) = payment_intent.customer_details.clone() {
             let customer_details_encrypted =
                 serde_json::from_value::<CustomerData>(customer_details_raw.into_inner().expose());
             if let Ok(customer_details_encrypted_data) = customer_details_encrypted {
                 Some(CustomerDetailsResponse {
-                    id: customer_table_response.and_then(|customer_data| customer_data.id),
-                    name: customer_details_encrypted_data
-                        .name
-                        .or(customer.as_ref().and_then(|customer| {
-                            customer.name.as_ref().map(|name| name.clone().into_inner())
-                        })),
-                    email: customer_details_encrypted_data.email.or(customer
+                    id: customer_table_response
                         .as_ref()
-                        .and_then(|customer| customer.email.clone().map(Email::from))),
-                    phone: customer_details_encrypted_data
-                        .phone
-                        .or(customer.as_ref().and_then(|customer| {
-                            customer
-                                .phone
-                                .as_ref()
-                                .map(|phone| phone.clone().into_inner())
-                        })),
-                    phone_country_code: customer_details_encrypted_data.phone_country_code.or(
-                        customer
+                        .and_then(|customer_data| customer_data.id.clone()),
+                    name: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.name.clone())
+                        .or(customer_details_encrypted_data
+                            .name
+                            .or(customer.as_ref().and_then(|customer| {
+                                customer.name.as_ref().map(|name| name.clone().into_inner())
+                            }))),
+                    email: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.email.clone())
+                        .or(customer_details_encrypted_data.email.or(customer
                             .as_ref()
-                            .and_then(|customer| customer.phone_country_code.clone()),
-                    ),
+                            .and_then(|customer| customer.email.clone().map(Email::from)))),
+                    phone: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.phone.clone())
+                        .or(customer_details_encrypted_data
+                            .phone
+                            .or(customer.as_ref().and_then(|customer| {
+                                customer
+                                    .phone
+                                    .as_ref()
+                                    .map(|phone| phone.clone().into_inner())
+                            }))),
+                    phone_country_code: customer_table_response
+                        .as_ref()
+                        .and_then(|customer_data| customer_data.phone_country_code.clone())
+                        .or(customer_details_encrypted_data
+                            .phone_country_code
+                            .or(customer
+                                .as_ref()
+                                .and_then(|customer| customer.phone_country_code.clone()))),
                 })
             } else {
                 customer_table_response
@@ -798,7 +816,7 @@ where
                     .parse_value("PaymentChargeRequest")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(format!(
-                        "Failed to parse PaymentChargeRequest for payment_intent {}",
+                        "Failed to parse PaymentChargeRequest for payment_intent {:?}",
                         payment_intent.payment_id
                     ))?;
 

@@ -194,7 +194,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &SessionState,
-        _payment_id: &str,
+        _payment_id: &common_utils::id_type::PaymentId,
         _business_profile: &domain::BusinessProfile,
         _payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -276,7 +276,7 @@ where
     > {
         Ok((
             Box::new(self),
-            helpers::get_customer_from_details(
+            helpers::get_customer_details_even_for_redacted_customer(
                 state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,
