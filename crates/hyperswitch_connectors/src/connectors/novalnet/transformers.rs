@@ -345,8 +345,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     item.response
                         .result
                         .redirect_url
-                        .map(|x| RedirectForm::Form {
-                            endpoint: x.to_string(),
+                        .map(|url| RedirectForm::Form {
+                            endpoint: url.to_string(),
                             method: Method::Get,
                             form_fields: HashMap::new(),
                         });
@@ -354,35 +354,34 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                 let transaction_id = item
                     .response
                     .transaction
-                    .as_ref()
-                    .and_then(|transaction| transaction.tid.clone());
-
+                    .clone()
+                    .and_then(|data| data.tid.map(|tid| tid.to_string()));
                 let transaction_status = item
                     .response
                     .transaction
                     .as_ref()
-                    .and_then(|transaction| {
-                        if transaction.status_code == 100 {
+                    .and_then(|data| {
+                        if data.status_code == 100 {
                             // TODO: verify status_code
-                            transaction.status.clone()
+                            data.status.clone()
                         } else {
                             None
                         }
                     })
-                    .unwrap_or(NovalnetTransactionStatus::PROGRESS);
+                    .unwrap_or(NovalnetTransactionStatus::PENDING);
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
                     response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: match transaction_id.clone() {
-                            Some(id) => ResponseId::ConnectorTransactionId(id.to_string()),
-                            None => ResponseId::NoResponseId,
-                        },
+                        resource_id: transaction_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId)
+                            .unwrap_or(ResponseId::NoResponseId),
                         redirection_data,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: transaction_id.map(|id| id.to_string()),
+                        connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),
@@ -513,9 +512,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
 
         let capture: Option<Capture> = reference.map(|reference| Capture {
-                        _type: capture_type,
-               reference,
-                   });
+            _type: capture_type,
+            reference,
+        });
 
         let transaction = NovalnetTransaction {
             tid: item.router_data.request.connector_transaction_id.clone(),
@@ -626,8 +625,6 @@ pub struct RefundData {
     tid: Option<u64>,
 }
 
-// fn to_string(&self) -> String
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundResponse {
     pub customer: Option<NovalnetResponseCustomer>,
@@ -646,12 +643,11 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
         match item.response.result.status {
             NovalnetAPIStatus::SUCCESS => {
                 let refund_id = item
-    .response
-    .transaction
-    .clone()
-    .and_then(|x| x.tid.map(|tid| tid.to_string())) // Convert the tid (u64) to a String
-    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
-
+                    .response
+                    .transaction
+                    .clone()
+                    .and_then(|data| data.tid.map(|tid| tid.to_string()))
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
                 let transaction_status = match item.response.transaction.clone() {
                     Some(transaction) => Some(transaction.status),
@@ -736,30 +732,37 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::SUCCESS => {
-                let transaction_id = match item.response.transaction.clone() {
-                    Some(transaction) => Some(transaction.tid),
-                    None => None,
-                };
-
-                let transaction_status = match item.response.transaction {
-                    Some(transaction) => Some(transaction.status),
-                    None => None,
-                }
-                .unwrap_or(NovalnetTransactionStatus::PROGRESS);
+                let transaction_id = item
+                    .response
+                    .transaction
+                    .clone()
+                    .map(|data| data.tid.to_string());
+                let transaction_status = item
+                    .response
+                    .transaction
+                    .as_ref()
+                    .and_then(|data| {
+                        if data.status_code == 100 {
+                            // TODO: verify status_code
+                            Some(data.status.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(NovalnetTransactionStatus::PENDING);
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
                     response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: match transaction_id.clone() {
-                            Some(id) => ResponseId::ConnectorTransactionId(id.to_string()),
-                            None => ResponseId::NoResponseId,
-                        },
+                        resource_id: transaction_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId)
+                            .unwrap_or(ResponseId::NoResponseId),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: transaction_id
-                            .map(|id| id.to_string().clone()),
+                        connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),
@@ -822,29 +825,37 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::SUCCESS => {
-                let transaction_id =  item.response.transaction.clone().and_then(|x| x.tid.map(|tid| tid.to_string()));
-
-                let transaction_status = match item.response.transaction {
-                    Some(transaction) => transaction.status,
-                    None => None,
-                }
-                .unwrap_or(NovalnetTransactionStatus::PROGRESS);
+                let transaction_id = item
+                    .response
+                    .transaction
+                    .clone()
+                    .and_then(|data| data.tid.map(|tid| tid.to_string()));
+                let transaction_status = item
+                    .response
+                    .transaction
+                    .as_ref()
+                    .and_then(|data| {
+                        if data.status_code == Some(100) {
+                            // TODO: verify status_code
+                            data.status.clone()
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(NovalnetTransactionStatus::PENDING);
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
                     response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: match transaction_id.clone() {
-                            Some(id) => {
-                                ResponseId::ConnectorTransactionId(id)
-                            }
-                            None => ResponseId::NoResponseId,
-                        },
+                        resource_id: transaction_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId)
+                            .unwrap_or(ResponseId::NoResponseId),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: transaction_id
-                            .clone(),
+                        connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),
@@ -981,9 +992,25 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::SUCCESS => {
-                let transaction_id =  item.response.transaction.clone().and_then(|x| x.tid.map(|tid| tid.to_string()));
-                let transaction_status = item.response.transaction.clone().and_then(|x| x.status).unwrap_or(NovalnetTransactionStatus::PROGRESS);
-                //add status check
+                let transaction_id = item
+                    .response
+                    .transaction
+                    .clone()
+                    .and_then(|data| data.tid.map(|tid| tid.to_string()));
+                let transaction_status = item
+                    .response
+                    .transaction
+                    .as_ref()
+                    .and_then(|data| {
+                        if data.status_code == 100 {
+                            // TODO: verify status_code
+                            data.status.clone()
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(NovalnetTransactionStatus::PENDING);
+
                 Ok(Self {
                     status: if transaction_status == NovalnetTransactionStatus::DEACTIVATED {
                         enums::AttemptStatus::Voided
@@ -991,10 +1018,10 @@ impl<F>
                         enums::AttemptStatus::VoidFailed
                     },
                     response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: match transaction_id.clone() {
-                            Some(id) => ResponseId::ConnectorTransactionId(id.to_string()),
-                            None => ResponseId::NoResponseId,
-                        },
+                        resource_id: transaction_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId)
+                            .unwrap_or(ResponseId::NoResponseId),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
