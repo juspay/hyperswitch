@@ -1417,6 +1417,7 @@ where
 pub struct JWTAuthProfileFromRoute {
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1434,8 +1435,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()

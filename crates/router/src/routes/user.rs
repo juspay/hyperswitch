@@ -363,7 +363,10 @@ pub async fn list_user_roles_details(
         &req,
         payload.into_inner(),
         user_core::list_user_roles_details,
-        &auth::JWTAuth(Permission::UsersRead),
+        &auth::JWTAuth {
+            permission: Permission::UsersRead,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

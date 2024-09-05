@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, Responder};
-use router_env::{instrument, tracing, Flow};
 use common_enums::EntityType;
+use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
