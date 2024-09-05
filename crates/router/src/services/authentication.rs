@@ -1009,12 +1009,6 @@ pub(crate) struct JWTAuth {
     pub minimum_entity_level: EntityType,
 }
 
-#[derive(serde::Deserialize)]
-struct JwtAuthPayloadFetchUnit {
-    #[serde(rename(deserialize = "exp"))]
-    _exp: u64,
-}
-
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for JWTAuth
 where
@@ -1139,10 +1133,12 @@ where
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 pub struct JWTAuthMerchantFromHeader {
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1162,7 +1158,7 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(EntityType::Merchant, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let merchant_id_from_header =
             HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
@@ -1198,7 +1194,7 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(EntityType::Merchant, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let merchant_id_from_header =
             HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
@@ -1265,7 +1261,7 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(EntityType::Merchant, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -1302,7 +1298,7 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(EntityType::Merchant, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1346,6 +1342,7 @@ pub struct JWTAuthMerchantAndProfileFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1377,7 +1374,7 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(EntityType::Merchant, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state

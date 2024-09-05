@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, Responder};
 use router_env::{instrument, tracing, Flow};
+use common_enums::EntityType;
 
 use super::app::AppState;
 use crate::{
@@ -40,6 +41,7 @@ pub async fn api_key_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -70,6 +72,7 @@ pub async fn api_key_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -107,6 +110,7 @@ pub async fn api_key_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -142,6 +146,7 @@ pub async fn api_key_retrieve(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -181,6 +186,7 @@ pub async fn api_key_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -213,6 +219,7 @@ pub async fn api_key_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -249,6 +256,7 @@ pub async fn api_key_revoke(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -278,6 +286,7 @@ pub async fn api_key_revoke(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ApiKeyWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -330,6 +339,7 @@ pub async fn api_key_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::ApiKeyRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),

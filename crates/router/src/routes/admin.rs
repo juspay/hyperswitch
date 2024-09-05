@@ -119,6 +119,7 @@ pub async fn retrieve_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -171,6 +172,7 @@ pub async fn update_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -234,6 +236,7 @@ pub async fn connector_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -265,6 +268,7 @@ pub async fn connector_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -330,6 +334,7 @@ pub async fn connector_retrieve(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -368,6 +373,7 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -413,6 +419,7 @@ pub async fn payment_connector_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -464,6 +471,7 @@ pub async fn payment_connector_list_profile(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -527,6 +535,7 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -578,6 +587,7 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -636,6 +646,7 @@ pub async fn connector_delete(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -674,6 +685,7 @@ pub async fn connector_delete(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -760,6 +772,7 @@ pub async fn business_profile_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -790,6 +803,7 @@ pub async fn business_profile_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -827,6 +841,7 @@ pub async fn business_profile_retrieve(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -857,6 +872,7 @@ pub async fn business_profile_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -896,6 +912,7 @@ pub async fn business_profile_update(
             &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
+                minimum_entity_level: EntityType::Merchant,
                 required_permission: Permission::MerchantAccountWrite,
             },
             req.headers(),
@@ -928,6 +945,7 @@ pub async fn business_profile_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -979,6 +997,7 @@ pub async fn business_profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -1013,6 +1032,7 @@ pub async fn business_profiles_list_at_profile_level(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
