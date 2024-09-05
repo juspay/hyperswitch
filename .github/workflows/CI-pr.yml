@@ -316,3 +316,7 @@ jobs:
         #   # We only want to ensure successful compilation for now.
         #   RUSTFLAGS: "-D warnings -A clippy::todo"
         run: just check_v2
+
+      - name: Run cargo check enabling only the release and v2 features
+        shell: bash
+        run: cargo check --no-default-features --features "release,v2"
