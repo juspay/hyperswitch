@@ -1,5 +1,5 @@
 use common_utils::link_utils::EnabledPaymentMethod;
-use indexmap::IndexMap;
+use std::collections::HashMap;
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -140,14 +140,10 @@ impl
                             .get(&payment_method)
                             .and_then(|pmt_info| {
                                 pmt_info.0.get(&pmt).map(|connector_fields| {
-                                    let mut required_fields = IndexMap::new();
+                                    let mut required_fields = HashMap::new();
 
                                     for required_field_final in connector_fields.fields.values() {
                                         required_fields.extend(required_field_final.common.clone());
-                                        required_fields
-                                            .extend(required_field_final.mandate.clone());
-                                        required_fields
-                                            .extend(required_field_final.non_mandate.clone());
                                     }
 
                                     for (key, value) in &value_overrides {

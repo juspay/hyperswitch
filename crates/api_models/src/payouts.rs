@@ -4,10 +4,10 @@ use common_utils::{
     crypto, id_type, link_utils,
     pii::{self, Email},
 };
-use indexmap::IndexMap;
 use masking::Secret;
 use router_derive::FlattenStructKeys;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
@@ -801,7 +801,7 @@ pub struct PayoutEnabledPaymentMethodsInfo {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodTypeInfo {
     pub payment_method_type: common_enums::PaymentMethodType,
-    pub required_fields: Option<IndexMap<String, RequiredFieldInfo>>,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, FlattenStructKeys)]
