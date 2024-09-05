@@ -18388,12 +18388,12 @@
           },
           "unified_code": {
             "type": "string",
-            "description": "error code unified across the connectors is received here if there was an error while calling connector",
+            "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
             "nullable": true
           },
           "unified_message": {
             "type": "string",
-            "description": "error message unified across the connectors is received here if there was an error while calling connector",
+            "description": "(This field is not live yet)\nError message unified across the connectors is received here in case of errors while calling the underlying connector",
             "nullable": true
           }
         }
@@ -18890,6 +18890,16 @@
             "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "unified_code": {
+            "type": "string",
+            "description": "(This field is not live yet)\nError code unified across the connectors is received here in case of errors while calling the underlying connector",
+            "nullable": true
+          },
+          "unified_message": {
+            "type": "string",
+            "description": "(This field is not live yet)\nError message unified across the connectors is received here in case of errors while calling the underlying connector",
+            "nullable": true
           }
         },
         "additionalProperties": false
