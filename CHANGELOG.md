@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.08.30.0-hotfix2
+
+### Revert
+
+- Feat(analytics): refactor and introduce analytics APIs to accommodate OrgLevel, MerchantLevel and ProfileLevel authentication ([#5811](https://github.com/juspay/hyperswitch/pull/5811)) ([`b0a71f9`](https://github.com/juspay/hyperswitch/commit/b0a71f9916671a89af314835910a7b76081e8181))
+
+- - -
+
 ## 2024.08.30.0-hotfix1
 
 ### Features
