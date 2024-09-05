@@ -22,7 +22,9 @@ pub mod connect;
 pub use self::connect::*;
 use crate::{
     collect_missing_value_keys,
-    connector::utils::{self as connector_util, ApplePay, ApplePayDecrypt, RouterData, PaymentsPreProcessingData},
+    connector::utils::{
+        self as connector_util, ApplePay, ApplePayDecrypt, PaymentsPreProcessingData, RouterData,
+    },
     consts,
     core::errors,
     services,

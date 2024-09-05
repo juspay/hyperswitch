@@ -1116,7 +1116,10 @@ impl
             domain::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.get_billing_email().or(item.router_data.request.get_email())?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, bill_to));
 
@@ -1199,7 +1202,10 @@ impl
             domain::ApplePayWalletData,
         ),
     ) -> Result<Self, Self::Error> {
-        let email = item.router_data.get_billing_email().or(item.router_data.request.get_email())?;
+        let email = item
+            .router_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
         let bill_to = build_bill_to(item.router_data.get_optional_billing(), email)?;
         let order_information = OrderInformationWithBill::from((item, Some(bill_to)));
         let processing_information = ProcessingInformation::try_from((
