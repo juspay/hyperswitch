@@ -1,4 +1,5 @@
 use api_models::recon as recon_api;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -61,47 +62,40 @@ pub async fn send_recon_request(
         ),
     };
 
-    let is_email_sent = state
+    state
         .email_client
         .compose_and_send_email(
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
         .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to compose and send email for ProFeatureRequest")
-        .is_ok();
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to compose and send email for ProFeatureRequest [Recon]")
+        .async_and_then(|_| async {
+            let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
+                recon_status: enums::ReconStatus::Requested,
+            };
 
-    if is_email_sent {
-        let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
-            recon_status: enums::ReconStatus::Requested,
-        };
+            let response = db
+                .update_merchant(
+                    key_manager_state,
+                    merchant_account,
+                    updated_merchant_account,
+                    &key_store,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!("Failed while updating merchant's recon status: {merchant_id:?}")
+                })?;
 
-        let response = db
-            .update_merchant(
-                key_manager_state,
-                merchant_account,
-                updated_merchant_account,
-                &key_store,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable_lazy(|| {
-                format!("Failed while updating merchant's recon status: {merchant_id:?}")
-            })?;
-
-        Ok(service_api::ApplicationResponse::Json(
-            recon_api::ReconStatusResponse {
-                recon_status: response.recon_status,
-            },
-        ))
-    } else {
-        Ok(service_api::ApplicationResponse::Json(
-            recon_api::ReconStatusResponse {
-                recon_status: enums::ReconStatus::NotRequested,
-            },
-        ))
-    }
+            Ok(service_api::ApplicationResponse::Json(
+                recon_api::ReconStatusResponse {
+                    recon_status: response.recon_status,
+                },
+            ))
+        })
+        .await
 }
 
 pub async fn generate_recon_token(
