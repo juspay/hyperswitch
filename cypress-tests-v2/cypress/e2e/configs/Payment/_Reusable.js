@@ -1,4 +1,3 @@
-
 import State from "../../../utils/State";
 const globalState = new State({
   connectorId: Cypress.env("CONNECTOR"),
