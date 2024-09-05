@@ -410,7 +410,7 @@ pub async fn refund_retrieve_core(
     let merchant_id = merchant_account.get_id();
     core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
     let payment_id = &refund.payment_id;
-    payment_intent = db
+    let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &(&state).into(),
             payment_id,
@@ -925,7 +925,7 @@ pub async fn refund_filter_list(
 pub async fn refund_retrieve_core_with_internal_reference_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     refund_internal_request_id: String,
 ) -> RouterResult<storage::Refund> {
@@ -962,7 +962,7 @@ pub async fn refund_retrieve_core_with_internal_reference_id(
 pub async fn refund_retrieve_core_with_refund_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    profile_id: Option<String>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
