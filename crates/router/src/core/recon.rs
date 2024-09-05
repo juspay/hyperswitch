@@ -35,12 +35,14 @@ pub async fn send_recon_request(
             &db.get_master_key().to_vec().into(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch merchant's key store")?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch merchant's account")?;
 
     let user_from_db = global_db
         .find_user_by_id(&user.user_id)
