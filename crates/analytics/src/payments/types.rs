@@ -60,11 +60,6 @@ where
                 .add_filter_in_range_clause(PaymentDimensions::ClientVersion, &self.client_version)
                 .attach_printable("Error adding client version filter")?;
         }
-        if !self.profile_id.is_empty() {
-            builder
-                .add_filter_in_range_clause(PaymentDimensions::ProfileId, &self.profile_id)
-                .attach_printable("Error adding profile id filter")?;
-        }
         Ok(())
     }
 }

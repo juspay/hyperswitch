@@ -8,7 +8,6 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
@@ -19,7 +18,7 @@ pub trait RefundFilterAnalytics: LoadRow<RefundFilterRow> {}
 
 pub async fn get_refund_filter_for_dimension<T>(
     dimension: RefundDimensions,
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<RefundFilterRow>>
@@ -39,7 +38,9 @@ where
         .attach_printable("Error filtering time range")
         .switch()?;
 
-    auth.set_filter_clause(&mut query_builder).switch()?;
+    query_builder
+        .add_filter_clause("merchant_id", merchant_id)
+        .switch()?;
 
     query_builder.set_distinct();
 
@@ -55,5 +56,4 @@ pub struct RefundFilterRow {
     pub refund_status: Option<DBEnumWrapper<RefundStatus>>,
     pub connector: Option<String>,
     pub refund_type: Option<DBEnumWrapper<RefundType>>,
-    pub profile_id: Option<String>,
 }

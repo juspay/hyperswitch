@@ -3,8 +3,6 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use common_utils::id_type;
-
 use super::{NameDescription, TimeRange};
 use crate::enums::{Currency, IntentStatus};
 
@@ -14,8 +12,6 @@ pub struct PaymentIntentFilters {
     pub status: Vec<IntentStatus>,
     #[serde(default)]
     pub currency: Vec<Currency>,
-    #[serde(default)]
-    pub profile_id: Vec<id_type::ProfileId>,
 }
 
 #[derive(
@@ -39,7 +35,6 @@ pub enum PaymentIntentDimensions {
     #[serde(rename = "status")]
     PaymentIntentStatus,
     Currency,
-    ProfileId,
 }
 
 #[derive(
@@ -99,7 +94,6 @@ impl From<PaymentIntentDimensions> for NameDescription {
 pub struct PaymentIntentMetricsBucketIdentifier {
     pub status: Option<IntentStatus>,
     pub currency: Option<Currency>,
-    pub profile_id: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -112,13 +106,11 @@ impl PaymentIntentMetricsBucketIdentifier {
     pub fn new(
         status: Option<IntentStatus>,
         currency: Option<Currency>,
-        profile_id: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
             status,
             currency,
-            profile_id,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -129,7 +121,6 @@ impl Hash for PaymentIntentMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.status.map(|i| i.to_string()).hash(state);
         self.currency.hash(state);
-        self.profile_id.hash(state);
         self.time_bucket.hash(state);
     }
 }

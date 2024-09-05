@@ -1,21 +1,21 @@
-pub mod active_payments;
-pub mod api_event;
-pub mod auth_events;
 mod clickhouse;
-pub mod connector_events;
 pub mod core;
 pub mod disputes;
-pub mod enums;
 pub mod errors;
 pub mod frm;
-pub mod health_check;
 pub mod metrics;
-pub mod opensearch;
-pub mod outgoing_webhook_event;
 pub mod payment_intents;
 pub mod payments;
 mod query;
 pub mod refunds;
+
+pub mod active_payments;
+pub mod api_event;
+pub mod auth_events;
+pub mod connector_events;
+pub mod health_check;
+pub mod opensearch;
+pub mod outgoing_webhook_event;
 pub mod sdk_events;
 pub mod search;
 mod sqlx;
@@ -23,7 +23,6 @@ mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
 use common_utils::errors::CustomResult;
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
-use enums::AuthInfo;
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
@@ -113,7 +112,7 @@ impl AnalyticsProvider {
         &self,
         metric: &PaymentMetrics,
         dimensions: &[PaymentDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -126,7 +125,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -138,7 +137,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -150,7 +149,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -159,7 +158,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -179,7 +178,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -188,7 +187,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -217,7 +216,7 @@ impl AnalyticsProvider {
         &self,
         distribution: &Distribution,
         dimensions: &[PaymentDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -231,7 +230,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -244,7 +243,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -257,7 +256,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -267,7 +266,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -288,7 +287,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -298,7 +297,7 @@ impl AnalyticsProvider {
                             .load_distribution(
                                 distribution,
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -327,7 +326,7 @@ impl AnalyticsProvider {
         &self,
         metric: &PaymentIntentMetrics,
         dimensions: &[PaymentIntentDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -341,7 +340,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -353,7 +352,7 @@ impl AnalyticsProvider {
                         metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -365,7 +364,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -374,7 +373,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -394,7 +393,7 @@ impl AnalyticsProvider {
                         let (ckh_result, sqlx_result) = tokio::join!(metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -403,7 +402,7 @@ impl AnalyticsProvider {
                             metric
                             .load_metrics(
                                 dimensions,
-                                auth,
+                                merchant_id,
                                 filters,
                                 granularity,
                                 time_range,
@@ -432,7 +431,7 @@ impl AnalyticsProvider {
         &self,
         metric: &RefundMetrics,
         dimensions: &[RefundDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -445,7 +444,7 @@ impl AnalyticsProvider {
                                 metric
                                     .load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -457,7 +456,7 @@ impl AnalyticsProvider {
                                 metric
                                     .load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -469,7 +468,7 @@ impl AnalyticsProvider {
                                 let (ckh_result, sqlx_result) = tokio::join!(
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -477,7 +476,7 @@ impl AnalyticsProvider {
                                     ),
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -496,7 +495,7 @@ impl AnalyticsProvider {
                                 let (ckh_result, sqlx_result) = tokio::join!(
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -504,7 +503,7 @@ impl AnalyticsProvider {
                                     ),
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -632,7 +631,7 @@ impl AnalyticsProvider {
         &self,
         metric: &DisputeMetrics,
         dimensions: &[DisputeDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -645,7 +644,7 @@ impl AnalyticsProvider {
                                 metric
                                     .load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -657,7 +656,7 @@ impl AnalyticsProvider {
                                 metric
                                     .load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -669,7 +668,7 @@ impl AnalyticsProvider {
                                 let (ckh_result, sqlx_result) = tokio::join!(
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -677,7 +676,7 @@ impl AnalyticsProvider {
                                     ),
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -696,7 +695,7 @@ impl AnalyticsProvider {
                                 let (ckh_result, sqlx_result) = tokio::join!(
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -704,7 +703,7 @@ impl AnalyticsProvider {
                                     ),
                                     metric.load_metrics(
                                         dimensions,
-                                        auth,
+                                        merchant_id,
                                         filters,
                                         granularity,
                                         time_range,
@@ -828,7 +827,7 @@ impl AnalyticsProvider {
         &self,
         metric: &ApiEventMetrics,
         dimensions: &[ApiEventDimensions],
-        auth: &AuthInfo,
+        pub_key: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -840,7 +839,14 @@ impl AnalyticsProvider {
             | Self::CombinedSqlx(_, ckh_pool) => {
                 // Since API events are ckh only use ckh here
                 metric
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, ckh_pool)
+                    .load_metrics(
+                        dimensions,
+                        pub_key,
+                        filters,
+                        granularity,
+                        time_range,
+                        ckh_pool,
+                    )
                     .await
             }
         }

@@ -3,8 +3,6 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use common_utils::id_type;
-
 use super::{NameDescription, TimeRange};
 use crate::enums::{
     AttemptStatus, AuthenticationType, Connector, Currency, PaymentMethod, PaymentMethodType,
@@ -28,8 +26,6 @@ pub struct PaymentFilters {
     pub client_source: Vec<String>,
     #[serde(default)]
     pub client_version: Vec<String>,
-    #[serde(default)]
-    pub profile_id: Vec<id_type::ProfileId>,
 }
 
 #[derive(
@@ -63,7 +59,6 @@ pub enum PaymentDimensions {
     PaymentStatus,
     ClientSource,
     ClientVersion,
-    ProfileId,
 }
 
 #[derive(
@@ -154,7 +149,6 @@ pub struct PaymentMetricsBucketIdentifier {
     pub payment_method_type: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub profile_id: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -174,7 +168,6 @@ impl PaymentMetricsBucketIdentifier {
         payment_method_type: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
-        profile_id: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -186,7 +179,6 @@ impl PaymentMetricsBucketIdentifier {
             payment_method_type,
             client_source,
             client_version,
-            profile_id,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -203,7 +195,6 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.payment_method_type.hash(state);
         self.client_source.hash(state);
         self.client_version.hash(state);
-        self.profile_id.hash(state);
         self.time_bucket.hash(state);
     }
 }

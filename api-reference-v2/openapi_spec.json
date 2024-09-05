@@ -26,7 +26,7 @@
           "Organization"
         ],
         "summary": "Organization - Create",
-        "description": "Create a new organization",
+        "description": "Organization - Create\n\nCreate a new organization",
         "operationId": "Create an Organization",
         "requestBody": {
           "content": {
@@ -73,7 +73,7 @@
           "Organization"
         ],
         "summary": "Organization - Retrieve",
-        "description": "Retrieve an existing organization",
+        "description": "Organization - Retrieve\n\nRetrieve an existing organization",
         "operationId": "Retrieve an Organization",
         "parameters": [
           {
@@ -112,7 +112,7 @@
           "Organization"
         ],
         "summary": "Organization - Update",
-        "description": "Create a new organization for .",
+        "description": "Organization - Update\n\nCreate a new organization for .",
         "operationId": "Update an Organization",
         "parameters": [
           {
@@ -170,7 +170,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Create",
-        "description": "Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
+        "description": "Merchant Connector - Create\n\nCreates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -247,7 +247,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Retrieve",
-        "description": "Retrieves details of a Connector account",
+        "description": "Merchant Connector - Retrieve\n\nRetrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -290,7 +290,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Update",
-        "description": "To update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
+        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -362,7 +362,7 @@
           "Merchant Connector Account"
         ],
         "summary": "Merchant Connector - Delete",
-        "description": "Delete or Detach a Merchant Connector from Merchant Account",
+        "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -407,7 +407,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Create",
-        "description": "Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
+        "description": "Merchant Account - Create\n\nCreate a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
         "operationId": "Create a Merchant Account",
         "requestBody": {
           "content": {
@@ -475,7 +475,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Retrieve",
-        "description": "Retrieve a *merchant* account details.",
+        "description": "Merchant Account - Retrieve\n\nRetrieve a *merchant* account details.",
         "operationId": "Retrieve a Merchant Account",
         "parameters": [
           {
@@ -514,7 +514,7 @@
           "Merchant Account"
         ],
         "summary": "Merchant Account - Update",
-        "description": "Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "description": "Merchant Account - Update\n\nUpdates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
@@ -581,7 +581,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Create",
-        "description": "Creates a new *business profile* for a merchant",
+        "description": "Business Profile - Create\n\nCreates a new *business profile* for a merchant",
         "operationId": "Create A Business Profile",
         "requestBody": {
           "content": {
@@ -628,7 +628,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Retrieve",
-        "description": "Retrieve existing *business profile*",
+        "description": "Business Profile - Retrieve\n\nRetrieve existing *business profile*",
         "operationId": "Retrieve a Business Profile",
         "parameters": [
           {
@@ -667,7 +667,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Update",
-        "description": "Update the *business profile*",
+        "description": "Business Profile - Update\n\nUpdate the *business profile*",
         "operationId": "Update a Business Profile",
         "parameters": [
           {
@@ -725,7 +725,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Activate routing algorithm",
-        "description": "Activates a routing algorithm under a business profile",
+        "description": "Business Profile - Activate routing algorithm\n\nActivates a routing algorithm under a business profile",
         "operationId": "Activates a routing algorithm under a business profile",
         "parameters": [
           {
@@ -792,7 +792,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Deactivate routing algorithm",
-        "description": "Deactivates a routing algorithm under a business profile",
+        "description": "Business Profile - Deactivate routing algorithm\n\nDeactivates a routing algorithm under a business profile",
         "operationId": " Deactivates a routing algorithm under a business profile",
         "parameters": [
           {
@@ -845,7 +845,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Update Default Fallback Routing Algorithm",
-        "description": "Update the default fallback routing algorithm for the business profile",
+        "description": "Business Profile - Update Default Fallback Routing Algorithm\n\nUpdate the default fallback routing algorithm for the business profile",
         "operationId": "Update the default fallback routing algorithm for the business profile",
         "parameters": [
           {
@@ -909,7 +909,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Retrieve Default Fallback Routing Algorithm",
-        "description": "Retrieve the default fallback routing algorithm for the business profile",
+        "description": "Business Profile - Retrieve Default Fallback Routing Algorithm\n\nRetrieve the default fallback routing algorithm for the business profile",
         "operationId": "Retrieve the default fallback routing algorithm for the business profile",
         "parameters": [
           {
@@ -956,7 +956,7 @@
           "Business Profile"
         ],
         "summary": "Business Profile - Retrieve Active Routing Algorithm",
-        "description": "Retrieve active routing algorithm under the business profile",
+        "description": "Business Profile - Retrieve Active Routing Algorithm\n\nRetrieve active routing algorithm under the business profile",
         "operationId": "Retrieve the active routing algorithm under the business profile",
         "parameters": [
           {
@@ -1030,7 +1030,7 @@
           "Routing"
         ],
         "summary": "Routing - Create",
-        "description": "Create a routing algorithm",
+        "description": "Routing - Create\n\nCreate a routing algorithm",
         "operationId": "Create a routing algprithm",
         "requestBody": {
           "content": {
@@ -1085,7 +1085,7 @@
           "Routing"
         ],
         "summary": "Routing - Retrieve",
-        "description": "Retrieve a routing algorithm with its algorithm id",
+        "description": "Routing - Retrieve\n\nRetrieve a routing algorithm with its algorithm id",
         "operationId": "Retrieve a routing algorithm with its algorithm id",
         "parameters": [
           {
@@ -1135,7 +1135,7 @@
           "API Key"
         ],
         "summary": "API Key - Create",
-        "description": "Create a new API Key for accessing our APIs from your servers. The plaintext API Key will be\ndisplayed only once on creation, so ensure you store it securely.",
+        "description": "API Key - Create\n\nCreate a new API Key for accessing our APIs from your servers. The plaintext API Key will be\ndisplayed only once on creation, so ensure you store it securely.",
         "operationId": "Create an API Key",
         "requestBody": {
           "content": {
@@ -1175,7 +1175,7 @@
           "API Key"
         ],
         "summary": "API Key - Retrieve",
-        "description": "Retrieve information about the specified API Key.",
+        "description": "API Key - Retrieve\n\nRetrieve information about the specified API Key.",
         "operationId": "Retrieve an API Key",
         "parameters": [
           {
@@ -1214,7 +1214,7 @@
           "API Key"
         ],
         "summary": "API Key - Update",
-        "description": "Update information for the specified API Key.",
+        "description": "API Key - Update\n\nUpdate information for the specified API Key.",
         "operationId": "Update an API Key",
         "parameters": [
           {
@@ -1263,7 +1263,7 @@
           "API Key"
         ],
         "summary": "API Key - Revoke",
-        "description": "Revoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
+        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
         "operationId": "Revoke an API Key",
         "parameters": [
           {
