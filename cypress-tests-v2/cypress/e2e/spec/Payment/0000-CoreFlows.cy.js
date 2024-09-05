@@ -1,6 +1,6 @@
-import { payment_methods_enabled } from "../../../../../cypress-tests/cypress/e2e/PaymentUtils/Commons";
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 
 let globalState;
 
