@@ -168,6 +168,25 @@ pub async fn accept_invitation(
     .await
 }
 
+pub async fn accept_invitations_v2(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::AcceptInvitationsV2Request>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInvitationsV2;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, user, req_body, _| user_role_core::accept_invitations_v2(state, user, req_body),
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn merchant_select(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -182,6 +201,27 @@ pub async fn merchant_select(
         payload,
         |state, user, req_body, _| async move {
             user_role_core::merchant_select_token_only_flow(state, user, req_body).await
+        },
+        &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn accept_invitations_pre_auth(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_role_api::AcceptInvitationsPreAuthRequest>,
+) -> HttpResponse {
+    let flow = Flow::AcceptInvitationsPreAuth;
+    let payload = json_payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        payload,
+        |state, user, req_body, _| async move {
+            user_role_core::accept_invitations_pre_auth(state, user, req_body).await
         },
         &auth::SinglePurposeJWTAuth(TokenPurpose::AcceptInvite),
         api_locking::LockAction::NotApplicable,

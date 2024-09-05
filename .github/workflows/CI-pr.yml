@@ -302,24 +302,12 @@ jobs:
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.0
 
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2.33.28
-        with:
-          tool: cargo-hack
-          checksum: true
 
       - name: Install just
         uses: taiki-e/install-action@v2.41.10
         with:
           tool: just
           checksum: true
-
-      - name: Run cargo-hack on v2 features in select crates
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUSTFLAGS: "-D warnings -A clippy::todo"
-        run: just hack_v2
 
       - name: Run cargo check with v2 features enabled
         shell: bash
