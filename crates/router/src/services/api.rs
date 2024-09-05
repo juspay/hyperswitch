@@ -1322,7 +1322,7 @@ pub fn build_redirection_form(
                 }
 
                 (PreEscaped(format!(
-                    "<script type=\"text/javascript\"> {logging_template} 
+                    "<script type=\"text/javascript\"> {logging_template}
                     var frm = document.getElementById(\"payment_form\"); 
                     var formFields = frm.querySelectorAll(\"input\");
                 
