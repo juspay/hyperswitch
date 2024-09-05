@@ -14,12 +14,10 @@ describe("Routingh core APIs", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("Fetch JWT token", () => {
+    it("User login", () => {
       cy.userLogin(globalState);
-    });
-
-    it("merchant retrieve call", () => {
-      cy.merchantRetrieveCall(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
     });
   });
 
