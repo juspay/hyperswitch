@@ -2731,7 +2731,7 @@ where
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<domain::PaymentMethodData>,
-    pub payment_method_info: Option<storage::PaymentMethod>,
+    pub payment_method_info: Option<domain::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
@@ -3761,7 +3761,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                             mandate_reference_record.connector_mandate_id.clone(),
                                         ),
                                         payment_method_id: Some(
-                                            payment_method_info.payment_method_id.clone(),
+                                            payment_method_info.get_id().clone(),
                                         ),
                                         update_history: None,
                                     },
@@ -3849,7 +3849,7 @@ pub fn is_network_transaction_id_flow(
     state: &SessionState,
     is_connector_agnostic_mit_enabled: Option<bool>,
     connector: enums::Connector,
-    payment_method_info: &storage::PaymentMethod,
+    payment_method_info: &domain::PaymentMethod,
 ) -> bool {
     let ntid_supported_connectors = &state
         .conf

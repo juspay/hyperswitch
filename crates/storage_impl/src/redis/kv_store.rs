@@ -32,7 +32,7 @@ pub enum PartitionKey<'a> {
     },
     MerchantIdCustomerId {
         merchant_id: &'a common_utils::id_type::MerchantId,
-        customer_id: &'a str,
+        customer_id: &'a common_utils::id_type::CustomerId,
     },
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     MerchantIdMerchantReferenceId {
@@ -73,8 +73,9 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 merchant_id,
                 customer_id,
             } => f.write_str(&format!(
-                "mid_{}_cust_{customer_id}",
-                merchant_id.get_string_repr()
+                "mid_{}_cust_{}",
+                merchant_id.get_string_repr(),
+                customer_id.get_string_repr()
             )),
             #[cfg(all(feature = "v2", feature = "customer_v2"))]
             PartitionKey::MerchantIdMerchantReferenceId {

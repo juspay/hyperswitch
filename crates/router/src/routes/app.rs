@@ -703,13 +703,12 @@ impl Routing {
                         )
                     })),
             )
-            .service(web::resource("/list/{profile_id}").route(web::get().to(
-                |state, req, path, query: web::Query<RoutingRetrieveQuery>| {
+            .service(web::resource("/list/profile").route(web::get().to(
+                |state, req, query: web::Query<RoutingRetrieveQuery>| {
                     routing::list_routing_configs_for_profile(
                         state,
                         req,
                         query,
-                        path,
                         &TransactionType::Payment,
                     )
                 },
@@ -796,6 +795,16 @@ impl Routing {
                             )
                         })),
                 )
+                .service(web::resource("/payouts/list/profile").route(web::get().to(
+                    |state, req, query: web::Query<RoutingRetrieveQuery>| {
+                        routing::list_routing_configs_for_profile(
+                            state,
+                            req,
+                            query,
+                            &TransactionType::Payout,
+                        )
+                    },
+                )))
                 .service(web::resource("/payouts/active").route(web::get().to(
                     |state, req, query_params| {
                         routing::routing_retrieve_linked_config(
@@ -1808,6 +1817,7 @@ impl User {
         route = route.service(
             web::scope("/user")
                 .service(web::resource("").route(web::get().to(get_user_role_details)))
+                .service(web::resource("/v2").route(web::post().to(list_user_roles_details)))
                 .service(
                     web::resource("/list").route(web::get().to(list_users_for_merchant_account)),
                 )
@@ -1816,9 +1826,22 @@ impl User {
                     web::resource("/invite_multiple").route(web::post().to(invite_multiple_user)),
                 )
                 .service(
-                    web::resource("/invite/accept")
-                        .route(web::post().to(merchant_select))
-                        .route(web::put().to(accept_invitation)),
+                    web::scope("/invite/accept")
+                        .service(
+                            web::resource("")
+                                .route(web::post().to(merchant_select))
+                                .route(web::put().to(accept_invitation)),
+                        )
+                        .service(
+                            web::scope("/v2")
+                                .service(
+                                    web::resource("").route(web::post().to(accept_invitations_v2)),
+                                )
+                                .service(
+                                    web::resource("/pre_auth")
+                                        .route(web::post().to(accept_invitations_pre_auth)),
+                                ),
+                        ),
                 )
                 .service(web::resource("/update_role").route(web::post().to(update_user_role)))
                 .service(web::resource("/delete").route(web::delete().to(delete_user_role))),
