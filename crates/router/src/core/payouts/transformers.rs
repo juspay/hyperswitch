@@ -165,12 +165,10 @@ impl
                                     }
                                 })
                             })
-                            .or(
-                                Some(api::PaymentMethodTypeInfo {
-                                    payment_method_type: pmt,
-                                    required_fields: None,
-                                })
-                            )
+                            .or(Some(api::PaymentMethodTypeInfo {
+                                payment_method_type: pmt,
+                                required_fields: None,
+                            }))
                     })
                     .collect();
 
