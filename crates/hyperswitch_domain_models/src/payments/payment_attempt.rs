@@ -1,12 +1,24 @@
 use api_models::enums::Connector;
 use common_enums as storage_enums;
-use common_utils::{id_type, pii, types::MinorUnit};
+use common_utils::{
+    errors::{CustomResult, ValidationError},
+    id_type, pii,
+    types::{
+        keymanager::{self, KeyManagerState},
+        MinorUnit,
+    },
+};
+use diesel_models::{
+    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+};
+use error_stack::ResultExt;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
 use crate::{
-    errors,
+    behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
     ForeignIDRef,
 };
@@ -482,5 +494,489 @@ pub enum PaymentAttemptUpdate {
 impl ForeignIDRef for PaymentAttempt {
     fn foreign_id(&self) -> String {
         self.attempt_id.clone()
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[async_trait::async_trait]
+impl behaviour::Conversion for PaymentAttempt {
+    type DstType = DieselPaymentAttempt;
+    type NewDstType = DieselPaymentAttemptNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let card_network = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card"))
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card_network"))
+            .and_then(|network| network.as_str())
+            .map(|network| network.to_string());
+        Ok(DieselPaymentAttempt {
+            payment_id: self.payment_id,
+            merchant_id: self.merchant_id,
+            attempt_id: self.attempt_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            save_to_locker: self.save_to_locker,
+            connector: self.connector,
+            error_message: self.error_message,
+            offer_amount: self.offer_amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
+            payment_method_id: self.payment_method_id,
+            payment_method: self.payment_method,
+            connector_transaction_id: self.connector_transaction_id,
+            capture_method: self.capture_method,
+            capture_on: self.capture_on,
+            confirm: self.confirm,
+            authentication_type: self.authentication_type,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            cancellation_reason: self.cancellation_reason,
+            amount_to_capture: self.amount_to_capture,
+            mandate_id: self.mandate_id,
+            browser_info: self.browser_info,
+            error_code: self.error_code,
+            payment_token: self.payment_token,
+            connector_metadata: self.connector_metadata,
+            payment_experience: self.payment_experience,
+            payment_method_type: self.payment_method_type,
+            payment_method_data: self.payment_method_data,
+            business_sub_label: self.business_sub_label,
+            straight_through_algorithm: self.straight_through_algorithm,
+            preprocessing_step_id: self.preprocessing_step_id,
+            mandate_details: self.mandate_details.map(Into::into),
+            error_reason: self.error_reason,
+            multiple_capture_count: self.multiple_capture_count,
+            connector_response_reference_id: self.connector_response_reference_id,
+            amount_capturable: self.amount_capturable,
+            updated_by: self.updated_by,
+            merchant_connector_id: self.merchant_connector_id,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
+            net_amount: Some(self.net_amount),
+            external_three_ds_authentication_attempted: self
+                .external_three_ds_authentication_attempted,
+            authentication_connector: self.authentication_connector,
+            authentication_id: self.authentication_id,
+            mandate_data: self.mandate_data.map(Into::into),
+            fingerprint_id: self.fingerprint_id,
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
+            charge_id: self.charge_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
+            profile_id: self.profile_id,
+            organization_id: self.organization_id,
+            card_network,
+            order_tax_amount: self.order_tax_amount,
+            shipping_cost: self.shipping_cost,
+        })
+    }
+
+    async fn convert_back(
+        _state: &KeyManagerState,
+        storage_model: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        async {
+            let net_amount = storage_model.get_or_calculate_net_amount();
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                payment_id: storage_model.payment_id,
+                merchant_id: storage_model.merchant_id,
+                attempt_id: storage_model.attempt_id,
+                status: storage_model.status,
+                amount: storage_model.amount,
+                net_amount,
+                currency: storage_model.currency,
+                save_to_locker: storage_model.save_to_locker,
+                connector: storage_model.connector,
+                error_message: storage_model.error_message,
+                offer_amount: storage_model.offer_amount,
+                surcharge_amount: storage_model.surcharge_amount,
+                tax_amount: storage_model.tax_amount,
+                payment_method_id: storage_model.payment_method_id,
+                payment_method: storage_model.payment_method,
+                connector_transaction_id: storage_model.connector_transaction_id,
+                capture_method: storage_model.capture_method,
+                capture_on: storage_model.capture_on,
+                confirm: storage_model.confirm,
+                authentication_type: storage_model.authentication_type,
+                created_at: storage_model.created_at,
+                modified_at: storage_model.modified_at,
+                last_synced: storage_model.last_synced,
+                cancellation_reason: storage_model.cancellation_reason,
+                amount_to_capture: storage_model.amount_to_capture,
+                mandate_id: storage_model.mandate_id,
+                browser_info: storage_model.browser_info,
+                error_code: storage_model.error_code,
+                payment_token: storage_model.payment_token,
+                connector_metadata: storage_model.connector_metadata,
+                payment_experience: storage_model.payment_experience,
+                payment_method_type: storage_model.payment_method_type,
+                payment_method_data: storage_model.payment_method_data,
+                business_sub_label: storage_model.business_sub_label,
+                straight_through_algorithm: storage_model.straight_through_algorithm,
+                preprocessing_step_id: storage_model.preprocessing_step_id,
+                mandate_details: storage_model.mandate_details.map(Into::into),
+                error_reason: storage_model.error_reason,
+                multiple_capture_count: storage_model.multiple_capture_count,
+                connector_response_reference_id: storage_model.connector_response_reference_id,
+                amount_capturable: storage_model.amount_capturable,
+                updated_by: storage_model.updated_by,
+                authentication_data: storage_model.authentication_data,
+                encoded_data: storage_model.encoded_data,
+                merchant_connector_id: storage_model.merchant_connector_id,
+                unified_code: storage_model.unified_code,
+                unified_message: storage_model.unified_message,
+                external_three_ds_authentication_attempted: storage_model
+                    .external_three_ds_authentication_attempted,
+                authentication_connector: storage_model.authentication_connector,
+                authentication_id: storage_model.authentication_id,
+                mandate_data: storage_model.mandate_data.map(Into::into),
+                payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
+                fingerprint_id: storage_model.fingerprint_id,
+                charge_id: storage_model.charge_id,
+                client_source: storage_model.client_source,
+                client_version: storage_model.client_version,
+                customer_acceptance: storage_model.customer_acceptance,
+                profile_id: storage_model.profile_id,
+                organization_id: storage_model.organization_id,
+                order_tax_amount: storage_model.order_tax_amount,
+                shipping_cost: storage_model.shipping_cost,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payment attempt".to_string(),
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let card_network = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card"))
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card_network"))
+            .and_then(|network| network.as_str())
+            .map(|network| network.to_string());
+        Ok(DieselPaymentAttemptNew {
+            payment_id: self.payment_id,
+            merchant_id: self.merchant_id,
+            attempt_id: self.attempt_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            save_to_locker: self.save_to_locker,
+            connector: self.connector,
+            error_message: self.error_message,
+            offer_amount: self.offer_amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
+            payment_method_id: self.payment_method_id,
+            payment_method: self.payment_method,
+            capture_method: self.capture_method,
+            capture_on: self.capture_on,
+            confirm: self.confirm,
+            authentication_type: self.authentication_type,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            cancellation_reason: self.cancellation_reason,
+            amount_to_capture: self.amount_to_capture,
+            mandate_id: self.mandate_id,
+            browser_info: self.browser_info,
+            payment_token: self.payment_token,
+            error_code: self.error_code,
+            connector_metadata: self.connector_metadata,
+            payment_experience: self.payment_experience,
+            payment_method_type: self.payment_method_type,
+            payment_method_data: self.payment_method_data,
+            business_sub_label: self.business_sub_label,
+            straight_through_algorithm: self.straight_through_algorithm,
+            preprocessing_step_id: self.preprocessing_step_id,
+            mandate_details: self.mandate_details.map(Into::into),
+            error_reason: self.error_reason,
+            connector_response_reference_id: self.connector_response_reference_id,
+            multiple_capture_count: self.multiple_capture_count,
+            amount_capturable: self.amount_capturable,
+            updated_by: self.updated_by,
+            merchant_connector_id: self.merchant_connector_id,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
+            net_amount: Some(self.net_amount),
+            external_three_ds_authentication_attempted: self
+                .external_three_ds_authentication_attempted,
+            authentication_connector: self.authentication_connector,
+            authentication_id: self.authentication_id,
+            mandate_data: self.mandate_data.map(Into::into),
+            fingerprint_id: self.fingerprint_id,
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
+            charge_id: self.charge_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
+            profile_id: self.profile_id,
+            organization_id: self.organization_id,
+            card_network,
+            order_tax_amount: self.order_tax_amount,
+            shipping_cost: self.shipping_cost,
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[async_trait::async_trait]
+impl behaviour::Conversion for PaymentAttempt {
+    type DstType = DieselPaymentAttempt;
+    type NewDstType = DieselPaymentAttemptNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let card_network = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card"))
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card_network"))
+            .and_then(|network| network.as_str())
+            .map(|network| network.to_string());
+        Ok(DieselPaymentAttempt {
+            payment_id: self.payment_id,
+            merchant_id: self.merchant_id,
+            attempt_id: self.attempt_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            save_to_locker: self.save_to_locker,
+            connector: self.connector,
+            error_message: self.error_message,
+            offer_amount: self.offer_amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
+            payment_method_id: self.payment_method_id,
+            payment_method: self.payment_method,
+            connector_transaction_id: self.connector_transaction_id,
+            capture_method: self.capture_method,
+            capture_on: self.capture_on,
+            confirm: self.confirm,
+            authentication_type: self.authentication_type,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            cancellation_reason: self.cancellation_reason,
+            amount_to_capture: self.amount_to_capture,
+            mandate_id: self.mandate_id,
+            browser_info: self.browser_info,
+            error_code: self.error_code,
+            payment_token: self.payment_token,
+            connector_metadata: self.connector_metadata,
+            payment_experience: self.payment_experience,
+            payment_method_type: self.payment_method_type,
+            payment_method_data: self.payment_method_data,
+            business_sub_label: self.business_sub_label,
+            straight_through_algorithm: self.straight_through_algorithm,
+            preprocessing_step_id: self.preprocessing_step_id,
+            mandate_details: self.mandate_details.map(Into::into),
+            error_reason: self.error_reason,
+            multiple_capture_count: self.multiple_capture_count,
+            connector_response_reference_id: self.connector_response_reference_id,
+            amount_capturable: self.amount_capturable,
+            updated_by: self.updated_by,
+            merchant_connector_id: self.merchant_connector_id,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
+            net_amount: Some(self.net_amount),
+            external_three_ds_authentication_attempted: self
+                .external_three_ds_authentication_attempted,
+            authentication_connector: self.authentication_connector,
+            authentication_id: self.authentication_id,
+            mandate_data: self.mandate_data.map(Into::into),
+            fingerprint_id: self.fingerprint_id,
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
+            charge_id: self.charge_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
+            profile_id: self.profile_id,
+            organization_id: self.organization_id,
+            card_network,
+            order_tax_amount: self.order_tax_amount,
+            shipping_cost: self.shipping_cost,
+        })
+    }
+
+    async fn convert_back(
+        _state: &KeyManagerState,
+        storage_model: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        async {
+            let net_amount = storage_model.get_or_calculate_net_amount();
+            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
+                payment_id: storage_model.payment_id,
+                merchant_id: storage_model.merchant_id,
+                attempt_id: storage_model.attempt_id,
+                status: storage_model.status,
+                amount: storage_model.amount,
+                net_amount,
+                currency: storage_model.currency,
+                save_to_locker: storage_model.save_to_locker,
+                connector: storage_model.connector,
+                error_message: storage_model.error_message,
+                offer_amount: storage_model.offer_amount,
+                surcharge_amount: storage_model.surcharge_amount,
+                tax_amount: storage_model.tax_amount,
+                payment_method_id: storage_model.payment_method_id,
+                payment_method: storage_model.payment_method,
+                connector_transaction_id: storage_model.connector_transaction_id,
+                capture_method: storage_model.capture_method,
+                capture_on: storage_model.capture_on,
+                confirm: storage_model.confirm,
+                authentication_type: storage_model.authentication_type,
+                created_at: storage_model.created_at,
+                modified_at: storage_model.modified_at,
+                last_synced: storage_model.last_synced,
+                cancellation_reason: storage_model.cancellation_reason,
+                amount_to_capture: storage_model.amount_to_capture,
+                mandate_id: storage_model.mandate_id,
+                browser_info: storage_model.browser_info,
+                error_code: storage_model.error_code,
+                payment_token: storage_model.payment_token,
+                connector_metadata: storage_model.connector_metadata,
+                payment_experience: storage_model.payment_experience,
+                payment_method_type: storage_model.payment_method_type,
+                payment_method_data: storage_model.payment_method_data,
+                business_sub_label: storage_model.business_sub_label,
+                straight_through_algorithm: storage_model.straight_through_algorithm,
+                preprocessing_step_id: storage_model.preprocessing_step_id,
+                mandate_details: storage_model.mandate_details.map(Into::into),
+                error_reason: storage_model.error_reason,
+                multiple_capture_count: storage_model.multiple_capture_count,
+                connector_response_reference_id: storage_model.connector_response_reference_id,
+                amount_capturable: storage_model.amount_capturable,
+                updated_by: storage_model.updated_by,
+                authentication_data: storage_model.authentication_data,
+                encoded_data: storage_model.encoded_data,
+                merchant_connector_id: storage_model.merchant_connector_id,
+                unified_code: storage_model.unified_code,
+                unified_message: storage_model.unified_message,
+                external_three_ds_authentication_attempted: storage_model
+                    .external_three_ds_authentication_attempted,
+                authentication_connector: storage_model.authentication_connector,
+                authentication_id: storage_model.authentication_id,
+                mandate_data: storage_model.mandate_data.map(Into::into),
+                payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
+                fingerprint_id: storage_model.fingerprint_id,
+                charge_id: storage_model.charge_id,
+                client_source: storage_model.client_source,
+                client_version: storage_model.client_version,
+                customer_acceptance: storage_model.customer_acceptance,
+                profile_id: storage_model.profile_id,
+                organization_id: storage_model.organization_id,
+                order_tax_amount: storage_model.order_tax_amount,
+                shipping_cost: storage_model.shipping_cost,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payment attempt".to_string(),
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let card_network = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card"))
+            .and_then(|data| data.as_object())
+            .and_then(|card| card.get("card_network"))
+            .and_then(|network| network.as_str())
+            .map(|network| network.to_string());
+        Ok(DieselPaymentAttemptNew {
+            payment_id: self.payment_id,
+            merchant_id: self.merchant_id,
+            attempt_id: self.attempt_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            save_to_locker: self.save_to_locker,
+            connector: self.connector,
+            error_message: self.error_message,
+            offer_amount: self.offer_amount,
+            surcharge_amount: self.surcharge_amount,
+            tax_amount: self.tax_amount,
+            payment_method_id: self.payment_method_id,
+            payment_method: self.payment_method,
+            capture_method: self.capture_method,
+            capture_on: self.capture_on,
+            confirm: self.confirm,
+            authentication_type: self.authentication_type,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
+            last_synced: self.last_synced,
+            cancellation_reason: self.cancellation_reason,
+            amount_to_capture: self.amount_to_capture,
+            mandate_id: self.mandate_id,
+            browser_info: self.browser_info,
+            payment_token: self.payment_token,
+            error_code: self.error_code,
+            connector_metadata: self.connector_metadata,
+            payment_experience: self.payment_experience,
+            payment_method_type: self.payment_method_type,
+            payment_method_data: self.payment_method_data,
+            business_sub_label: self.business_sub_label,
+            straight_through_algorithm: self.straight_through_algorithm,
+            preprocessing_step_id: self.preprocessing_step_id,
+            mandate_details: self.mandate_details.map(Into::into),
+            error_reason: self.error_reason,
+            connector_response_reference_id: self.connector_response_reference_id,
+            multiple_capture_count: self.multiple_capture_count,
+            amount_capturable: self.amount_capturable,
+            updated_by: self.updated_by,
+            merchant_connector_id: self.merchant_connector_id,
+            authentication_data: self.authentication_data,
+            encoded_data: self.encoded_data,
+            unified_code: self.unified_code,
+            unified_message: self.unified_message,
+            net_amount: Some(self.net_amount),
+            external_three_ds_authentication_attempted: self
+                .external_three_ds_authentication_attempted,
+            authentication_connector: self.authentication_connector,
+            authentication_id: self.authentication_id,
+            mandate_data: self.mandate_data.map(Into::into),
+            fingerprint_id: self.fingerprint_id,
+            payment_method_billing_address_id: self.payment_method_billing_address_id,
+            charge_id: self.charge_id,
+            client_source: self.client_source,
+            client_version: self.client_version,
+            customer_acceptance: self.customer_acceptance,
+            profile_id: self.profile_id,
+            organization_id: self.organization_id,
+            card_network,
+            order_tax_amount: self.order_tax_amount,
+            shipping_cost: self.shipping_cost,
+        })
     }
 }
