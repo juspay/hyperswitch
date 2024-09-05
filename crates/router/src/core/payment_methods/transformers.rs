@@ -60,6 +60,7 @@ pub struct StoreGenericReq {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
 pub trait VaultingInterface {
     async fn create_vault_request(
         &self,
@@ -361,6 +362,7 @@ pub async fn create_jwe_body_for_vault(
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
 impl VaultingInterface for VaultAddGenericReq {
     async fn create_vault_request(
         &self,
@@ -390,6 +392,7 @@ impl VaultingInterface for VaultAddGenericReq {
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
 impl VaultingInterface for VaultFingerprintGenericReq {
     async fn create_vault_request(
         &self,

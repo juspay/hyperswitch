@@ -134,23 +134,6 @@ impl
     }
 }
 
-// #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-// impl From<payment_methods::CardDetailFromLocker> for payment_methods::CardDetail {
-//     fn from(card: payment_methods::CardDetailFromLocker) -> Self {
-//         Self {
-//             card_number: card.card_number,
-//             card_exp_month: card.expiry_month,
-//             card_exp_year: card.expiry_month,
-//             card_holder_name,
-//             nick_name,
-//             card_network,
-//             card_issuing_country: None,
-//             card_issuer,
-//             card_type: None,
-//         }
-//     }
-// }
-
 impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     fn foreign_from(s: storage_enums::AttemptStatus) -> Self {
         match s {
