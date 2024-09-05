@@ -744,30 +744,6 @@ pub async fn list_users_in_lineage(
         .map(|user| (user.user_id.clone(), user.email))
         .collect::<HashMap<_, _>>();
 
-    let role_info_map =
-        futures::future::try_join_all(user_roles_set.iter().map(|user_role| async {
-            roles::RoleInfo::from_role_id(
-                &state,
-                &user_role.role_id,
-                &user_from_token.merchant_id,
-                &user_from_token.org_id,
-            )
-            .await
-            .map(|role_info| {
-                (
-                    user_role.role_id.clone(),
-                    user_role_api::role::MinimalRoleInfo {
-                        role_id: user_role.role_id.clone(),
-                        role_name: role_info.get_role_name().to_string(),
-                    },
-                )
-            })
-        }))
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .collect::<HashMap<_, _>>();
-
     let user_role_map = user_roles_set
         .into_iter()
         .fold(HashMap::new(), |mut map, user_role| {
@@ -787,13 +763,11 @@ pub async fn list_users_in_lineage(
                         .ok_or(UserErrors::InternalServerError)?,
                     roles: role_id_vec
                         .into_iter()
-                        .map(|role_id| {
-                            role_info_map
-                                .get(&role_id)
-                                .cloned()
-                                .ok_or(UserErrors::InternalServerError)
+                        .map(|role_id| user_role_api::role::MinimalRoleInfo {
+                            role_id,
+                            role_name: None,
                         })
-                        .collect::<Result<Vec<_>, _>>()?,
+                        .collect(),
                 })
             })
             .collect::<Result<Vec<_>, _>>()?,
