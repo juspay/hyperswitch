@@ -119,8 +119,7 @@ pub fn check_entity(
     if required_minimum_entity > role_info.get_entity_type() {
         Err(ApiErrorResponse::AccessForbidden {
             resource: required_minimum_entity.to_string(),
-        })
-        .attach_printable("")?;
+        })?;
     }
     Ok(())
 }
