@@ -4656,7 +4656,7 @@ pub trait PaymentDataSetters<F> {
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     // TODO(jarnura) why this needs to option?
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
-    fn set_email_if_not_present(&mut self, email: Option<pii::Email>);
+    fn set_email_if_not_present(&mut self, email: pii::Email);
     // TODO(jarnura) why this needs to option?
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>);
     fn set_pm_token(&mut self, token: String);
@@ -4829,8 +4829,8 @@ impl<F: Clone> PaymentDataSetters<F> for PaymentData<F> {
         self.payment_attempt.payment_method_id = payment_method_id;
     }
 
-    fn set_email_if_not_present(&mut self, email: Option<pii::Email>) {
-        self.email = self.email.clone().or(email);
+    fn set_email_if_not_present(&mut self, email: pii::Email) {
+        self.email = self.email.clone().or(Some(email));
     }
 
     fn set_pm_token(&mut self, token: String) {

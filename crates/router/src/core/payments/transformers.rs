@@ -491,44 +491,30 @@ where
         })?;
     let mandate_id = payment_attempt.mandate_id.clone();
 
-    // TODO(jarnura) handle it better way
-    let refunds_response = if payment_data.get_refunds().is_empty() {
-        None
-    } else {
-        Some(
-            payment_data
-                .get_refunds()
-                .into_iter()
-                .map(ForeignInto::foreign_into)
-                .collect(),
-        )
-    };
+    let refunds_response = payment_data.get_refunds().is_empty().then(|| {
+        payment_data
+            .get_refunds()
+            .into_iter()
+            .map(ForeignInto::foreign_into)
+            .collect()
+    });
 
-    // TODO(jarnura) handle it better way
-    let disputes_response = if payment_data.get_disputes().is_empty() {
-        None
-    } else {
-        Some(
-            payment_data
-                .get_disputes()
-                .into_iter()
-                .map(ForeignInto::foreign_into)
-                .collect(),
-        )
-    };
+    let disputes_response = payment_data.get_disputes().is_empty().then(|| {
+        payment_data
+            .get_disputes()
+            .into_iter()
+            .map(ForeignInto::foreign_into)
+            .collect()
+    });
 
-    // TODO(jarnura) handle it better way
-    let incremental_authorizations_response = if payment_data.get_authorizations().is_empty() {
-        None
-    } else {
-        Some(
+    let incremental_authorizations_response =
+        payment_data.get_authorizations().is_empty().then(|| {
             payment_data
                 .get_authorizations()
                 .into_iter()
                 .map(ForeignInto::foreign_into)
-                .collect(),
-        )
-    };
+                .collect()
+        });
 
     let external_authentication_details = payment_data
         .get_authentication()

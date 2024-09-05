@@ -298,12 +298,9 @@ where
             }
         };
 
-        payment_data.set_email_if_not_present(customer.as_ref().and_then(|inner| {
-            inner
-                .email
-                .clone()
-                .map(|encrypted_value| encrypted_value.into())
-        }));
+        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
+            payment_data.set_email_if_not_present(email.into());
+        }
 
         Ok((Box::new(self), customer))
     }
@@ -386,12 +383,10 @@ where
             }
         };
 
-        payment_data.set_email_if_not_present(customer.as_ref().and_then(|inner| {
-            inner
-                .email
-                .clone()
-                .map(|encrypted_value| encrypted_value.into())
-        }));
+        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
+            payment_data.set_email_if_not_present(email.into());
+        }
+
         Ok((Box::new(self), customer))
     }
     #[instrument(skip_all)]
@@ -472,12 +467,10 @@ where
             }
         };
 
-        payment_data.set_email_if_not_present(customer.as_ref().and_then(|inner| {
-            inner
-                .email
-                .clone()
-                .map(|encrypted_value| encrypted_value.into())
-        }));
+        if let Some(email) = customer.as_ref().and_then(|inner| inner.email.clone()) {
+            payment_data.set_email_if_not_present(email.into());
+        }
+
         Ok((Box::new(self), customer))
     }
 
