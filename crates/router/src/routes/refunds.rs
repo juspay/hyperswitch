@@ -103,7 +103,7 @@ pub async fn refunds_retrieve(
                 auth.profile_id,
                 auth.key_store,
                 refund_request,
-                refund_retrieve_core,
+                refund_retrieve_core_with_refund_id,
             )
         },
         auth::auth_type(
@@ -155,7 +155,7 @@ pub async fn refunds_retrieve_with_body(
                 auth.profile_id,
                 auth.key_store,
                 req,
-                refund_retrieve_core,
+                refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),

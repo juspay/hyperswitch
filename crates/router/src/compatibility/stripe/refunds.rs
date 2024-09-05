@@ -100,7 +100,7 @@ pub async fn refund_retrieve_with_gateway_creds(
                 None,
                 auth.key_store,
                 refund_request,
-                refunds::refund_retrieve_core,
+                refunds::refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -143,7 +143,7 @@ pub async fn refund_retrieve(
                 None,
                 auth.key_store,
                 refund_request,
-                refunds::refund_retrieve_core,
+                refunds::refund_retrieve_core_with_refund_id,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
