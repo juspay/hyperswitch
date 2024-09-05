@@ -1273,10 +1273,6 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(payment_connector_list)),
                 )
                 .service(
-                    web::resource("/{merchant_id}/profile/connectors")
-                        .route(web::get().to(payment_connector_list_profile)),
-                )
-                .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
@@ -1637,6 +1633,9 @@ impl BusinessProfileNew {
             .app_data(web::Data::new(state))
             .service(
                 web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
+            )
+            .service(
+                web::resource("/connectors").route(web::get().to(payment_connector_list_profile)),
             )
     }
 }
