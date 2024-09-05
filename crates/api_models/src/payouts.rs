@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
@@ -7,7 +9,6 @@ use common_utils::{
 use masking::Secret;
 use router_derive::FlattenStructKeys;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 

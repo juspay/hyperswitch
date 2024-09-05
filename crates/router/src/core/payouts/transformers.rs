@@ -1,5 +1,6 @@
-use common_utils::link_utils::EnabledPaymentMethod;
 use std::collections::HashMap;
+
+use common_utils::link_utils::EnabledPaymentMethod;
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
