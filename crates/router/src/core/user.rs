@@ -1511,28 +1511,9 @@ pub async fn verify_token(
                 user.user_id
             )
         })?;
-    let merchant_id = state
-        .store
-        .find_user_role_by_user_id_and_lineage(
-            &user_in_db.user_id,
-            &user.org_id,
-            &user.merchant_id,
-            user.profile_id.as_ref(),
-            UserRoleVersion::V1,
-        )
-        .await
-        .change_context(UserErrors::RoleNotFound)
-        .attach_printable_lazy(|| {
-            format!(
-                "UserRole not found for [user_id, org_id, mid, pid] [{}, {:?}, {:?}, {:?}]",
-                user.user_id, user.org_id, user.merchant_id, user.profile_id,
-            )
-        })?
-        .merchant_id
-        .ok_or(UserErrors::MerchantIdNotFound)?;
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: merchant_id.to_owned(),
+        merchant_id: user.merchant_id.to_owned(),
         user_email: user_in_db.email,
     }))
 }
