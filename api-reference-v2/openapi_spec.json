@@ -1453,6 +1453,12 @@
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
           },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder's name",
+            "example": "John Doe",
+            "nullable": true
+          },
           "bank_account_holder_name": {
             "type": "string",
             "description": "Bank account's owner name",
@@ -2617,31 +2623,6 @@
           "nationale_nederlanden"
         ]
       },
-      "BankRedirectAdditionalData": {
-        "allOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BankRedirectDetails"
-              }
-            ],
-            "nullable": true
-          },
-          {
-            "type": "object",
-            "properties": {
-              "bank_name": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/BankNames"
-                  }
-                ],
-                "nullable": true
-              }
-            }
-          }
-        ]
-      },
       "BankRedirectBilling": {
         "type": "object",
         "required": [
@@ -3124,6 +3105,31 @@
             "properties": {
               "Giropay": {
                 "$ref": "#/components/schemas/GiropayBankRedirectAdditionalData"
+              }
+            }
+          }
+        ]
+      },
+      "BankRedirectResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankRedirectDetails"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "bank_name": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -11432,7 +11438,7 @@
             ],
             "properties": {
               "bank_redirect": {
-                "$ref": "#/components/schemas/BankRedirectAdditionalData"
+                "$ref": "#/components/schemas/BankRedirectResponse"
               }
             }
           },
