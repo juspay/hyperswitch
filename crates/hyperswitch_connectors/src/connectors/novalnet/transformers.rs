@@ -205,8 +205,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     mobile: result_to_option_secret_string(
                         item.router_data.get_billing_phone_number(),
                     ),
-                    billing: billing,
-                    customer_ip: customer_ip,
+                    billing,
+                    customer_ip,
                 };
 
                 let lang = item
@@ -215,9 +215,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     .get_browser_info()?
                     .get_language()?;
 
-                let custom = NovalnetCustom { lang: lang };
+                let custom = NovalnetCustom { lang };
 
-                Ok(NovalnetPaymentsRequest {
+                Ok(Self {
                     merchant,
                     transaction,
                     customer,
@@ -318,7 +318,7 @@ pub struct NovalnetPaymentsResponse {
     transaction: Option<TransactionData>,
 }
 
-pub fn get_error_response(result: ResultData, statusCode: u16) -> ErrorResponse {
+pub fn get_error_response(result: ResultData, status_code: u16) -> ErrorResponse {
     let error_code = result.status;
     let error_reason = result.status_text.clone();
 
@@ -326,7 +326,7 @@ pub fn get_error_response(result: ResultData, statusCode: u16) -> ErrorResponse 
         code: error_code.to_string(),
         message: error_reason.clone(),
         reason: Some(error_reason),
-        status_code: statusCode,
+        status_code,
         attempt_status: None,
         connector_transaction_id: None,
     }
@@ -512,13 +512,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
             .as_ref()
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
 
-        let capture: Option<Capture> = match reference {
-            Some(reference) => Some(Capture {
-                _type: capture_type,
-                reference,
-            }),
-            None => None,
-        };
+        let capture: Option<Capture> = reference.map(|reference| Capture {
+                        _type: capture_type,
+               reference,
+                   });
 
         let transaction = NovalnetTransaction {
             tid: item.router_data.request.connector_transaction_id.clone(),
@@ -533,7 +530,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
                 .get_browser_info()?
                 .get_language()?,
         };
-        Ok(NovalnetCaptureRequest {
+        Ok(Self {
             transaction,
             custom,
         })
@@ -568,7 +565,7 @@ impl<F> TryFrom<&NovalnetRouterData<&RefundsRouterData<F>>> for NovalnetRefundRe
                 .get_browser_info()?
                 .get_language()?,
         };
-        Ok(NovalnetRefundRequest {
+        Ok(Self {
             transaction,
             custom,
         })
@@ -629,6 +626,8 @@ pub struct RefundData {
     tid: Option<u64>,
 }
 
+// fn to_string(&self) -> String
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetRefundResponse {
     pub customer: Option<NovalnetResponseCustomer>,
@@ -646,11 +645,13 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::SUCCESS => {
-                let get_refund_id = match item.response.transaction.clone() {
-                    Some(transaction) => Some(transaction.tid),
-                    None => None,
-                }
-                .ok_or_else(missing_field_err("transaction id"))?;
+                let refund_id = item
+    .response
+    .transaction
+    .clone()
+    .and_then(|x| x.tid.map(|tid| tid.to_string())) // Convert the tid (u64) to a String
+    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
 
                 let transaction_status = match item.response.transaction.clone() {
                     Some(transaction) => Some(transaction.status),
@@ -660,7 +661,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
 
                 Ok(Self {
                     response: Ok(RefundsResponseData {
-                        connector_refund_id: get_refund_id.expect("REASON").to_string(),
+                        connector_refund_id: refund_id,
                         refund_status: enums::RefundStatus::from(transaction_status),
                     }),
                     ..item.data
@@ -718,7 +719,7 @@ impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {
         let custom = NovalnetCustom {
             lang: "EN".to_string(),
         };
-        Ok(NovalnetSyncRequest {
+        Ok(Self {
             transaction,
             custom,
         })
@@ -821,10 +822,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::SUCCESS => {
-                let transaction_id = match item.response.transaction.clone() {
-                    Some(transaction) => Some(transaction.tid),
-                    None => None,
-                };
+                let transaction_id =  item.response.transaction.clone().and_then(|x| x.tid.map(|tid| tid.to_string()));
 
                 let transaction_status = match item.response.transaction {
                     Some(transaction) => transaction.status,
@@ -837,7 +835,7 @@ impl<F>
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: match transaction_id.clone() {
                             Some(id) => {
-                                ResponseId::ConnectorTransactionId(id.expect("REASON").to_string())
+                                ResponseId::ConnectorTransactionId(id)
                             }
                             None => ResponseId::NoResponseId,
                         },
@@ -846,7 +844,7 @@ impl<F>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id
-                            .map(|id| id.expect("REASON").to_string().clone()),
+                            .clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),
@@ -886,7 +884,7 @@ impl TryFrom<&RefundSyncRouterData> for NovalnetSyncRequest {
         let custom = NovalnetCustom {
             lang: item.request.get_browser_info()?.get_language()?,
         };
-        Ok(NovalnetSyncRequest {
+        Ok(Self {
             transaction,
             custom,
         })
@@ -955,7 +953,7 @@ impl TryFrom<&PaymentsCancelRouterData> for NovalnetCancelRequest {
         let custom = NovalnetCustom {
             lang: item.request.get_browser_info()?.get_language()?,
         };
-        Ok(NovalnetCancelRequest {
+        Ok(Self {
             transaction,
             custom,
         })
@@ -983,20 +981,9 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response.result.status {
             NovalnetAPIStatus::SUCCESS => {
-                let transaction_id = match item.response.transaction.clone() {
-                    Some(transaction) => match transaction.tid.clone() {
-                        Some(tid) => Some(tid),
-                        None => None,
-                    },
-                    None => None,
-                };//
-
-                let transaction_status = match item.response.transaction {
-                    Some(transaction) => transaction.status,
-                    None => None,
-                }//
-                .unwrap_or(NovalnetTransactionStatus::PROGRESS);
-
+                let transaction_id =  item.response.transaction.clone().and_then(|x| x.tid.map(|tid| tid.to_string()));
+                let transaction_status = item.response.transaction.clone().and_then(|x| x.status).unwrap_or(NovalnetTransactionStatus::PROGRESS);
+                //add status check
                 Ok(Self {
                     status: if transaction_status == NovalnetTransactionStatus::DEACTIVATED {
                         enums::AttemptStatus::Voided
@@ -1012,8 +999,7 @@ impl<F>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: transaction_id
-                            .map(|id| id.to_string().clone()),
+                        connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     }),

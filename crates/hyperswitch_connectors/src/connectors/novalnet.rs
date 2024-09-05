@@ -175,9 +175,7 @@ impl ConnectorValidation for Novalnet {
         _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        if data.encoded_data.is_some() {
-            return Ok(());
-        } else if data
+        if data.encoded_data.is_some() || data
             .connector_transaction_id
             .get_connector_transaction_id()
             .is_ok()
