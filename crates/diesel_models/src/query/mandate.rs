@@ -61,6 +61,12 @@ impl Mandate {
         .await
     }
 
+    //Fix this function once V2 mandate is schema is being built
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    pub async fn find_by_global_id(_conn: &PgPooledConn, _id: &str) -> StorageResult<Vec<Self>> {
+        todo!()
+    }
+
     pub async fn update_by_merchant_id_mandate_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
