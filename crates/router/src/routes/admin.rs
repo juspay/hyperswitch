@@ -209,10 +209,7 @@ pub async fn delete_merchant_account(
 /// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
 pub async fn connector_create(
     state: web::Data<AppState>,
@@ -247,7 +244,7 @@ pub async fn connector_create(
 /// Merchant Connector - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsCreate))]
 pub async fn connector_create(
     state: web::Data<AppState>,
@@ -279,10 +276,7 @@ pub async fn connector_create(
 /// Merchant Connector - Retrieve
 ///
 /// Retrieve Merchant Connector Details
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[utoipa::path(
     get,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -345,7 +339,7 @@ pub async fn connector_retrieve(
 /// Merchant Connector - Retrieve
 ///
 /// Retrieve Merchant Connector Details
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsRetrieve))]
 pub async fn connector_retrieve(
     state: web::Data<AppState>,
@@ -482,10 +476,7 @@ pub async fn payment_connector_list_profile(
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -547,7 +538,7 @@ pub async fn connector_update(
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[utoipa::path(
     post,
     path = "/connector_accounts/{id}",
@@ -598,10 +589,7 @@ pub async fn connector_update(
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[utoipa::path(
     delete,
     path = "/accounts/{account_id}/connectors/{connector_id}",
@@ -657,7 +645,7 @@ pub async fn connector_delete(
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsDelete))]
 pub async fn connector_delete(
     state: web::Data<AppState>,
@@ -743,11 +731,7 @@ pub async fn merchant_account_toggle_all_kv(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -781,7 +765,7 @@ pub async fn business_profile_create(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v2", feature = "business_profile_v2"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -812,10 +796,7 @@ pub async fn business_profile_create(
     .await
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
@@ -850,7 +831,7 @@ pub async fn business_profile_retrieve(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
@@ -881,11 +862,7 @@ pub async fn business_profile_retrieve(
     .await
 }
 
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
@@ -922,7 +899,7 @@ pub async fn business_profile_update(
     .await
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
