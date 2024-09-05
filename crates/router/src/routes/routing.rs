@@ -179,14 +179,14 @@ pub async fn routing_retrieve_config(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::RoutingRead,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -263,14 +263,14 @@ pub async fn list_routing_configs_for_profile(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::RoutingRead,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -475,6 +475,7 @@ pub async fn routing_retrieve_default_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -482,6 +483,7 @@ pub async fn routing_retrieve_default_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -508,14 +510,14 @@ pub async fn routing_retrieve_default_config(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::RoutingRead,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -781,7 +783,7 @@ pub async fn routing_retrieve_linked_config(
                 &auth::JWTAuthProfileFromRoute {
                     profile_id,
                     required_permission: Permission::RoutingRead,
-                    minimum_entity_level: EntityType::Merchant,
+                    minimum_entity_level: EntityType::Profile,
                 },
                 req.headers(),
             ),
@@ -789,7 +791,7 @@ pub async fn routing_retrieve_linked_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id,
                 required_permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -815,14 +817,14 @@ pub async fn routing_retrieve_linked_config(
                 &auth::HeaderAuth(auth::ApiKeyAuth),
                 &auth::JWTAuth {
                     permission: Permission::RoutingRead,
-                    minimum_entity_level: EntityType::Merchant,
+                    minimum_entity_level: EntityType::Profile,
                 },
                 req.headers(),
             ),
             #[cfg(feature = "release")]
             &auth::JWTAuth {
                 permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -866,6 +868,7 @@ pub async fn routing_retrieve_linked_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::RoutingRead,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -873,6 +876,7 @@ pub async fn routing_retrieve_linked_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: wrapper.profile_id,
             required_permission: Permission::RoutingRead,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))

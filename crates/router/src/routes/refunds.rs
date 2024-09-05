@@ -50,7 +50,7 @@ pub async fn refunds_create(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::RefundWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -114,7 +114,7 @@ pub async fn refunds_retrieve(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::RefundRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -290,7 +290,7 @@ pub async fn refunds_list_profile(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::RefundRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -412,7 +412,7 @@ pub async fn get_refunds_filters_profile(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::RefundRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),

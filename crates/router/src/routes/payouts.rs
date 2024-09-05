@@ -78,7 +78,7 @@ pub async fn payouts_retrieve(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::PayoutRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -257,7 +257,7 @@ pub async fn payouts_list_profile(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::PayoutRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -327,7 +327,7 @@ pub async fn payouts_list_by_filter_profile(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::PayoutRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -357,7 +357,9 @@ pub async fn payouts_list_available_filters_for_merchant(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth{
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Merchant},
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -393,7 +395,7 @@ pub async fn payouts_list_available_filters_for_profile(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::PayoutRead,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
