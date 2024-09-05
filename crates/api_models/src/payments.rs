@@ -3077,8 +3077,7 @@ pub enum PaymentMethodDataResponse {
     BankTransfer(Box<BankTransferResponse>),
     Wallet {},
     PayLater(Box<PaylaterResponse>),
-    #[schema(value_type = BankRedirectAdditionalData)]
-    BankRedirect(Box<additional_info::BankRedirectAdditionalData>),
+    BankRedirect(Box<BankRedirectResponse>),
     Crypto(Box<CryptoResponse>),
     BankDebit(Box<BankDebitResponse>),
     MandatePayment {},
@@ -3097,6 +3096,17 @@ pub struct BankDebitResponse {
     #[serde(flatten)]
     #[schema(value_type = BankDebitAdditionalData)]
     details: Option<additional_info::BankDebitAdditionalData>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub struct BankRedirectResponse {
+    /// Name of the bank
+    #[schema(value_type = Option<BankNames>)]
+    pub bank_name: Option<common_enums::BankNames>,
+    #[serde(flatten)]
+    #[schema(value_type = Option<BankRedirectDetails>)]
+    pub details: Option<additional_info::BankRedirectDetails>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -4397,10 +4407,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             },
             AdditionalPaymentData::Wallet { .. } => Self::Wallet {},
             AdditionalPaymentData::BankRedirect { bank_name, details } => {
-                Self::BankRedirect(Box::new(additional_info::BankRedirectAdditionalData {
-                    bank_name,
-                    details,
-                }))
+                Self::BankRedirect(Box::new(BankRedirectResponse { bank_name, details }))
             }
             AdditionalPaymentData::Crypto { details } => {
                 Self::Crypto(Box::new(CryptoResponse { details }))

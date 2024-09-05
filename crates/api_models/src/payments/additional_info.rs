@@ -27,6 +27,10 @@ pub struct AchBankDebitAdditionalData {
     #[schema(value_type = String, example = "110***000")]
     pub routing_number: Secret<MaskedRoutingNumber>,
 
+    /// Card holder's name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
+
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
     pub bank_account_holder_name: Option<Secret<String>>,
@@ -83,16 +87,6 @@ pub struct SepaBankDebitAdditionalData {
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
     pub bank_account_holder_name: Option<Secret<String>>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub struct BankRedirectAdditionalData {
-    /// Name of the bank
-    #[schema(value_type = Option<BankNames>)]
-    pub bank_name: Option<common_enums::BankNames>,
-    #[serde(flatten)]
-    pub details: Option<BankRedirectDetails>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

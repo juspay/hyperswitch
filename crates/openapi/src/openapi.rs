@@ -588,7 +588,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::BacsBankDebitAdditionalData,
         api_models::payments::additional_info::BecsBankDebitAdditionalData,
         api_models::payments::additional_info::SepaBankDebitAdditionalData,
-        api_models::payments::additional_info::BankRedirectAdditionalData,
         api_models::payments::additional_info::BankRedirectDetails,
         api_models::payments::additional_info::BancontactBankRedirectAdditionalData,
         api_models::payments::additional_info::BlikBankRedirectAdditionalData,

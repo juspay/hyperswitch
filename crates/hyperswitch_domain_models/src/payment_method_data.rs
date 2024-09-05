@@ -286,6 +286,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
+        card_holder_name: Option<Secret<String>>,
     },
     Bizum {},
     Blik {
@@ -293,19 +294,26 @@ pub enum BankRedirectData {
     },
     Eps {
         bank_name: Option<common_enums::BankNames>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Giropay {
         bank_account_bic: Option<Secret<String>>,
         bank_account_iban: Option<Secret<String>>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Ideal {
         bank_name: Option<common_enums::BankNames>,
     },
-    Interac {},
+    Interac {
+        country: Option<api_enums::CountryAlpha2>,
+        email: Option<Email>,
+    },
     OnlineBankingCzechRepublic {
         issuer: common_enums::BankNames,
     },
-    OnlineBankingFinland {},
+    OnlineBankingFinland {
+        email: Option<Email>,
+    },
     OnlineBankingPoland {
         issuer: common_enums::BankNames,
     },
@@ -314,14 +322,18 @@ pub enum BankRedirectData {
     },
     OpenBankingUk {
         issuer: Option<common_enums::BankNames>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Przelewy24 {
         bank_name: Option<common_enums::BankNames>,
     },
     Sofort {
+        country: Option<api_enums::CountryAlpha2>,
         preferred_language: Option<String>,
     },
-    Trustly {},
+    Trustly {
+        country: Option<api_enums::CountryAlpha2>,
+    },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
     },
@@ -426,20 +438,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
+        card_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
 }
 
@@ -745,34 +762,40 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 card_number,
                 card_exp_month,
                 card_exp_year,
+                card_holder_name,
                 ..
             } => Self::BancontactCard {
                 card_number,
                 card_exp_month,
                 card_exp_year,
+                card_holder_name,
             },
             api_models::payments::BankRedirectData::Bizum {} => Self::Bizum {},
             api_models::payments::BankRedirectData::Blik { blik_code } => Self::Blik { blik_code },
-            api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
-                Self::Eps { bank_name }
-            }
+            api_models::payments::BankRedirectData::Eps {
+                bank_name, country, ..
+            } => Self::Eps { bank_name, country },
             api_models::payments::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
                 ..
             } => Self::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
             },
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
                 Self::Ideal { bank_name }
             }
-            api_models::payments::BankRedirectData::Interac { .. } => Self::Interac {},
+            api_models::payments::BankRedirectData::Interac { country, email } => {
+                Self::Interac { country, email }
+            }
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
                 Self::OnlineBankingCzechRepublic { issuer }
             }
-            api_models::payments::BankRedirectData::OnlineBankingFinland { .. } => {
-                Self::OnlineBankingFinland {}
+            api_models::payments::BankRedirectData::OnlineBankingFinland { email } => {
+                Self::OnlineBankingFinland { email }
             }
             api_models::payments::BankRedirectData::OnlineBankingPoland { issuer } => {
                 Self::OnlineBankingPoland { issuer }
@@ -780,16 +803,23 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => {
                 Self::OnlineBankingSlovakia { issuer }
             }
-            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => {
-                Self::OpenBankingUk { issuer }
-            }
+            api_models::payments::BankRedirectData::OpenBankingUk {
+                country, issuer, ..
+            } => Self::OpenBankingUk { country, issuer },
             api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. } => {
                 Self::Przelewy24 { bank_name }
             }
             api_models::payments::BankRedirectData::Sofort {
-                preferred_language, ..
-            } => Self::Sofort { preferred_language },
-            api_models::payments::BankRedirectData::Trustly { .. } => Self::Trustly {},
+                preferred_language,
+                country,
+                ..
+            } => Self::Sofort {
+                country,
+                preferred_language,
+            },
+            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
+                country: Some(country),
+            },
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
@@ -1011,6 +1041,8 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             api_models::payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
+                card_holder_name,
+                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
@@ -1018,28 +1050,39 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             } => Self::AchBankDebit {
                 account_number,
                 routing_number,
+                card_holder_name,
+                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
             },
-            api_models::payments::BankDebitData::SepaBankDebit { iban, .. } => {
-                Self::SepaBankDebit { iban }
-            }
+            api_models::payments::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+                ..
+            } => Self::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            },
             api_models::payments::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
+                bank_account_holder_name,
                 ..
             } => Self::BecsBankDebit {
                 account_number,
                 bsb_number,
+                bank_account_holder_name,
             },
             api_models::payments::BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
+                bank_account_holder_name,
                 ..
             } => Self::BacsBankDebit {
                 account_number,
                 sort_code,
+                bank_account_holder_name,
             },
         }
     }
@@ -1054,6 +1097,8 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_name,
                 bank_type,
                 bank_holder_type,
+                card_holder_name,
+                bank_account_holder_name,
             } => Self::Ach(Box::new(
                 payment_additional_types::AchBankDebitAdditionalData {
                     account_number: Secret::from(MaskedBankAccount::from(
@@ -1065,39 +1110,43 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                     bank_name,
                     bank_type,
                     bank_holder_type,
-                    bank_account_holder_name: None,
+                    card_holder_name,
+                    bank_account_holder_name,
                 },
             )),
-            BankDebitData::SepaBankDebit { iban, .. } => Self::Sepa(Box::new(
+            BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => Self::Sepa(Box::new(
                 payment_additional_types::SepaBankDebitAdditionalData {
                     iban: Secret::from(MaskedIban::from(iban.peek().to_owned())),
-                    bank_account_holder_name: None,
+                    bank_account_holder_name,
                 },
             )),
             BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
-                ..
+                bank_account_holder_name,
             } => Self::Becs(Box::new(
                 payment_additional_types::BecsBankDebitAdditionalData {
                     account_number: Secret::from(MaskedBankAccount::from(
                         account_number.peek().to_owned(),
                     )),
                     bsb_number,
-                    bank_account_holder_name: None,
+                    bank_account_holder_name,
                 },
             )),
             BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
-                ..
+                bank_account_holder_name,
             } => Self::Bacs(Box::new(
                 payment_additional_types::BacsBankDebitAdditionalData {
                     account_number: Secret::from(MaskedBankAccount::from(
                         account_number.peek().to_owned(),
                     )),
                     sort_code: Secret::from(MaskedSortCode::from(sort_code.peek().to_owned())),
-                    bank_account_holder_name: None,
+                    bank_account_holder_name,
                 },
             )),
         }

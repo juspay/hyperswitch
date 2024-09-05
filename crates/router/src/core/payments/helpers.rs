@@ -4038,6 +4038,7 @@ pub async fn get_additional_payment_data(
                 card_number,
                 card_exp_month,
                 card_exp_year,
+                card_holder_name,
             } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                 bank_name: None,
                 details: Some(
@@ -4046,7 +4047,7 @@ pub async fn get_additional_payment_data(
                             last4: card_number.as_ref().map(|c| c.get_last4()),
                             card_exp_month: card_exp_month.clone(),
                             card_exp_year: card_exp_year.clone(),
-                            card_holder_name: None,
+                            card_holder_name: card_holder_name.clone(),
                         },
                     )),
                 ),
@@ -4066,6 +4067,7 @@ pub async fn get_additional_payment_data(
             domain::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
             } => Some(api_models::payments::AdditionalPaymentData::BankRedirect {
                 bank_name: None,
                 details: Some(payment_additional_types::BankRedirectDetails::Giropay(
@@ -4077,7 +4079,7 @@ pub async fn get_additional_payment_data(
                             iban: bank_account_iban.as_ref().map(|iban| {
                                 masking::Secret::from(MaskedIban::from(iban.peek().to_owned()))
                             }),
-                            country: None,
+                            country: *country,
                         },
                     ),
                 )),
