@@ -188,66 +188,6 @@ const successfulThreeDSTestCardDetails = {
           },
         },
       },
-      ZeroAuthMandate: {
-        Response: {
-          status: 501,
-          body: {
-            error: {
-              type: "invalid_request",
-              message: "Setup Mandate flow for Bluesnap is not implemented",
-              code: "IR_00",
-            },
-          },
-        },
-      },
-      SaveCardUseNo3DSAutoCapture: {
-        Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "EUR",
-          setup_future_usage: "on_session",
-          customer_acceptance: {
-            acceptance_type: "offline",
-            accepted_at: "1963-05-03T04:07:52.723Z",
-            online: {
-              ip_address: "127.0.0.1",
-              user_agent: "amet irure esse",
-            },
-          },
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "succeeded",
-          },
-        },
-      },
-      SaveCardUseNo3DSManualCapture: {
-        Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: successfulNo3DSCardDetails,
-          },
-          currency: "EUR",
-          setup_future_usage: "on_session",
-          customer_acceptance: {
-            acceptance_type: "offline",
-            accepted_at: "1963-05-03T04:07:52.723Z",
-            online: {
-              ip_address: "127.0.0.1",
-              user_agent: "amet irure esse",
-            },
-          },
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_capture",
-          },
-        },
-      },
     },
   };
   

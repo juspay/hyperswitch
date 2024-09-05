@@ -123,7 +123,6 @@ impl ConnectorCommon for Novalnet {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let api_key: String = auth.payment_access_key.expose();
         let encoded_api_key = common_utils::consts::BASE64_ENGINE.encode(api_key);
-        router_env::logger::info!("Logging api_key: {:?}", encoded_api_key);
         Ok(vec![(
             headers::X_NN_ACCESS_KEY.to_string(),
             encoded_api_key.into_masked(),
@@ -171,25 +170,22 @@ impl ConnectorValidation for Novalnet {
 
     fn validate_psync_reference_id(
         &self,
-        _data: &PaymentsSyncData,
+        data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        // if data.encoded_data.is_some() {
-        //     return Ok(());
-        // }else if data
-        // .connector_transaction_id
-        // .get_connector_transaction_id()
-        // .is_ok()
-        // {
-        //     return Ok(());
-        // }
-        // Err(errors::ConnectorError::MissingRequiredField {
-        //     field_name: "encoded_data",
-        // }
-        // .into())
-        Ok(())
+        if data.encoded_data.is_some() {
+            return Ok(());
+        } else if data
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .is_ok()
+        {
+            return Ok(());
+        }
+
+        Err(errors::ConnectorError::MissingConnectorTransactionID.into())
     }
 }
 
@@ -338,12 +334,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nov
         req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let encoded_data = req.request.encoded_data.clone();
-        // .get_required_value("encoded_data")
-        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        router_env::logger::info!("abcd {:?}", encoded_data);
-
         let connector_req = novalnet::NovalnetSyncRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
