@@ -5,7 +5,6 @@ use std::{
 };
 
 use cards::CardNumber;
-use common_enums::CardNetwork;
 use common_utils::{
     consts::{default_payments_list_limit, CARD_NETWORK_DATA},
     crypto,
@@ -1313,7 +1312,7 @@ impl Card {
     }
     fn is_cobadged_card(&self) -> bool {
         let c_card_number_value = self.card_number.get_card_no();
-        let card_number_length = i32::try_from(c_card_number_value.len()).ok(); // Convert to Option<i32>
+        let card_number_length = i32::try_from(c_card_number_value.len()).ok();
         let cvc_length = i32::try_from(self.card_cvc.peek().len()).ok();
         let mut matching_networks = 0;
 

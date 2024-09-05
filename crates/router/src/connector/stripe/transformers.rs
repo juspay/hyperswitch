@@ -228,7 +228,7 @@ pub struct StripeCardData {
     pub payment_method_data_card_cvc: Option<Secret<String>>,
     #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
     pub payment_method_auth_type: Option<Auth3ds>,
-    #[serde(rename = "payment_method_options[card][networks][preferred]")]
+    #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]

@@ -582,12 +582,15 @@ impl StringMajorUnit {
     }
 }
 
-/// Represents the pattern data used to identify a specific card network.
+/// Represents the data used to identify a specific card network.
 #[derive(Debug)]
 pub struct CardNetworkPattern {
+    /// Regex for identifying card network
     pub regex: Option<regex::Regex>,
+    /// List of acceptable length of card number for a particular card network
     pub allowed_card_number_length: Vec<i32>,
-    pub allowed_cvc_length: Vec<i32>,
+    /// List of acceptable length of card cvc for a particular card network
+    pub allowed_cvc_length: Vec<i32>
 }
 
 #[cfg(test)]
