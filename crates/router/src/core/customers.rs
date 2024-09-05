@@ -532,7 +532,11 @@ pub async fn list_customers(
     Ok(services::ApplicationResponse::Json(customers))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
@@ -566,6 +570,8 @@ pub async fn delete_customer(
 
     match db
         .find_payment_method_by_customer_id_merchant_id_list(
+            key_manager_state,
+            &key_store,
             &req.customer_id,
             merchant_account.get_id(),
             None,
@@ -586,6 +592,8 @@ pub async fn delete_customer(
                     .switch()?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
+                    key_manager_state,
+                    &key_store,
                     merchant_account.get_id(),
                     &pm.payment_method_id,
                 )

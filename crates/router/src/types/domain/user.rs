@@ -359,7 +359,7 @@ impl TryFrom<UserCompanyName> for MerchantName {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(company_name: UserCompanyName) -> Result<Self, Self::Error> {
-        Self::new(company_name.get_secret()).change_context(UserErrors::CompanyNameParsingError)
+        Self::try_new(company_name.get_secret()).change_context(UserErrors::CompanyNameParsingError)
     }
 }
 
@@ -396,7 +396,7 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
@@ -415,10 +415,7 @@ impl NewUserMerchant {
         })
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
             merchant_id: self.get_merchant_id(),
@@ -706,7 +703,6 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             is_verified: false,
             created_at: Some(now),
             last_modified_at: Some(now),
-            preferred_merchant_id: None,
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
@@ -934,10 +930,6 @@ impl UserFromStorage {
         Ok(days_left_for_password_rotate.whole_days() < 0)
     }
 
-    pub fn get_preferred_merchant_id(&self) -> Option<id_type::MerchantId> {
-        self.0.preferred_merchant_id.clone()
-    }
-
     pub async fn get_role_from_db_by_merchant_id(
         &self,
         state: &SessionState,
@@ -951,29 +943,6 @@ impl UserFromStorage {
                 UserRoleVersion::V1,
             )
             .await
-    }
-
-    pub async fn get_preferred_or_active_user_role_from_db(
-        &self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
-            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
-                .await
-        } else {
-            state
-                .store
-                .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
-                .await?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
-                .ok_or(
-                    errors::StorageError::ValueNotFound(
-                        "No active role found for user".to_string(),
-                    )
-                    .into(),
-                )
-        }
     }
 
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
