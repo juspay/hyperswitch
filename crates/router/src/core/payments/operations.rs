@@ -25,7 +25,7 @@ pub use self::{
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
 };
-use super::{helpers, CustomerDetails, PaymentDataGetters};
+use super::{helpers, CustomerDetails, PaymentDataGetters, PaymentDataSetters};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
@@ -264,7 +264,7 @@ impl<
     > Domain<F, api::PaymentsRetrieveRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest, Data = D>,
-    D: PaymentDataGetters<F> + Send,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -281,18 +281,31 @@ where
         ),
         errors::StorageError,
     > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_details_even_for_redacted_customer(
-                state,
-                payment_data.get_payment_intent().customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                // payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
+        let db = &*state.store;
+        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
+            None => None,
+            Some(customer_id) => {
+                // This function is to retrieve customer details. If the customer is deleted, it returns
+                // customer details that contains the fields as Redacted
+                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+                    &state.into(),
+                    customer_id,
+                    &merchant_key_store.merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await?
+            }
+        };
+
+        payment_data.set_email_if_not_present(customer.as_ref().and_then(|inner| {
+            inner
+                .email
+                .clone()
+                .map(|encrypted_value| encrypted_value.into())
+        }));
+
+        Ok((Box::new(self), customer))
     }
 
     async fn get_connector<'a>(
@@ -340,7 +353,7 @@ impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequ
     Domain<F, api::PaymentsCaptureRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Data = D>,
-    D: PaymentDataGetters<F> + Send,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -357,18 +370,29 @@ where
         ),
         errors::StorageError,
     > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_from_details(
-                state,
-                payment_data.get_payment_intent().customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                // payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
+        let db = &*state.store;
+
+        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
+            None => None,
+            Some(customer_id) => {
+                db.find_customer_optional_by_customer_id_merchant_id(
+                    &state.into(),
+                    customer_id,
+                    &merchant_key_store.merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await?
+            }
+        };
+
+        payment_data.set_email_if_not_present(customer.as_ref().and_then(|inner| {
+            inner
+                .email
+                .clone()
+                .map(|encrypted_value| encrypted_value.into())
+        }));
+        Ok((Box::new(self), customer))
     }
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
@@ -415,7 +439,7 @@ impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelReque
     Domain<F, api::PaymentsCancelRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest, Data = D>,
-    D: PaymentDataGetters<F> + Send,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -432,18 +456,29 @@ where
         ),
         errors::StorageError,
     > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_from_details(
-                state,
-                payment_data.get_payment_intent().customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                // payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
+        let db = &*state.store;
+
+        let customer = match payment_data.get_payment_intent().customer_id.as_ref() {
+            None => None,
+            Some(customer_id) => {
+                db.find_customer_optional_by_customer_id_merchant_id(
+                    &state.into(),
+                    customer_id,
+                    &merchant_key_store.merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await?
+            }
+        };
+
+        payment_data.set_email_if_not_present(customer.as_ref().and_then(|inner| {
+            inner
+                .email
+                .clone()
+                .map(|encrypted_value| encrypted_value.into())
+        }));
+        Ok((Box::new(self), customer))
     }
 
     #[instrument(skip_all)]

@@ -52,7 +52,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
+    {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
 
         let payment_id = payment_id

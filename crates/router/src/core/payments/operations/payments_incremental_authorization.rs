@@ -50,14 +50,13 @@ impl<F: Send + Clone>
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-    operations::GetTrackerResponse<
-        'a,
-        F,
-        PaymentsIncrementalAuthorizationRequest,
-        payments::PaymentData<F>,
-    >,
->
-    {
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            PaymentsIncrementalAuthorizationRequest,
+            payments::PaymentData<F>,
+        >,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 

@@ -66,7 +66,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>> {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
+    {
         let key_manager_state = &state.into();
 
         let merchant_id = merchant_account.get_id();

@@ -41,8 +41,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest, P
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-    operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
-> {
+        operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
+    > {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
         let key_manager_state = &state.into();

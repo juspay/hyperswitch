@@ -2,9 +2,8 @@ pub mod helpers;
 pub mod transformers;
 
 use api_models::{
-    enums,
+    enums, mandates as mandates_api,
     routing::{self as routing_types, RoutingRetrieveQuery},
-    mandates as mandates_api,
 };
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;

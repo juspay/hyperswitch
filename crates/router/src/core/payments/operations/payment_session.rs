@@ -42,8 +42,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest,
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-    operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
-> {
+        operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
+    > {
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;

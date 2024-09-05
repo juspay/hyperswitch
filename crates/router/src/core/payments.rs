@@ -179,13 +179,8 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    let authentication_type = call_decision_manager(
-        state,
-        &merchant_account,
-        &business_profile,
-        &payment_data,
-    )
-    .await?;
+    let authentication_type =
+        call_decision_manager(state, &merchant_account, &business_profile, &payment_data).await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
@@ -503,10 +498,10 @@ where
                             state,
                             &merchant_account,
                             &business_profile,
-                                                        // &mut payment_data,
-                                                        payment_data.get_payment_attempt(),
-                                                        payment_data.get_payment_intent(),
-                                                        payment_data.get_billing_address(),
+                            // &mut payment_data,
+                            payment_data.get_payment_attempt(),
+                            payment_data.get_payment_intent(),
+                            payment_data.get_billing_address(),
                             &connectors,
                         )
                         .await?;
@@ -772,10 +767,10 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     state: &SessionState,
     _merchant_account: &domain::MerchantAccount,
     _business_profile: &domain::BusinessProfile,
-        // payment_data: &mut D,
-        payment_attempt: &storage::PaymentAttempt,
-        payment_intent: &storage::PaymentIntent,
-        billing_address: Option<api_models::payments::Address>,
+    // payment_data: &mut D,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    billing_address: Option<api_models::payments::Address>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>>
 // where
@@ -1187,19 +1182,21 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             expand_attempts: None,
             expand_captures: None,
         };
-        let response = Box::pin(payments_core::<api::PSync, api::PaymentsResponse, _, _, _, _>(
-            state.clone(),
-            req_state,
-            merchant_account,
-            None,
-            merchant_key_store.clone(),
-            PaymentStatus,
-            payment_sync_req,
-            services::api::AuthFlow::Merchant,
-            connector_action,
-            None,
-            HeaderPayload::default(),
-        ))
+        let response = Box::pin(
+            payments_core::<api::PSync, api::PaymentsResponse, _, _, _, _>(
+                state.clone(),
+                req_state,
+                merchant_account,
+                None,
+                merchant_key_store.clone(),
+                PaymentStatus,
+                payment_sync_req,
+                services::api::AuthFlow::Merchant,
+                connector_action,
+                None,
+                HeaderPayload::default(),
+            ),
+        )
         .await?;
         let payments_response = match response {
             services::ApplicationResponse::Json(response) => Ok(response),
@@ -1379,19 +1376,21 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 expand_attempts: None,
                 expand_captures: None,
             };
-            Box::pin(payments_core::<api::PSync, api::PaymentsResponse, _, _, _, _>(
-                state.clone(),
-                req_state,
-                merchant_account.clone(),
-                None,
-                merchant_key_store.clone(),
-                PaymentStatus,
-                payment_sync_req,
-                services::api::AuthFlow::Merchant,
-                connector_action,
-                None,
-                HeaderPayload::default(),
-            ))
+            Box::pin(
+                payments_core::<api::PSync, api::PaymentsResponse, _, _, _, _>(
+                    state.clone(),
+                    req_state,
+                    merchant_account.clone(),
+                    None,
+                    merchant_key_store.clone(),
+                    PaymentStatus,
+                    payment_sync_req,
+                    services::api::AuthFlow::Merchant,
+                    connector_action,
+                    None,
+                    HeaderPayload::default(),
+                ),
+            )
             .await?
         };
         let payments_response = match response {
@@ -1577,20 +1576,22 @@ where
     )
     .await?;
 
-    let merchant_recipient_data =
-        if let Some(true) = payment_data.get_payment_intent().is_payment_processor_token_flow {
-            None
-        } else {
-            payment_data
-                .get_merchant_recipient_data(
-                    state,
-                    merchant_account,
-                    key_store,
-                    &merchant_connector_account,
-                    &connector,
-                )
-                .await?
-        };
+    let merchant_recipient_data = if let Some(true) = payment_data
+        .get_payment_intent()
+        .is_payment_processor_token_flow
+    {
+        None
+    } else {
+        payment_data
+            .get_merchant_recipient_data(
+                state,
+                merchant_account,
+                key_store,
+                &merchant_connector_account,
+                &connector,
+            )
+            .await?
+    };
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -3610,7 +3611,6 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-
             let setup_mandate = payment_data.get_setup_mandate();
             let payment_method_data = payment_data.get_payment_method_data();
             let transcation_data = core_routing::PaymentsDslInput::new(
@@ -3671,7 +3671,6 @@ where
         .attach_printable("Failed execution of straight through routing")?;
 
         if check_eligibility {
-
             let setup_mandate = payment_data.get_setup_mandate();
             let payment_method_data = payment_data.get_payment_method_data();
             let transcation_data = core_routing::PaymentsDslInput::new(
@@ -4162,15 +4161,15 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received")?;
 
-            decide_multiplex_connector_for_normal_or_recurring_payment(
-                state,
-                payment_data,
-                routing_data,
-                connector_data,
-                mandate_type,
-                business_profile.is_connector_agnostic_mit_enabled,
-            )
-            .await
+    decide_multiplex_connector_for_normal_or_recurring_payment(
+        state,
+        payment_data,
+        routing_data,
+        connector_data,
+        mandate_type,
+        business_profile.is_connector_agnostic_mit_enabled,
+    )
+    .await
 }
 
 #[cfg(feature = "payouts")]
@@ -4183,8 +4182,7 @@ pub async fn route_connector_v1_for_payouts(
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
-) -> RouterResult<ConnectorCallType>
-{
+) -> RouterResult<ConnectorCallType> {
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.payout_routing_algorithm.clone();
 
@@ -4238,11 +4236,11 @@ pub async fn route_connector_v1_for_payouts(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received")?;
 
-        routing_data.routed_through = Some(first_connector_choice.connector.to_string());
+    routing_data.routed_through = Some(first_connector_choice.connector.to_string());
 
-        routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
+    routing_data.merchant_connector_id = first_connector_choice.merchant_connector_id;
 
-        Ok(ConnectorCallType::Retryable(connector_data))
+    Ok(ConnectorCallType::Retryable(connector_data))
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -4653,19 +4651,22 @@ pub trait PaymentDataGetters<F> {
 }
 
 pub trait PaymentDataSetters<F> {
-
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
     // TODO(jarnura) why this needs to option?
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
+    fn set_email_if_not_present(&mut self, email: Option<pii::Email>);
     // TODO(jarnura) why this needs to option?
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>);
     fn set_pm_token(&mut self, token: String);
     fn set_connector_customer_id(&mut self, customer_id: Option<String>);
     fn push_sessions_token(&mut self, token: api::SessionToken);
     fn set_surcharge_details(&mut self, surcharge_details: Option<types::SurchargeDetails>);
-    fn set_merchant_connector_id_in_attempt(&mut self, merchant_connector_id: Option<id_type::MerchantConnectorAccountId>);
+    fn set_merchant_connector_id_in_attempt(
+        &mut self,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    );
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
     // TODO(jarnura) why this needs to option?
     fn set_frm_message(&mut self, frm_message: FraudCheck);
@@ -4676,7 +4677,7 @@ pub trait PaymentDataSetters<F> {
     );
     fn set_recurring_mandate_payment_data(
         &mut self,
-        recurring_mandate_payment_data: 
+        recurring_mandate_payment_data:
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
     );
     fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds);
@@ -4811,7 +4812,6 @@ impl<F: Clone> PaymentDataGetters<F> for PaymentData<F> {
 }
 
 impl<F: Clone> PaymentDataSetters<F> for PaymentData<F> {
-
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
         self.payment_intent = payment_intent;
@@ -4827,6 +4827,10 @@ impl<F: Clone> PaymentDataSetters<F> for PaymentData<F> {
 
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>) {
         self.payment_attempt.payment_method_id = payment_method_id;
+    }
+
+    fn set_email_if_not_present(&mut self, email: Option<pii::Email>) {
+        self.email = self.email.clone().or(email);
     }
 
     fn set_pm_token(&mut self, token: String) {
@@ -4845,7 +4849,10 @@ impl<F: Clone> PaymentDataSetters<F> for PaymentData<F> {
         self.surcharge_details = surcharge_details;
     }
 
-    fn set_merchant_connector_id_in_attempt(&mut self, merchant_connector_id: Option<id_type::MerchantConnectorAccountId>) {
+    fn set_merchant_connector_id_in_attempt(
+        &mut self,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    ) {
         self.payment_attempt.merchant_connector_id = merchant_connector_id;
     }
 
@@ -4870,7 +4877,7 @@ impl<F: Clone> PaymentDataSetters<F> for PaymentData<F> {
 
     fn set_recurring_mandate_payment_data(
         &mut self,
-        recurring_mandate_payment_data: 
+        recurring_mandate_payment_data:
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
     ) {
         self.recurring_mandate_payment_data = Some(recurring_mandate_payment_data);
@@ -4898,19 +4905,3 @@ impl<F: Clone> PaymentDataSetters<F> for PaymentData<F> {
         self.payment_attempt.connector = connector;
     }
 }
-
-// impl<'a, F, D> From<&'a D> for core_routing::PaymentsDslInput<'a>
-// where
-//     D: PaymentDataGetters<F>
-// {
-//     fn from(data: &'a D) -> Self {
-//         Self {
-//             setup_mandate: data.get_setup_mandate().as_ref(),
-//             payment_attempt: &data.get_payment_attempt(),
-//             payment_intent: &data.get_payment_intent(),
-//             payment_method_data: data.get_payment_method_data().as_ref(),
-//             address: &data.get_address(),
-//             currency: data.get_currency(),
-//         }
-//     }
-// }

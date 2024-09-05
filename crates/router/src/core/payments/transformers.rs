@@ -843,21 +843,24 @@ where
         };
 
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
-            customer_acceptance: d.customer_acceptance.clone().map(|d| api::CustomerAcceptance {
-                acceptance_type: match d.acceptance_type {
-                    hyperswitch_domain_models::mandates::AcceptanceType::Online => {
-                        api::AcceptanceType::Online
-                    }
-                    hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
-                        api::AcceptanceType::Offline
-                    }
-                },
-                accepted_at: d.accepted_at,
-                online: d.online.map(|d| api::OnlineMandate {
-                    ip_address: d.ip_address,
-                    user_agent: d.user_agent,
+            customer_acceptance: d
+                .customer_acceptance
+                .clone()
+                .map(|d| api::CustomerAcceptance {
+                    acceptance_type: match d.acceptance_type {
+                        hyperswitch_domain_models::mandates::AcceptanceType::Online => {
+                            api::AcceptanceType::Online
+                        }
+                        hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
+                            api::AcceptanceType::Offline
+                        }
+                    },
+                    accepted_at: d.accepted_at,
+                    online: d.online.map(|d| api::OnlineMandate {
+                        ip_address: d.ip_address,
+                        user_agent: d.user_agent,
+                    }),
                 }),
-            }),
             mandate_type: d.mandate_type.clone().map(|d| match d {
                 hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
                     api::MandateType::MultiUse(Some(api::MandateAmountData {
@@ -943,7 +946,9 @@ where
             business_label: payment_intent.business_label,
             business_sub_label: payment_attempt.business_sub_label,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
-            ephemeral_key: payment_data.get_ephemeral_key().map(ForeignFrom::foreign_from),
+            ephemeral_key: payment_data
+                .get_ephemeral_key()
+                .map(ForeignFrom::foreign_from),
             manual_retry_allowed: helpers::is_manual_retry_allowed(
                 &payment_intent.status,
                 &payment_attempt.status,
@@ -972,7 +977,9 @@ where
             fingerprint: payment_intent.fingerprint_id,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
-            payment_method_status: payment_data.get_payment_method_info().map(|info| info.status),
+            payment_method_status: payment_data
+                .get_payment_method_info()
+                .map(|info| info.status),
             updated: Some(payment_intent.modified_at),
             charges: charges_response,
             frm_metadata: payment_intent.frm_metadata,

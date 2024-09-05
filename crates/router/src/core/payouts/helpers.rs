@@ -31,7 +31,8 @@ use crate::{
             vault,
         },
         payments::{
-            customers::get_connector_customer_details_if_present, helpers as payment_helpers, routing, CustomerDetails,
+            customers::get_connector_customer_details_if_present, helpers as payment_helpers,
+            routing, CustomerDetails,
         },
         routing::TransactionData,
         utils as core_utils,

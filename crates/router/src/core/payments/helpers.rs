@@ -1380,68 +1380,6 @@ where
     Box::new(PaymentResponse)
 }
 
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn get_customer_from_details(
-    _state: &SessionState,
-    _customer_id: Option<id_type::CustomerId>,
-    _merchant_id: &id_type::MerchantId,
-    // _payment_data: &mut PaymentData<F>,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    todo!()
-}
-
-// TODO(jarnura): Remove the commented lines
-// pub async fn get_customer_from_details<F: Clone>(
-#[cfg(all(feature = "v2", feature = "customer_v2"))]
-pub async fn get_customer_details_even_for_redacted_customer(
-    _state: &SessionState,
-    _customer_id: Option<id_type::CustomerId>,
-    _merchant_id: &id_type::MerchantId,
-    _merchant_key_store: &domain::MerchantKeyStore,
-    _storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    todo!()
-}
-
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-pub async fn get_customer_from_details(
-    state: &SessionState,
-    customer_id: Option<id_type::CustomerId>,
-    merchant_id: &id_type::MerchantId,
-    // payment_data: &mut PaymentData<F>,
-    merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    match customer_id {
-        None => Ok(None),
-        Some(customer_id) => {
-            let db = &*state.store;
-            // TODO(jarnura) verify this is a dupilcate call?
-            let customer = db
-                .find_customer_optional_by_customer_id_merchant_id(
-                    &state.into(),
-                    &customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-            // // TODO(jarnura) this needs to be moved outside of this function
-            // payment_data.email = payment_data.email.clone().or_else(|| {
-            //     customer.as_ref().and_then(|inner| {
-            //         inner
-            //             .email
-            //             .clone()
-            //             .map(|encrypted_value| encrypted_value.into())
-            //     })
-            // });
-            Ok(customer)
-        }
-    }
-}
-
 pub fn validate_max_amount(
     amount: api_models::payments::Amount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1744,45 +1682,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             None => None,
         },
     ))
-}
-
-// This function is to retrieve customer details. If the customer is deleted, it returns
-// customer details that contains the fields as Redacted
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-pub async fn get_customer_details_even_for_redacted_customer(
-    state: &SessionState,
-    customer_id: Option<id_type::CustomerId>,
-    merchant_id: &id_type::MerchantId,
-    // payment_data: &mut PaymentData<F>,
-    merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
-    match customer_id {
-        None => Ok(None),
-        Some(customer_id) => {
-            let db = &*state.store;
-            let customer_details = db
-                .find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
-                    &state.into(),
-                    &customer_id,
-                    merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-
-            // TODO(jarnura): Move this ouside of this function
-            // payment_data.email = payment_data.email.clone().or_else(|| {
-            //     customer_details.as_ref().and_then(|inner| {
-            //         inner
-            //             .email
-            //             .clone()
-            //             .map(|encrypted_value| encrypted_value.into())
-            //     })
-            // });
-            Ok(customer_details)
-        }
-    }
 }
 
 pub async fn retrieve_payment_method_with_temporary_token(
@@ -5239,9 +5138,8 @@ where
             {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
                     logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data.set_setup_future_usage_in_payment_intent(
-                        enums::FutureUsage::OnSession,
-                    );
+                    payment_data
+                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
                 }
             }
         };

@@ -172,35 +172,29 @@ pub fn make_dsl_input(
 //     D: payments_oss::PaymentDataGetters<F>,
 {
     let mandate_data = dsl_inputs::MandateData {
-        mandate_acceptance_type: input
-            .setup_mandate
-            .as_ref()
-            .and_then(|mandate_data| {
-                mandate_data
-                    .customer_acceptance
-                    .clone()
-                    .map(|cat| match cat.acceptance_type {
-                        hyperswitch_domain_models::mandates::AcceptanceType::Online => {
-                            euclid_enums::MandateAcceptanceType::Online
-                        }
-                        hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
-                            euclid_enums::MandateAcceptanceType::Offline
-                        }
-                    })
-            }),
-        mandate_type: input
-            .setup_mandate
-            .as_ref()
-            .and_then(|mandate_data| {
-                mandate_data.mandate_type.clone().map(|mt| match mt {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
-                        euclid_enums::MandateType::SingleUse
+        mandate_acceptance_type: input.setup_mandate.as_ref().and_then(|mandate_data| {
+            mandate_data
+                .customer_acceptance
+                .clone()
+                .map(|cat| match cat.acceptance_type {
+                    hyperswitch_domain_models::mandates::AcceptanceType::Online => {
+                        euclid_enums::MandateAcceptanceType::Online
                     }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
-                        euclid_enums::MandateType::MultiUse
+                    hyperswitch_domain_models::mandates::AcceptanceType::Offline => {
+                        euclid_enums::MandateAcceptanceType::Offline
                     }
                 })
-            }),
+        }),
+        mandate_type: input.setup_mandate.as_ref().and_then(|mandate_data| {
+            mandate_data.mandate_type.clone().map(|mt| match mt {
+                hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                    euclid_enums::MandateType::SingleUse
+                }
+                hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                    euclid_enums::MandateType::MultiUse
+                }
+            })
+        }),
         payment_type: Some(
             if input.recurring_details.as_ref().is_some_and(|data| {
                 matches!(

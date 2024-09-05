@@ -44,7 +44,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest, 
         _auth_flow: services::AuthFlow,
         _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-    operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,> {
+        operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 

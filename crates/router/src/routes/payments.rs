@@ -1420,27 +1420,29 @@ where
     match req.payment_type.unwrap_or_default() {
         api_models::enums::PaymentType::Normal
         | api_models::enums::PaymentType::RecurringMandate
-        | api_models::enums::PaymentType::NewMandate => payments::payments_core::<
-            api_types::Authorize,
-            payment_types::PaymentsResponse,
-            _,
-            _,
-            _,
-            payments::PaymentData<api_types::Authorize>,
-        >(
-            state,
-            req_state,
-            merchant_account,
-            profile_id,
-            key_store,
-            operation,
-            req,
-            auth_flow,
-            payments::CallConnectorAction::Trigger,
-            eligible_connectors,
-            header_payload,
-        )
-        .await,
+        | api_models::enums::PaymentType::NewMandate => {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::Authorize>,
+            >(
+                state,
+                req_state,
+                merchant_account,
+                profile_id,
+                key_store,
+                operation,
+                req,
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+                eligible_connectors,
+                header_payload,
+            )
+            .await
+        }
         api_models::enums::PaymentType::SetupMandate => {
             payments::payments_core::<
                 api_types::SetupMandate,

@@ -245,21 +245,16 @@ where
                             let connector = payment_data.get_payment_attempt().connector.clone();
                             let filtered_frm_config = frm_configs_struct
                                 .iter()
-                                .filter(|frm_config| {
-                                    match (
-                                        &connector,
-                                        &frm_config.gateway,
-                                    ) {
-                                        (Some(current_connector), Some(configured_connector)) => {
-                                            let is_enabled = *current_connector
-                                                == configured_connector.to_string();
-                                            if is_enabled {
-                                                is_frm_connector_enabled = true;
-                                            }
-                                            is_enabled
+                                .filter(|frm_config| match (&connector, &frm_config.gateway) {
+                                    (Some(current_connector), Some(configured_connector)) => {
+                                        let is_enabled =
+                                            *current_connector == configured_connector.to_string();
+                                        if is_enabled {
+                                            is_frm_connector_enabled = true;
                                         }
-                                        (None, _) | (_, None) => true,
+                                        is_enabled
                                     }
+                                    (None, _) | (_, None) => true,
                                 })
                                 .collect::<Vec<_>>();
                             let filtered_payment_methods = filtered_frm_config
