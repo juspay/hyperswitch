@@ -26,7 +26,8 @@ pub struct EventListConstraints {
     pub object_id: Option<String>,
 
     /// Filter all events associated with the specified business profile ID.
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[derive(Debug)]
@@ -54,8 +55,8 @@ pub struct EventListItemResponse {
     pub merchant_id: common_utils::id_type::MerchantId,
 
     /// The identifier for the Business Profile.
-    #[schema(max_length = 64, example = "SqB0zwDGR5wHppWf0bx7GKr1f2")]
-    pub profile_id: String,
+    #[schema(max_length = 64, value_type = String, example = "SqB0zwDGR5wHppWf0bx7GKr1f2")]
+    pub profile_id: common_utils::id_type::ProfileId,
 
     /// The identifier for the object (Payment Intent ID, Refund ID, etc.)
     #[schema(max_length = 64, example = "QHrfd5LUDdZaKtAjdJmMu0dMa1")]

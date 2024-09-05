@@ -178,9 +178,9 @@ pub async fn create_new_authentication(
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
-    profile_id: String,
-    payment_id: Option<String>,
-    merchant_connector_id: String,
+    profile_id: common_utils::id_type::ProfileId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -284,15 +284,15 @@ pub async fn get_authentication_connector_data(
         .first()
         .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
             message: format!(
-                "No authentication_connector found for profile_id {}",
-                business_profile.profile_id
+                "No authentication_connector found for profile_id {:?}",
+                business_profile.get_id()
             ),
         })
         .attach_printable(
             "No authentication_connector found from merchant_account.authentication_details",
         )?
         .to_owned();
-    let profile_id = &business_profile.profile_id;
+    let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,
         &business_profile.merchant_id,

@@ -83,10 +83,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         helpers::validate_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -94,10 +91,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )?;
 
         // If profile id is not passed, get it from the business_country and business_label
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let profile_id = core_utils::get_profile_id_from_business_details(
             key_manager_state,
             merchant_key_store,
@@ -111,7 +105,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .await?;
 
         // Profile id will be mandatory in v2 in the request / headers
-        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        #[cfg(feature = "v2")]
         let profile_id = request
             .profile_id
             .clone()
@@ -140,7 +134,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(
                 errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id.to_string(),
+                    id: profile_id.get_string_repr().to_owned(),
                 },
             )?
         };
@@ -170,7 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
-            mandate_type.clone(),
+            mandate_type,
             merchant_account,
             merchant_key_store,
             None,
@@ -234,9 +228,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &state.conf,
             merchant_id,
         ) {
-            payment_id.to_string()
+            payment_id.get_string_repr().to_string()
         } else {
-            utils::get_payment_attempt_id(payment_id.clone(), 1)
+            payment_id.get_attempt_id(1)
         };
 
         let session_expiry =
@@ -308,6 +302,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             merchant_id,
+            &merchant_account.organization_id,
             money,
             payment_method,
             payment_method_type,
@@ -839,7 +834,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request.get_customer_id(),
+                request.customer_id.as_ref(),
             )?;
         }
 
@@ -872,8 +867,9 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     pub async fn make_payment_attempt(
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
+        organization_id: &common_utils::id_type::OrganizationId,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
         payment_method_type: Option<enums::PaymentMethodType>,
@@ -883,7 +879,7 @@ impl PaymentCreate {
         payment_method_billing_address_id: Option<String>,
         payment_method_info: &Option<PaymentMethod>,
         key_store: &domain::MerchantKeyStore,
-        profile_id: String,
+        profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
         storage::PaymentAttemptNew,
@@ -966,9 +962,9 @@ impl PaymentCreate {
             &state.conf,
             merchant_id,
         ) {
-            payment_id.to_string()
+            payment_id.get_string_repr().to_owned()
         } else {
-            utils::get_payment_attempt_id(payment_id, 1)
+            payment_id.get_attempt_id(1)
         };
         let surcharge_amount = request
             .surcharge_details
@@ -998,7 +994,7 @@ impl PaymentCreate {
 
         Ok((
             storage::PaymentAttemptNew {
-                payment_id: payment_id.to_string(),
+                payment_id: payment_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
                 attempt_id,
                 status,
@@ -1065,6 +1061,8 @@ impl PaymentCreate {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize customer_acceptance")?
                     .map(Secret::new),
+                organization_id: organization_id.clone(),
+                profile_id,
             },
             additional_pm_data,
         ))
@@ -1074,7 +1072,7 @@ impl PaymentCreate {
     #[allow(clippy::too_many_arguments)]
     async fn make_payment_intent(
         state: &SessionState,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         money: (api::Amount, enums::Currency),
@@ -1083,7 +1081,7 @@ impl PaymentCreate {
         payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
-        profile_id: String,
+        profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
@@ -1097,8 +1095,7 @@ impl PaymentCreate {
                 }),
             request.confirm,
         );
-        let client_secret =
-            utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
+        let client_secret = payment_id.generate_client_secret();
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request
@@ -1164,7 +1161,7 @@ impl PaymentCreate {
             .attach_printable("Unable to encrypt shipping details")?;
 
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details = if request.get_customer_id().is_none()
+        let raw_customer_details = if request.customer_id.is_none()
             && (request.name.is_some()
                 || request.email.is_some()
                 || request.phone.is_some()
@@ -1195,7 +1192,7 @@ impl PaymentCreate {
             .attach_printable("Unable to encrypt customer details")?;
 
         Ok(storage::PaymentIntent {
-            payment_id: payment_id.to_string(),
+            payment_id: payment_id.to_owned(),
             merchant_id: merchant_account.get_id().to_owned(),
             status,
             amount: MinorUnit::from(amount),
@@ -1246,6 +1243,7 @@ impl PaymentCreate {
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
             shipping_details,
             is_payment_processor_token_flow,
+            organization_id: merchant_account.organization_id.clone(),
         })
     }
 
@@ -1289,11 +1287,11 @@ async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,
     merchant_id: &common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     db: &dyn StorageInterface,
     amount: api::Amount,
     description: Option<String>,
-    profile_id: String,
+    profile_id: common_utils::id_type::ProfileId,
     domain_name: String,
     session_expiry: PrimitiveDateTime,
     locale: Option<String>,
@@ -1305,7 +1303,7 @@ async fn create_payment_link(
         "{}/payment_link/{}/{}?locale={}",
         domain_name,
         merchant_id.get_string_repr(),
-        payment_id.clone(),
+        payment_id.get_string_repr(),
         locale_str.clone(),
     );
 
@@ -1314,7 +1312,7 @@ async fn create_payment_link(
             "{}/payment_link/s/{}/{}?locale={}",
             domain_name,
             merchant_id.get_string_repr(),
-            payment_id.clone(),
+            payment_id.get_string_repr(),
             locale_str,
         )
     });

@@ -10,7 +10,8 @@ pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
     /// The identifier for payment_intent
-    pub payment_id: String,
+    #[schema(value_type = String)]
+    pub payment_id: common_utils::id_type::PaymentId,
     /// The identifier for payment_attempt
     pub attempt_id: String,
     /// The dispute amount
@@ -44,9 +45,11 @@ pub struct DisputeResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     /// The `profile_id` associated with the dispute
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
-    pub merchant_connector_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
@@ -109,7 +112,8 @@ pub struct DisputeListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,
     /// The identifier for business profile
-    pub profile_id: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// status of the dispute
     pub dispute_status: Option<DisputeStatus>,
     /// stage of the dispute

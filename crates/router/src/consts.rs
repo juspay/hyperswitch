@@ -32,6 +32,8 @@ pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 /// The length of a merchant fingerprint secret
 pub const FINGERPRINT_SECRET_LENGTH: usize = 64;
 
+pub const DEFAULT_LIST_API_LIMIT: u16 = 10;
+
 // String literals
 pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const LOW_BALANCE_ERROR_MESSAGE: &str = "Insufficient balance in the payment method";
@@ -130,3 +132,7 @@ pub const CONNECTOR_CREDS_TOKEN_TTL: i64 = 900;
 
 //max_amount allowed is 999999999 in minor units
 pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
+
+//payment attempt default unified error code and unified error message
+pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_000";
+pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";

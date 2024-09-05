@@ -94,7 +94,7 @@ pub struct StripeDisputeResponse {
     pub id: String,
     pub amount: String,
     pub currency: String,
-    pub payment_intent: String,
+    pub payment_intent: common_utils::id_type::PaymentId,
     pub reason: Option<String>,
     pub status: StripeDisputeStatus,
 }

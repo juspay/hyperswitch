@@ -5,18 +5,26 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 #[cfg(feature = "olap")]
 use common_utils::errors::ReportSwitchExt;
 use common_utils::ext_traits::Encode;
-#[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 #[cfg(all(
     feature = "olap",
     any(feature = "v1", feature = "v2"),
     not(feature = "customer_v2")
 ))]
-use diesel::{JoinOnDsl, NullableExpressionMethods};
+use diesel::JoinOnDsl;
+#[cfg(feature = "olap")]
+use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethods, QueryDsl};
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
 #[cfg(feature = "olap")]
 use diesel_models::{
-    customers::Customer as DieselCustomer, enums as storage_enums, query::generics::db_metrics,
-    schema::payouts::dsl as po_dsl,
+    customers::Customer as DieselCustomer,
+    enums as storage_enums,
+    query::generics::db_metrics,
+    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -25,15 +33,6 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
-};
-#[cfg(all(
-    feature = "olap",
-    any(feature = "v1", feature = "v2"),
-    not(feature = "customer_v2")
-))]
-use diesel_models::{
-    payout_attempt::PayoutAttempt as DieselPayoutAttempt,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
@@ -92,7 +91,6 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 };
                 let key_str = key.to_string();
                 let field = format!("po_{}", new.payout_id);
-                let now = common_utils::date_time::now();
                 let created_payout = Payouts {
                     payout_id: new.payout_id.clone(),
                     merchant_id: new.merchant_id.clone(),
@@ -109,8 +107,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     return_url: new.return_url.clone(),
                     entity_type: new.entity_type,
                     metadata: new.metadata.clone(),
-                    created_at: new.created_at.unwrap_or(now),
-                    last_modified_at: new.last_modified_at.unwrap_or(now),
+                    created_at: new.created_at,
+                    last_modified_at: new.last_modified_at,
                     profile_id: new.profile_id.clone(),
                     status: new.status,
                     attempt_count: new.attempt_count,
@@ -586,6 +584,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 diesel_models::schema::customers::table
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
+            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
             .into_boxed();
@@ -700,8 +699,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             })
     }
 
-    #[cfg(feature = "olap")]
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
@@ -765,7 +763,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         })
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        feature = "olap",
+        not(feature = "customer_v2")
+    ))]
     #[instrument(skip_all)]
     async fn filter_active_payout_ids_by_constraints(
         &self,
@@ -784,6 +786,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
             .select(po_dsl::payout_id)
+            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
             .into_boxed();
@@ -840,6 +843,16 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             )
             .into()
         })
+    }
+
+    #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn filter_active_payout_ids_by_constraints(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        constraints: &PayoutFetchConstraints,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        todo!()
     }
 }
 
@@ -924,10 +937,8 @@ impl DataModelExt for PayoutsNew {
             return_url: self.return_url,
             entity_type: self.entity_type,
             metadata: self.metadata,
-            created_at: self.created_at.unwrap_or_else(common_utils::date_time::now),
-            last_modified_at: self
-                .last_modified_at
-                .unwrap_or_else(common_utils::date_time::now),
+            created_at: self.created_at,
+            last_modified_at: self.last_modified_at,
             profile_id: self.profile_id,
             status: self.status,
             attempt_count: self.attempt_count,
@@ -955,8 +966,8 @@ impl DataModelExt for PayoutsNew {
             return_url: storage_model.return_url,
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
-            created_at: Some(storage_model.created_at),
-            last_modified_at: Some(storage_model.last_modified_at),
+            created_at: storage_model.created_at,
+            last_modified_at: storage_model.last_modified_at,
             profile_id: storage_model.profile_id,
             status: storage_model.status,
             attempt_count: storage_model.attempt_count,

@@ -27,7 +27,7 @@ pub async fn refund_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    tracing::Span::current().record("payment_id", payload.payment_intent.clone());
+    tracing::Span::current().record("payment_id", payload.payment_intent.get_string_repr());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 

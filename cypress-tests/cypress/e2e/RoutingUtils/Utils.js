@@ -1,7 +1,13 @@
+import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as autoretryConnectorDetails } from "./Autoretries.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
+import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 
 const connectorDetails = {
+  adyen: adyenConnectorDetails,
+  autoretries: autoretryConnectorDetails,
   common: commonConnectorDetails,
+  stripe: stripeConnectorDetails,
 };
 
 export const getConnectorDetails = (connectorId) => {

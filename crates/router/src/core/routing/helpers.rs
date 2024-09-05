@@ -9,7 +9,7 @@ use error_stack::ResultExt;
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
 use crate::{
     core::errors::{self, RouterResult},
@@ -116,10 +116,7 @@ pub async fn update_merchant_routing_dictionary(
 
 /// This will help make one of all configured algorithms to be in active state for a particular
 /// merchant
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn update_merchant_active_algorithm_ref(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -173,7 +170,7 @@ pub async fn update_merchant_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn update_merchant_active_algorithm_ref(
     _state: &SessionState,
     _key_store: &domain::MerchantKeyStore,
@@ -184,10 +181,7 @@ pub async fn update_merchant_active_algorithm_ref(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn update_business_profile_active_algorithm_ref(
     db: &dyn StorageInterface,
     key_manager_state: &KeyManagerState,
@@ -203,12 +197,13 @@ pub async fn update_business_profile_active_algorithm_ref(
 
     let merchant_id = current_business_profile.merchant_id.clone();
 
-    let profile_id = current_business_profile.profile_id.clone();
+    let profile_id = current_business_profile.get_id().to_owned();
 
     let routing_cache_key = cache::CacheKind::Routing(
         format!(
-            "routing_config_{}_{profile_id}",
-            merchant_id.get_string_repr()
+            "routing_config_{}_{}",
+            merchant_id.get_string_repr(),
+            profile_id.get_string_repr(),
         )
         .into(),
     );
@@ -241,7 +236,7 @@ pub async fn update_business_profile_active_algorithm_ref(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct RoutingAlgorithmHelpers<'h> {
     pub name_mca_id_set: ConnectNameAndMCAIdForProfile<'h>,
@@ -250,15 +245,20 @@ pub struct RoutingAlgorithmHelpers<'h> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConnectNameAndMCAIdForProfile<'a>(pub FxHashSet<(&'a String, String)>);
+pub struct ConnectNameAndMCAIdForProfile<'a>(
+    pub  FxHashSet<(
+        &'a String,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+);
 #[derive(Clone, Debug)]
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccounts {
     pub async fn get_all_mcas(
         merchant_id: &common_utils::id_type::MerchantId,
@@ -300,17 +300,17 @@ impl MerchantConnectorAccounts {
 
     pub fn filter_by_profile<'a, T>(
         &'a self,
-        profile_id: &'a str,
+        profile_id: &'a common_utils::id_type::ProfileId,
         func: impl Fn(&'a MerchantConnectorAccount) -> T,
     ) -> FxHashSet<T>
     where
         T: std::hash::Hash + Eq,
     {
-        self.filter_and_map(|mca| mca.profile_id.as_deref() == Some(profile_id), func)
+        self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
     }
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 impl<'h> RoutingAlgorithmHelpers<'h> {
     fn connector_choice(
         &self,
@@ -321,7 +321,7 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
                     self.name_mca_id_set.0.contains(&(&choice.connector.to_string(), mca_id.clone())),
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!(
-                            "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                            "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
                             choice.connector,
                             mca_id,
                         )
@@ -391,12 +391,12 @@ impl<'h> RoutingAlgorithmHelpers<'h> {
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &common_utils::id_type::MerchantId,
-    profile_id: &str,
+    profile_id: &common_utils::id_type::ProfileId,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
     let all_mcas = &*state
@@ -413,13 +413,13 @@ pub async fn validate_connectors_in_routing_config(
         })?;
     let name_mca_id_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id == profile_id)
+        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id == profile_id)
+        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
@@ -429,7 +429,7 @@ pub async fn validate_connectors_in_routing_config(
                 name_mca_id_set.contains(&(&choice.connector.to_string(), mca_id.clone())),
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: format!(
-                        "connector with name '{}' and merchant connector account id '{}' not found for the given profile",
+                        "connector with name '{}' and merchant connector account id '{:?}' not found for the given profile",
                         choice.connector,
                         mca_id,
                     )
