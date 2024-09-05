@@ -858,7 +858,7 @@ Cypress.Commands.add("userLogin", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `User login call failed with status ${response.status} and message ${response.body.message}`
+        `User login call failed to get totp token with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -891,7 +891,7 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `User login call failed with status ${response.status} and message ${response.body.message}`
+        `2FA terminate call failed with status ${response.status} and message ${response.body.message}`
       );
     }
   });
@@ -926,7 +926,7 @@ Cypress.Commands.add("userInfo", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `User login call failed with status ${response.status} and message ${response.body.message}`
+        `User login call failed to fetch user info with status ${response.status} and message ${response.body.message}`
       );
     }
   });
