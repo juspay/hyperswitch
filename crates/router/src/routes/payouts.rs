@@ -320,10 +320,10 @@ pub async fn payouts_list_by_filter_profile(
     .await
 }
 
-/// Payouts - Available filters
+/// Payouts - Available filters for Merchant
 #[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
-pub async fn payouts_list_available_filters(
+pub async fn payouts_list_available_filters_for_merchant(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<payment_types::TimeRange>,
@@ -337,7 +337,41 @@ pub async fn payouts_list_available_filters(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_list_available_filters_core(state, auth.merchant_account, req)
+            payouts_list_available_filters_core(state, auth.merchant_account, None, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::PayoutRead),
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Available filters for Profile
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn payouts_list_available_filters_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsFilter;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payouts_list_available_filters_core(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
