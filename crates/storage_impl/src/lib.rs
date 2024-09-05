@@ -30,6 +30,7 @@ use database::store::PgPool;
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
 use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
+use router_env::logger;
 
 pub use crate::database::store::DatabaseStore;
 #[cfg(not(feature = "payouts"))]
@@ -262,9 +263,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             )
             .await
             .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]))
-            .map_err(|err| {
+            .inspect_err(|error| {
                 metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]);
-                err
+                logger::error!(?error, "Failed to add entry in drainer stream");
             })
             .change_context(RedisError::StreamAppendFailed)
     }
@@ -333,7 +334,7 @@ impl UniqueConstraints for diesel_models::PaymentIntent {
         vec![format!(
             "pi_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id
+            self.payment_id.get_string_repr()
         )]
     }
     fn table_name(&self) -> &str {
@@ -346,7 +347,7 @@ impl UniqueConstraints for diesel_models::PaymentAttempt {
         vec![format!(
             "pa_{}_{}_{}",
             self.merchant_id.get_string_repr(),
-            self.payment_id,
+            self.payment_id.get_string_repr(),
             self.attempt_id
         )]
     }
@@ -405,9 +406,23 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("paymentmethod_{}", self.payment_method_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentMethod"
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl UniqueConstraints for diesel_models::PaymentMethod {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("paymentmethod_{}", self.id)]
     }
     fn table_name(&self) -> &str {
         "PaymentMethod"
@@ -427,6 +442,7 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl UniqueConstraints for diesel_models::Customer {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!(
@@ -434,6 +450,16 @@ impl UniqueConstraints for diesel_models::Customer {
             self.customer_id.get_string_repr(),
             self.merchant_id.get_string_repr(),
         )]
+    }
+    fn table_name(&self) -> &str {
+        "Customer"
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl UniqueConstraints for diesel_models::Customer {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("customer_{}", self.id.clone())]
     }
     fn table_name(&self) -> &str {
         "Customer"

@@ -20,6 +20,7 @@ pub async fn generate_sample_data(
     state: &SessionState,
     req: SampleDataRequest,
     merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
 ) -> SampleDataResult<Vec<(PaymentIntent, PaymentAttemptBatchNew, Option<RefundNew>)>> {
     let sample_data_size: usize = req.record.unwrap_or(100);
     let key_manager_state = &state.into();
@@ -43,25 +44,43 @@ pub async fn generate_sample_data(
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
-        serde_json::from_value(merchant_from_db.primary_business_details.clone())
-            .change_context(SampleDataError::InternalServerError)
-            .attach_printable("Error while parsing primary business details")?;
+    #[cfg(feature = "v1")]
+    let (profile_id_result, business_country_default, business_label_default) = {
+        let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
+            serde_json::from_value(merchant_from_db.primary_business_details.clone())
+                .change_context(SampleDataError::InternalServerError)
+                .attach_printable("Error while parsing primary business details")?;
 
-    let business_country_default = merchant_parsed_details.first().map(|x| x.country);
+        let business_country_default = merchant_parsed_details.first().map(|x| x.country);
 
-    let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
+        let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
-    let profile_id = match crate::core::utils::get_profile_id_from_business_details(
-        business_country_default,
-        business_label_default.as_ref(),
-        &merchant_from_db,
-        req.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    {
+        let profile_id = crate::core::utils::get_profile_id_from_business_details(
+            key_manager_state,
+            &key_store,
+            business_country_default,
+            business_label_default.as_ref(),
+            &merchant_from_db,
+            req.profile_id.as_ref(),
+            &*state.store,
+            false,
+        )
+        .await;
+        (profile_id, business_country_default, business_label_default)
+    };
+
+    #[cfg(feature = "v2")]
+    let (profile_id_result, business_country_default, business_label_default) = {
+        let profile_id = req
+            .profile_id.clone()
+            .ok_or(hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse::MissingRequiredField {
+                field_name: "profile_id",
+            });
+
+        (profile_id, None, None)
+    };
+
+    let profile_id = match profile_id_result {
         Ok(id) => id.clone(),
         Err(error) => {
             router_env::logger::error!(
@@ -70,14 +89,14 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_business_profile_by_merchant_id(merchant_id)
+                .list_business_profile_by_merchant_id(key_manager_state, &key_store, merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
                 .first()
                 .ok_or(SampleDataError::InternalServerError)?
-                .profile_id
-                .clone()
+                .get_id()
+                .to_owned()
         }
     };
 
@@ -150,12 +169,9 @@ pub async fn generate_sample_data(
             .change_context(SampleDataError::InternalServerError)?;
 
     for num in 1..=sample_data_size {
-        let payment_id = common_utils::generate_id_with_default_len("test");
-        let attempt_id = crate::utils::get_payment_attempt_id(&payment_id, 1);
-        let client_secret = common_utils::generate_id(
-            consts::ID_LENGTH,
-            format!("{}_secret", payment_id.clone()).as_str(),
-        );
+        let payment_id = id_type::PaymentId::generate_test_payment_id_for_sample_data();
+        let attempt_id = payment_id.get_attempt_id(1);
+        let client_secret = payment_id.generate_client_secret();
         let amount = thread_rng().gen_range(min_amount..=max_amount);
 
         let created_at @ modified_at @ last_synced =
@@ -230,6 +246,8 @@ pub async fn generate_sample_data(
             billing_details: None,
             merchant_order_reference_id: Default::default(),
             shipping_details: None,
+            is_payment_processor_token_flow: None,
+            organization_id: org_id.clone(),
         };
         let payment_attempt = PaymentAttemptBatchNew {
             attempt_id: attempt_id.clone(),
@@ -307,6 +325,8 @@ pub async fn generate_sample_data(
             client_source: None,
             client_version: None,
             customer_acceptance: None,
+            profile_id: profile_id.clone(),
+            organization_id: org_id.clone(),
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -342,6 +362,7 @@ pub async fn generate_sample_data(
                 updated_by: merchant_from_db.storage_scheme.to_string(),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 charges: None,
+                organization_id: org_id.clone(),
             })
         } else {
             None

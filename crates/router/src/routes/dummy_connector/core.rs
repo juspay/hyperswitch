@@ -32,7 +32,7 @@ pub async fn payment(
     .await?;
     utils::store_data_in_redis(
         &state,
-        payment_data.payment_id.clone(),
+        payment_data.payment_id.get_string_repr().to_owned(),
         payment_data.clone(),
         state.conf.dummy_connector.payment_ttl,
     )
@@ -116,7 +116,7 @@ pub async fn payment_complete(
         };
         utils::store_data_in_redis(
             &state,
-            updated_payment_data.payment_id.clone(),
+            updated_payment_data.payment_id.get_string_repr().to_owned(),
             updated_payment_data.clone(),
             state.conf.dummy_connector.payment_ttl,
         )
@@ -162,7 +162,8 @@ pub async fn refund_payment(
         })?;
 
     let mut payment_data =
-        utils::get_payment_data_from_payment_id(&state, payment_id.clone()).await?;
+        utils::get_payment_data_from_payment_id(&state, payment_id.get_string_repr().to_owned())
+            .await?;
 
     payment_data.is_eligible_for_refund(req.amount)?;
 
@@ -171,7 +172,7 @@ pub async fn refund_payment(
 
     utils::store_data_in_redis(
         &state,
-        payment_id,
+        payment_id.get_string_repr().to_owned(),
         payment_data.to_owned(),
         state.conf.dummy_connector.payment_ttl,
     )

@@ -147,6 +147,22 @@ where
     F: Clone + Send,
     D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
 {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn post_payment_frm<'a>(
+        &'a self,
+        _state: &'a SessionState,
+        _req_state: ReqState,
+        _payment_data: &mut payments::PaymentData<F>,
+        _frm_data: &mut FrmData,
+        _merchant_account: &domain::MerchantAccount,
+        _customer: &Option<domain::Customer>,
+        _key_store: domain::MerchantKeyStore,
+    ) -> RouterResult<Option<FrmRouterData>> {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
@@ -171,7 +187,7 @@ where
         Ok(Some(FrmRouterData {
             merchant_id: router_data.merchant_id,
             connector: router_data.connector,
-            payment_id: router_data.payment_id,
+            payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
             request: FrmRequest::Transaction(FraudCheckTransactionData {
                 amount: router_data.request.amount,
@@ -209,7 +225,7 @@ where
         Ok(FrmRouterData {
             merchant_id: router_data.merchant_id,
             connector: router_data.connector,
-            payment_id: router_data.payment_id,
+            payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
             request: FrmRequest::Checkout(FraudCheckCheckoutData {
                 amount: router_data.request.amount,

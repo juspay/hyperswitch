@@ -94,7 +94,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
-    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
+    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -669,6 +669,9 @@ pub struct ApiKeys {
 
     #[cfg(feature = "partial-auth")]
     pub checksum_auth_key: Secret<String>,
+
+    #[cfg(feature = "partial-auth")]
+    pub enable_partial_auth: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -684,7 +687,7 @@ pub struct WebhookSourceVerificationCall {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct ApplePayDecryptConifg {
+pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
     pub apple_pay_ppc_key: Secret<String>,
     pub apple_pay_merchant_cert: Secret<String>,
@@ -760,10 +763,14 @@ impl Settings<SecuredSecret> {
         self.master_database.get_inner().validate()?;
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
+
+        // The logger may not yet be initialized when validating the application configuration
+        #[allow(clippy::print_stderr)]
         self.redis.validate().map_err(|error| {
-            println!("{error}");
+            eprintln!("{error}");
             ApplicationError::InvalidConfigurationValueError("Redis configuration".into())
         })?;
+
         if self.log.file.enabled {
             if self.log.file.file_name.is_default_or_empty() {
                 return Err(error_stack::Report::from(

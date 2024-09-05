@@ -8,7 +8,7 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -64,7 +64,7 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {

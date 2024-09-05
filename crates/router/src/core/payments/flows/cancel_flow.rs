@@ -9,7 +9,7 @@ use crate::{
     },
     routes::{metrics, SessionState},
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -64,7 +64,7 @@ impl Feature<api::Void, types::PaymentsCancelData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
         _header_payload: api_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(

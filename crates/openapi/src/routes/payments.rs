@@ -459,6 +459,33 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_list() {}
 
+/// Business Profile level Payments - List
+///
+/// To list the payments
+#[utoipa::path(
+  get,
+  path = "/payments/list",
+  params(
+      ("customer_id" = String, Query, description = "The identifier for the customer"),
+      ("starting_after" = String, Query, description = "A cursor for use in pagination, fetch the next list after some object"),
+      ("ending_before" = String, Query, description = "A cursor for use in pagination, fetch the previous list before some object"),
+      ("limit" = i64, Query, description = "Limit on the number of objects to return"),
+      ("created" = PrimitiveDateTime, Query, description = "The time at which payment is created"),
+      ("created_lt" = PrimitiveDateTime, Query, description = "Time less than the payment created time"),
+      ("created_gt" = PrimitiveDateTime, Query, description = "Time greater than the payment created time"),
+      ("created_lte" = PrimitiveDateTime, Query, description = "Time less than or equals to the payment created time"),
+      ("created_gte" = PrimitiveDateTime, Query, description = "Time greater than or equals to the payment created time")
+  ),
+  responses(
+      (status = 200, description = "Received payment list"),
+      (status = 404, description = "No payments found")
+  ),
+  tag = "Payments",
+  operation_id = "List all Payments for the Profile",
+  security(("api_key" = []))
+)]
+pub async fn profile_payments_list() {}
+
 /// Payments - Incremental Authorization
 ///
 /// Authorized amount for a payment can be incremented if it is in status: requires_capture

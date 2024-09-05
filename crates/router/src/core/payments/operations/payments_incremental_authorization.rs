@@ -48,16 +48,19 @@ impl<F: Send + Clone>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-        operations::GetTrackerResponse<
-            'a,
-            F,
-            PaymentsIncrementalAuthorizationRequest,
-            payments::PaymentData<F>,
-        >,
-    > {
+    operations::GetTrackerResponse<
+        'a,
+        F,
+        PaymentsIncrementalAuthorizationRequest,
+        payments::PaymentData<F>,
+    >,
+>
+    {
         let db = &*state.store;
+        let key_manager_state = &state.into();
+
         let merchant_id = merchant_account.get_id();
         let storage_scheme = merchant_account.storage_scheme;
         let payment_id = payment_id
@@ -97,7 +100,7 @@ impl<F: Send + Clone>
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
@@ -117,10 +120,10 @@ impl<F: Send + Clone>
 
         let business_profile = state
             .store
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let payment_data = payments::PaymentData {
@@ -338,10 +341,10 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payment
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))

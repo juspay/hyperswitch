@@ -4,6 +4,7 @@ use api_models::{enums, payments, webhooks};
 use cards::CardNumber;
 use common_utils::{errors::ParsingError, ext_traits::Encode, id_type, pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::router_request_types::SubmitEvidenceRequestData;
 use masking::{ExposeInterface, PeekInterface};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -26,7 +27,6 @@ use crate::{
         domain,
         storage::enums as storage_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
-        PaymentsAuthorizeData,
     },
     utils as crate_utils,
 };
@@ -708,7 +708,6 @@ pub struct OnlineBankingCzechRepublicData {
 pub enum OnlineBankingCzechRepublicBanks {
     KB,
     CS,
-    C,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for JCSVoucherData {
@@ -729,7 +728,6 @@ impl TryFrom<&common_enums::BankNames> for OnlineBankingCzechRepublicBanks {
         match bank_name {
             common_enums::BankNames::KomercniBanka => Ok(Self::KB),
             common_enums::BankNames::CeskaSporitelna => Ok(Self::CS),
-            common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::C),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
@@ -838,7 +836,7 @@ pub struct OnlineBankingThailandData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OpenBankingUKData {
-    issuer: OpenBankingUKIssuer,
+    issuer: Option<OpenBankingUKIssuer>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1556,7 +1554,8 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::PaymentMethodData::RealTimePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::NetworkToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -1696,7 +1695,9 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
 
 fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
     pm_type.as_ref().and_then(|pmt| match pmt {
-        storage_enums::PaymentMethodType::GoPay => Some(Channel::Web),
+        storage_enums::PaymentMethodType::GoPay | storage_enums::PaymentMethodType::Vipps => {
+            Some(Channel::Web)
+        }
         _ => None,
     })
 }
@@ -2383,10 +2384,8 @@ impl<'a>
             domain::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
                 AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
                     issuer: match issuer {
-                        Some(bank_name) => OpenBankingUKIssuer::try_from(bank_name)?,
-                        None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "issuer",
-                        })?,
+                        Some(bank_name) => Some(OpenBankingUKIssuer::try_from(bank_name)?),
+                        None => None,
                     },
                 })),
             ),
@@ -2558,7 +2557,8 @@ impl<'a>
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
+                    | domain::PaymentMethodData::CardToken(_)
+                    | domain::PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -2621,13 +2621,13 @@ impl<'a>
             get_recurring_processing_model(item.router_data)?;
         let browser_info = get_browser_info(item.router_data)?;
         let billing_address =
-            get_address_info(item.router_data.get_optional_billing()).transpose()?;
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let country_code = get_country_code(item.router_data.get_optional_billing());
         let additional_data = get_additional_data(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
         let card_holder_name = item.router_data.get_optional_billing_full_name();
         let payment_method = AdyenPaymentMethod::try_from((card_data, card_holder_name))?;
-        let shopper_email = item.router_data.request.email.clone();
+        let shopper_email = item.router_data.get_optional_billing_email();
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
 
         Ok(AdyenPaymentRequest {
@@ -2697,7 +2697,7 @@ impl<'a>
             additional_data,
             shopper_name: None,
             shopper_locale: None,
-            shopper_email: item.router_data.request.email.clone(),
+            shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number: None,
             billing_address: None,
@@ -2740,6 +2740,10 @@ impl<'a>
         let payment_method = AdyenPaymentMethod::try_from((voucher_data, item.router_data))?;
         let return_url = item.router_data.request.get_return_url()?;
         let social_security_number = get_social_security_number(voucher_data);
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
+        let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
+
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -2750,12 +2754,12 @@ impl<'a>
             shopper_interaction,
             recurring_processing_model,
             additional_data,
-            shopper_name: None,
+            shopper_name,
             shopper_locale: None,
-            shopper_email: item.router_data.request.email.clone(),
+            shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
             telephone_number: None,
-            billing_address: None,
+            billing_address,
             delivery_address: None,
             country_code: None,
             line_items: None,
@@ -2803,7 +2807,7 @@ impl<'a>
             additional_data: None,
             shopper_name: None,
             shopper_locale: None,
-            shopper_email: item.router_data.request.email.clone(),
+            shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number: None,
             telephone_number: None,
             billing_address: None,
@@ -2854,7 +2858,7 @@ impl<'a>
             additional_data: None,
             shopper_name: None,
             shopper_locale: None,
-            shopper_email: item.router_data.request.email.clone(),
+            shopper_email: item.router_data.get_optional_billing_email(),
             telephone_number: None,
             billing_address: None,
             delivery_address: None,
@@ -2902,6 +2906,8 @@ impl<'a>
         ))?;
         let (shopper_locale, country) = get_redirect_extra_details(item.router_data)?;
         let line_items = Some(get_line_items(item));
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
 
         Ok(AdyenPaymentRequest {
             amount,
@@ -2915,10 +2921,10 @@ impl<'a>
             additional_data,
             telephone_number: None,
             shopper_name: None,
-            shopper_email: item.router_data.request.email.clone(),
+            shopper_email: item.router_data.get_optional_billing_email(),
             shopper_locale,
             social_security_number: None,
-            billing_address: None,
+            billing_address,
             delivery_address: None,
             country_code: country,
             line_items,
@@ -2942,12 +2948,13 @@ fn get_redirect_extra_details(
             domain::BankRedirectData::Sofort {
                 preferred_language, ..
             } => {
-                let country = item.get_billing_country()?;
-                Ok((preferred_language.clone(), Some(country)))
+                let country = item.get_optional_billing_country();
+                Ok((preferred_language.clone(), country))
             }
-            domain::BankRedirectData::OpenBankingUk { .. } => {
-                let country = item.get_billing_country()?;
-                Ok((None, Some(country)))
+            domain::BankRedirectData::Trustly {}
+            | domain::BankRedirectData::OpenBankingUk { .. } => {
+                let country = item.get_optional_billing_country();
+                Ok((None, country))
             }
             _ => Ok((None, None)),
         },
@@ -2956,20 +2963,21 @@ fn get_redirect_extra_details(
 }
 
 fn get_shopper_email(
-    item: &PaymentsAuthorizeData,
+    item: &types::PaymentsAuthorizeRouterData,
     is_mandate_payment: bool,
 ) -> errors::CustomResult<Option<Email>, errors::ConnectorError> {
     if is_mandate_payment {
         let payment_method_type = item
+            .request
             .payment_method_type
             .as_ref()
             .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
         match payment_method_type {
-            storage_enums::PaymentMethodType::Paypal => Ok(Some(item.get_email()?)),
-            _ => Ok(item.email.clone()),
+            storage_enums::PaymentMethodType::Paypal => Ok(Some(item.get_billing_email()?)),
+            _ => Ok(item.get_optional_billing_email()),
         }
     } else {
-        Ok(item.email.clone())
+        Ok(item.get_optional_billing_email())
     }
 }
 
@@ -2997,8 +3005,9 @@ impl<'a>
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
-        let shopper_email =
-            get_shopper_email(&item.router_data.request, store_payment_method.is_some())?;
+        let shopper_email = get_shopper_email(item.router_data, store_payment_method.is_some())?;
+        let billing_address =
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3014,7 +3023,7 @@ impl<'a>
             shopper_email,
             shopper_locale: None,
             social_security_number: None,
-            billing_address: None,
+            billing_address,
             delivery_address: None,
             country_code: None,
             line_items: None,
@@ -3056,13 +3065,12 @@ impl<'a>
         let (recurring_processing_model, store_payment_method, _) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_return_url()?;
-        let shopper_name: Option<ShopperName> =
-            get_shopper_name(item.router_data.get_optional_billing());
-        let shopper_email = item.router_data.request.email.clone();
+        let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
+        let shopper_email = item.router_data.get_optional_billing_email();
         let billing_address =
-            get_address_info(item.router_data.get_optional_billing()).transpose()?;
+            get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
         let delivery_address =
-            get_address_info(item.router_data.get_optional_shipping()).transpose()?;
+            get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let line_items = Some(get_line_items(item));
         let telephone_number = get_telephone_number(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((
@@ -3125,7 +3133,7 @@ impl<'a>
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
         let return_url = item.router_data.request.get_return_url()?;
         let shopper_name = get_shopper_name(item.router_data.get_optional_billing());
-        let shopper_email = item.router_data.request.email.clone();
+        let shopper_email = item.router_data.get_optional_billing_email();
         let telephone_number = item
             .router_data
             .get_billing_phone()
@@ -4850,6 +4858,297 @@ impl From<AdyenStatus> for storage_enums::PayoutStatus {
             AdyenStatus::Pending => Self::Pending,
             AdyenStatus::PayoutSubmitReceived => Self::RequiresFulfillment,
             _ => Self::Ineligible,
+        }
+    }
+}
+
+fn get_merchant_account_code(
+    auth_type: &types::ConnectorAuthType,
+) -> errors::CustomResult<Secret<String>, errors::ConnectorError> {
+    let auth = AdyenAuthType::try_from(auth_type)
+        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+    Ok(auth.merchant_account.clone())
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenAcceptDisputeRequest {
+    dispute_psp_reference: String,
+    merchant_account_code: Secret<String>,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenDisputeResponse {
+    pub error_message: Option<String>,
+    pub success: bool,
+}
+
+impl TryFrom<&types::AcceptDisputeRouterData> for AdyenAcceptDisputeRequest {
+    type Error = Error;
+    fn try_from(item: &types::AcceptDisputeRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
+        Ok(Self {
+            dispute_psp_reference: item.clone().request.connector_dispute_id,
+            merchant_account_code,
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenDefendDisputeRequest {
+    dispute_psp_reference: String,
+    merchant_account_code: Secret<String>,
+    defense_reason_code: String,
+}
+
+impl TryFrom<&types::DefendDisputeRouterData> for AdyenDefendDisputeRequest {
+    type Error = Error;
+    fn try_from(item: &types::DefendDisputeRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
+        Ok(Self {
+            dispute_psp_reference: item.request.connector_dispute_id.clone(),
+            merchant_account_code,
+            defense_reason_code: "SupplyDefenseMaterial".into(),
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct Evidence {
+    defense_documents: Vec<DefenseDocuments>,
+    merchant_account_code: Secret<String>,
+    dispute_psp_reference: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+
+pub struct DefenseDocuments {
+    content: Secret<String>,
+    content_type: Option<String>,
+    defense_document_type_code: String,
+}
+
+impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
+        let merchant_account_code = get_merchant_account_code(&item.connector_auth_type)?;
+        let submit_evidence_request_data = item.request.clone();
+        Ok(Self {
+            defense_documents: get_defence_documents(submit_evidence_request_data).ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "Missing Defence Documents",
+                },
+            )?,
+            merchant_account_code,
+            dispute_psp_reference: item.request.connector_dispute_id.clone(),
+        })
+    }
+}
+
+fn get_defence_documents(item: SubmitEvidenceRequestData) -> Option<Vec<DefenseDocuments>> {
+    let mut defense_documents: Vec<DefenseDocuments> = Vec::new();
+    if let Some(shipping_documentation) = item.shipping_documentation {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(shipping_documentation).into(),
+            content_type: item.receipt_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(receipt) = item.receipt {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(receipt).into(),
+            content_type: item.shipping_documentation_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(invoice_showing_distinct_transactions) = item.invoice_showing_distinct_transactions
+    {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(invoice_showing_distinct_transactions).into(),
+            content_type: item.invoice_showing_distinct_transactions_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(customer_communication) = item.customer_communication {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(customer_communication).into(),
+            content_type: item.customer_communication_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(refund_policy) = item.refund_policy {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(refund_policy).into(),
+            content_type: item.refund_policy_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(recurring_transaction_agreement) = item.recurring_transaction_agreement {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(recurring_transaction_agreement).into(),
+            content_type: item.recurring_transaction_agreement_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(uncategorized_file) = item.uncategorized_file {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(uncategorized_file).into(),
+            content_type: item.uncategorized_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(cancellation_policy) = item.cancellation_policy {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(cancellation_policy).into(),
+            content_type: item.cancellation_policy_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(customer_signature) = item.customer_signature {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(customer_signature).into(),
+            content_type: item.customer_signature_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+    if let Some(service_documentation) = item.service_documentation {
+        defense_documents.push(DefenseDocuments {
+            content: get_content(service_documentation).into(),
+            content_type: item.service_documentation_file_type,
+            defense_document_type_code: "DefenseMaterial".into(),
+        })
+    }
+
+    if defense_documents.is_empty() {
+        None
+    } else {
+        Some(defense_documents)
+    }
+}
+
+fn get_content(item: Vec<u8>) -> String {
+    String::from_utf8_lossy(&item).to_string()
+}
+
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::AcceptDisputeRouterData {
+    type Error = errors::ConnectorError;
+
+    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
+        let (data, response) = item;
+
+        if response.success {
+            Ok(types::AcceptDisputeRouterData {
+                response: Ok(types::AcceptDisputeResponse {
+                    dispute_status: api_enums::DisputeStatus::DisputeAccepted,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::AcceptDisputeRouterData {
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: data.connector_http_status_code.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "http code",
+                        },
+                    )?,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
+        }
+    }
+}
+
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::SubmitEvidenceRouterData {
+    type Error = errors::ConnectorError;
+    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
+        let (data, response) = item;
+        if response.success {
+            Ok(types::SubmitEvidenceRouterData {
+                response: Ok(types::SubmitEvidenceResponse {
+                    dispute_status: api_enums::DisputeStatus::DisputeChallenged,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::SubmitEvidenceRouterData {
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: data.connector_http_status_code.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "http code",
+                        },
+                    )?,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
+        }
+    }
+}
+
+impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::DefendDisputeRouterData {
+    type Error = errors::ConnectorError;
+
+    fn foreign_try_from(item: (&Self, AdyenDisputeResponse)) -> Result<Self, Self::Error> {
+        let (data, response) = item;
+
+        if response.success {
+            Ok(types::DefendDisputeRouterData {
+                response: Ok(types::DefendDisputeResponse {
+                    dispute_status: api_enums::DisputeStatus::DisputeChallenged,
+                    connector_status: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            Ok(types::DefendDisputeRouterData {
+                response: Err(types::ErrorResponse {
+                    code: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.error_message,
+                    status_code: data.connector_http_status_code.ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "http code",
+                        },
+                    )?,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                }),
+                ..data.clone()
+            })
         }
     }
 }

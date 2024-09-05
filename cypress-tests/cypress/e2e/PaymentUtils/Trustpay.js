@@ -37,10 +37,6 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -255,7 +251,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -291,7 +287,7 @@ export const connectorDetails = {
         },
       },
     },
-    giropay: {
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -325,11 +321,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "1133001",
+          error_message:
+            "Giropay payments are not enabled in Project 4107608031",
         },
       },
     },
-    sofort: {
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -364,7 +363,7 @@ export const connectorDetails = {
         },
       },
     },
-    eps: {
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -400,7 +399,7 @@ export const connectorDetails = {
         },
       },
     },
-    blik: {
+    Blik: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",

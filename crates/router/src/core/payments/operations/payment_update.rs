@@ -22,7 +22,6 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -52,9 +51,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
-    {
+        _header_payload: &api::HeaderPayload,
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>> {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
 
         let payment_id = payment_id
@@ -64,10 +62,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
         let storage_scheme = merchant_account.storage_scheme;
 
         let db = &*state.store;
+        let key_manager_state = &state.into();
 
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(
-                &state.into(),
+                key_manager_state,
                 &payment_id,
                 merchant_id,
                 key_store,
@@ -97,13 +96,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
+        helpers::validate_payment_status_against_allowed_statuses(
             &payment_intent.status,
             &[
-                storage_enums::IntentStatus::Failed,
-                storage_enums::IntentStatus::Succeeded,
-                storage_enums::IntentStatus::PartiallyCaptured,
-                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresPaymentMethod,
+                storage_enums::IntentStatus::RequiresConfirmation,
             ],
             "update",
         )?;
@@ -118,7 +115,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
@@ -422,10 +419,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = db
-            .find_business_profile_by_profile_id(profile_id)
+            .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let surcharge_details = request.surcharge_details.map(|request_surcharge_details| {
@@ -455,7 +452,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
             payment_method_data: request
                 .payment_method_data
                 .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone()),
+                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_info,
             force_sync: None,
             refunds: vec![],
@@ -529,10 +526,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         helpers::make_pm_data(
@@ -585,6 +582,27 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentData<F>>
     for PaymentUpdate
 {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    #[instrument(skip_all)]
+    async fn update_trackers<'b>(
+        &'b self,
+        _state: &'b SessionState,
+        _req_state: ReqState,
+        mut _payment_data: PaymentData<F>,
+        _customer: Option<domain::Customer>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        _key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
+    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    where
+        F: 'b + Send,
+    {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -782,6 +800,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentDat
                     merchant_order_reference_id,
                     billing_details,
                     shipping_details,
+                    is_payment_processor_token_flow: None,
                 })),
                 key_store,
                 storage_scheme,
@@ -872,7 +891,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: merchant_account.get_id().to_owned(),
-                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
+                payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
                     request.retry_action,

@@ -70,14 +70,14 @@ pub enum DummyConnectorStatus {
 pub struct DummyConnectorPaymentAttempt {
     pub timestamp: PrimitiveDateTime,
     pub attempt_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub payment_request: DummyConnectorPaymentRequest,
 }
 
 impl From<DummyConnectorPaymentRequest> for DummyConnectorPaymentAttempt {
     fn from(payment_request: DummyConnectorPaymentRequest) -> Self {
         let timestamp = common_utils::date_time::now();
-        let payment_id = generate_id_with_default_len(consts::PAYMENT_ID_PREFIX);
+        let payment_id = common_utils::id_type::PaymentId::default();
         let attempt_id = generate_id_with_default_len(consts::ATTEMPT_ID_PREFIX);
         Self {
             timestamp,
@@ -248,7 +248,7 @@ impl GetPaymentMethodDetails for DummyConnectorPayLater {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct DummyConnectorPaymentData {
     pub attempt_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub status: DummyConnectorStatus,
     pub amount: i64,
     pub eligible_amount: i64,
@@ -286,7 +286,7 @@ pub enum DummyConnectorNextAction {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorPaymentResponse {
     pub status: DummyConnectorStatus,
-    pub id: String,
+    pub id: common_utils::id_type::PaymentId,
     pub amount: i64,
     pub currency: Currency,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -333,7 +333,7 @@ pub struct DummyConnectorPaymentCompleteBody {
 #[derive(Default, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct DummyConnectorRefundRequest {
     pub amount: i64,
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]

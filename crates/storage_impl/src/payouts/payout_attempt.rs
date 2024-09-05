@@ -60,7 +60,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     payout_attempt_id: &payout_attempt_id,
                 };
                 let key_str = key.to_string();
-                let now = common_utils::date_time::now();
                 let created_attempt = PayoutAttempt {
                     payout_attempt_id: new_payout_attempt.payout_attempt_id.clone(),
                     payout_id: new_payout_attempt.payout_id.clone(),
@@ -76,8 +75,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     error_code: new_payout_attempt.error_code.clone(),
                     business_country: new_payout_attempt.business_country,
                     business_label: new_payout_attempt.business_label.clone(),
-                    created_at: new_payout_attempt.created_at.unwrap_or(now),
-                    last_modified_at: new_payout_attempt.last_modified_at.unwrap_or(now),
+                    created_at: new_payout_attempt.created_at,
+                    last_modified_at: new_payout_attempt.last_modified_at,
                     profile_id: new_payout_attempt.profile_id.clone(),
                     merchant_connector_id: new_payout_attempt.merchant_connector_id.clone(),
                     routing_info: new_payout_attempt.routing_info.clone(),
@@ -619,16 +618,22 @@ impl DataModelExt for PayoutAttemptUpdate {
             Self::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             } => DieselPayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             },
             Self::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             } => DieselPayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             },
         }
     }

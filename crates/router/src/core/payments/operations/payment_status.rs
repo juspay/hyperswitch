@@ -93,10 +93,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))
@@ -201,10 +201,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _payment_confirm_source: Option<common_enums::PaymentSource>,
+        _header_payload: &api::HeaderPayload,
     ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
-    > {
+    operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
+> {
         get_tracker_for_sync(
             payment_id,
             merchant_account,
@@ -245,7 +245,7 @@ async fn get_tracker_for_sync<
 
     helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-    let payment_id_str = payment_attempt.payment_id.clone();
+    let payment_id = payment_attempt.payment_id.clone();
 
     currency = payment_attempt.currency.get_required_value("currency")?;
     amount = payment_attempt.get_total_amount().into();
@@ -281,14 +281,15 @@ async fn get_tracker_for_sync<
 
     payment_attempt.encoded_data.clone_from(&request.param);
     let db = &*state.store;
+    let key_manager_state = &state.into();
     let attempts = match request.expand_attempts {
         Some(true) => {
             Some(db
-                .find_attempts_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id_str, storage_scheme)
+                .find_attempts_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id, storage_scheme)
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving attempt list for, merchant_id: {:?}, payment_id: {payment_id_str}",merchant_account.get_id())
+                    format!("Error while retrieving attempt list for, merchant_id: {:?}, payment_id: {payment_id:?}",merchant_account.get_id())
                 })?)
         },
         _ => None,
@@ -305,7 +306,7 @@ async fn get_tracker_for_sync<
             .await
             .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
-                    format!("Error while retrieving capture list for, merchant_id: {:?}, payment_id: {payment_id_str}", merchant_account.get_id())
+                    format!("Error while retrieving capture list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
                 })?;
         Some(payment_types::MultipleCaptureData::new_for_sync(
             captures,
@@ -317,7 +318,7 @@ async fn get_tracker_for_sync<
 
     let refunds = db
         .find_refund_by_payment_id_merchant_id(
-            &payment_id_str,
+            &payment_id,
             merchant_account.get_id(),
             storage_scheme,
         )
@@ -325,41 +326,38 @@ async fn get_tracker_for_sync<
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while getting refund list for, payment_id: {}, merchant_id: {:?}",
-                &payment_id_str,
+                "Failed while getting refund list for, payment_id: {:?}, merchant_id: {:?}",
+                &payment_id,
                 merchant_account.get_id()
             )
         })?;
 
     let authorizations = db
-        .find_all_authorizations_by_merchant_id_payment_id(
-            merchant_account.get_id(),
-            &payment_id_str,
-        )
+        .find_all_authorizations_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id)
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while getting authorizations list for, payment_id: {}, merchant_id: {:?}",
-                &payment_id_str,
+                "Failed while getting authorizations list for, payment_id: {:?}, merchant_id: {:?}",
+                &payment_id,
                 merchant_account.get_id()
             )
         })?;
 
     let disputes = db
-        .find_disputes_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id_str)
+        .find_disputes_by_merchant_id_payment_id(merchant_account.get_id(), &payment_id)
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id_str}", merchant_account.get_id())
+            format!("Error while retrieving dispute list for, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
         })?;
 
     let frm_response = db
-        .find_fraud_check_by_payment_id(payment_id_str.to_string(), merchant_account.get_id().clone())
+        .find_fraud_check_by_payment_id(payment_id.to_owned(), merchant_account.get_id().clone())
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
-            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id_str}", merchant_account.get_id())
+            format!("Error while retrieving frm_response, merchant_id: {:?}, payment_id: {payment_id:?}", merchant_account.get_id())
         });
 
     let contains_encoded_data = payment_attempt.encoded_data.is_some();
@@ -386,16 +384,21 @@ async fn get_tracker_for_sync<
         .attach_printable("'profile_id' not set in payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(profile_id)
+        .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-            id: profile_id.to_string(),
+            id: profile_id.get_string_repr().to_owned(),
         })?;
 
     let payment_method_info =
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
             match db
-                .find_payment_method(payment_method_id, storage_scheme)
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    payment_method_id,
+                    storage_scheme,
+                )
                 .await
             {
                 Ok(payment_method) => Some(payment_method),
@@ -546,7 +549,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .await?;
                 pa = db
                     .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                        pi.payment_id.as_str(),
+                        &pi.payment_id,
                         merchant_id,
                         pi.active_attempt.get_id().as_str(),
                         storage_scheme,
@@ -564,7 +567,7 @@ pub async fn get_payment_intent_payment_attempt(
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         &key_manager_state,
-                        pa.payment_id.as_str(),
+                        &pa.payment_id,
                         merchant_id,
                         key_store,
                         storage_scheme,
@@ -578,7 +581,7 @@ pub async fn get_payment_intent_payment_attempt(
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         &key_manager_state,
-                        pa.payment_id.as_str(),
+                        &pa.payment_id,
                         merchant_id,
                         key_store,
                         storage_scheme,
@@ -597,7 +600,7 @@ pub async fn get_payment_intent_payment_attempt(
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         &key_manager_state,
-                        pa.payment_id.as_str(),
+                        &pa.payment_id,
                         merchant_id,
                         key_store,
                         storage_scheme,
