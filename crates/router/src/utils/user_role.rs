@@ -53,6 +53,8 @@ impl From<Permission> for user_role_api::Permission {
             Permission::PayoutRead => Self::PayoutRead,
             Permission::PayoutWrite => Self::PayoutWrite,
             Permission::GenerateReport => Self::GenerateReport,
+            Permission::ReconRequest => Self::ReconRequest,
+            Permission::ReconToken => Self::ReconToken,
         }
     }
 }

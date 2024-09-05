@@ -17,29 +17,13 @@ use crate::{
 
 pub async fn send_recon_request(
     state: SessionState,
-    user: authentication::UserFromToken,
+    user_with_auth_data: authentication::UserFromTokenWithAuthData,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
     let key_manager_state = &(&state).into();
+    let user = user_with_auth_data.0;
     let merchant_id = user.merchant_id;
-
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch merchant's key store")?;
-
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch merchant's account")?;
-
     let user_from_db = global_db
         .find_user_by_id(&user.user_id)
         .await
@@ -51,12 +35,14 @@ pub async fn send_recon_request(
         user_name: domain::UserName::new(user_from_db.name)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
-        user_email: domain::UserEmail::new(user_email.clone().expose())
+        user_email: domain::UserEmail::from_pii_email(user_email.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert recipient's email to UserEmail")?,
-        recipient_email: domain::UserEmail::new(state.conf.recipient_emails.recon.clone().expose())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert recipient's email to UserEmail")?,
+        recipient_email: domain::UserEmail::from_pii_email(
+            state.conf.recipient_emails.recon.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert recipient's email to UserEmail")?,
         settings: state.conf.clone(),
         subject: format!(
             "Dashboard Pro Feature Request by {}",
@@ -74,6 +60,7 @@ pub async fn send_recon_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to compose and send email for ProFeatureRequest [Recon]")
         .async_and_then(|_| async {
+            let auth = user_with_auth_data.1;
             let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
                 recon_status: enums::ReconStatus::Requested,
             };
@@ -81,9 +68,9 @@ pub async fn send_recon_request(
             let response = db
                 .update_merchant(
                     key_manager_state,
-                    merchant_account,
+                    auth.merchant_account,
                     updated_merchant_account,
-                    &key_store,
+                    &auth.key_store,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

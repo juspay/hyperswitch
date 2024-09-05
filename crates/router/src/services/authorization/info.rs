@@ -42,6 +42,7 @@ pub enum PermissionModule {
     SurchargeDecisionManager,
     AccountCreate,
     Payouts,
+    Recon,
 }
 
 impl PermissionModule {
@@ -59,7 +60,8 @@ impl PermissionModule {
             Self::ThreeDsDecisionManager => "View and configure 3DS decision rules configured for a merchant",
             Self::SurchargeDecisionManager =>"View and configure surcharge decision rules configured for a merchant",
             Self::AccountCreate => "Create new account within your organization",
-            Self::Payouts => "Everything related to payouts - like creating and viewing payout related information are within this module"
+            Self::Payouts => "Everything related to payouts - like creating and viewing payout related information are within this module",
+            Self::Recon => "Everything related to recon - raise requests for activating recon and generate recon auth tokens",
         }
     }
 }
@@ -178,6 +180,14 @@ impl ModuleInfo {
                     Permission::PayoutWrite,
                 ]),
             },
+            PermissionModule::Recon => Self {
+                module: module_name,
+                description,
+                permissions: get_permission_info_from_permissions(&[
+                    Permission::ReconRequest,
+                    Permission::ReconToken,
+                ]),
+            },
         }
     }
 }
@@ -215,6 +225,7 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
         PermissionGroup::MerchantDetailsView => "View Merchant Details",
         PermissionGroup::MerchantDetailsManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         PermissionGroup::OrganizationManage => "Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
+        PermissionGroup::ReconOps => "View and manage reconciliation reports",
     }
 }
 
@@ -233,6 +244,7 @@ pub fn get_parent_name(group: PermissionGroup) -> ParentGroup {
             ParentGroup::Merchant
         }
         PermissionGroup::OrganizationManage => ParentGroup::Organization,
+        PermissionGroup::ReconOps => ParentGroup::Recon,
     }
 }
 
@@ -245,5 +257,6 @@ pub fn get_parent_group_description(group: ParentGroup) -> &'static str {
         ParentGroup::Users =>  "Manage and invite Users to the Team",
        ParentGroup::Merchant => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
        ParentGroup::Organization =>"Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
+       ParentGroup::Recon => "View and manage reconciliation reports",
     }
 }

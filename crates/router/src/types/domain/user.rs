@@ -1107,6 +1107,7 @@ impl From<info::PermissionModule> for user_role_api::PermissionModule {
             info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
             info::PermissionModule::AccountCreate => Self::AccountCreate,
             info::PermissionModule::Payouts => Self::Payouts,
+            info::PermissionModule::Recon => Self::Recon,
         }
     }
 }

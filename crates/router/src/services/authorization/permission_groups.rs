@@ -16,6 +16,7 @@ pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &[Permission] 
         PermissionGroup::MerchantDetailsView => &MERCHANT_DETAILS_VIEW,
         PermissionGroup::MerchantDetailsManage => &MERCHANT_DETAILS_MANAGE,
         PermissionGroup::OrganizationManage => &ORGANIZATION_MANAGE,
+        PermissionGroup::ReconOps => &RECON,
     }
 }
 
@@ -92,3 +93,5 @@ pub static ORGANIZATION_MANAGE: [Permission; 2] = [
     Permission::MerchantAccountCreate,
     Permission::MerchantAccountRead,
 ];
+
+pub static RECON: [Permission; 2] = [Permission::ReconRequest, Permission::ReconToken];

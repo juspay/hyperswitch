@@ -2773,6 +2773,7 @@ pub enum PermissionGroup {
     MerchantDetailsView,
     MerchantDetailsManage,
     OrganizationManage,
+    ReconOps,
 }
 
 /// Name of banks supported by Hyperswitch

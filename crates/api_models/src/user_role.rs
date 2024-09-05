@@ -37,6 +37,8 @@ pub enum Permission {
     PayoutRead,
     WebhookEventWrite,
     GenerateReport,
+    ReconRequest,
+    ReconToken,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
@@ -50,6 +52,7 @@ pub enum ParentGroup {
     Merchant,
     #[serde(rename = "OrganizationAccess")]
     Organization,
+    Recon,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -67,6 +70,7 @@ pub enum PermissionModule {
     SurchargeDecisionManager,
     AccountCreate,
     Payouts,
+    Recon,
 }
 
 #[derive(Debug, serde::Serialize)]

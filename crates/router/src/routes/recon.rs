@@ -5,10 +5,7 @@ use router_env::Flow;
 use super::AppState;
 use crate::{
     core::{api_locking, recon},
-    services::{
-        api,
-        authentication::{self as auth, UserFromToken},
-    },
+    services::{api, authentication, authorization::permissions::Permission},
 };
 
 pub async fn update_merchant(
@@ -23,7 +20,7 @@ pub async fn update_merchant(
         &req,
         json_payload.into_inner(),
         |state, _user, req, _| recon::recon_merchant_account_update(state, req),
-        &auth::ReconAdmin,
+        &authentication::ReconAdmin,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -36,8 +33,8 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         state,
         &http_req,
         (),
-        |state, user: UserFromToken, _req, _| recon::send_recon_request(state, user),
-        &auth::DashboardNoPermissionAuth,
+        |state, user, _, _| recon::send_recon_request(state, user),
+        &authentication::JWTAuth(Permission::ReconRequest),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -50,8 +47,8 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         state,
         &req,
         (),
-        |state, user: UserFromToken, _, _| recon::generate_recon_token(state, user),
-        &auth::DashboardNoPermissionAuth,
+        |state, user, _, _| recon::generate_recon_token(state, user),
+        &authentication::JWTAuth(Permission::ReconToken),
         api_locking::LockAction::NotApplicable,
     ))
     .await
