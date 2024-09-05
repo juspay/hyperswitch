@@ -847,6 +847,14 @@ impl MandateInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_mandate_by_global_id(
+        &self,
+        id: &String,
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
+        self.diesel_store.find_mandate_by_global_id(id).await
+    }
+
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1104,10 +1112,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .update_multiple_merchant_connector_accounts(merchant_connector_accounts)
             .await
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
@@ -1125,10 +1130,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1146,10 +1148,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1178,10 +1177,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
@@ -1199,7 +1195,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
@@ -1240,10 +1236,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1257,7 +1250,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_merchant_connector_account_by_id(
         &self,
         id: &id_type::MerchantConnectorAccountId,
@@ -1708,35 +1701,66 @@ impl PaymentIntentInterface for KafkaStore {
 impl PaymentMethodInterface for KafkaStore {
     async fn find_payment_method(
         &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
         payment_method_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method(payment_method_id, storage_scheme)
+            .find_payment_method(state, key_store, payment_method_id, storage_scheme)
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_customer_id_merchant_id_list(
         &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         limit: Option<i64>,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_customer_id_merchant_id_list(
+                state,
+                key_store,
+                customer_id,
+                merchant_id,
+                limit,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_list_by_global_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        id: &String,
+        limit: Option<i64>,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_customer_id_merchant_id_list(customer_id, merchant_id, limit)
+            .find_payment_method_list_by_global_id(state, key_store, id, limit)
             .await
     }
 
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
         limit: Option<i64>,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
         self.diesel_store
             .find_payment_method_by_customer_id_merchant_id_status(
+                state,
+                key_store,
                 customer_id,
                 merchant_id,
                 status,
@@ -1746,6 +1770,10 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -1761,44 +1789,95 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn find_payment_method_by_locker_id(
         &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .find_payment_method_by_locker_id(locker_id, storage_scheme)
+            .find_payment_method_by_locker_id(state, key_store, locker_id, storage_scheme)
             .await
     }
 
     async fn insert_payment_method(
         &self,
-        m: storage::PaymentMethodNew,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        m: domain::PaymentMethod,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .insert_payment_method(m, storage_scheme)
+            .insert_payment_method(state, key_store, m, storage_scheme)
             .await
     }
 
     async fn update_payment_method(
         &self,
-        payment_method: storage::PaymentMethod,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method: domain::PaymentMethod,
         payment_method_update: storage::PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .update_payment_method(payment_method, payment_method_update, storage_scheme)
+            .update_payment_method(
+                state,
+                key_store,
+                payment_method,
+                payment_method_update,
+                storage_scheme,
+            )
             .await
     }
 
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
-    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .delete_payment_method_by_merchant_id_payment_method_id(merchant_id, payment_method_id)
+            .delete_payment_method_by_merchant_id_payment_method_id(
+                state,
+                key_store,
+                merchant_id,
+                payment_method_id,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn delete_payment_method(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        payment_method: domain::PaymentMethod,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .delete_payment_method(state, key_store, payment_method)
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    async fn find_payment_method_by_fingerprint_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        fingerprint_id: &str,
+    ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_fingerprint_id(state, key_store, fingerprint_id)
             .await
     }
 }

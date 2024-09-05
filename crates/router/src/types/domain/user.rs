@@ -5,7 +5,7 @@ use api_models::{
 };
 use common_enums::EntityType;
 use common_utils::{
-    crypto::Encryptable, errors::CustomResult, id_type, new_type::MerchantName, pii, type_name,
+    crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
 };
 use diesel_models::{
@@ -28,7 +28,7 @@ use crate::{
     consts,
     core::{
         admin,
-        errors::{self, UserErrors, UserResult},
+        errors::{UserErrors, UserResult},
     },
     db::{user_role::InsertUserRolePayload, GlobalStorageInterface},
     routes::SessionState,
@@ -396,7 +396,7 @@ impl NewUserMerchant {
         Ok(())
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         let merchant_name = if let Some(company_name) = self.company_name.clone() {
             MerchantName::try_from(company_name)
@@ -415,10 +415,7 @@ impl NewUserMerchant {
         })
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     fn create_merchant_account_request(&self) -> UserResult<admin_api::MerchantAccountCreate> {
         Ok(admin_api::MerchantAccountCreate {
             merchant_id: self.get_merchant_id(),
@@ -706,7 +703,6 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             is_verified: false,
             created_at: Some(now),
             last_modified_at: Some(now),
-            preferred_merchant_id: None,
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
@@ -871,22 +867,6 @@ impl UserFromStorage {
         self.0.email.clone()
     }
 
-    pub async fn get_role_from_db(&self, state: SessionState) -> UserResult<UserRole> {
-        state
-            .store
-            .find_user_role_by_user_id(&self.0.user_id, UserRoleVersion::V1)
-            .await
-            .change_context(UserErrors::InternalServerError)
-    }
-
-    pub async fn get_roles_from_db(&self, state: &SessionState) -> UserResult<Vec<UserRole>> {
-        state
-            .store
-            .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
-            .await
-            .change_context(UserErrors::InternalServerError)
-    }
-
     #[cfg(feature = "email")]
     pub fn get_verification_days_left(&self, state: &SessionState) -> UserResult<Option<i64>> {
         if self.0.is_verified {
@@ -932,48 +912,6 @@ impl UserFromStorage {
         let days_left_for_password_rotate = last_date_for_password_rotate - today;
 
         Ok(days_left_for_password_rotate.whole_days() < 0)
-    }
-
-    pub fn get_preferred_merchant_id(&self) -> Option<id_type::MerchantId> {
-        self.0.preferred_merchant_id.clone()
-    }
-
-    pub async fn get_role_from_db_by_merchant_id(
-        &self,
-        state: &SessionState,
-        merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        state
-            .store
-            .find_user_role_by_user_id_merchant_id(
-                self.get_user_id(),
-                merchant_id,
-                UserRoleVersion::V1,
-            )
-            .await
-    }
-
-    pub async fn get_preferred_or_active_user_role_from_db(
-        &self,
-        state: &SessionState,
-    ) -> CustomResult<UserRole, errors::StorageError> {
-        if let Some(preferred_merchant_id) = self.get_preferred_merchant_id() {
-            self.get_role_from_db_by_merchant_id(state, &preferred_merchant_id)
-                .await
-        } else {
-            state
-                .store
-                .list_user_roles_by_user_id_and_version(&self.0.user_id, UserRoleVersion::V1)
-                .await?
-                .into_iter()
-                .find(|role| role.status == UserStatus::Active)
-                .ok_or(
-                    errors::StorageError::ValueNotFound(
-                        "No active role found for user".to_string(),
-                    )
-                    .into(),
-                )
-        }
     }
 
     pub async fn get_or_create_key_store(&self, state: &SessionState) -> UserResult<UserKeyStore> {
@@ -1285,7 +1223,7 @@ where
         }
     }
 
-    async fn insert_v1_and_v2_in_db_and_get_v1(
+    async fn insert_v1_and_v2_in_db_and_get_v2(
         state: &SessionState,
         v1_role: UserRoleNew,
         v2_role: UserRoleNew,
@@ -1296,10 +1234,9 @@ where
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        // Returning v1 role so other code which was not migrated doesn't break
         inserted_roles
             .into_iter()
-            .find(|role| role.version == UserRoleVersion::V1)
+            .find(|role| role.version == UserRoleVersion::V2)
             .ok_or(report!(UserErrors::InternalServerError))
     }
 }
@@ -1355,7 +1292,7 @@ impl NewUserRole<OrganizationLevel> {
             entity_type: EntityType::Organization,
         });
 
-        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
+        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
     }
 }
 
@@ -1375,7 +1312,7 @@ impl NewUserRole<MerchantLevel> {
             entity_type: EntityType::Merchant,
         });
 
-        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
+        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
     }
 }
 
@@ -1398,7 +1335,7 @@ impl NewUserRole<InternalLevel> {
             entity_type: EntityType::Internal,
         });
 
-        Self::insert_v1_and_v2_in_db_and_get_v1(state, new_v1_role, new_v2_role).await
+        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
     }
 }
 

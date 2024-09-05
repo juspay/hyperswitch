@@ -4,7 +4,7 @@ use api_models::user_role as user_role_api;
 use common_enums::{EntityType, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
-    enums::UserRoleVersion,
+    enums::{UserRoleVersion, UserStatus},
     user_role::{UserRole, UserRoleUpdate},
 };
 use error_stack::{report, Report, ResultExt};
@@ -14,6 +14,7 @@ use storage_impl::errors::StorageError;
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
+    db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
     services::authorization::{self as authz, permissions::Permission, roles},
     types::domain,
@@ -157,10 +158,10 @@ pub async fn set_role_permissions_in_cache_if_required(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error getting role_info from role_id")?;
 
-    authz::set_permissions_in_cache(
+    authz::set_role_info_in_cache(
         state,
         role_id,
-        &role_info.get_permissions_set().into_iter().collect(),
+        &role_info,
         i64::try_from(consts::JWT_TOKEN_TIME_IN_SECS)
             .change_context(UserErrors::InternalServerError)?,
     )
@@ -248,4 +249,153 @@ pub async fn get_single_merchant_id(
             .ok_or(UserErrors::InternalServerError)
             .attach_printable("merchant_id not found"),
     }
+}
+
+pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
+    state: &SessionState,
+    user_id: &str,
+    entity_id: String,
+    entity_type: EntityType,
+) -> UserResult<
+    Option<(
+        id_type::OrganizationId,
+        id_type::MerchantId,
+        Option<id_type::ProfileId>,
+    )>,
+> {
+    match entity_type {
+        EntityType::Internal | EntityType::Organization => {
+            Err(UserErrors::InvalidRoleOperation.into())
+        }
+        EntityType::Merchant => {
+            let Ok(merchant_id) = id_type::MerchantId::wrap(entity_id) else {
+                return Ok(None);
+            };
+
+            let user_roles = state
+                .store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id,
+                    org_id: None,
+                    merchant_id: Some(&merchant_id),
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::InvitationSent),
+                    limit: None,
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .collect::<HashSet<_>>();
+
+            if user_roles.len() > 1 {
+                return Ok(None);
+            }
+
+            if let Some(user_role) = user_roles.into_iter().next() {
+                let (_entity_id, entity_type) = user_role
+                    .get_entity_id_and_type()
+                    .ok_or(UserErrors::InternalServerError)?;
+
+                if entity_type != EntityType::Merchant {
+                    return Ok(None);
+                }
+
+                return Ok(Some((
+                    user_role.org_id.ok_or(UserErrors::InternalServerError)?,
+                    merchant_id,
+                    None,
+                )));
+            }
+
+            Ok(None)
+        }
+        EntityType::Profile => {
+            let Ok(profile_id) = id_type::ProfileId::try_from(std::borrow::Cow::from(entity_id))
+            else {
+                return Ok(None);
+            };
+
+            let user_roles = state
+                .store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id,
+                    org_id: None,
+                    merchant_id: None,
+                    profile_id: Some(&profile_id),
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::InvitationSent),
+                    limit: None,
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .collect::<HashSet<_>>();
+
+            if user_roles.len() > 1 {
+                return Ok(None);
+            }
+
+            if let Some(user_role) = user_roles.into_iter().next() {
+                let (_entity_id, entity_type) = user_role
+                    .get_entity_id_and_type()
+                    .ok_or(UserErrors::InternalServerError)?;
+
+                if entity_type != EntityType::Profile {
+                    return Ok(None);
+                }
+
+                return Ok(Some((
+                    user_role.org_id.ok_or(UserErrors::InternalServerError)?,
+                    user_role
+                        .merchant_id
+                        .ok_or(UserErrors::InternalServerError)?,
+                    Some(profile_id),
+                )));
+            }
+
+            Ok(None)
+        }
+    }
+}
+
+pub async fn get_single_merchant_id_and_profile_id(
+    state: &SessionState,
+    user_role: &UserRole,
+) -> UserResult<(id_type::MerchantId, id_type::ProfileId)> {
+    let merchant_id = get_single_merchant_id(state, user_role).await?;
+    let (_, entity_type) = user_role
+        .get_entity_id_and_type()
+        .ok_or(UserErrors::InternalServerError)?;
+    let profile_id = match entity_type {
+        EntityType::Organization | EntityType::Merchant | EntityType::Internal => {
+            let key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    &state.into(),
+                    &merchant_id,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)?;
+
+            state
+                .store
+                .list_business_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .pop()
+                .ok_or(UserErrors::InternalServerError)?
+                .get_id()
+                .to_owned()
+        }
+        EntityType::Profile => user_role
+            .profile_id
+            .clone()
+            .ok_or(UserErrors::InternalServerError)?,
+    };
+
+    Ok((merchant_id, profile_id))
 }

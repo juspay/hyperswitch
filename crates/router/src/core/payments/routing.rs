@@ -34,11 +34,7 @@ use rand::{
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 use crate::core::admin;
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
@@ -86,31 +82,21 @@ pub struct SessionRoutingPmTypeInput<'a> {
 
 type RoutingResult<O> = oss_errors::CustomResult<O, errors::RoutingError>;
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum MerchantAccountRoutingAlgorithm {
     V1(routing_types::RoutingAlgorithmRef),
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 impl Default for MerchantAccountRoutingAlgorithm {
     fn default() -> Self {
         Self::V1(routing_types::RoutingAlgorithmRef::default())
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 enum MerchantAccountRoutingAlgorithm {
@@ -296,10 +282,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
     let algorithm_id = if let Some(id) = algorithm_id {
         id
     } else {
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(any(feature = "routing_v2", feature = "business_profile_v2"))
-        ))]
+        #[cfg(feature = "v1")]
         let fallback_config = routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             business_profile.get_id().get_string_repr(),
@@ -307,11 +290,7 @@ pub async fn perform_static_routing_v1<F: Clone>(
         )
         .await
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
-        #[cfg(all(
-            feature = "v2",
-            feature = "routing_v2",
-            feature = "business_profile_v2"
-        ))]
+        #[cfg(feature = "v2")]
         let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
             .get_default_fallback_list_of_connector_under_profile()
             .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
@@ -737,10 +716,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::BusinessProfile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(any(feature = "routing_v2", feature = "business_profile_v2"))
-    ))]
+    #[cfg(feature = "v1")]
     let fallback_config = routing::helpers::get_merchant_default_config(
         &*state.store,
         match transaction_data {
@@ -760,11 +736,7 @@ pub async fn perform_fallback_routing<F: Clone>(
     )
     .await
     .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
-    #[cfg(all(
-        feature = "v2",
-        feature = "routing_v2",
-        feature = "business_profile_v2"
-    ))]
+    #[cfg(feature = "v2")]
     let fallback_config = admin::BusinessProfileWrapper::new(business_profile.clone())
         .get_default_fallback_list_of_connector_under_profile()
         .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
@@ -857,18 +829,11 @@ pub async fn perform_session_flow_routing(
         )
         .await
         .change_context(errors::RoutingError::ProfileNotFound)?;
-    #[cfg(all(
-        feature = "v2",
-        feature = "routing_v2",
-        feature = "business_profile_v2"
-    ))]
+    #[cfg(feature = "v2")]
     let routing_algorithm =
         MerchantAccountRoutingAlgorithm::V1(business_profile.routing_algorithm_id.clone());
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(any(feature = "routing_v2", feature = "business_profile_v2"))
-    ))]
+    #[cfg(feature = "v1")]
     let routing_algorithm: MerchantAccountRoutingAlgorithm = {
         business_profile
             .routing_algorithm
@@ -999,10 +964,7 @@ pub async fn perform_session_flow_routing(
     Ok(result)
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
@@ -1085,11 +1047,7 @@ async fn perform_session_routing_for_pm_type(
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,

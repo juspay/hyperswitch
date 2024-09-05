@@ -7,15 +7,13 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    type_name,
-    types::{keymanager::Identifier, MinorUnit},
+    types::MinorUnit,
 };
-use diesel_models::{ephemeral_key, PaymentMethod};
+use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
-    type_encryption::{crypto_operation, CryptoOperation},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -83,10 +81,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         helpers::validate_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -94,10 +89,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )?;
 
         // If profile id is not passed, get it from the business_country and business_label
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let profile_id = core_utils::get_profile_id_from_business_details(
             key_manager_state,
             merchant_key_store,
@@ -111,7 +103,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .await?;
 
         // Profile id will be mandatory in v2 in the request / headers
-        #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+        #[cfg(feature = "v2")]
         let profile_id = request
             .profile_id
             .clone()
@@ -883,8 +875,8 @@ impl PaymentCreate {
         browser_info: Option<serde_json::Value>,
         state: &SessionState,
         payment_method_billing_address_id: Option<String>,
-        payment_method_info: &Option<PaymentMethod>,
-        key_store: &domain::MerchantKeyStore,
+        payment_method_info: &Option<domain::PaymentMethod>,
+        _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
@@ -923,36 +915,28 @@ impl PaymentCreate {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
             additional_pm_data = payment_method_info
                 .as_ref()
-                .async_and_then(|pm_info| async {
-                    crypto_operation::<serde_json::Value, masking::WithType>(
-                        &state.into(),
-                        type_name!(PaymentMethod),
-                        CryptoOperation::DecryptOptional(pm_info.payment_method_data.clone()),
-                        Identifier::Merchant(key_store.merchant_id.clone()),
-                        key_store.key.get_inner().peek(),
-                    )
-                    .await
-                    .and_then(|val| val.try_into_optionaloperation())
-                    .map_err(|err| logger::error!("Failed to decrypt card details: {:?}", err))
-                    .ok()
-                    .flatten()
-                    .map(|x| x.into_inner().expose())
-                    .and_then(|v| {
-                        serde_json::from_value::<PaymentMethodsData>(v)
-                            .map_err(|err| {
-                                logger::error!(
-                                    "Unable to deserialize payment methods data: {:?}",
-                                    err
-                                )
-                            })
-                            .ok()
-                    })
-                    .and_then(|pmd| match pmd {
-                        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                        _ => None,
-                    })
+                .and_then(|pm_info| {
+                    pm_info
+                        .payment_method_data
+                        .clone()
+                        .map(|x| x.into_inner().expose())
+                        .and_then(|v| {
+                            serde_json::from_value::<PaymentMethodsData>(v)
+                                .map_err(|err| {
+                                    logger::error!(
+                                        "Unable to deserialize payment methods data: {:?}",
+                                        err
+                                    )
+                                })
+                                .ok()
+                        })
+                        .and_then(|pmd| match pmd {
+                            PaymentMethodsData::Card(crd) => {
+                                Some(api::CardDetailFromLocker::from(crd))
+                            }
+                            _ => None,
+                        })
                 })
-                .await
                 .map(|card| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(card.into()))
                 });
@@ -1038,7 +1022,7 @@ impl PaymentCreate {
                 offer_amount: None,
                 payment_method_id: payment_method_info
                     .as_ref()
-                    .map(|pm_info| pm_info.payment_method_id.clone()),
+                    .map(|pm_info| pm_info.get_id().clone()),
                 cancellation_reason: None,
                 error_code: None,
                 connector_metadata: None,

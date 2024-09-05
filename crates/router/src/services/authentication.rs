@@ -10,7 +10,7 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
-use common_enums::TokenPurpose;
+use common_enums::{EntityType, TokenPurpose};
 use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -1000,12 +1000,9 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) struct JWTAuth(pub Permission);
-
-#[derive(serde::Deserialize)]
-struct JwtAuthPayloadFetchUnit {
-    #[serde(rename(deserialize = "exp"))]
-    _exp: u64,
+pub(crate) struct JWTAuth {
+    pub permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1023,8 +1020,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         Ok((
             (),
@@ -1052,8 +1050,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         Ok((
             UserFromToken {
@@ -1087,8 +1086,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1128,10 +1129,12 @@ where
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 pub struct JWTAuthMerchantFromHeader {
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1149,8 +1152,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let merchant_id_from_header =
             HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
@@ -1184,8 +1188,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let merchant_id_from_header =
             HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
@@ -1250,8 +1255,9 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -1286,8 +1292,10 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1329,6 +1337,7 @@ pub struct JWTAuthMerchantAndProfileFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1358,8 +1367,10 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1402,6 +1413,7 @@ where
 pub struct JWTAuthProfileFromRoute {
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
+    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1419,8 +1431,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.required_permission, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1513,8 +1527,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1570,8 +1586,10 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
