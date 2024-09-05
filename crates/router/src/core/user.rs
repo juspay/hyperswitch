@@ -1498,13 +1498,7 @@ pub async fn verify_token(
         .global_store
         .find_user_by_id(&user.user_id)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })
+        .change_context(UserErrors::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
                 "Failed to fetch the user from DB for user_id - {}",

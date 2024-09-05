@@ -7,6 +7,8 @@ use std::{
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
 use common_utils::ext_traits::ConfigExt;
+#[cfg(feature = "email")]
+use common_utils::pii::Email;
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -120,6 +122,8 @@ pub struct Settings<S: SecretState> {
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
+    #[cfg(feature = "email")]
+    pub recipient_emails: RecipientMails,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -898,6 +902,11 @@ pub struct ServerTls {
     pub private_key: PathBuf,
     /// certificate file associated with TLS (path to the certificate file (`pem` format))
     pub certificate: PathBuf,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct RecipientMails {
+    pub recon: Email,
 }
 
 fn deserialize_hashmap_inner<K, V>(

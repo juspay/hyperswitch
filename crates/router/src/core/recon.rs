@@ -4,16 +4,12 @@ use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
+    consts,
     core::errors::{self, RouterResponse, StorageErrorExt, UserErrors},
-    services::{
-        api as service_api,
-        authentication::{AuthToken, UserFromToken},
-        email::types as email_types,
-    },
+    services::{api as service_api, authentication, email::types as email_types},
     types::{
         api::{self as api_types, enums},
-        domain::{UserEmail, UserName},
-        storage,
+        domain, storage,
         transformers::ForeignTryFrom,
     },
     SessionState,
@@ -21,7 +17,7 @@ use crate::{
 
 pub async fn send_recon_request(
     state: SessionState,
-    user: UserFromToken,
+    user: authentication::UserFromToken,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
     let global_db = &*state.global_store;
     let db = &*state.store;
@@ -48,19 +44,23 @@ pub async fn send_recon_request(
         .find_user_by_id(&user.user_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let user_email = user_from_db.email;
     let email_contents = email_types::ProFeatureRequest {
-        feature_name: "RECONCILIATION & SETTLEMENT".to_string(),
+        feature_name: consts::RECON_FEATURE_TAG.to_string(),
         merchant_id: merchant_id.clone(),
-        user_name: UserName::new(user_from_db.name)
+        user_name: domain::UserName::new(user_from_db.name)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
-        recipient_email: UserEmail::new(Secret::new("biz@hyperswitch.io".to_string()))
+        user_email: domain::UserEmail::new(user_email.clone().expose())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert recipient's email to UserEmail")?,
+        recipient_email: domain::UserEmail::new(state.conf.recipient_emails.recon.clone().expose())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert recipient's email to UserEmail")?,
         settings: state.conf.clone(),
         subject: format!(
             "Dashboard Pro Feature Request by {}",
-            user_from_db.email.expose().peek()
+            user_email.expose().peek()
         ),
     };
 
@@ -102,9 +102,9 @@ pub async fn send_recon_request(
 
 pub async fn generate_recon_token(
     state: SessionState,
-    user: UserFromToken,
+    user: authentication::UserFromToken,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
-    let token = AuthToken::new_token(
+    let token = authentication::AuthToken::new_token(
         user.user_id.clone(),
         user.merchant_id.clone(),
         user.role_id.clone(),
@@ -170,10 +170,10 @@ pub async fn recon_merchant_account_update(
         })?;
 
     let email_contents = email_types::ReconActivation {
-        recipient_email: UserEmail::from_pii_email(user_email.clone())
+        recipient_email: domain::UserEmail::from_pii_email(user_email.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert recipient's email to UserEmail from pii::Email")?,
-        user_name: UserName::new(Secret::new("HyperSwitch User".to_string()))
+        user_name: domain::UserName::new(Secret::new("HyperSwitch User".to_string()))
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
         settings: state.conf.clone(),

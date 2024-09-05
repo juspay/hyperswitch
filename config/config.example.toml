@@ -723,3 +723,6 @@ encryption_key = "" # Encryption key used for encrypting data in user_authentica
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[recipient_emails]
+recon = "test@example.com"

@@ -586,3 +586,6 @@ ach = { country = "US", currency = "USD" }
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[recipient_emails]
+recon = "biz@hyperswitch.io"
