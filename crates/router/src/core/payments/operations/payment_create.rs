@@ -668,7 +668,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
                 default: Some(diesel_models::DefaultTax {
                     order_tax_amount: tax_response.order_tax_amount,
                 }),
-                pmt: None,
+                payment_method_type: None,
             });
 
             Ok(())

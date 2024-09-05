@@ -4470,7 +4470,7 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     pub shipping: Address,
     /// Client Secret
     #[schema(value_type = String)]
-    pub client_secret: String,
+    pub client_secret: Secret<String>,
     /// Payment method type
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,

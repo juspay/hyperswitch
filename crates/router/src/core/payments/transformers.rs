@@ -91,19 +91,10 @@ where
         customer_data: customer,
     };
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
-
-    #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| customer.merchant_reference_id)
-        .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)?;
-
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
-        customer_id,
+        customer_id: None,
         connector: connector_id.to_owned(),
         payment_id: payment_data
             .payment_attempt
@@ -497,7 +488,7 @@ where
             .payment_intent
             .tax_details
             .clone()
-            .and_then(|tax| tax.pmt.map(|a| a.order_tax_amount));
+            .and_then(|tax| tax.payment_method_type.map(|a| a.order_tax_amount));
         if let Some(shipping_cost) = shipping_cost {
             amount = amount + shipping_cost;
         }
@@ -1892,7 +1883,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             .payment_intent
             .tax_details
             .clone()
-            .and_then(|tax| tax.pmt.map(|pmt| pmt.order_tax_amount))
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount))
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "order_tax_amount",
             })?;

@@ -4,6 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
+use masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -76,7 +77,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             "create a session update for",
         )?;
 
-        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
+        helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -297,7 +298,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsDynamicTaxCalculationRequest>
                 .attach_printable("missing tax_data.payment_method_type")?;
 
             payment_data.payment_intent.tax_details = Some(diesel_models::TaxDetails {
-                pmt: Some(diesel_models::PmtTax {
+                payment_method_type: Some(diesel_models::PaymentMethodTypeTax {
                     order_tax_amount: tax_response.order_tax_amount,
                     pmt: payment_method_type,
                 }),
@@ -398,7 +399,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
         .await?;
 
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SessionResponseUpdate {
-            tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError)?,
+            tax_details: payment_data.payment_intent.tax_details.clone().ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("payment_intent.tax_details not found")?,
             shipping_address_id: shipping_address.map(|address| address.address_id),
             updated_by: payment_data.payment_intent.updated_by.clone(),
             shipping_details,
