@@ -10,6 +10,7 @@ impl From<&crate::SessionState> for KeyManagerState {
             enabled: conf.enabled,
             url: conf.url.clone(),
             client_idle_timeout: state.conf.proxy.idle_pool_connection_timeout,
+            request_id: state.request_id.clone(),
             #[cfg(feature = "keymanager_mtls")]
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]

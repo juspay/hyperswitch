@@ -23,6 +23,7 @@ use crate::{
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
+const X_REQUEST_ID: &str = "X-Request-Id";
 
 /// Get keymanager client constructed from the url and state
 #[instrument(skip_all)]
@@ -104,24 +105,26 @@ where
     let url = format!("{}/{endpoint}", &state.url);
 
     logger::info!(key_manager_request=?request_body);
-
-    let response = send_encryption_request(
-        state,
-        HeaderMap::from_iter(
-            vec![(
-                HeaderName::from_str(CONTENT_TYPE)
-                    .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-                HeaderValue::from_str("application/json")
-                    .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-            )]
-            .into_iter(),
-        ),
-        url,
-        method,
-        request_body,
-    )
-    .await
-    .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed))?;
+    let mut header = HeaderMap::from_iter(
+        vec![(
+            HeaderName::from_str(CONTENT_TYPE)
+                .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+            HeaderValue::from_str("application/json")
+                .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+        )]
+        .into_iter(),
+    );
+    if let Some(request_id) = state.request_id {
+        header.insert(
+            HeaderName::from_str(X_REQUEST_ID)
+                .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+            HeaderValue::from_str(request_id.as_hyphenated().to_string().as_str())
+                .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
+        );
+    }
+    let response = send_encryption_request(state, header, url, method, request_body)
+        .await
+        .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed))?;
 
     logger::info!(key_manager_response=?response);
 
