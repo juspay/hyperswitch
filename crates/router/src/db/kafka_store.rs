@@ -847,6 +847,14 @@ impl MandateInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_mandate_by_global_id(
+        &self,
+        id: &String,
+    ) -> CustomResult<Vec<storage::Mandate>, errors::StorageError> {
+        self.diesel_store.find_mandate_by_global_id(id).await
+    }
+
     async fn find_mandate_by_merchant_id_customer_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -1723,6 +1731,19 @@ impl PaymentMethodInterface for KafkaStore {
                 merchant_id,
                 limit,
             )
+            .await
+    }
+
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_list_by_global_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        id: &String,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_list_by_global_id(state, key_store, id, limit)
             .await
     }
 

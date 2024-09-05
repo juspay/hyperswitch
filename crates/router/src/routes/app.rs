@@ -907,7 +907,8 @@ impl Customers {
                 .service(
                     web::resource("/{id}")
                         .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve)),
+                        .route(web::post().to(customers_retrieve))
+                        .route(web::delete().to(customers_delete)),
                 )
         }
         #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
@@ -1033,7 +1034,12 @@ impl Payouts {
                         .route(web::post().to(payouts_list_by_filter_profile)),
                 )
                 .service(
-                    web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
+                    web::resource("/filter")
+                        .route(web::post().to(payouts_list_available_filters_for_merchant)),
+                )
+                .service(
+                    web::resource("/profile/filter")
+                        .route(web::post().to(payouts_list_available_filters_for_profile)),
                 );
         }
         route = route
