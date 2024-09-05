@@ -156,10 +156,10 @@ pub async fn set_role_permissions_in_cache_if_required(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error getting role_info from role_id")?;
 
-    authz::set_permissions_in_cache(
+    authz::set_role_info_in_cache(
         state,
         role_id,
-        &role_info.get_permissions_set().into_iter().collect(),
+        &role_info,
         i64::try_from(consts::JWT_TOKEN_TIME_IN_SECS)
             .change_context(UserErrors::InternalServerError)?,
     )
