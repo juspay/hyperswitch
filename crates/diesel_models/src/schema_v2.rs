@@ -317,6 +317,7 @@ diesel::table! {
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
         default_shipping_address -> Nullable<Bytea>,
+        status -> DeleteStatus,
         #[max_length = 64]
         id -> Varchar,
     }
