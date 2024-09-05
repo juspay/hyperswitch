@@ -224,7 +224,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::ConnectorsView,
                 PermissionGroup::WorkflowsView,
             ],
-            role_id: consts::user_role::ROLE_ID_MERCHANT_CUSTOMER_SUPPORT.to_string(),
+            role_id: consts::user_role::ROLE_ID_PROFILE_CUSTOMER_SUPPORT.to_string(),
             role_name: "profile_support".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Profile,

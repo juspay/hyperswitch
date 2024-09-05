@@ -35,7 +35,7 @@ pub async fn apple_pay_merchant_registration(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
