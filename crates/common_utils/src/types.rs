@@ -590,7 +590,7 @@ pub struct CardNetworkPattern {
     /// List of acceptable length of card number for a particular card network
     pub allowed_card_number_length: Vec<i32>,
     /// List of acceptable length of card cvc for a particular card network
-    pub allowed_cvc_length: Vec<i32>
+    pub allowed_cvc_length: Vec<i32>,
 }
 
 #[cfg(test)]
