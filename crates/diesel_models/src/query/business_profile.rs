@@ -1,12 +1,9 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::business_profile::dsl::{self, profile_id as dsl_identifier};
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::business_profile::dsl::{self, id as dsl_identifier};
 use crate::{
     business_profile::{BusinessProfile, BusinessProfileNew, BusinessProfileUpdateInternal},

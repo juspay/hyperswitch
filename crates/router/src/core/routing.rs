@@ -12,9 +12,9 @@ use rustc_hash::FxHashSet;
 use super::payments;
 #[cfg(feature = "payouts")]
 use super::payouts;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 use crate::utils::ValueExt;
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 use crate::{
     core::{admin, errors::RouterResult},
     db::StorageInterface,
@@ -41,10 +41,10 @@ where
     Payout(&'a payouts::PayoutData),
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 struct RoutingAlgorithmUpdate(RoutingAlgorithm);
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 impl RoutingAlgorithmUpdate {
     pub fn create_new_routing_algorithm(
         request: &routing_types::RoutingConfigRequest,
@@ -84,12 +84,13 @@ impl RoutingAlgorithmUpdate {
 pub async fn retrieve_merchant_routing_dictionary(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     query_params: RoutingRetrieveQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingKind> {
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE.add(&metrics::CONTEXT, 1, &[]);
 
-    let routing_metadata = state
+    let routing_metadata: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
         .store
         .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
             merchant_account.get_id(),
@@ -99,6 +100,9 @@ pub async fn retrieve_merchant_routing_dictionary(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    let routing_metadata =
+        super::utils::filter_objects_based_on_profile_id_list(profile_id_list, routing_metadata);
+
     let result = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
@@ -110,11 +114,12 @@ pub async fn retrieve_merchant_routing_dictionary(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -131,6 +136,8 @@ pub async fn create_routing_algorithm_under_profile(
     )
     .await?
     .get_required_value("BusinessProfile")?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     let all_mcas = helpers::MerchantConnectorAccounts::get_all_mcas(
         merchant_account.get_id(),
@@ -177,11 +184,12 @@ pub async fn create_routing_algorithm_under_profile(
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 pub async fn create_routing_algorithm_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -221,14 +229,17 @@ pub async fn create_routing_algorithm_under_profile(
         })
         .attach_printable("Profile_id not provided")?;
 
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
         Some(&profile_id),
         merchant_account.get_id(),
     )
-    .await?;
+    .await?
+    .get_required_value("BusinessProfile")?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     helpers::validate_connectors_in_routing_config(
         &state,
@@ -263,11 +274,7 @@ pub async fn create_routing_algorithm_under_profile(
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn link_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -337,14 +344,12 @@ pub async fn link_routing_config_under_profile(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn link_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -372,6 +377,8 @@ pub async fn link_routing_config(
     .change_context(errors::ApiErrorResponse::BusinessProfileNotFound {
         id: routing_algorithm.profile_id.get_string_repr().to_owned(),
     })?;
+
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
     let mut routing_ref: routing_types::RoutingAlgorithmRef = business_profile
         .routing_algorithm
@@ -416,11 +423,12 @@ pub async fn link_routing_config(
     ))
 }
 
-#[cfg(all(feature = "v2", feature = "routing_v2",))]
+#[cfg(feature = "v2")]
 pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -430,7 +438,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     let routing_algorithm =
         RoutingAlgorithmUpdate::fetch_routing_algo(merchant_account.get_id(), &algorithm_id, db)
             .await?;
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
@@ -441,6 +449,8 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     .get_required_value("BusinessProfile")
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
+
     let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm.0)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to parse routing algorithm")?;
@@ -449,11 +459,12 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(&metrics::CONTEXT, 1, &[]);
@@ -468,7 +479,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
-    core_utils::validate_and_get_business_profile(
+    let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
         &key_store,
@@ -479,6 +490,8 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     .get_required_value("BusinessProfile")
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
+    core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
+
     let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to parse routing algorithm")?;
@@ -487,11 +500,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn unlink_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -545,18 +554,17 @@ pub async fn unlink_routing_config_under_profile(
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn unlink_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: routing_types::RoutingConfigRequest,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UNLINK_CONFIG.add(&metrics::CONTEXT, 1, &[]);
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -567,6 +575,7 @@ pub async fn unlink_routing_config(
             field_name: "profile_id",
         })
         .attach_printable("Profile_id not provided")?;
+
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
@@ -575,8 +584,13 @@ pub async fn unlink_routing_config(
         merchant_account.get_id(),
     )
     .await?;
+
     match business_profile {
         Some(business_profile) => {
+            core_utils::validate_profile_id_from_auth_layer(
+                authentication_profile_id,
+                &business_profile,
+            )?;
             let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
                 enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
                 #[cfg(feature = "payouts")]
@@ -633,11 +647,7 @@ pub async fn unlink_routing_config(
     }
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn update_default_fallback_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -713,10 +723,7 @@ pub async fn update_default_fallback_routing(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn update_default_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -769,11 +776,7 @@ pub async fn update_default_routing_config(
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
 
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn retrieve_default_fallback_algorithm_for_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -800,10 +803,7 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
     Ok(service_api::ApplicationResponse::Json(connectors_choice))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 
 pub async fn retrieve_default_routing_config(
     state: SessionState,
@@ -824,11 +824,7 @@ pub async fn retrieve_default_routing_config(
         service_api::ApplicationResponse::Json(conn_choice)
     })
 }
-#[cfg(all(
-    feature = "v2",
-    feature = "routing_v2",
-    feature = "business_profile_v2"
-))]
+#[cfg(feature = "v2")]
 pub async fn retrieve_routing_config_under_profile(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -872,14 +868,12 @@ pub async fn retrieve_routing_config_under_profile(
     ))
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "routing_v2", feature = "business_profile_v2"))
-))]
+#[cfg(feature = "v1")]
 pub async fn retrieve_linked_routing_config(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
@@ -902,13 +896,18 @@ pub async fn retrieve_linked_routing_config(
             id: profile_id.get_string_repr().to_owned(),
         })?
     } else {
-        db.list_business_profile_by_merchant_id(
-            key_manager_state,
-            &key_store,
-            merchant_account.get_id(),
+        let business_profile = db
+            .list_business_profile_by_merchant_id(
+                key_manager_state,
+                &key_store,
+                merchant_account.get_id(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        core_utils::filter_objects_based_on_profile_id_list(
+            authentication_profile_id.map(|profile_id| vec![profile_id]),
+            business_profile.clone(),
         )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
     };
 
     let mut active_algorithms = Vec::new();
@@ -1007,6 +1006,7 @@ pub async fn update_default_routing_config_for_profile(
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<routing_types::ProfileDefaultRoutingConfig> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(&metrics::CONTEXT, 1, &[]);
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 

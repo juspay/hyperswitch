@@ -9,7 +9,8 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "v1", "partial-auth"]
+default = ["common_default", "v1"]
+common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
 email = ["external_services/email", "scheduler/email", "olap"]
@@ -31,15 +32,11 @@ payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
-v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2"]
-v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1"]
-business_profile_v2 = ["api_models/business_profile_v2", "diesel_models/business_profile_v2", "hyperswitch_domain_models/business_profile_v2"]
+v2 = ["customer_v2", "payment_methods_v2", "payment_v2", "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2"]
+v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
-merchant_account_v2 = ["api_models/merchant_account_v2", "diesel_models/merchant_account_v2", "hyperswitch_domain_models/merchant_account_v2"]
 payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2", "storage_impl/payment_v2"]
 payment_methods_v2 = ["api_models/payment_methods_v2"]
-routing_v2 = ["api_models/routing_v2"]
-merchant_connector_account_v2 = ["api_models/merchant_connector_account_v2", "kgraph_utils/merchant_connector_account_v2", "hyperswitch_domain_models/merchant_connector_account_v2", "diesel_models/merchant_connector_account_v2"]
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -127,7 +124,7 @@ x509-parser = "0.16.0"
 # First party crates
 
 analytics = { version = "0.1.0", path = "../analytics", optional = true, default-features = false }
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"]}
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager", "encryption_service"] }

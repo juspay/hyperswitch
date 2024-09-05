@@ -122,10 +122,7 @@ where
         NewDstType = storage::MerchantConnectorAccountNew,
     >,
 {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
@@ -134,10 +131,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -146,10 +140,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -165,10 +156,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
@@ -177,7 +165,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
@@ -209,17 +197,14 @@ where
         )>,
     ) -> CustomResult<(), errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, errors::StorageError>;
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_merchant_connector_account_by_id(
         &self,
         id: &common_utils::id_type::MerchantConnectorAccountId,
@@ -228,10 +213,7 @@ where
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
@@ -282,10 +264,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
@@ -340,10 +319,7 @@ impl MerchantConnectorAccountInterface for Store {
         }
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
@@ -379,10 +355,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
@@ -438,7 +411,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
@@ -648,10 +621,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn update_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -731,7 +701,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn update_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -813,10 +783,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -892,7 +859,7 @@ impl MerchantConnectorAccountInterface for Store {
     }
 
     #[instrument(skip_all)]
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_merchant_connector_account_by_id(
         &self,
         id: &common_utils::id_type::MerchantConnectorAccountId,
@@ -970,10 +937,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         // apple pay certificate migration
         Err(errors::StorageError::MockDbError)?
     }
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         state: &KeyManagerState,
@@ -1013,10 +977,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1050,10 +1011,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
         state: &KeyManagerState,
@@ -1089,10 +1047,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         state: &KeyManagerState,
@@ -1132,7 +1087,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
         state: &KeyManagerState,
@@ -1170,10 +1125,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn insert_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -1219,7 +1171,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn insert_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -1300,10 +1252,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(output)
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn update_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -1346,7 +1295,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn update_merchant_connector_account(
         &self,
         state: &KeyManagerState,
@@ -1391,10 +1340,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -1418,7 +1364,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn delete_merchant_connector_account_by_id(
         &self,
         id: &common_utils::id_type::MerchantConnectorAccountId,
@@ -1444,10 +1390,7 @@ impl MerchantConnectorAccountInterface for MockDb {
 mod merchant_connector_account_cache_tests {
     use std::sync::Arc;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     use api_models::enums::CountryAlpha2;
     use common_utils::{date_time, type_name, types::keymanager::Identifier};
     use diesel_models::enums::ConnectorType;
@@ -1480,10 +1423,7 @@ mod merchant_connector_account_cache_tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     async fn test_connector_profile_id_cache() {
         let conf = Settings::new().unwrap();
         let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -1665,7 +1605,7 @@ mod merchant_connector_account_cache_tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     async fn test_connector_profile_id_cache() {
         let conf = Settings::new().unwrap();
         let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -1781,10 +1721,7 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
 
         let find_call = || async {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             let mca = db
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -1794,7 +1731,7 @@ mod merchant_connector_account_cache_tests {
                 )
                 .await
                 .unwrap();
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             let mca: domain::MerchantConnectorAccount = { todo!() };
             Conversion::convert(mca)
                 .await
