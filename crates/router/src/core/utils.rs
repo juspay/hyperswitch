@@ -894,8 +894,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let add = payment_data.address.clone();
-
     let shipping_address = payment_data
         .tax_data
         .clone()
@@ -935,7 +933,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         connector_auth_type,
         description: None,
         return_url: None,
-        address: add,
+        address: payment_data.address.clone(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: None,
         connector_wallets_details: None,

@@ -140,7 +140,8 @@ impl<
             + ConnectorMandateRevoke
             + ConnectorMandateRevokeV2
             + ExternalAuthentication
-            + ExternalAuthenticationV2,
+            + ExternalAuthenticationV2
+            + PaymentTaxCalculation,
     > Connector for T
 {
 }

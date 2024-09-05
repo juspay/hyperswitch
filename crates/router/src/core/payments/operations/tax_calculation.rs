@@ -27,7 +27,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(operations = "all", flow = "tax_calculation")]
+#[operation(operations = "all", flow = "sdk_session_update")]
 pub struct PaymentSessionUpdate;
 
 #[async_trait]
@@ -104,16 +104,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         )
         .await?;
 
-        let billing_address = helpers::get_address_by_id(
-            state,
-            payment_intent.billing_address_id.clone(),
-            key_store,
-            &payment_intent.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await?;
-
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -148,7 +138,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             setup_mandate: None,
             address: payments::PaymentAddress::new(
                 shipping_address.as_ref().map(From::from),
-                billing_address.as_ref().map(From::from),
+                None,
                 None,
                 business_profile.use_billing_as_payment_method_billing,
             ),

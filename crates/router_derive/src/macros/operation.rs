@@ -29,8 +29,6 @@ pub enum Derives {
     SessionData,
     IncrementalAuthorization,
     IncrementalAuthorizationData,
-    TaxCalculation,
-    TaxCalculationData,
     SdkSessionUpdate,
     SdkSessionUpdateData,
 }
@@ -106,12 +104,6 @@ impl Conversion {
             }
             Derives::IncrementalAuthorizationData => {
                 syn::Ident::new("PaymentsIncrementalAuthorizationData", Span::call_site())
-            }
-            Derives::TaxCalculation => {
-                syn::Ident::new("PaymentsDynamicTaxCalculationRequest", Span::call_site())
-            }
-            Derives::TaxCalculationData => {
-                syn::Ident::new("PaymentsTaxCalculationData", Span::call_site())
             }
             Derives::SdkSessionUpdate => {
                 syn::Ident::new("PaymentsDynamicTaxCalculationRequest", Span::call_site())
@@ -439,7 +431,6 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsSessionData,
                     CompleteAuthorizeData,
                     PaymentsIncrementalAuthorizationData,
-                    PaymentsTaxCalculationData,
                     SdkPaymentsSessionUpdateData,
 
                     api::{

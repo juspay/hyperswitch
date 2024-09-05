@@ -100,24 +100,6 @@ where
         .map(|customer| customer.merchant_reference_id)
         .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)?;
 
-    let unified_address = if let Some(payment_method_info) =
-        payment_data.payment_method_info.clone()
-    {
-        let payment_method_billing = payment_method_info
-            .payment_method_billing_address
-            .map(|decrypted_data| decrypted_data.into_inner().expose())
-            .map(|decrypted_value| decrypted_value.parse_value("payment_method_billing_address"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse payment_method_billing_address")?;
-        payment_data
-            .address
-            .clone()
-            .unify_with_payment_data_billing(payment_method_billing)
-    } else {
-        payment_data.address
-    };
-
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -134,7 +116,7 @@ where
         connector_auth_type: auth_type,
         description: None,
         return_url: None,
-        address: unified_address,
+        address: payment_data.address.clone(),
         auth_type: payment_data
             .payment_attempt
             .authentication_type

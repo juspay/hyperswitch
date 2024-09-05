@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, AddressDetailsData, RouterData as _},
+    utils::{self, AddressDetailsData},
 };
 
 pub struct TaxjarRouterData<T> {
@@ -34,11 +34,6 @@ impl<T> From<(FloatMajorUnit, FloatMajorUnit, T)> for TaxjarRouterData<T> {
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct TaxjarPaymentsRequest {
-    from_country: enums::CountryAlpha2,
-    from_zip: Secret<String>,
-    from_state: Secret<String>,
-    from_city: Option<String>,
-    from_street: Option<Secret<String>>,
     to_country: enums::CountryAlpha2,
     to_zip: Secret<String>,
     to_state: Secret<String>,
@@ -107,11 +102,6 @@ impl TryFrom<&TaxjarRouterData<&types::PaymentsTaxCalculationRouterData>>
                         .collect();
 
                 Ok(Self {
-                    from_country: item.router_data.get_billing_country()?,
-                    from_zip: item.router_data.get_billing_zip()?,
-                    from_state: item.router_data.get_billing_state_code()?,
-                    from_city: item.router_data.get_optional_billing_city(),
-                    from_street: item.router_data.get_optional_billing_line1(),
                     to_country: shipping.get_country()?.to_owned(),
                     to_zip: shipping.get_zip()?.to_owned(),
                     to_state: shipping.to_state_code()?.to_owned(),

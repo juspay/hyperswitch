@@ -38,7 +38,6 @@ pub trait Payment:
     + PaymentsPostProcessing
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
-    + PaymentTaxCalculation
     + PaymentSessionUpdate
 {
 }
