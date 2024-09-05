@@ -242,12 +242,12 @@ where
 
                             let mut is_frm_connector_enabled = false;
                             let mut is_frm_pm_enabled = false;
+                            let connector = payment_data.get_payment_attempt().connector.clone();
                             let filtered_frm_config = frm_configs_struct
                                 .iter()
                                 .filter(|frm_config| {
                                     match (
-                                        // TODO(jarnura): why we need clone here?
-                                        &payment_data.clone().get_payment_attempt().connector,
+                                        &connector,
                                         &frm_config.gateway,
                                     ) {
                                         (Some(current_connector), Some(configured_connector)) => {
@@ -365,7 +365,7 @@ pub async fn make_frm_data_and_fraud_check_operation<'a, F, D>(
 ) -> RouterResult<FrmInfo<F, D>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let order_details = payment_data
         .get_payment_intent()
@@ -447,7 +447,7 @@ pub async fn pre_payment_frm_core<'a, F, Req, D>(
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let mut frm_data = None;
     if is_operation_allowed(operation) {
@@ -490,7 +490,7 @@ where
                     )
                     .await?;
                 let frm_fraud_check = frm_data_updated.fraud_check.clone();
-                payment_data.set_frm_message(Some(frm_fraud_check.clone()));
+                payment_data.set_frm_message(frm_fraud_check.clone());
                 if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
                     *should_continue_transaction = false;
                     frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
@@ -534,7 +534,7 @@ pub async fn post_payment_frm_core<'a, F, D>(
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + Send + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     if let Some(frm_data) = &mut frm_info.frm_data {
         // Allow the Post flow only if the payment is authorized,
@@ -568,7 +568,7 @@ where
                 let frm_fraud_check = frm_data.fraud_check.clone();
                 let mut frm_suggestion = None;
                 // TODO(jarnura): Check if we need to set frm_message here or just for this we don't mutate the payment_data
-                payment_data.set_frm_message(Some(frm_fraud_check.clone()));
+                payment_data.set_frm_message(frm_fraud_check.clone());
                 if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
                     frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
                 } else if matches!(frm_fraud_check.frm_status, FraudCheckStatus::ManualReview) {
@@ -625,7 +625,7 @@ pub async fn call_frm_before_connector_call<'a, F, Req, D>(
 ) -> RouterResult<Option<FrmConfigsObject>>
 where
     F: Send + Clone,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
         should_call_frm(merchant_account, payment_data, state, key_store.clone()).await?;

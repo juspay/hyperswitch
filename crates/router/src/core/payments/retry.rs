@@ -8,7 +8,6 @@ use router_env::{
     tracing::{self, instrument},
 };
 
-use super::PaymentDataGetters;
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -50,7 +49,7 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
@@ -289,7 +288,7 @@ where
     F: Clone + Send + Sync,
     FData: Send + Sync,
     payments::PaymentResponse: operations::Operation<F, FData>,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
@@ -342,7 +341,7 @@ pub async fn modify_trackers<F, FData, D>(
 where
     F: Clone + Send,
     FData: Send,
-    D: PaymentDataGetters<F> + Send + Sync,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync,
 {
     let new_attempt_count = payment_data.get_payment_intent().attempt_count + 1;
     let new_payment_attempt = make_new_payment_attempt(

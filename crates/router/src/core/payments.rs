@@ -119,7 +119,7 @@ where
     F: Send + Clone + Sync,
     Req: Authenticate + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -528,7 +528,6 @@ where
 
             #[cfg(feature = "frm")]
             if let Some(fraud_info) = &mut frm_info {
-                // TODO(jarnura) : add this back
                 Box::pin(frm_core::post_payment_frm_core(
                     state,
                     req_state,
@@ -856,7 +855,7 @@ where
     FData: Send + Sync + Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
     Req: Debug + Authenticate + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
     // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
@@ -1519,7 +1518,7 @@ where
     RouterDReq: Send + Sync,
 
     // To create connector flow specific interface data
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     // To construct connector flow specific api
@@ -1629,7 +1628,7 @@ where
         | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt(
             payment_processing_details,
         ) => {
-            let apple_pay_data = match payment_data.get_payment_method_data().clone() {
+            let apple_pay_data = match payment_data.get_payment_method_data() {
                 Some(domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
                     wallet_data,
                 ))) => Some(
@@ -1837,7 +1836,7 @@ async fn blocklist_guard<F, ApiRequest, D>(
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let merchant_id = &payment_data.get_payment_attempt().merchant_id;
     let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
@@ -1886,7 +1885,7 @@ where
     F: Send + Clone,
 
     // To create connector flow specific interface data
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
     RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
 
@@ -2005,7 +2004,7 @@ where
     Req: Send + Sync,
 
     // To create connector flow specific interface data
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
     RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
 
@@ -2124,7 +2123,7 @@ where
         return Ok((router_data, should_continue_payment));
     }
     //TODO: For ACH transfers, if preprocessing_step is not required for connectors encountered in future, add the check
-    let router_data_and_should_continue_payment = match payment_data.get_payment_method_data().clone() {
+    let router_data_and_should_continue_payment = match payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::BankTransfer(data)) => match data.deref() {
             domain::BankTransferData::AchBankTransfer { .. }
             | domain::BankTransferData::MultibancoBankTransfer { .. }
@@ -2259,7 +2258,7 @@ async fn complete_postprocessing_steps_if_required<F, Q, RouterDReq, D>(
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Sync,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>: Feature<F, RouterDReq> + Send,
     dyn api::Connector:
@@ -2278,7 +2277,7 @@ where
         )
         .await?;
 
-    match payment_data.get_payment_method_data().clone() {
+    match payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::OpenBanking(domain::OpenBankingData::OpenBankingPIS {
             ..
         })) => {
@@ -2586,7 +2585,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let connector = payment_data.get_payment_attempt().connector.to_owned();
 
@@ -2715,7 +2714,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
 ) -> RouterResult<D>
 where
     F: Send + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     // On confirm is false and only router related
     let is_external_authentication_requested = payment_data
@@ -3291,14 +3290,14 @@ pub fn update_straight_through_routing<F, D>(
 ) -> CustomResult<(), errors::ParsingError>
 where
     F: Send + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let _: api_models::routing::RoutingAlgorithm = request_straight_through
         .clone()
         .parse_value("RoutingAlgorithm")
         .attach_printable("Invalid straight through routing rules format")?;
 
-    payment_data.set_straight_through_algorithm_in_payment_attempt(Some(request_straight_through));
+    payment_data.set_straight_through_algorithm_in_payment_attempt(request_straight_through);
 
     Ok(())
 }
@@ -3317,7 +3316,7 @@ pub async fn get_connector_choice<F, Req, D>(
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let connector_choice = operation
         .to_domain()?
@@ -3397,7 +3396,7 @@ pub async fn connector_selection<F, D>(
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let request_straight_through: Option<api::routing::StraightThroughAlgorithm> =
         request_straight_through
@@ -3451,7 +3450,7 @@ where
     payment_data.set_connector_in_payment_attempt(routing_data.routed_through);
 
     payment_data.set_merchant_connector_id_in_attempt(routing_data.merchant_connector_id);
-    payment_data.set_straight_through_algorithm_in_payment_attempt(Some(encoded_info));
+    payment_data.set_straight_through_algorithm_in_payment_attempt(encoded_info);
 
     Ok(decided_connector)
 }
@@ -3471,7 +3470,7 @@ pub async fn decide_connector<F, D>(
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     // If the connector was already decided previously, use the same connector
     // This is in case of flows like payments_sync, payments_cancel where the successive operations
@@ -3762,7 +3761,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     is_connector_agnostic_mit_enabled: Option<bool>,
 ) -> RouterResult<ConnectorCallType>
 where
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     match (
         payment_data.get_payment_intent().setup_future_usage,
@@ -3872,14 +3871,14 @@ where
                                     },
                                 ));
                             payment_data.set_recurring_mandate_payment_data(
-                                Some(hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                                     payment_method_type: mandate_reference_record
                                         .payment_method_type,
                                     original_payment_authorized_amount: mandate_reference_record
                                         .original_payment_authorized_amount,
                                     original_payment_authorized_currency: mandate_reference_record
                                         .original_payment_authorized_currency,
-                                }));
+                                });
 
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));
                             break;
@@ -3901,10 +3900,10 @@ where
                 .merchant_connector_id
                 .clone_from(&chosen_connector_data.merchant_connector_id);
 
-            payment_data.set_mandate_id(Some(payments_api::MandateIds {
+            payment_data.set_mandate_id(payments_api::MandateIds {
                 mandate_id: None,
                 mandate_reference_id,
-            }));
+            });
 
             Ok(ConnectorCallType::PreDetermined(chosen_connector_data))
         }
@@ -4114,7 +4113,7 @@ pub async fn route_connector_v1_for_payments<F, D>(
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
-    D: PaymentDataGetters<F> + Send + Sync + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
 {
     let routing_algorithm_id = {
         let routing_algorithm = business_profile.routing_algorithm.clone();
@@ -4203,7 +4202,7 @@ pub async fn route_connector_v1_for_payouts(
         merchant_account.get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
-        &TransactionData::Payout(&transaction_data),
+        &TransactionData::Payout(transaction_data),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -4211,7 +4210,7 @@ pub async fn route_connector_v1_for_payouts(
         &state.clone(),
         key_store,
         connectors,
-        &TransactionData::Payout(&transaction_data),
+        &TransactionData::Payout(transaction_data),
         eligible_connectors,
         business_profile,
     )
@@ -4651,6 +4650,9 @@ pub trait PaymentDataGetters<F> {
     fn get_token_data(&self) -> Option<&storage::PaymentTokenData>;
     fn get_mandate_connector(&self) -> Option<&MandateConnectorDetails>;
     fn get_force_sync(&self) -> Option<bool>;
+}
+
+pub trait PaymentDataSetters<F> {
 
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
@@ -4666,7 +4668,7 @@ pub trait PaymentDataGetters<F> {
     fn set_merchant_connector_id_in_attempt(&mut self, merchant_connector_id: Option<id_type::MerchantConnectorAccountId>);
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
     // TODO(jarnura) why this needs to option?
-    fn set_frm_message(&mut self, frm_message: Option<FraudCheck>);
+    fn set_frm_message(&mut self, frm_message: FraudCheck);
     fn set_payment_intent_status(&mut self, status: storage_enums::IntentStatus);
     fn set_authentication_type_in_attempt(
         &mut self,
@@ -4674,18 +4676,17 @@ pub trait PaymentDataGetters<F> {
     );
     fn set_recurring_mandate_payment_data(
         &mut self,
-        recurring_mandate_payment_data: Option<
+        recurring_mandate_payment_data: 
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
-        >,
     );
-    fn set_mandate_id(&mut self, mandate_id: Option<api_models::payments::MandateIds>);
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds);
     fn set_setup_future_usage_in_payment_intent(
         &mut self,
-        setup_future_usage: Option<storage_enums::FutureUsage>,
+        setup_future_usage: storage_enums::FutureUsage,
     );
     fn set_straight_through_algorithm_in_payment_attempt(
         &mut self,
-        straight_through_algorithm: Option<serde_json::Value>,
+        straight_through_algorithm: serde_json::Value,
     );
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
 }
@@ -4807,6 +4808,9 @@ impl<F: Clone> PaymentDataGetters<F> for PaymentData<F> {
     fn get_force_sync(&self) -> Option<bool> {
         self.force_sync
     }
+}
+
+impl<F: Clone> PaymentDataSetters<F> for PaymentData<F> {
 
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
@@ -4849,8 +4853,8 @@ impl<F: Clone> PaymentDataGetters<F> for PaymentData<F> {
         self.payment_attempt.capture_method = Some(capture_method);
     }
 
-    fn set_frm_message(&mut self, frm_message: Option<FraudCheck>) {
-        self.frm_message = frm_message;
+    fn set_frm_message(&mut self, frm_message: FraudCheck) {
+        self.frm_message = Some(frm_message);
     }
 
     fn set_payment_intent_status(&mut self, status: storage_enums::IntentStatus) {
@@ -4866,29 +4870,28 @@ impl<F: Clone> PaymentDataGetters<F> for PaymentData<F> {
 
     fn set_recurring_mandate_payment_data(
         &mut self,
-        recurring_mandate_payment_data: Option<
+        recurring_mandate_payment_data: 
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
-        >,
     ) {
-        self.recurring_mandate_payment_data = recurring_mandate_payment_data;
+        self.recurring_mandate_payment_data = Some(recurring_mandate_payment_data);
     }
 
-    fn set_mandate_id(&mut self, mandate_id: Option<api_models::payments::MandateIds>) {
-        self.mandate_id = mandate_id;
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+        self.mandate_id = Some(mandate_id);
     }
 
     fn set_setup_future_usage_in_payment_intent(
         &mut self,
-        setup_future_usage: Option<storage_enums::FutureUsage>,
+        setup_future_usage: storage_enums::FutureUsage,
     ) {
-        self.payment_intent.setup_future_usage = setup_future_usage;
+        self.payment_intent.setup_future_usage = Some(setup_future_usage);
     }
 
     fn set_straight_through_algorithm_in_payment_attempt(
         &mut self,
-        straight_through_algorithm: Option<serde_json::Value>,
+        straight_through_algorithm: serde_json::Value,
     ) {
-        self.payment_attempt.straight_through_algorithm = straight_through_algorithm;
+        self.payment_attempt.straight_through_algorithm = Some(straight_through_algorithm);
     }
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {

@@ -5223,7 +5223,7 @@ pub async fn override_setup_future_usage_to_on_session<F, D>(
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone,
-    D: payments::PaymentDataGetters<F> + Send,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send,
 {
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
@@ -5239,9 +5239,9 @@ where
             {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
                     logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data.set_setup_future_usage_in_payment_intent(Some(
+                    payment_data.set_setup_future_usage_in_payment_intent(
                         enums::FutureUsage::OnSession,
-                    ));
+                    );
                 }
             }
         };

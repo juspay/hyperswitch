@@ -46,7 +46,7 @@ pub struct FraudCheckPost;
 impl<F, D> FraudCheckOperation<F, D> for &FraudCheckPost
 where
     F: Clone + Send,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(*self)
@@ -62,7 +62,7 @@ where
 impl<F, D> FraudCheckOperation<F, D> for FraudCheckPost
 where
     F: Clone + Send,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(self)
@@ -148,7 +148,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
 impl<F, D> Domain<F, D> for FraudCheckPost
 where
     F: Clone + Send,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
@@ -344,7 +344,7 @@ where
 impl<F, D> UpdateTracker<FrmData, F, D> for FraudCheckPost
 where
     F: Clone + Send,
-    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+    D: payments::PaymentDataGetters<F> + payments::PaymentDataSetters<F> + Send + Sync + Clone,
 {
     async fn update_tracker<'b>(
         &'b self,

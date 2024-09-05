@@ -210,7 +210,7 @@ pub fn make_dsl_input(
             }) {
                 euclid_enums::PaymentType::PptMandate
             } else {
-                input.setup_mandate.clone().map_or_else(
+                input.setup_mandate.map_or_else(
                     || euclid_enums::PaymentType::NonMandate,
                     |_| euclid_enums::PaymentType::SetupMandate,
                 )
@@ -307,7 +307,7 @@ pub async fn perform_static_routing_v1(
     let cached_algorithm = ensure_algorithm_cached_v1(
         state,
         merchant_id,
-        &algorithm_id,
+        algorithm_id,
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
     )
@@ -429,7 +429,7 @@ pub async fn refresh_routing_cache_v1(
     let algorithm = {
         let algorithm = state
             .store
-            .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, algorithm_id)
+            .find_routing_algorithm_by_profile_id_algorithm_id(profile_id, algorithm_id)
             .await
             .change_context(errors::RoutingError::DslMissingInDb)?;
         let algorithm: routing_types::RoutingAlgorithm = algorithm
@@ -592,7 +592,7 @@ pub async fn refresh_cgraph_cache<'a>(
     let merchant_connector_accounts =
         payments_oss::helpers::filter_mca_based_on_profile_and_connector_type(
             merchant_connector_accounts,
-            &profile_id,
+            profile_id,
             connector_type,
         );
 
