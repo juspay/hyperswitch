@@ -134,7 +134,7 @@ pub struct PaymentIntent {
     pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
     pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub id: common_utils::id_type::PaymentId,
+    pub id: id_type::PaymentId,
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub amount_to_capture: Option<MinorUnit>,
     pub prerouting_algorithm: Option<serde_json::Value>,

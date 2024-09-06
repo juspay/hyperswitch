@@ -1094,6 +1094,7 @@ pub fn wait_screen_next_steps_check(
     Ok(display_info_with_timer_instructions)
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         Self {
@@ -1781,6 +1782,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1846,6 +1848,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
     }
 }
 
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequestData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
 impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1888,6 +1899,7 @@ impl ForeignTryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
     }
 }
 
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1943,6 +1955,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             metadata: payment_data.payment_intent.metadata,
             customer_acceptance: payment_data.customer_acceptance,
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 

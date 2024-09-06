@@ -461,7 +461,7 @@ where
         .insert_payment_attempt(new_payment_attempt, storage_scheme)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_data.payment_intent.payment_id.clone(),
+            payment_id: payment_data.payment_intent.get_id().to_owned(),
         })?;
 
     // update payment_attempt, connector_response and payment_intent in payment_data

@@ -55,7 +55,6 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -198,6 +197,7 @@ impl QrImage {
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_payment_id_type(
     state: &SessionState,
     payment_id_type: payments::PaymentIdType,
@@ -261,6 +261,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_refund_id_type(
     state: &SessionState,
     refund_id_type: webhooks::RefundIdType,
@@ -307,6 +308,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_mandate_id_type(
     state: &SessionState,
     mandate_id_type: webhooks::MandateIdType,
@@ -346,6 +348,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_mca_from_authentication_id_type(
     state: &SessionState,
     authentication_id_type: webhooks::AuthenticationIdType,
@@ -561,6 +564,7 @@ pub async fn get_mca_from_payout_attempt(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -1084,6 +1088,25 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
         .unwrap_or(true)
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn trigger_payments_webhook<F, Op>(
+    merchant_account: domain::MerchantAccount,
+    business_profile: domain::BusinessProfile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: crate::core::payments::PaymentData<F>,
+    customer: Option<domain::Customer>,
+    state: &SessionState,
+    operation: Op,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    Op: Debug,
+{
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op>(
     merchant_account: domain::MerchantAccount,
@@ -1099,7 +1122,7 @@ where
     Op: Debug,
 {
     let status = payment_data.payment_intent.status;
-    let payment_id = payment_data.payment_intent.payment_id.clone();
+    let payment_id = payment_data.payment_intent.get_id().clone();
     let captures = payment_data
         .multiple_capture_data
         .clone()
@@ -1146,7 +1169,7 @@ where
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
-                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                        Box::pin(crate::webhooks::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
                             merchant_account,
                             business_profile,

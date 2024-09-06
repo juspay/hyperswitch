@@ -20,8 +20,6 @@ use storage_impl::{config::TenantConfig, redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
-#[cfg(feature = "olap")]
-use super::blocklist;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
@@ -50,16 +48,18 @@ use super::poll::retrieve_poll_status;
 use super::routing;
 #[cfg(feature = "olap")]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 use super::webhooks::*;
-#[cfg(feature = "olap")]
-use super::{
-    admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
-    files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
-};
+// #[cfg(feature = "olap")]
+// use super::{
+//     admin::*, api_keys::*, apple_pay_certificates_migration, connector_onboarding::*, disputes::*,
+//     files::*, gsm::*, payment_link::*, user::*, user_role::*, webhook_events::*,
+// };
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+use super::{configs::*, customers::*, payments::*};
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
+use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
 #[cfg(feature = "olap")]
@@ -965,7 +965,7 @@ impl Customers {
 }
 pub struct Refunds;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 impl Refunds {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/refunds").app_data(web::Data::new(state));
@@ -1102,10 +1102,10 @@ impl PaymentMethods {
     }
 }
 
-#[cfg(all(feature = "olap", feature = "recon"))]
+#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub struct Recon;
 
-#[cfg(all(feature = "olap", feature = "recon"))]
+#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 impl Recon {
     pub fn server(state: AppState) -> Scope {
         web::scope("/recon")
@@ -1125,7 +1125,7 @@ impl Recon {
 #[cfg(feature = "olap")]
 pub struct Blocklist;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Blocklist {
     pub fn server(state: AppState) -> Scope {
         web::scope("/blocklist")
@@ -1164,11 +1164,11 @@ impl Organization {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/organization")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(organization_create)))
+            .service(web::resource("").route(web::post().to(super::admin::organization_create)))
             .service(
                 web::resource("/{id}")
-                    .route(web::get().to(organization_retrieve))
-                    .route(web::put().to(organization_update)),
+                    .route(web::get().to(super::admin::organization_retrieve))
+                    .route(web::put().to(super::admin::organization_update)),
             )
     }
 }
@@ -1180,11 +1180,11 @@ impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/accounts")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(merchant_account_create)))
+            .service(web::resource("").route(web::post().to(super::admin::merchant_account_create)))
             .service(
                 web::resource("/{id}")
-                    .route(web::get().to(retrieve_merchant_account))
-                    .route(web::put().to(update_merchant_account)),
+                    .route(web::get().to(super::admin::retrieve_merchant_account))
+                    .route(web::put().to(super::admin::update_merchant_account)),
             )
     }
 }
@@ -1296,7 +1296,7 @@ impl EphemeralKey {
 
 pub struct Mandates;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 impl Mandates {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/mandates").app_data(web::Data::new(state));
@@ -1318,7 +1318,7 @@ impl Mandates {
 
 pub struct Webhooks;
 
-#[cfg(feature = "oltp")]
+#[cfg(all(feature = "oltp", feature = "v1"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
         use api_models::webhooks as webhook_type;
@@ -1368,7 +1368,7 @@ impl Configs {
 
 pub struct ApplePayCertificatesMigration;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl ApplePayCertificatesMigration {
     pub fn server(state: AppState) -> Scope {
         web::scope("/apple_pay_certificates_migration")
@@ -1392,18 +1392,18 @@ impl Poll {
 
 pub struct ApiKeys;
 
-#[cfg(all(feature = "v2", feature = "olap"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/api_keys")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(api_key_create)))
-            .service(web::resource("/list").route(web::get().to(api_key_list)))
+            .service(web::resource("").route(web::post().to(super::api_keys::api_key_create)))
+            .service(web::resource("/list").route(web::get().to(super::api_keys::api_key_list)))
             .service(
                 web::resource("/{key_id}")
-                    .route(web::get().to(api_key_retrieve))
-                    .route(web::put().to(api_key_update))
-                    .route(web::delete().to(api_key_revoke)),
+                    .route(web::get().to(super::api_keys::api_key_retrieve))
+                    .route(web::put().to(super::api_keys::api_key_update))
+                    .route(web::delete().to(super::api_keys::api_key_revoke)),
             )
     }
 }
@@ -1413,20 +1413,20 @@ impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
         web::scope("/api_keys/{merchant_id}")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(api_key_create)))
-            .service(web::resource("/list").route(web::get().to(api_key_list)))
+            .service(web::resource("").route(web::post().to(super::api_keys::api_key_create)))
+            .service(web::resource("/list").route(web::get().to(super::api_keys::api_key_list)))
             .service(
                 web::resource("/{key_id}")
-                    .route(web::get().to(api_key_retrieve))
-                    .route(web::post().to(api_key_update))
-                    .route(web::delete().to(api_key_revoke)),
+                    .route(web::get().to(super::api_keys::api_key_retrieve))
+                    .route(web::post().to(super::api_keys::api_key_update))
+                    .route(web::delete().to(super::api_keys::api_key_revoke)),
             )
     }
 }
 
 pub struct Disputes;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Disputes {
     pub fn server(state: AppState) -> Scope {
         web::scope("/disputes")
@@ -1462,7 +1462,7 @@ impl Cards {
 
 pub struct Files;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Files {
     pub fn server(state: AppState) -> Scope {
         web::scope("/files")
@@ -1487,7 +1487,8 @@ impl Cache {
 }
 
 pub struct PaymentLink;
-#[cfg(feature = "olap")]
+
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
@@ -1531,13 +1532,13 @@ impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/v2/profiles")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(business_profile_create)))
+            .service(web::resource("").route(web::post().to(super::admin::business_profile_create)))
             .service(
                 web::scope("/{profile_id}")
                     .service(
                         web::resource("")
-                            .route(web::get().to(business_profile_retrieve))
-                            .route(web::put().to(business_profile_update)),
+                            .route(web::get().to(super::admin::business_profile_retrieve))
+                            .route(web::put().to(super::admin::business_profile_update)),
                     )
                     .service(
                         web::resource("/fallback_routing")
@@ -1621,14 +1622,15 @@ impl BusinessProfileNew {
         web::scope("/account/{account_id}/profile")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("").route(web::get().to(business_profiles_list_at_profile_level)),
+                web::resource("")
+                    .route(web::get().to(super::admin::business_profiles_list_at_profile_level)),
             )
     }
 }
 
 pub struct Gsm;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Gsm {
     pub fn server(state: AppState) -> Scope {
         web::scope("/gsm")
@@ -1643,7 +1645,7 @@ impl Gsm {
 #[cfg(feature = "olap")]
 pub struct Verify;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl Verify {
     pub fn server(state: AppState) -> Scope {
         web::scope("/verify")
@@ -1661,7 +1663,7 @@ impl Verify {
 
 pub struct User;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl User {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/user").app_data(web::Data::new(state));
@@ -1866,7 +1868,7 @@ impl User {
 
 pub struct ConnectorOnboarding;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl ConnectorOnboarding {
     pub fn server(state: AppState) -> Scope {
         web::scope("/connector_onboarding")
@@ -1880,7 +1882,7 @@ impl ConnectorOnboarding {
 #[cfg(feature = "olap")]
 pub struct WebhookEvents;
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 impl WebhookEvents {
     pub fn server(config: AppState) -> Scope {
         web::scope("/events/{merchant_id}")

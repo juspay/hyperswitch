@@ -123,7 +123,7 @@ pub async fn routing_link_config(
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuthProfileFromRoute {
-                profile_id: routing_payload_wrapper.profile_id,
+                profile_id: wrapper.profile_id,
                 required_permission: Permission::RoutingWrite,
             },
             req.headers(),

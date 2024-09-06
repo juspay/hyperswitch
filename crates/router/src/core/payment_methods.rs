@@ -40,7 +40,6 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payments::helpers,
-        pm_auth as core_pm_auth,
     },
     routes::{app::StorageInterface, SessionState},
     services,
@@ -450,6 +449,21 @@ pub async fn add_payment_method_status_update_task(
     Ok(())
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_with_token(
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _token_data: &storage::PaymentTokenData,
+    _payment_intent: &PaymentIntent,
+    _card_token_data: Option<&domain::CardToken>,
+    _customer: &Option<domain::Customer>,
+    _storage_scheme: common_enums::enums::MerchantStorageScheme,
+) -> RouterResult<storage::PaymentMethodDataWithId> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_with_token(
     state: &SessionState,

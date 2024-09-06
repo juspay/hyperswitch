@@ -28,6 +28,16 @@ pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,

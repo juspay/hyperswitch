@@ -1,15 +1,27 @@
+#[cfg(feature = "v1")]
 pub mod payment_approve;
+#[cfg(feature = "v1")]
 pub mod payment_cancel;
+#[cfg(feature = "v1")]
 pub mod payment_capture;
+#[cfg(feature = "v1")]
 pub mod payment_complete_authorize;
+#[cfg(feature = "v1")]
 pub mod payment_confirm;
+#[cfg(feature = "v1")]
 pub mod payment_create;
+#[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
+#[cfg(feature = "v1")]
 pub mod payment_session;
+#[cfg(feature = "v1")]
 pub mod payment_start;
+#[cfg(feature = "v1")]
 pub mod payment_status;
+#[cfg(feature = "v1")]
 pub mod payment_update;
+#[cfg(feature = "v1")]
 pub mod payments_incremental_authorization;
 
 use api_models::enums::FrmSuggestion;
@@ -17,14 +29,17 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_reject::PaymentReject,
-    payment_response::PaymentResponse, payment_session::PaymentSession,
+    payment_create::PaymentCreate, payment_reject::PaymentReject, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
 };
+
+pub use self::payment_response::PaymentResponse;
+
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
@@ -253,230 +268,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     }
 }
 
-#[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRetrieveRequest>>
-    Domain<F, api::PaymentsRetrieveRequest> for Op
-where
-    for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest>,
-{
-    #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_details_even_for_redacted_customer(
-                state,
-                payment_data.payment_intent.customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
-    }
-
-    async fn get_connector<'a>(
-        &'a self,
-        _merchant_account: &domain::MerchantAccount,
-        state: &SessionState,
-        _request: &api::PaymentsRetrieveRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
-    }
-
-    #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        _state: &'a SessionState,
-        _payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
-        Option<domain::PaymentMethodData>,
-        Option<String>,
-    )> {
-        Ok((Box::new(self), None, None))
-    }
-
-    #[instrument(skip_all)]
-    async fn guard_payment_against_blocklist<'a>(
-        &'a self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut PaymentData<F>,
-    ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        Ok(false)
-    }
-}
-
-#[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest>>
-    Domain<F, api::PaymentsCaptureRequest> for Op
-where
-    for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest>,
-{
-    #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_from_details(
-                state,
-                payment_data.payment_intent.customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
-    }
-    #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        _state: &'a SessionState,
-        _payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-        Option<domain::PaymentMethodData>,
-        Option<String>,
-    )> {
-        Ok((Box::new(self), None, None))
-    }
-
-    async fn get_connector<'a>(
-        &'a self,
-        _merchant_account: &domain::MerchantAccount,
-        state: &SessionState,
-        _request: &api::PaymentsCaptureRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
-    }
-
-    #[instrument(skip_all)]
-    async fn guard_payment_against_blocklist<'a>(
-        &'a self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut PaymentData<F>,
-    ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        Ok(false)
-    }
-}
-
-#[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest>>
-    Domain<F, api::PaymentsCancelRequest> for Op
-where
-    for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest>,
-{
-    #[instrument(skip_all)]
-    async fn get_or_create_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_from_details(
-                state,
-                payment_data.payment_intent.customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                payment_data,
-                merchant_key_store,
-                storage_scheme,
-            )
-            .await?,
-        ))
-    }
-
-    #[instrument(skip_all)]
-    async fn make_pm_data<'a>(
-        &'a self,
-        _state: &'a SessionState,
-        _payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
-    ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-        Option<domain::PaymentMethodData>,
-        Option<String>,
-    )> {
-        Ok((Box::new(self), None, None))
-    }
-
-    async fn get_connector<'a>(
-        &'a self,
-        _merchant_account: &domain::MerchantAccount,
-        state: &SessionState,
-        _request: &api::PaymentsCancelRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
-    }
-
-    #[instrument(skip_all)]
-    async fn guard_payment_against_blocklist<'a>(
-        &'a self,
-        _state: &SessionState,
-        _merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut PaymentData<F>,
-    ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        Ok(false)
-    }
-}
-
+// TODO: Move this to respective operation file
 #[async_trait]
 impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectRequest>>
     Domain<F, api::PaymentsRejectRequest> for Op
