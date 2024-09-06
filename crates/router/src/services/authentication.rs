@@ -2024,9 +2024,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let permissions = authorization::get_permissions(state, &payload).await?;
-        authorization::check_authorization(&self.0, &permissions)?;
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
