@@ -28,6 +28,13 @@ pub trait MandateInterface {
         customer_id: &id_type::CustomerId,
     ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
 
+    // Fix this function once we move to mandate v2
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_mandate_by_global_id(
+        &self,
+        id: &String,
+    ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError>;
+
     async fn update_mandate_by_merchant_id_mandate_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -182,6 +189,18 @@ mod storage {
         ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_types::Mandate::find_by_merchant_id_customer_id(&conn, merchant_id, customer_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_mandate_by_global_id(
+            &self,
+            id: &String,
+        ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_global_id(&conn, id)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
@@ -429,6 +448,19 @@ mod storage {
                 .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        // Need to fix this once we start moving to mandate v2
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_mandate_by_global_id(
+            &self,
+            customer_id: &String,
+        ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Mandate::find_by_global_id(&conn, customer_id)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[instrument(skip_all)]
         async fn update_mandate_by_merchant_id_mandate_id(
             &self,
@@ -528,6 +560,15 @@ impl MandateInterface for MockDb {
             })
             .cloned()
             .collect());
+    }
+
+    // Need to fix this once we move to v2 mandate
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_mandate_by_global_id(
+        &self,
+        id: &String,
+    ) -> CustomResult<Vec<storage_types::Mandate>, errors::StorageError> {
+        todo!()
     }
 
     async fn update_mandate_by_merchant_id_mandate_id(

@@ -981,10 +981,11 @@ pub async fn payouts_filtered_list_core(
 pub async fn payouts_list_available_filters_core(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PayoutListFilters> {
     let db = state.store.as_ref();
-    let payout = db
+    let payouts = db
         .filter_payouts_by_time_range_constraints(
             merchant_account.get_id(),
             &time_range,
@@ -993,9 +994,11 @@ pub async fn payouts_list_available_filters_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
+
     let filters = db
         .get_filters_for_payouts(
-            payout.as_slice(),
+            payouts.as_slice(),
             merchant_account.get_id(),
             storage_enums::MerchantStorageScheme::PostgresOnly,
         )

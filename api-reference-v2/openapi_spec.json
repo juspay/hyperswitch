@@ -4475,6 +4475,7 @@
           "ebanx",
           "fiserv",
           "fiservemea",
+          "fiuu",
           "forte",
           "globalpay",
           "globepay",
@@ -5203,13 +5204,14 @@
       "CustomerDeleteResponse": {
         "type": "object",
         "required": [
-          "customer_id",
+          "merchant_reference_id",
           "customer_deleted",
           "address_deleted",
-          "payment_methods_deleted"
+          "payment_methods_deleted",
+          "id"
         ],
         "properties": {
-          "customer_id": {
+          "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
@@ -5229,6 +5231,10 @@
             "type": "boolean",
             "description": "Whether payment methods deleted or not",
             "example": false
+          },
+          "id": {
+            "type": "string",
+            "description": "Global id"
           }
         }
       },
@@ -16333,6 +16339,7 @@
           "ebanx",
           "fiserv",
           "fiservemea",
+          "fiuu",
           "forte",
           "globalpay",
           "globepay",

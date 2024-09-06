@@ -215,5 +215,24 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             is_internal: false,
         },
     );
+    roles.insert(
+        consts::user_role::ROLE_ID_PROFILE_CUSTOMER_SUPPORT,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::OperationsManage,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::WorkflowsView,
+            ],
+            role_id: consts::user_role::ROLE_ID_PROFILE_CUSTOMER_SUPPORT.to_string(),
+            role_name: "profile_support".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
     roles
 });

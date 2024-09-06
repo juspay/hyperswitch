@@ -132,6 +132,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                     payment_method_info,
                     state,
                     merchant_account.storage_scheme,
+                    key_store,
                 )
                 .await
                 .map_err(|e| {
@@ -193,8 +194,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
-                payment_data.payment_attempt.payment_method_id =
-                    Some(pm_info.payment_method_id.clone());
+                payment_data.payment_attempt.payment_method_id = Some(pm_info.get_id().clone());
             };
             Ok(())
         } else {
@@ -436,7 +436,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         state: &SessionState,
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -445,6 +445,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     {
         update_payment_method_status_and_ntid(
             state,
+            key_store,
             payment_data,
             resp.status,
             resp.response.clone(),
@@ -751,7 +752,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         state: &SessionState,
         resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         merchant_account: &domain::MerchantAccount,
-        _key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -760,6 +761,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     {
         update_payment_method_status_and_ntid(
             state,
+            key_store,
             payment_data,
             resp.status,
             resp.response.clone(),
@@ -1358,6 +1360,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     connector_mandate_id,
                 )?;
             payment_methods::cards::update_payment_method_connector_mandate_details(
+                state,
+                key_store,
                 &*state.store,
                 payment_method.clone(),
                 connector_mandate_details,
@@ -1449,6 +1453,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
     payment_data: &mut PaymentData<F>,
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
@@ -1458,7 +1463,11 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
     if let Some(id) = &payment_data.payment_attempt.payment_method_id {
-        let payment_method = match state.store.find_payment_method(id, storage_scheme).await {
+        let payment_method = match state
+            .store
+            .find_payment_method(&(state.into()), key_store, id, storage_scheme)
+            .await
+        {
             Ok(payment_method) => payment_method,
             Err(error) => {
                 if error.current_context().is_db_not_found() {
@@ -1520,7 +1529,13 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 
         state
             .store
-            .update_payment_method(payment_method, pm_update, storage_scheme)
+            .update_payment_method(
+                &(state.into()),
+                key_store,
+                payment_method,
+                pm_update,
+                storage_scheme,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
