@@ -182,6 +182,7 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
     }
 }
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl From<api::CustomerDeleteResponse> for CustomerDeleteResponse {
     fn from(cust: api::CustomerDeleteResponse) -> Self {
         Self {

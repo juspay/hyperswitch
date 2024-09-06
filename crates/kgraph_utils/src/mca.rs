@@ -706,7 +706,7 @@ mod tests {
         use api_models::{admin::*, payment_methods::*};
         let profile_id = common_utils::generate_profile_id_of_default_length();
 
-        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        #[cfg(feature = "v2")]
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
@@ -760,10 +760,7 @@ mod tests {
             status: api_enums::ConnectorStatus::Inactive,
             additional_merchant_data: None,
         };
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_connector_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let stripe_account = MerchantConnectorResponse {
             connector_type: api_enums::ConnectorType::FizOperations,
             connector_name: "stripe".to_string(),
