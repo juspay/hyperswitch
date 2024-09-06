@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::blocklist as api_blocklist;
+use common_enums::EntityType;
 use router_env::Flow;
 
 use crate::{
@@ -36,7 +37,10 @@ pub async fn add_entry_to_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -72,7 +76,10 @@ pub async fn remove_entry_from_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -110,7 +117,10 @@ pub async fn list_blocked_payment_methods(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -148,7 +158,10 @@ pub async fn toggle_blocklist_guard(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

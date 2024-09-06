@@ -8,7 +8,7 @@ use crate::{core::errors, routes::SessionState};
 
 pub mod predefined_roles;
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct RoleInfo {
     role_id: String,
     role_name: String,
