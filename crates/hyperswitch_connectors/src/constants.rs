@@ -1,5 +1,6 @@
 /// Header Constants
 pub(crate) mod headers {
+    pub(crate) const ACCEPT: &str = "accept";
     pub(crate) const API_KEY: &str = "API-KEY";
     pub(crate) const API_TOKEN: &str = "Api-Token";
     pub(crate) const AUTHORIZATION: &str = "Authorization";

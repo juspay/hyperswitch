@@ -170,7 +170,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         _req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/token", self.base_url(connectors)))
+        Ok(format!("{}/security/v1/token", self.base_url(connectors)))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -188,17 +188,13 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         let random_string = Alphanumeric.sample_string(&mut rand::thread_rng(), 50);
 
         let string_to_sign = client_id.clone() + &date + &random_string;
-
         let key = hmac::Key::new(hmac::HMAC_SHA256, auth.client_key.expose().as_bytes());
-
         let client_secret = format!(
             "V1:{}",
             common_utils::consts::BASE64_ENGINE
                 .encode(hmac::sign(&key, string_to_sign.as_bytes()).as_ref())
         );
-        println!("date: {:?}", date);
-        println!("random: {:?}", random_string);
-        println!("secret: {client_secret}");
+
         let headers = vec![
             (
                 headers::X_RANDOM_VALUE.to_string(),
@@ -212,22 +208,15 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                     .into(),
             ),
         ];
-        println!("headers {:?}", headers);
+
         let connector_req = deutschebank::DeutschebankAccessTokenRequest {
             client_id: Secret::from(client_id),
             client_secret: Secret::from(client_secret),
             grant_type: "client_credentials".to_string(),
             scope: "ftx".to_string(),
         };
-        let printrequest =
-            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("$$$$$ {:?}", printrequest);
-
-        println!("connector_req {:?}", connector_req);
-
         let body = RequestContent::FormUrlEncoded(Box::new(connector_req));
-        println!("body&&&& {:?}", body.get_inner_value().expose());
+
         let req = Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -236,7 +225,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                 .set_body(body)
                 .build(),
         );
-
         Ok(req)
     }
 
@@ -246,8 +234,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
-        println!("response%%%% {:?}", res.response);
-
         let response: deutschebank::DeutschebankAccessTokenResponse = res
             .response
             .parse_struct("Paypal PaypalAuthUpdateResponse")
@@ -268,8 +254,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("errorresponse%%%% {:?}", res.response);
-
         self.build_error_response(res, event_builder)
     }
 }
