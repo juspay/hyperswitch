@@ -20,14 +20,14 @@ pub async fn send_recon_request(
     user_with_auth_data: authentication::UserFromTokenWithAuthData,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
     let user = user_with_auth_data.0;
-    let user_in_db = user_with_auth_data.1.user;
+    let user_in_db = &user_with_auth_data.1.user;
     let merchant_id = user.merchant_id;
 
-    let user_email = user_in_db.email;
+    let user_email = user_in_db.email.clone();
     let email_contents = email_types::ProFeatureRequest {
         feature_name: consts::RECON_FEATURE_TAG.to_string(),
         merchant_id: merchant_id.clone(),
-        user_name: domain::UserName::new(user_in_db.name)
+        user_name: domain::UserName::new(user_in_db.name.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
         user_email: domain::UserEmail::from_pii_email(user_email.clone())

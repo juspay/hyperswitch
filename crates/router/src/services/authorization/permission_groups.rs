@@ -94,4 +94,4 @@ pub static ORGANIZATION_MANAGE: [Permission; 2] = [
     Permission::MerchantAccountRead,
 ];
 
-pub static RECON: [Permission; 2] = [Permission::ReconRequest, Permission::ReconToken];
+pub static RECON: [Permission; 1] = [Permission::ReconAdmin];

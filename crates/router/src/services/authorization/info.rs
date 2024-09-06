@@ -184,8 +184,7 @@ impl ModuleInfo {
                 module: module_name,
                 description,
                 permissions: get_permission_info_from_permissions(&[
-                    Permission::ReconRequest,
-                    Permission::ReconToken,
+                    Permission::ReconAdmin,
                 ]),
             },
         }

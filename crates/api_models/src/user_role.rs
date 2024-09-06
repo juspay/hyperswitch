@@ -37,8 +37,7 @@ pub enum Permission {
     PayoutRead,
     WebhookEventWrite,
     GenerateReport,
-    ReconRequest,
-    ReconToken,
+    ReconAdmin,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
