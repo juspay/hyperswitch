@@ -114,6 +114,7 @@ where
         )]
         .into_iter(),
     );
+    #[cfg(feature = "km_forward_x_request_id")]
     if let Some(request_id) = state.request_id {
         header.insert(
             HeaderName::from_str(X_REQUEST_ID)

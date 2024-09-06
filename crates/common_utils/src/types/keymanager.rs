@@ -6,6 +6,7 @@ use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
+#[cfg(feature = "km_forward_x_request_id")]
 use router_env::tracing_actix_web::RequestId;
 use rustc_hash::FxHashMap;
 use serde::{
@@ -27,6 +28,7 @@ pub struct KeyManagerState {
     pub enabled: Option<bool>,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
+    #[cfg(feature = "km_forward_x_request_id")]
     pub request_id: Option<RequestId>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
