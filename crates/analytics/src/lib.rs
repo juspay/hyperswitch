@@ -840,7 +840,14 @@ impl AnalyticsProvider {
             | Self::CombinedSqlx(_, ckh_pool) => {
                 // Since API events are ckh only use ckh here
                 metric
-                    .load_metrics(dimensions, merchant_id, filters, granularity, time_range, ckh_pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        ckh_pool,
+                    )
                     .await
             }
         }

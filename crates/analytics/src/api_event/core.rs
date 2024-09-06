@@ -68,7 +68,8 @@ pub async fn get_filters(
             AnalyticsProvider::Clickhouse(ckh_pool)
             | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
             | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
-                get_api_event_filter_for_dimension(dim, merchant_id, &req.time_range, ckh_pool).await
+                get_api_event_filter_for_dimension(dim, merchant_id, &req.time_range, ckh_pool)
+                    .await
             }
         }
         .switch()?

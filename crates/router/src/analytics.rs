@@ -1638,9 +1638,13 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                analytics::api_event::get_api_event_metrics(&state.pool, auth.merchant_account.get_id(), req)
-                    .await
-                    .map(ApplicationResponse::Json)
+                analytics::api_event::get_api_event_metrics(
+                    &state.pool,
+                    auth.merchant_account.get_id(),
+                    req,
+                )
+                .await
+                .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth(Permission::Analytics),
             api_locking::LockAction::NotApplicable,

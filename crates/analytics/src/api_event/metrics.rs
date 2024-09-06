@@ -73,17 +73,38 @@ where
         match self {
             Self::Latency => {
                 MaxLatency
-                    .load_metrics(dimensions, merchant_id, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::ApiCount => {
                 ApiCount
-                    .load_metrics(dimensions, merchant_id, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
             Self::StatusCodeCount => {
                 StatusCodeCount
-                    .load_metrics(dimensions, merchant_id, filters, granularity, time_range, pool)
+                    .load_metrics(
+                        dimensions,
+                        merchant_id,
+                        filters,
+                        granularity,
+                        time_range,
+                        pool,
+                    )
                     .await
             }
         }
