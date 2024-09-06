@@ -1300,6 +1300,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Deutschebank => {
+                deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())

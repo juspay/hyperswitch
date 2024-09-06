@@ -208,7 +208,7 @@ pub enum RoutableConnectors {
     Cryptopay,
     Cybersource,
     Datatrans,
-    // Deutschebank,
+    Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,

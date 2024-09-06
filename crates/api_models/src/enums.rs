@@ -95,7 +95,7 @@ pub enum Connector {
     Cryptopay,
     Cybersource,
     Datatrans,
-    // Deutschebank,
+    Deutschebank,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -186,6 +186,7 @@ impl Connector {
         matches!(
             (self, payment_method),
             (Self::Airwallex, _)
+                | (Self::Deutschebank, _)
                 | (Self::Globalpay, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
@@ -231,7 +232,7 @@ impl Connector {
             | Self::Cashtocode
             | Self::Coinbase
             | Self::Cryptopay
-			// | Self::Deutschebank
+			| Self::Deutschebank
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv

@@ -1,8 +1,8 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{pii::Email, types::StringMinorUnit};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    payment_method_data::{BankDebitData, PaymentMethodData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -33,20 +33,76 @@ impl<T> From<(StringMinorUnit, T)> for DeutschebankRouterData<T> {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct DeutschebankPaymentsRequest {
-    amount: StringMinorUnit,
-    card: DeutschebankCard,
+pub struct DeutschebankAuthType {
+    pub(super) client_id: Secret<String>,
+    pub(super) merchant_id: Secret<String>,
+    pub(super) client_key: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct DeutschebankCard {
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+impl TryFrom<&ConnectorAuthType> for DeutschebankAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::SignatureKey { api_key, key1, api_secret } => Ok(Self {
+                client_id: api_key.to_owned(),
+                merchant_id: key1.to_owned(),
+                client_key: api_secret.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct DeutschebankAccessTokenRequest {
+    pub grant_type: String,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub scope: String,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct DeutschebankAccessTokenResponse {
+    pub access_token: Secret<String>,
+    pub expires_in: i64,
+    pub expires_on: i64,
+    pub scope: String,
+    pub token_type: String,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, DeutschebankAccessTokenResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, DeutschebankAccessTokenResponse, T, AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(AccessToken {
+                token: item.response.access_token,
+                expires: item.response.expires_in,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum DeutschebankSEPAApproval {
+    Click,
+    Email,
+    Sms,
+    Dynamic,
+}
+
+
+//TODO: Fill the struct with respective fields
+#[derive(Debug, Serialize, PartialEq)]
+pub struct DeutschebankPaymentsRequest {
+    approval_by: DeutschebankSEPAApproval,
+    email_address: Email,
+    iban: Secret<String>,
 }
 
 impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
@@ -57,41 +113,23 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
         item: &DeutschebankRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(req_card) => {
-                let card = DeutschebankCard {
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.router_data.request.is_auto_capture()?,
-                };
-                Ok(Self {
-                    amount: item.amount.clone(),
-                    card,
-                })
+            PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data {
+                    BankDebitData::SepaBankDebit { iban } => {
+                        Ok(Self {
+                            approval_by: DeutschebankSEPAApproval::Click,
+                            email_address: item.router_data.request.get_email()?,
+                            iban,
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+                }
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct DeutschebankAuthType {
-    pub(super) api_key: Secret<String>,
-}
-
-impl TryFrom<&ConnectorAuthType> for DeutschebankAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-        }
-    }
-}
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
