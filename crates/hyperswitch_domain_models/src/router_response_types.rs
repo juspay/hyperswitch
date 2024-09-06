@@ -163,6 +163,12 @@ pub enum RedirectForm {
     Mifinity {
         initialization_token: String,
     },
+    Nexixpay {
+        three_ds_auth_url: String,
+        three_ds_request: String,
+        return_url: String,
+        operation_id: String,
+    }
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -260,3 +266,4 @@ pub struct CompleteAuthorizeRedirectResponse {
     pub params: Option<masking::Secret<String>>,
     pub payload: Option<common_utils::pii::SecretSerdeValue>,
 }
+

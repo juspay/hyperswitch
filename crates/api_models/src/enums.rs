@@ -46,7 +46,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    // Nexixpay,
+    // Novalnet,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -114,6 +114,7 @@ pub enum Connector {
     Multisafepay,
     Netcetera,
     Nexinets,
+    Nexixpay,
     Nmi,
     Noon,
     Novalnet,
@@ -252,6 +253,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Novalnet
+            | Self::Nexixpay
             | Self::Nuvei
             | Self::Opennode
 			| Self::Paybox
