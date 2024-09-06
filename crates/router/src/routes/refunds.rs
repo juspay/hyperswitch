@@ -440,7 +440,14 @@ pub async fn get_refunds_aggregates(
         |state, auth: auth::AuthenticationData, req, _| {
             get_aggregates_for_refunds(state, auth.merchant_account, req)
         },
-        &auth::JWTAuth(Permission::RefundRead),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::RefundRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
