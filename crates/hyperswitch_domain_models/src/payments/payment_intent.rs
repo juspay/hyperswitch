@@ -871,11 +871,14 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
     }
 }
 
-impl<T> From<(T, Option<Vec<id_type::ProfileId>>)> for PaymentIntentFetchConstraints
+impl<T> TryFrom<(T, Option<Vec<id_type::ProfileId>>)> for PaymentIntentFetchConstraints
 where
     Self: From<T>,
 {
-    fn from((constraints, auth_profile_id_list): (T, Option<Vec<id_type::ProfileId>>)) -> Self {
+    type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
+    fn try_from(
+        (constraints, auth_profile_id_list): (T, Option<Vec<id_type::ProfileId>>),
+    ) -> Result<Self, Self::Error> {
         let payment_intent_constraints = Self::from(constraints);
         if let Self::List(mut pi_list_params) = payment_intent_constraints {
             let profile_id_from_request_body = pi_list_params.profile_id;
@@ -897,13 +900,24 @@ where
                         pi_list_params.profile_id = Some(auth_profile_id_list)
                     } else {
                         // This scenario is very unlikely to happen
-                        pi_list_params.profile_id = Some(profile_id_from_request_body)
+                        let inaccessible_profile_ids: Vec<_> = profile_id_from_request_body
+                            .iter()
+                            .filter(|profile_id| !auth_profile_id_list.contains(profile_id))
+                            .collect();
+                        return Err(error_stack::Report::new(
+                            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                                message: format!(
+                                    "Access not available for the given profile_id {:?}",
+                                    inaccessible_profile_ids
+                                ),
+                            },
+                        ));
                     }
                 }
             }
-            Self::List(pi_list_params)
+            Ok(Self::List(pi_list_params))
         } else {
-            payment_intent_constraints
+            Ok(payment_intent_constraints)
         }
     }
 }

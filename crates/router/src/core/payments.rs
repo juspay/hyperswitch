@@ -2918,10 +2918,9 @@ pub async fn list_payments(
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
         &state,
-        &constraints,
+        &(constraints, profile_id_list).try_into()?,
         merchant_id,
         &key_store,
-        profile_id_list,
         merchant.storage_scheme,
     )
     .await
@@ -2989,7 +2988,7 @@ pub async fn apply_filters_on_payments(
     let limit = &constraints.limit;
     helpers::validate_payment_list_request_for_joins(*limit)?;
     let db: &dyn StorageInterface = state.store.as_ref();
-    let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).into();
+    let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &(&state).into(),
