@@ -26,10 +26,11 @@ use crate::{
 #[operation(operations = "all", flow = "start")]
 pub struct PaymentStart;
 
+type PaymentSessionOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>;
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest, PaymentData<F>>
-    for PaymentStart
-{
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -209,9 +210,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest, P
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest, PaymentData<F>>
-    for PaymentStart
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -224,10 +223,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest, Payme
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -243,10 +239,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest, PaymentData<
         &'b self,
         request: &api::PaymentsStartRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsStartRequest, PaymentData<F>>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, operations::ValidateResult)> {
         let request_merchant_id = Some(&request.merchant_id);
         helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
@@ -285,10 +278,7 @@ where
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
-            Option<domain::Customer>,
-        ),
+        (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
@@ -313,7 +303,7 @@ where
         customer: &Option<domain::Customer>,
         business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
+        PaymentSessionOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {

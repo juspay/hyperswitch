@@ -29,10 +29,11 @@ use crate::{
 #[operation(operations = "all", flow = "cancel")]
 pub struct PaymentCancel;
 
+type PaymentCancelOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsCancelRequest, PaymentData<F>>;
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest, PaymentData<F>>
-    for PaymentCancel
-{
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -215,9 +216,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest, 
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest, PaymentData<F>>
-    for PaymentCancel
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -230,10 +229,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest, Paym
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest, PaymentData<F>>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentCancelOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -296,10 +292,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest, PaymentData
         &'b self,
         request: &api::PaymentsCancelRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest, PaymentData<F>>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentCancelOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

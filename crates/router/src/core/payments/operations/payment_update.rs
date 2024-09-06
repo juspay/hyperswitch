@@ -38,10 +38,10 @@ use crate::{
 #[operation(operations = "all", flow = "authorize")]
 pub struct PaymentUpdate;
 
+type PaymentUpdateOperation<'a, F> = BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>;
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentData<F>>
-    for PaymentUpdate
-{
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -338,28 +338,26 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, Paymen
             })
             .await
             .transpose()?;
-        let (next_operation, amount): (
-            BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>,
-            _,
-        ) = if request.confirm.unwrap_or(false) {
-            let amount = {
-                let amount = request
-                    .amount
-                    .map(Into::into)
-                    .unwrap_or(payment_attempt.amount);
-                payment_attempt.amount = amount;
-                payment_intent.amount = amount;
-                let surcharge_amount = request
-                    .surcharge_details
-                    .as_ref()
-                    .map(RequestSurchargeDetails::get_total_surcharge_amount)
-                    .or(payment_attempt.get_total_surcharge_amount());
-                amount + surcharge_amount.unwrap_or_default()
+        let (next_operation, amount): (PaymentUpdateOperation<'a, F>, _) =
+            if request.confirm.unwrap_or(false) {
+                let amount = {
+                    let amount = request
+                        .amount
+                        .map(Into::into)
+                        .unwrap_or(payment_attempt.amount);
+                    payment_attempt.amount = amount;
+                    payment_intent.amount = amount;
+                    let surcharge_amount = request
+                        .surcharge_details
+                        .as_ref()
+                        .map(RequestSurchargeDetails::get_total_surcharge_amount)
+                        .or(payment_attempt.get_total_surcharge_amount());
+                    amount + surcharge_amount.unwrap_or_default()
+                };
+                (Box::new(operations::PaymentConfirm), amount.into())
+            } else {
+                (Box::new(self), amount)
             };
-            (Box::new(operations::PaymentConfirm), amount.into())
-        } else {
-            (Box::new(self), amount)
-        };
 
         payment_intent.status = if request
             .payment_method_data
@@ -500,13 +498,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         request: Option<CustomerDetails>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
+    ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
+    {
         helpers::create_customer_if_not_exist(
             state,
             Box::new(self),
@@ -529,7 +522,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         customer: &Option<domain::Customer>,
         business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>,
+        PaymentUpdateOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -580,9 +573,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentData<F>>
-    for PaymentUpdate
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpdate {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -596,7 +587,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentDat
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<PaymentUpdateOperation<'b, F>>
     where
         F: 'b + Send,
     {
@@ -616,10 +607,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentDat
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -834,10 +822,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentUpdateOperation<'b, F>, operations::ValidateResult)> {
         helpers::validate_customer_information(request)?;
 
         if let Some(amount) = request.amount {

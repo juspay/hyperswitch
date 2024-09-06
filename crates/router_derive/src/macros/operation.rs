@@ -117,7 +117,7 @@ impl Conversion {
                 }
             },
             Self::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F, Self::Data, #req_type, Self::Data> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F, Self::Data, #req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
@@ -127,7 +127,7 @@ impl Conversion {
                 }
             },
             Self::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, #req_type, Self::Data> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, #req_type> + Send + Sync)> {
                     Ok(self)
                 }
             },
@@ -165,7 +165,7 @@ impl Conversion {
                 }
             },
             Self::GetTracker => quote! {
-                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F, Self::Data,#req_type, Self::Data> + Send + Sync)> {
+                fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F, Self::Data,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },
@@ -175,7 +175,7 @@ impl Conversion {
                 }
             },
             Self::UpdateTracker => quote! {
-                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F, Self::Data,#req_type, Self::Data> + Send + Sync)> {
+                fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<F, Self::Data,#req_type> + Send + Sync)> {
                     Ok(*self)
                 }
             },

@@ -26,10 +26,10 @@ use crate::{
 #[operation(operations = "all", flow = "cancel")]
 pub struct PaymentReject;
 
+type PaymentRejectOperation<'b, F> = BoxedOperation<'b, F, PaymentsCancelRequest, PaymentData<F>>;
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest, PaymentData<F>>
-    for PaymentReject
-{
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for PaymentReject {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -198,9 +198,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest, Payme
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest, PaymentData<F>>
-    for PaymentReject
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for PaymentReject {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -213,10 +211,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest, PaymentDa
         key_store: &domain::MerchantKeyStore,
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsCancelRequest, PaymentData<F>>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentRejectOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -274,10 +269,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsCancelRequest, PaymentData<F>> 
         &'b self,
         request: &PaymentsCancelRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsCancelRequest, PaymentData<F>>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentRejectOperation<'b, F>, operations::ValidateResult)> {
         Ok((
             Box::new(self),
             operations::ValidateResult {

@@ -27,8 +27,11 @@ use crate::{
 #[operation(operations = "all", flow = "capture")]
 pub struct PaymentApprove;
 
+type PaymentApproveOperation<'a, F> =
+    BoxedOperation<'a, F, api::PaymentsCaptureRequest, PaymentData<F>>;
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest, PaymentData<F>>
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentApprove
 {
     #[instrument(skip_all)]
@@ -199,9 +202,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest,
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest, PaymentData<F>>
-    for PaymentApprove
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for PaymentApprove {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -214,10 +215,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest, Pay
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest, PaymentData<F>>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentApproveOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -266,10 +264,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest, PaymentDat
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest, PaymentData<F>>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentApproveOperation<'b, F>, operations::ValidateResult)> {
         let request_merchant_id = request.merchant_id.as_ref();
         helpers::validate_merchant_id(merchant_account.get_id(), request_merchant_id)
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {

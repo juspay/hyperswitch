@@ -27,8 +27,11 @@ use crate::{
 #[operation(operations = "all", flow = "session")]
 pub struct PaymentSession;
 
+type PaymentSessionOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsSessionRequest, PaymentData<F>>;
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, PaymentData<F>>
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
     for PaymentSession
 {
     #[instrument(skip_all)]
@@ -222,9 +225,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest,
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, PaymentData<F>>
-    for PaymentSession
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -237,10 +238,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Pay
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, PaymentData<F>>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -275,10 +273,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest, PaymentDat
         &'b self,
         request: &api::PaymentsSessionRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, PaymentData<F>>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, operations::ValidateResult)> {
         //paymentid is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
 
@@ -311,10 +306,7 @@ where
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
-            Option<domain::Customer>,
-        ),
+        (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
@@ -339,7 +331,7 @@ where
         _customer: &Option<domain::Customer>,
         _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest, PaymentData<F>>,
+        PaymentSessionOperation<'b, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {

@@ -49,9 +49,7 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
     }
-    fn to_get_tracker(
-        &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, T, Self::Data> + Send + Sync)> {
+    fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F, Self::Data, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
@@ -61,7 +59,7 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, T, Self::Data> + Send + Sync)> {
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
@@ -100,7 +98,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
 }
 
 #[async_trait]
-pub trait GetTracker<F: Clone, D, R, D1>: Send {
+pub trait GetTracker<F: Clone, D, R>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -111,7 +109,7 @@ pub trait GetTracker<F: Clone, D, R, D1>: Send {
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         header_payload: &api::HeaderPayload,
-    ) -> RouterResult<GetTrackerResponse<'a, F, R, D1>>;
+    ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 }
 
 #[async_trait]
@@ -207,7 +205,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait UpdateTracker<F, D, Req, D1>: Send {
+pub trait UpdateTracker<F, D, Req>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &'b SessionState,
@@ -219,7 +217,7 @@ pub trait UpdateTracker<F, D, Req, D1>: Send {
         mechant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, Req, D1>, D)>
+    ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
     where
         F: 'b + Send;
 }

@@ -30,14 +30,13 @@ use crate::{
 #[operation(operations = "all", flow = "incremental_authorization")]
 pub struct PaymentIncrementalAuthorization;
 
+type PaymentIncrementalAuthorizationOperation<'b, F> =
+    BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone>
-    GetTracker<
-        F,
-        payments::PaymentData<F>,
-        PaymentsIncrementalAuthorizationRequest,
-        payments::PaymentData<F>,
-    > for PaymentIncrementalAuthorization
+    GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
+    for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -183,13 +182,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone>
-    UpdateTracker<
-        F,
-        payments::PaymentData<F>,
-        PaymentsIncrementalAuthorizationRequest,
-        payments::PaymentData<F>,
-    > for PaymentIncrementalAuthorization
+impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
+    for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -204,7 +198,7 @@ impl<F: Clone>
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>,
+        PaymentIncrementalAuthorizationOperation<'b, F>,
         payments::PaymentData<F>,
     )>
     where
@@ -290,7 +284,7 @@ impl<F: Send + Clone>
         request: &PaymentsIncrementalAuthorizationRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>,
+        PaymentIncrementalAuthorizationOperation<'b, F>,
         operations::ValidateResult,
     )> {
         Ok((
@@ -342,7 +336,7 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payment
         _customer: &Option<domain::Customer>,
         _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>,
+        PaymentIncrementalAuthorizationOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {

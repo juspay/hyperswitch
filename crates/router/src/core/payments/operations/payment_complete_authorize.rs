@@ -30,10 +30,11 @@ use crate::{
 #[operation(operations = "all", flow = "authorize")]
 pub struct CompleteAuthorize;
 
+type CompleteAuthorizeOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>;
+
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentData<F>>
-    for CompleteAuthorize
-{
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -374,10 +375,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Comple
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>,
-            Option<domain::Customer>,
-        ),
+        (CompleteAuthorizeOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
@@ -402,7 +400,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Comple
         customer: &Option<domain::Customer>,
         business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>,
+        CompleteAuthorizeOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -456,9 +454,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Comple
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentData<F>>
-    for CompleteAuthorize
-{
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -471,10 +467,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, PaymentDat
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(CompleteAuthorizeOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -510,7 +503,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
+        CompleteAuthorizeOperation<'b, F>,
         operations::ValidateResult,
     )> {
         let payment_id = request
