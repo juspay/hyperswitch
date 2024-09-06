@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    db::user_role::ListUserRolesByOrgIdPayload,
+    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -36,7 +36,6 @@ pub async fn get_authorization_info_with_groups(
         ),
     ))
 }
-
 pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
@@ -262,7 +261,6 @@ pub async fn accept_invitation(
         .list_multiple_merchant_accounts(&(&state).into(), req.merchant_ids)
         .await
         .change_context(UserErrors::InternalServerError)?;
-
     let update_result =
         futures::future::join_all(merchant_accounts.iter().map(|merchant_account| async {
             let (update_v1_result, update_v2_result) =
@@ -289,7 +287,59 @@ pub async fn accept_invitation(
         }))
         .await;
 
-    if update_result.iter().all(Result::is_err) {
+    if update_result.is_empty() || update_result.iter().all(Result::is_err) {
+        return Err(UserErrors::MerchantIdNotFound.into());
+    }
+
+    Ok(ApplicationResponse::StatusOk)
+}
+
+pub async fn accept_invitations_v2(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    req: user_role_api::AcceptInvitationsV2Request,
+) -> UserResponse<()> {
+    let lineages = futures::future::try_join_all(req.into_iter().map(|entity| {
+        utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
+            &state,
+            &user_from_token.user_id,
+            entity.entity_id,
+            entity.entity_type,
+        )
+    }))
+    .await?
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    let update_results = futures::future::join_all(lineages.iter().map(
+        |(org_id, merchant_id, profile_id)| async {
+            let (update_v1_result, update_v2_result) =
+                utils::user_role::update_v1_and_v2_user_roles_in_db(
+                    &state,
+                    user_from_token.user_id.as_str(),
+                    org_id,
+                    merchant_id,
+                    profile_id.as_ref(),
+                    UserRoleUpdate::UpdateStatus {
+                        status: UserStatus::Active,
+                        modified_by: user_from_token.user_id.clone(),
+                    },
+                )
+                .await;
+
+            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
+                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
+            {
+                Err(report!(UserErrors::InternalServerError))
+            } else {
+                Ok(())
+            }
+        },
+    ))
+    .await;
+
+    if update_results.is_empty() || update_results.iter().all(Result::is_err) {
         return Err(UserErrors::MerchantIdNotFound.into());
     }
 
@@ -333,7 +383,7 @@ pub async fn merchant_select_token_only_flow(
         }))
         .await;
 
-    if update_result.iter().all(Result::is_err) {
+    if update_result.is_empty() || update_result.iter().all(Result::is_err) {
         return Err(UserErrors::MerchantIdNotFound.into());
     }
 
@@ -344,18 +394,80 @@ pub async fn merchant_select_token_only_flow(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_role = user_from_db
-        .get_preferred_or_active_user_role_from_db(&state)
+    let current_flow =
+        domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
+    let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
+
+    let token = next_flow.get_token(&state).await?;
+
+    let response = user_api::TokenResponse {
+        token: token.clone(),
+        token_type: next_flow.get_flow().into(),
+    };
+    auth::cookies::set_cookie_response(response, token)
+}
+
+pub async fn accept_invitations_pre_auth(
+    state: SessionState,
+    user_token: auth::UserFromSinglePurposeToken,
+    req: user_role_api::AcceptInvitationsPreAuthRequest,
+) -> UserResponse<user_api::TokenResponse> {
+    let lineages = futures::future::try_join_all(req.into_iter().map(|entity| {
+        utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
+            &state,
+            &user_token.user_id,
+            entity.entity_id,
+            entity.entity_type,
+        )
+    }))
+    .await?
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    let update_results = futures::future::join_all(lineages.iter().map(
+        |(org_id, merchant_id, profile_id)| async {
+            let (update_v1_result, update_v2_result) =
+                utils::user_role::update_v1_and_v2_user_roles_in_db(
+                    &state,
+                    user_token.user_id.as_str(),
+                    org_id,
+                    merchant_id,
+                    profile_id.as_ref(),
+                    UserRoleUpdate::UpdateStatus {
+                        status: UserStatus::Active,
+                        modified_by: user_token.user_id.clone(),
+                    },
+                )
+                .await;
+
+            if update_v1_result.is_err_and(|err| !err.current_context().is_db_not_found())
+                || update_v2_result.is_err_and(|err| !err.current_context().is_db_not_found())
+            {
+                Err(report!(UserErrors::InternalServerError))
+            } else {
+                Ok(())
+            }
+        },
+    ))
+    .await;
+
+    if update_results.is_empty() || update_results.iter().all(Result::is_err) {
+        return Err(UserErrors::MerchantIdNotFound.into());
+    }
+
+    let user_from_db: domain::UserFromStorage = state
+        .global_store
+        .find_user_by_id(user_token.user_id.as_str())
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .change_context(UserErrors::InternalServerError)?
+        .into();
 
     let current_flow =
         domain::CurrentFlow::new(user_token, domain::SPTFlow::MerchantSelect.into())?;
     let next_flow = current_flow.next(user_from_db.clone(), &state).await?;
 
-    let token = next_flow
-        .get_token_with_user_role(&state, &user_role)
-        .await?;
+    let token = next_flow.get_token(&state).await?;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -632,30 +744,6 @@ pub async fn list_users_in_lineage(
         .map(|user| (user.user_id.clone(), user.email))
         .collect::<HashMap<_, _>>();
 
-    let role_info_map =
-        futures::future::try_join_all(user_roles_set.iter().map(|user_role| async {
-            roles::RoleInfo::from_role_id(
-                &state,
-                &user_role.role_id,
-                &user_from_token.merchant_id,
-                &user_from_token.org_id,
-            )
-            .await
-            .map(|role_info| {
-                (
-                    user_role.role_id.clone(),
-                    user_role_api::role::MinimalRoleInfo {
-                        role_id: user_role.role_id.clone(),
-                        role_name: role_info.get_role_name().to_string(),
-                    },
-                )
-            })
-        }))
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .collect::<HashMap<_, _>>();
-
     let user_role_map = user_roles_set
         .into_iter()
         .fold(HashMap::new(), |mut map, user_role| {
@@ -675,15 +763,49 @@ pub async fn list_users_in_lineage(
                         .ok_or(UserErrors::InternalServerError)?,
                     roles: role_id_vec
                         .into_iter()
-                        .map(|role_id| {
-                            role_info_map
-                                .get(&role_id)
-                                .cloned()
-                                .ok_or(UserErrors::InternalServerError)
+                        .map(|role_id| user_role_api::role::MinimalRoleInfo {
+                            role_id,
+                            role_name: None,
                         })
-                        .collect::<Result<Vec<_>, _>>()?,
+                        .collect(),
                 })
             })
             .collect::<Result<Vec<_>, _>>()?,
     ))
+}
+
+pub async fn list_invitations_for_user(
+    state: SessionState,
+    user_from_token: auth::UserIdFromAuth,
+) -> UserResponse<Vec<user_role_api::ListInvitationForUserResponse>> {
+    let invitations = state
+        .store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: &user_from_token.user_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+            entity_id: None,
+            version: None,
+            status: Some(UserStatus::InvitationSent),
+            limit: None,
+        })
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to list user roles by user id and invitation sent")?
+        .into_iter()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .filter_map(|user_role| {
+            let (entity_id, entity_type) = user_role.get_entity_id_and_type()?;
+            Some(user_role_api::ListInvitationForUserResponse {
+                entity_id,
+                entity_type,
+                entity_name: None,
+                role_id: user_role.role_id,
+            })
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(invitations))
 }

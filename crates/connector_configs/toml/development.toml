@@ -2565,6 +2565,65 @@ key1="Trankey"
 [plaid.connector_auth.BodyKey]
 api_key="client_id"
 key1="secret"
+[plaid.additional_merchant_data.open_banking_recipient_data]
+name="open_banking_recipient_data"
+label="Open Banking Recipient Data"
+placeholder="Enter Open Banking Recipient Data"
+required=true
+type="Select"
+options=["account_data","connector_recipient_id","wallet_id"]
+[plaid.additional_merchant_data.account_data]
+name="account_data"
+label="Bank scheme"
+placeholder="Enter account_data"
+required=true
+type="Select"
+options=["iban","bacs"]
+[plaid.additional_merchant_data.connector_recipient_id]
+name="connector_recipient_id"
+label="Connector Recipient Id"
+placeholder="Enter connector recipient id"
+required=true
+type="Text"
+[plaid.additional_merchant_data.wallet_id]
+name="wallet_id"
+label="Wallet Id"
+placeholder="Enter wallet id"
+required=true
+type="Text"
+
+[[plaid.additional_merchant_data.iban]]
+name="iban"
+label="Iban"
+placeholder="Enter iban"
+required=true
+type="Text"
+[[plaid.additional_merchant_data.iban]]
+name="iban.name"
+label="Name"
+placeholder="Enter name"
+required=true
+type="Text"
+
+[[plaid.additional_merchant_data.bacs]]
+name="sort_code"
+label="Sort Code"
+placeholder="Enter sort code"
+required=true
+type="Text"
+[[plaid.additional_merchant_data.bacs]]
+name="account_number"
+label="Account number"
+placeholder="Enter account number"
+required=true
+type="Text"
+[[plaid.additional_merchant_data.bacs]]
+name="bacs.name"
+label="Name"
+placeholder="Enter name"
+required=true
+type="Text"
+
 
 [powertranz]
 [[powertranz.credit]]
@@ -3930,3 +3989,45 @@ api_secret="CLE Secret"
 api_key="Key"
 key1="Merchant ID"
 api_secret="Shared Secret"
+
+[fiuu]
+[[fiuu.credit]]
+  payment_method_type = "Mastercard"
+[[fiuu.credit]]
+  payment_method_type = "Visa"
+[[fiuu.credit]]
+  payment_method_type = "Interac"
+[[fiuu.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiuu.credit]]
+  payment_method_type = "JCB"
+[[fiuu.credit]]
+  payment_method_type = "DinersClub"
+[[fiuu.credit]]
+  payment_method_type = "Discover"
+[[fiuu.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiuu.credit]]
+  payment_method_type = "UnionPay"
+[[fiuu.debit]]
+  payment_method_type = "Mastercard"
+[[fiuu.debit]]
+  payment_method_type = "Visa"
+[[fiuu.debit]]
+  payment_method_type = "Interac"
+[[fiuu.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiuu.debit]]
+  payment_method_type = "JCB"
+[[fiuu.debit]]
+  payment_method_type = "DinersClub"
+[[fiuu.debit]]
+  payment_method_type = "Discover"
+[[fiuu.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiuu.debit]]
+  payment_method_type = "UnionPay"
+[fiuu.connector_auth.SignatureKey]
+api_key="Verify Key"
+key1="Merchant ID"
+api_secret="Secret Key"
