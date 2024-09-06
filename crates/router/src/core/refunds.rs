@@ -879,8 +879,7 @@ pub async fn refund_list(
     let refund_list = db
         .filter_refund_by_constraints(
             merchant_account.get_id(),
-            &req,
-            profile_id_list.clone(),
+            &(req.clone(), profile_id_list.clone()).try_into()?,
             merchant_account.storage_scheme,
             limit,
             offset,
@@ -896,8 +895,7 @@ pub async fn refund_list(
     let total_count = db
         .get_total_count_of_refunds(
             merchant_account.get_id(),
-            &req,
-            profile_id_list,
+            &(req, profile_id_list).try_into()?,
             merchant_account.storage_scheme,
         )
         .await

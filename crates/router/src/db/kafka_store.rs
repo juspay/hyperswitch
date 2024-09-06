@@ -9,12 +9,13 @@ use diesel_models::{
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
 };
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
-};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+use hyperswitch_domain_models::{
+    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
+    refunds,
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -2363,8 +2364,7 @@ impl RefundInterface for KafkaStore {
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
-        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -2373,7 +2373,6 @@ impl RefundInterface for KafkaStore {
             .filter_refund_by_constraints(
                 merchant_id,
                 refund_details,
-                profile_id_list,
                 storage_scheme,
                 limit,
                 offset,
@@ -2397,17 +2396,11 @@ impl RefundInterface for KafkaStore {
     async fn get_total_count_of_refunds(
         &self,
         merchant_id: &id_type::MerchantId,
-        refund_details: &api_models::refunds::RefundListRequest,
-        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
-            .get_total_count_of_refunds(
-                merchant_id,
-                refund_details,
-                profile_id_list,
-                storage_scheme,
-            )
+            .get_total_count_of_refunds(merchant_id, refund_details, storage_scheme)
             .await
     }
 }
