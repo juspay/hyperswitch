@@ -2008,6 +2008,15 @@ pub async fn delete_card_from_locker(
     .await
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn delete_card_by_locker_id(
+    state: &routes::SessionState,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+) -> errors::RouterResult<payment_methods::DeleteCardResp> {
+    todo!()
+}
+
 #[instrument(skip_all)]
 pub async fn add_card_hs(
     state: &routes::SessionState,
@@ -2397,6 +2406,18 @@ pub async fn delete_card_from_hs_locker<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("card_delete_failure_message")?)
     }
+}
+
+// Need to fix this function while completing v2
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all)]
+pub async fn delete_card_from_hs_locker_by_global_id<'a>(
+    state: &routes::SessionState,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &'a str,
+) -> errors::RouterResult<payment_methods::DeleteCardResp> {
+    todo!()
 }
 
 ///Mock api for local testing
