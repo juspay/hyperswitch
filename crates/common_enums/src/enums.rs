@@ -402,6 +402,26 @@ pub enum AuthorizationStatus {
     Unresolved,
 }
 
+// #[derive(
+//     Clone,
+//     Debug,
+//     Eq,
+//     PartialEq,
+//     serde::Deserialize,
+//     serde::Serialize,
+//     strum::Display,
+//     strum::EnumString,
+//     ToSchema,
+//     Hash,
+// )]
+// #[router_derive::diesel_enum(storage_type = "text")]
+// #[serde(rename_all = "snake_case")]
+// #[strum(serialize_all = "snake_case")]
+// pub enum SessionUpdateStatus {
+//     Success,
+//     Failure,
+// }
+
 #[derive(
     Clone,
     Debug,
@@ -492,6 +512,8 @@ pub enum ConnectorType {
     PaymentMethodAuth,
     /// 3DS Authentication Service Providers
     AuthenticationProcessor,
+    /// Tax Calculation Processor
+    TaxProcessor,
 }
 
 #[derive(Debug, Eq, PartialEq)]
