@@ -21,6 +21,7 @@ pub trait RefundDbExt: Sized {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
@@ -35,6 +36,7 @@ pub trait RefundDbExt: Sized {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     ) -> CustomResult<i64, errors::DatabaseError>;
 }
 
@@ -44,6 +46,7 @@ impl RefundDbExt for Refund {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -89,6 +92,17 @@ impl RefundDbExt for Refund {
             Some(profile_id) => {
                 filter = filter
                     .filter(dsl::profile_id.eq(profile_id.to_owned()))
+                    .limit(limit)
+                    .offset(offset);
+            }
+            None => {
+                filter = filter.limit(limit).offset(offset);
+            }
+        };
+        match profile_id_list {
+            Some(profile_id_list) => {
+                filter = filter
+                    .filter(dsl::profile_id.eq_any(profile_id_list))
                     .limit(limit)
                     .offset(offset);
             }
@@ -207,6 +221,7 @@ impl RefundDbExt for Refund {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     ) -> CustomResult<i64, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -238,6 +253,10 @@ impl RefundDbExt for Refund {
         }
         if let Some(profile_id) = &refund_list_details.profile_id {
             filter = filter.filter(dsl::profile_id.eq(profile_id.to_owned()));
+        }
+
+        if let Some(profile_id_list) = profile_id_list {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id_list));
         }
 
         if let Some(time_range) = refund_list_details.time_range {

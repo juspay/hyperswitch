@@ -70,6 +70,7 @@ pub trait RefundInterface {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -88,6 +89,7 @@ pub trait RefundInterface {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
 }
@@ -217,6 +219,7 @@ mod storage {
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &api_models::refunds::RefundListRequest,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
             offset: i64,
@@ -256,6 +259,7 @@ mod storage {
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &api_models::refunds::RefundListRequest,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -263,6 +267,7 @@ mod storage {
                 &conn,
                 merchant_id,
                 refund_details,
+                profile_id_list,
             )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -753,6 +758,7 @@ mod storage {
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &api_models::refunds::RefundListRequest,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
             offset: i64,
@@ -762,6 +768,7 @@ mod storage {
                 &conn,
                 merchant_id,
                 refund_details,
+                profile_id_list,
                 limit,
                 offset,
             )
@@ -789,6 +796,7 @@ mod storage {
             &self,
             merchant_id: &common_utils::id_type::MerchantId,
             refund_details: &api_models::refunds::RefundListRequest,
+            profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
@@ -796,6 +804,7 @@ mod storage {
                 &conn,
                 merchant_id,
                 refund_details,
+                profile_id_list,
             )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -964,6 +973,7 @@ impl RefundInterface for MockDb {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -972,6 +982,7 @@ impl RefundInterface for MockDb {
         let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
+        let mut unique_profile_ids = HashSet::new();
 
         // Fill the hash sets with data from refund_details
         if let Some(connectors) = &refund_details.connector {
@@ -998,6 +1009,10 @@ impl RefundInterface for MockDb {
             refund_statuses.iter().for_each(|refund_status| {
                 unique_statuses.insert(refund_status);
             });
+        }
+
+        if let Some(profile_ids) = &profile_id_list {
+            unique_profile_ids = profile_ids.iter().collect();
         }
 
         let refunds = self.refunds.lock().await;
@@ -1056,6 +1071,12 @@ impl RefundInterface for MockDb {
             })
             .filter(|refund| {
                 unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
+            })
+            .filter(|refund| {
+                refund
+                    .profile_id
+                    .as_ref()
+                    .is_some_and(|profile_id| unique_profile_ids.contains(profile_id))
             })
             .skip(usize::try_from(offset).unwrap_or_default())
             .take(usize::try_from(limit).unwrap_or(MAX_LIMIT))
@@ -1117,12 +1138,14 @@ impl RefundInterface for MockDb {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         refund_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let mut unique_connectors = HashSet::new();
         let mut unique_merchant_connector_ids = HashSet::new();
         let mut unique_currencies = HashSet::new();
         let mut unique_statuses = HashSet::new();
+        let mut unique_profile_ids = HashSet::new();
 
         // Fill the hash sets with data from refund_details
         if let Some(connectors) = &refund_details.connector {
@@ -1149,6 +1172,10 @@ impl RefundInterface for MockDb {
             refund_statuses.iter().for_each(|refund_status| {
                 unique_statuses.insert(refund_status);
             });
+        }
+
+        if let Some(profile_id_list) = &profile_id_list {
+            unique_profile_ids = profile_id_list.iter().collect();
         }
 
         let refunds = self.refunds.lock().await;
@@ -1207,6 +1234,11 @@ impl RefundInterface for MockDb {
             })
             .filter(|refund| {
                 unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
+            })
+            .filter(|refund| {
+                refund.profile_id.as_ref().is_some_and(|profile_id| {
+                    unique_profile_ids.is_empty() || unique_profile_ids.contains(&profile_id)
+                })
             })
             .cloned()
             .collect::<Vec<_>>();

@@ -869,7 +869,7 @@ pub async fn validate_and_create_refund(
 pub async fn refund_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
@@ -880,6 +880,7 @@ pub async fn refund_list(
         .filter_refund_by_constraints(
             merchant_account.get_id(),
             &req,
+            profile_id_list.clone(),
             merchant_account.storage_scheme,
             limit,
             offset,
@@ -896,6 +897,7 @@ pub async fn refund_list(
         .get_total_count_of_refunds(
             merchant_account.get_id(),
             &req,
+            profile_id_list,
             merchant_account.storage_scheme,
         )
         .await

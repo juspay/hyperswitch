@@ -2343,6 +2343,7 @@ impl RefundInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         refund_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
         limit: i64,
         offset: i64,
@@ -2351,6 +2352,7 @@ impl RefundInterface for KafkaStore {
             .filter_refund_by_constraints(
                 merchant_id,
                 refund_details,
+                profile_id_list,
                 storage_scheme,
                 limit,
                 offset,
@@ -2375,10 +2377,16 @@ impl RefundInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         refund_details: &api_models::refunds::RefundListRequest,
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.diesel_store
-            .get_total_count_of_refunds(merchant_id, refund_details, storage_scheme)
+            .get_total_count_of_refunds(
+                merchant_id,
+                refund_details,
+                profile_id_list,
+                storage_scheme,
+            )
             .await
     }
 }
