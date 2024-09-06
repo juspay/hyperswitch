@@ -183,9 +183,7 @@ impl ModuleInfo {
             PermissionModule::Recon => Self {
                 module: module_name,
                 description,
-                permissions: get_permission_info_from_permissions(&[
-                    Permission::ReconAdmin,
-                ]),
+                permissions: get_permission_info_from_permissions(&[Permission::ReconAdmin]),
             },
         }
     }
