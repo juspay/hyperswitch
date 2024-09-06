@@ -5,13 +5,22 @@
 
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{enums, routing as routing_types, routing::RoutingRetrieveQuery};
+use hyperswitch_domain_models::{
+    errors::api_error_response::ApiErrorResponse, merchant_account::MerchantAccount,
+    merchant_key_store::MerchantKeyStore,
+};
+use pm_auth::core::errors::CustomResult;
 use router_env::{
     tracing::{self, instrument},
     Flow,
 };
 
+use super::SessionState;
 use crate::{
-    core::{api_locking, conditional_config, routing, surcharge_decision_config},
+    core::{
+        api_locking, conditional_config, errors::StorageErrorExt, routing,
+        surcharge_decision_config,
+    },
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
 };
@@ -787,4 +796,114 @@ pub async fn routing_update_default_config_for_profile(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
+#[instrument(skip_all)]
+pub async fn toggle_dynamic_routing(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
+) -> impl Responder {
+    use crate::services::authentication::AuthenticationData;
+    let flow = Flow::RoutingRetrieveActiveConfig;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, auth: AuthenticationData, query_params, _| {
+            routing::toggle_dynamic_routing(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                // auth.profile_id,
+                query_params,
+            )
+        },
+        #[cfg(not(feature = "release"))]
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth(Permission::RoutingWrite),
+            req.headers(),
+        ),
+        #[cfg(feature = "release")]
+        &auth::JWTAuth(Permission::RoutingWrite),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(any(feature = "routing_v2", feature = "business_profile_v2"))
+))]
+#[instrument(skip_all)]
+pub async fn dynamic_routing_update_configs(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::DynamicRoutingUpdateConfigQuery>,
+    json_payload: web::Json<routing_types::DynamicRoutingConfig>,
+) -> impl Responder {
+    let flow = Flow::UpdateDynamicRoutingConfigs;
+    let routing_payload_wrapper = routing_types::DynamicRoutingPayloadWrapper {
+        updated_config: json_payload.into_inner(),
+        algorithm_id: query.clone().into_inner().algorithm_id,
+        profile_id: query.clone().into_inner().profile_id,
+        merchant_id: query.into_inner().merchant_id,
+    };
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        routing_payload_wrapper.clone(),
+        |state, _, wrapper: routing_types::DynamicRoutingPayloadWrapper, _| {
+            let routing_payload = routing_payload_wrapper.clone();
+            async move {
+                let merchant_id = routing_payload.clone().merchant_id;
+                let (key_store, merchant_account) =
+                    get_merchant_account(&state, &merchant_id).await?;
+                Box::pin(routing::dynamic_routing_update_configs(
+                    state,
+                    merchant_account,
+                    key_store,
+                    wrapper.updated_config,
+                    wrapper.algorithm_id,
+                    wrapper.profile_id,
+                ))
+                .await
+            }
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+async fn get_merchant_account(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> CustomResult<(MerchantKeyStore, MerchantAccount), ApiErrorResponse> {
+    let key_manager_state = &state.into();
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .await
+        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
+    Ok((key_store, merchant_account))
 }

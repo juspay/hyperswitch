@@ -242,6 +242,10 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Toggle dynamic Routing
+    ToggleDynamicRouting,
+    /// Update dynamic Routing config
+    UpdateDynamicRoutingConfigs,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist

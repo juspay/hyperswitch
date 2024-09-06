@@ -50,6 +50,7 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
+    Dynamic,
 }
 
 #[derive(

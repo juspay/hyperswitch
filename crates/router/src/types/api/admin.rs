@@ -356,6 +356,7 @@ pub async fn create_business_profile_from_merchant_account(
                 .map(Into::into),
             tax_connector_id: request.tax_connector_id,
             is_tax_connector_enabled: request.is_tax_connector_enabled,
+            is_dynamic_routing_enabled: request.is_dynamic_routing_enabled,
         },
     ))
 }

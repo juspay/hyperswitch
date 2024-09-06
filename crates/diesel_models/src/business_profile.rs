@@ -59,6 +59,7 @@ pub struct BusinessProfile {
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
     pub version: common_enums::ApiVersion,
+    pub is_dynamic_routing_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -141,6 +142,7 @@ pub struct BusinessProfileUpdateInternal {
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
     pub tax_connector_id: Option<String>,
     pub is_tax_connector_enabled: Option<bool>,
+    pub is_dynamic_routing_enabled: Option<bool>,
 }
 
 #[cfg(all(
@@ -179,6 +181,7 @@ impl BusinessProfileUpdateInternal {
             always_collect_shipping_details_from_wallet_connector,
             tax_connector_id,
             is_tax_connector_enabled,
+            is_dynamic_routing_enabled,
         } = self;
         BusinessProfile {
             profile_id: source.profile_id,
@@ -232,6 +235,8 @@ impl BusinessProfileUpdateInternal {
             tax_connector_id: tax_connector_id.or(source.tax_connector_id),
             is_tax_connector_enabled: is_tax_connector_enabled.or(source.is_tax_connector_enabled),
             version: source.version,
+            is_dynamic_routing_enabled: is_dynamic_routing_enabled
+                .or(source.is_dynamic_routing_enabled),
         }
     }
 }
