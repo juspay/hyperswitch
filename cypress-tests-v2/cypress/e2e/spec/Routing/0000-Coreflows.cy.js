@@ -2,7 +2,9 @@ import State from "../../../utils/State";
 
 let globalState;
 
-describe("Routingh core APIs", () => {
+// Marked as skipped as the List APIs are not implemented yet.
+// In addition to this, we do not want to hard code the MCA Ids in the test cases.
+describe.skip("Routingh core APIs", () => {
   context("Login", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -18,6 +20,22 @@ describe("Routingh core APIs", () => {
       cy.userLogin(globalState);
       cy.terminate2Fa(globalState);
       cy.userInfo(globalState);
+    });
+  });
+
+  context("Fetch MCA Ids", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("List MCA call", () => {
+      cy.listMCA(globalState);
     });
   });
 
