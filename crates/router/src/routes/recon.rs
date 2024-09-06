@@ -11,16 +11,19 @@ use crate::{
 pub async fn update_merchant(
     state: web::Data<AppState>,
     req: HttpRequest,
+    path: web::Path<common_utils::id_type::MerchantId>,
     json_payload: web::Json<recon_api::ReconUpdateMerchantRequest>,
 ) -> HttpResponse {
     let flow = Flow::ReconMerchantUpdate;
+    let merchant_id = path.into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
-        |state, _user, req, _| recon::recon_merchant_account_update(state, req),
-        &authentication::ReconAdmin,
+        |state, auth, req, _| recon::recon_merchant_account_update(state, auth, req),
+        &authentication::AdminApiAuthWithMerchantIdFromRoute(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await

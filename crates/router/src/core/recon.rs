@@ -5,7 +5,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     consts,
-    core::errors::{self, RouterResponse, StorageErrorExt, UserErrors},
+    core::errors::{self, RouterResponse, UserErrors},
     services::{api as service_api, authentication, email::types as email_types},
     types::{
         api::{self as api_types, enums},
@@ -117,38 +117,23 @@ pub async fn generate_recon_token(
 
 pub async fn recon_merchant_account_update(
     state: SessionState,
+    auth: authentication::AuthenticationData,
     req: recon_api::ReconUpdateMerchantRequest,
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
-    let merchant_id = &req.merchant_id.clone();
-    let user_email = &req.user_email.clone();
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &req.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "merchant's key store not found".to_string(),
-        })?;
-
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
         recon_status: req.recon_status,
     };
 
-    let response = db
+    let merchant_id = auth.merchant_account.get_id().clone();
+    let updated_merchant_account = db
         .update_merchant(
             key_manager_state,
-            merchant_account,
+            auth.merchant_account,
             updated_merchant_account,
-            &key_store,
+            &auth.key_store,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -156,6 +141,7 @@ pub async fn recon_merchant_account_update(
             format!("Failed while updating merchant's recon status: {merchant_id:?}")
         })?;
 
+    let user_email = &req.user_email.clone();
     let email_contents = email_types::ReconActivation {
         recipient_email: domain::UserEmail::from_pii_email(user_email.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -181,10 +167,9 @@ pub async fn recon_merchant_account_update(
     }
 
     Ok(service_api::ApplicationResponse::Json(
-        api_types::MerchantAccountResponse::foreign_try_from(response).change_context(
-            errors::ApiErrorResponse::InvalidDataValue {
+        api_types::MerchantAccountResponse::foreign_try_from(updated_merchant_account)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_account",
-            },
-        )?,
+            })?,
     ))
 }

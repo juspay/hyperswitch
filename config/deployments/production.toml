@@ -385,4 +385,4 @@ sdk_eligible_payment_methods = "card"
 connector_list = ""
 
 [recipient_emails]
-recon = "biz@hyperswitch.io"
+recon = "recon@example.com"

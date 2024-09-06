@@ -514,7 +514,6 @@ pub struct RequiredFieldFinal {
 pub struct Secrets {
     pub jwt_secret: Secret<String>,
     pub admin_api_key: Secret<String>,
-    pub recon_admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
 }
 

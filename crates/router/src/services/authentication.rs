@@ -40,7 +40,7 @@ use crate::{
     headers,
     routes::app::SessionStateInfo,
     services::api,
-    types::domain,
+    types::{domain, storage},
     utils::OptionExt,
 };
 
@@ -63,6 +63,14 @@ pub struct AuthenticationDataWithMultipleProfiles {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
     pub profile_id_list: Option<Vec<id_type::ProfileId>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct AuthenticationDataWithUser {
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+    pub user: storage::User,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -1976,38 +1984,9 @@ where
     default_auth
 }
 
-#[cfg(feature = "recon")]
-pub struct ReconAdmin;
-
-#[async_trait]
-#[cfg(feature = "recon")]
-impl<A> AuthenticateAndFetch<(), A> for ReconAdmin
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<((), AuthenticationType)> {
-        let request_admin_api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let conf = state.conf();
-
-        let admin_api_key = conf.secrets.get_inner().recon_admin_api_key.peek();
-
-        if request_admin_api_key != admin_api_key {
-            Err(report!(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Recon Admin Authentication Failure"))?;
-        }
-
-        Ok(((), AuthenticationType::NoAuth))
-    }
-}
-
 #[derive(Clone)]
 #[cfg(feature = "recon")]
-pub struct UserFromTokenWithAuthData(pub UserFromToken, pub AuthenticationData);
+pub struct UserFromTokenWithAuthData(pub UserFromToken, pub AuthenticationDataWithUser);
 
 #[cfg(feature = "recon")]
 #[async_trait]
@@ -2051,19 +2030,30 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let auth = AuthenticationData {
+        let user_id = payload.user_id;
+
+        let user = state
+            .session_state()
+            .global_store
+            .find_user_by_id(&user_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch user for the user id")?;
+
+        let auth = AuthenticationDataWithUser {
             merchant_account: merchant,
             key_store,
             profile_id: payload.profile_id.clone(),
+            user,
         };
 
         let auth_type = AuthenticationType::MerchantJwt {
             merchant_id: auth.merchant_account.get_id().clone(),
-            user_id: Some(payload.user_id.clone()),
+            user_id: Some(user_id.clone()),
         };
 
         let user = UserFromToken {
-            user_id: payload.user_id,
+            user_id,
             merchant_id: payload.merchant_id.clone(),
             org_id: payload.org_id,
             role_id: payload.role_id,

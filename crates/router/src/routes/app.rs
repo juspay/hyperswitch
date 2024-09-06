@@ -1126,7 +1126,7 @@ impl Recon {
         web::scope("/recon")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/update_merchant")
+                web::resource("/{merchant_id}/update")
                     .route(web::post().to(recon_routes::update_merchant)),
             )
             .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
