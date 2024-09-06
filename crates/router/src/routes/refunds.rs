@@ -2,13 +2,13 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "olap")]
+use crate::types::api::payments as payment_types;
 use crate::{
     core::{api_locking, refunds::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::refunds,
 };
-#[cfg(feature = "olap")]
-use crate::types::api::payments as payment_types;
 
 /// Refunds - Create
 ///
