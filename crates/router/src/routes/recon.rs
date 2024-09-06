@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::{recon as recon_api, enums::EntityType};
+use api_models::{enums::EntityType, recon as recon_api};
 use router_env::Flow;
 
 use super::AppState;
