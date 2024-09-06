@@ -17,7 +17,7 @@ pub mod storage;
 pub mod transformers;
 use std::marker::PhantomData;
 
-pub use api_models::{enums::Connector, mandates, payments as payment_enums};
+pub use api_models::{enums::Connector, mandates};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 pub use common_utils::{pii, pii::Email, request::RequestContent, types::MinorUnit};
@@ -205,7 +205,7 @@ pub type PayoutActionData = Vec<(
     storage::Payouts,
     storage::PayoutAttempt,
     Option<domain::Customer>,
-    Option<payment_enums::Address>,
+    Option<api_models::payments::Address>,
 )>;
 
 #[cfg(feature = "payouts")]
