@@ -19,20 +19,15 @@ pub async fn send_recon_request(
     state: SessionState,
     user_with_auth_data: authentication::UserFromTokenWithAuthData,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
-    let global_db = &*state.global_store;
-    let db = &*state.store;
-    let key_manager_state = &(&state).into();
     let user = user_with_auth_data.0;
+    let user_in_db = user_with_auth_data.1.user;
     let merchant_id = user.merchant_id;
-    let user_from_db = global_db
-        .find_user_by_id(&user.user_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let user_email = user_from_db.email;
+
+    let user_email = user_in_db.email;
     let email_contents = email_types::ProFeatureRequest {
         feature_name: consts::RECON_FEATURE_TAG.to_string(),
         merchant_id: merchant_id.clone(),
-        user_name: domain::UserName::new(user_from_db.name)
+        user_name: domain::UserName::new(user_in_db.name)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
         user_email: domain::UserEmail::from_pii_email(user_email.clone())
@@ -64,6 +59,8 @@ pub async fn send_recon_request(
             let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
                 recon_status: enums::ReconStatus::Requested,
             };
+            let db = &*state.store;
+            let key_manager_state = &(&state).into();
 
             let response = db
                 .update_merchant(
@@ -126,8 +123,8 @@ pub async fn recon_merchant_account_update(
     let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
         recon_status: req.recon_status,
     };
-
     let merchant_id = auth.merchant_account.get_id().clone();
+
     let updated_merchant_account = db
         .update_merchant(
             key_manager_state,
