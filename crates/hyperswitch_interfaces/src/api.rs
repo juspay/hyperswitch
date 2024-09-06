@@ -20,7 +20,7 @@ pub mod refunds_v2;
 use common_enums::enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
-    request::{Method, Request, RequestContent},
+    request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -36,13 +36,12 @@ use hyperswitch_domain_models::{
     router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
 };
 use masking::Maskable;
-use router_env::metrics::add_attributes;
 use serde_json::json;
 
 pub use self::{payments::*, refunds::*};
 use crate::{
     configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types,
+    events::connector_api_logs::ConnectorEvent, types,
 };
 
 /// type BoxedConnectorIntegration
@@ -117,14 +116,19 @@ pub trait ConnectorIntegration<T, Req, Resp>:
     fn build_request(
         &self,
         req: &RouterData<T, Req, Resp>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &add_attributes([("connector", req.connector.clone())]),
-        );
-        Ok(None)
+        Ok(Some(
+            RequestBuilder::new()
+                .method(self.get_http_method())
+                .url(self.get_url(req, connectors)?.as_str())
+                .attach_default_headers()
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
+                .add_certificate(self.get_certificate(req)?.map(masking::Secret::new))
+                .add_certificate_key(self.get_certificate_key(req)?.map(masking::Secret::new))
+                .build(),
+        ))
     }
 
     /// fn handle_response

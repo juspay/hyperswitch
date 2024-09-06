@@ -7,6 +7,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
+pub use crate::connector::macros::NoRequestBody;
 use crate::{
     connector::utils::{self, PhoneDetailsData, RouterData},
     core::errors,
@@ -712,6 +713,14 @@ pub struct ErrorParameters {
     pub(super) name: String,
     pub(super) value: Option<String>,
     pub(super) message: String,
+}
+impl TryFrom<types::PaymentsAuthorizeRouterData>
+    for AciRouterData<types::PaymentsAuthorizeRouterData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(rd: types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        todo!()
+    }
 }
 
 impl<F, T>

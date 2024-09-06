@@ -26,6 +26,7 @@ pub mod gpayments;
 pub mod iatapay;
 pub mod itaubank;
 pub mod klarna;
+pub mod macros;
 pub mod mifinity;
 pub mod mollie;
 pub mod multisafepay;

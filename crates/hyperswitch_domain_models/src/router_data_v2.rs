@@ -1,4 +1,5 @@
 pub mod flow_common_types;
+pub mod router_data_v2_aliases;
 
 use std::{marker::PhantomData, ops::Deref};
 
@@ -10,6 +11,7 @@ pub use flow_common_types::{
     AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
     MandateRevokeFlowData, PaymentFlowData, RefundFlowData, WebhookSourceVerifyData,
 };
+pub use router_data_v2_aliases::{PaymentsRouterDataV2, PayoutsRouterDataV2, RefundsRouterDataV2};
 
 use crate::router_data::{ConnectorAuthType, ErrorResponse};
 

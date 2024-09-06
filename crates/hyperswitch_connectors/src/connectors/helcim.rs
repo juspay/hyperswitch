@@ -11,26 +11,27 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, 
+    router_data_v2::PaymentFlowData, 
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-    },
-    router_request_types::{
+    }, router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
-    },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    }, router_response_types::{PaymentsResponseData, RefundsResponseData}, 
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
+    types_v2::SetupMandateRouterData,
 };
 use hyperswitch_interfaces::{
     api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
     configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
     consts::NO_ERROR_CODE,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -49,7 +50,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Helcim;
 
-impl api::Payment for Helcim {}
+impl api::payments_v2::PaymentV2 for Helcim {}
 impl api::PaymentSession for Helcim {}
 impl api::ConnectorAccessToken for Helcim {}
 impl api::MandateSetup for Helcim {}
@@ -72,8 +73,12 @@ impl Helcim {
     }
 }
 
-impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Helcim
+impl
+    ConnectorIntegration<
+        PaymentMethodToken,
+        PaymentMethodTokenizationData,
+        PaymentsResponseData,
+    > for Helcim
 {
     // Not Implemented (R)
 }
@@ -191,7 +196,7 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Helcim {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Helcim {
+impl ConnectorIntegrationV2<SetupMandate, PaymentFlowData, SetupMandateRequestData, PaymentsResponseData> for Helcim {
     fn get_headers(
         &self,
         req: &SetupMandateRouterData,
@@ -217,7 +222,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
-    fn build_request(
+    fn build_request_v2(
         &self,
         _req: &SetupMandateRouterData,
         _connectors: &Connectors,
@@ -239,7 +244,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         //         .build(),
         // ))
     }
-    fn handle_response(
+    fn handle_response_v2(
         &self,
         data: &SetupMandateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
@@ -257,7 +262,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             http_code: res.status_code,
         })
     }
-    fn get_error_response(
+    fn get_error_response_v2(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,

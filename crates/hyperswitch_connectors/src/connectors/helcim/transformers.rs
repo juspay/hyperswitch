@@ -1,6 +1,9 @@
 use common_enums::enums;
 use common_utils::pii::{Email, IpAddress};
 use error_stack::ResultExt;
+
+#[cfg(not(feature = "v2"))]
+use hyperswitch_domain_models::types_v2::SetupMandateRouterData;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, RouterData},
@@ -12,7 +15,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -127,6 +130,7 @@ pub struct HelcimCard {
     card_c_v_v: Secret<String>,
 }
 
+#[cfg(feature = "v2")]
 impl TryFrom<(&SetupMandateRouterData, &Card)> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: (&SetupMandateRouterData, &Card)) -> Result<Self, Self::Error> {
@@ -159,6 +163,69 @@ impl TryFrom<(&SetupMandateRouterData, &Card)> for HelcimVerifyRequest {
     }
 }
 
+#[cfg(not(feature = "v2"))]
+impl TryFrom<(&SetupMandateRouterData, &Card)> for HelcimVerifyRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: (&SetupMandateRouterData, &Card)) -> Result<Self, Self::Error> {
+        let (item, req_card) = value;
+        let card_data = HelcimCard {
+            card_expiry: req_card
+                .get_card_expiry_month_year_2_digit_with_delimiter("".to_string())?,
+            card_number: req_card.card_number.clone(),
+            card_c_v_v: req_card.card_cvc.clone(),
+        };
+        let req_address = item.get_billing_address()?.to_owned();
+
+        let billing_address = HelcimBillingAddress {
+            name: req_address.get_full_name()?,
+            street1: req_address.get_line1()?.to_owned(),
+            postal_code: req_address.get_zip()?.to_owned(),
+            street2: req_address.line2,
+            city: req_address.city,
+            email: item.request.email.clone(),
+        };
+        let ip_address = item.request.get_browser_info()?.get_ip_address()?;
+        let currency = check_currency(item.request.currency)?;
+        Ok(Self {
+            currency,
+            ip_address,
+            card_data,
+            billing_address,
+            ecommerce: None,
+        })
+    }
+}
+
+#[cfg(not(feature = "v2"))]
+impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
+            PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into())
+            }
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_) => Err(errors::ConnectorError::NotImplemented(
+                crate::utils::get_unimplemented_payment_method_error_message("Helcim"),
+            ))?,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {

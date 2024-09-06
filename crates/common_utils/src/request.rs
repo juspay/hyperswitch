@@ -157,6 +157,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn set_optional_body<T: Into<RequestContent>>(mut self, body: Option<T>) -> Self {
+        body.map(|body| self.body.replace(body.into()));
+        self
+    }
+
     pub fn add_certificate(mut self, certificate: Option<Secret<String>>) -> Self {
         self.certificate = certificate;
         self

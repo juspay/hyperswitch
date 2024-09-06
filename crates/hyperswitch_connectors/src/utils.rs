@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub mod resource_common_data_utils;
 use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
 use common_enums::{enums, enums::FutureUsage};
 use common_utils::{

@@ -104,6 +104,11 @@ use crate::{
     services,
     types::transformers::{ForeignFrom, ForeignTryFrom},
 };
+pub type PaymentsConnectorIntegration<F, Req, Resp> =
+    dyn services::ConnectorIntegrationV2<F, PaymentFlowData, Req, Resp>;
+
+pub type PaymentsAuthorizeRouterDataV2 =
+    RouterDataV2<api::Authorize, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>;
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
