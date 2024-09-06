@@ -947,14 +947,14 @@ pub async fn refund_retrieve_core_with_internal_reference_id(
         merchant_connector_details: None,
     };
 
-    refund_retrieve_core(
+    Box::pin(refund_retrieve_core(
         state.clone(),
         merchant_account,
         profile_id,
         key_store,
         request,
         refund,
-    )
+    ))
     .await
 }
 
@@ -979,14 +979,14 @@ pub async fn refund_retrieve_core_with_refund_id(
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
-    refund_retrieve_core(
+        Box::pin(refund_retrieve_core(
         state.clone(),
         merchant_account,
         profile_id,
         key_store,
         request,
         refund,
-    )
+    ))
     .await
 }
 
