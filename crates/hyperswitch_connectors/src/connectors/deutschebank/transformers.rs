@@ -43,7 +43,11 @@ impl TryFrom<&ConnectorAuthType> for DeutschebankAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, key1, api_secret } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 client_id: api_key.to_owned(),
                 merchant_id: key1.to_owned(),
                 client_key: api_secret.to_owned(),
@@ -96,7 +100,6 @@ pub enum DeutschebankSEPAApproval {
     Dynamic,
 }
 
-
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize, PartialEq)]
 pub struct DeutschebankPaymentsRequest {
@@ -113,18 +116,16 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
         item: &DeutschebankRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::BankDebit(bank_debit_data) => {
-                match bank_debit_data {
-                    BankDebitData::SepaBankDebit { iban } => {
-                        Ok(Self {
-                            approval_by: DeutschebankSEPAApproval::Click,
-                            email_address: item.router_data.request.get_email()?,
-                            iban,
-                        })
-                    }
-                    _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-                }
-            }
+            PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
+                BankDebitData::SepaBankDebit { iban } => Ok(Self {
+                    approval_by: DeutschebankSEPAApproval::Click,
+                    email_address: item.router_data.request.get_email()?,
+                    iban,
+                }),
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }

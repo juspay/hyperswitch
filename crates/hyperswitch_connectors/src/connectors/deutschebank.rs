@@ -1,5 +1,8 @@
 pub mod transformers;
 
+use std::time::SystemTime;
+
+use actix_web::http::header::Date;
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
@@ -7,11 +10,6 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
-use ring::hmac;
-use std::time::SystemTime;
-use actix_web::http::header::Date;
-use rand::distributions::{Alphanumeric, DistString};
-
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -28,7 +26,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData, RefreshTokenRouterData
+        RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -40,6 +38,8 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Secret};
+use rand::distributions::{Alphanumeric, DistString};
+use ring::hmac;
 use transformers as deutschebank;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -164,9 +164,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 {
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Deutschebank
-{
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Deutschebank {
     fn get_url(
         &self,
         _req: &RefreshTokenRouterData,
@@ -195,13 +193,17 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
 
         let client_secret = format!(
             "V1:{}",
-            common_utils::consts::BASE64_ENGINE.encode(hmac::sign(&key, string_to_sign.as_bytes()).as_ref())
+            common_utils::consts::BASE64_ENGINE
+                .encode(hmac::sign(&key, string_to_sign.as_bytes()).as_ref())
         );
         println!("date: {:?}", date);
         println!("random: {:?}", random_string);
         println!("secret: {client_secret}");
         let headers = vec![
-            (headers::X_RANDOM_VALUE.to_string(), random_string.into_masked()),
+            (
+                headers::X_RANDOM_VALUE.to_string(),
+                random_string.into_masked(),
+            ),
             (headers::X_REQUEST_DATE.to_string(), date.into_masked()),
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -211,16 +213,17 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
             ),
         ];
         println!("headers {:?}", headers);
-        let connector_req = deutschebank::DeutschebankAccessTokenRequest{
+        let connector_req = deutschebank::DeutschebankAccessTokenRequest {
             client_id: Secret::from(client_id),
             client_secret: Secret::from(client_secret),
             grant_type: "client_credentials".to_string(),
             scope: "ftx".to_string(),
         };
-        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         println!("$$$$$ {:?}", printrequest);
-        
+
         println!("connector_req {:?}", connector_req);
 
         let body = RequestContent::FormUrlEncoded(Box::new(connector_req));
