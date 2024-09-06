@@ -1,12 +1,14 @@
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
     core::{api_locking, refunds::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
-    types::api::{payments as payment_types, refunds},
+    types::api::refunds,
 };
+#[cfg(feature = "olap")]
+use crate::types::api::payments as payment_types;
 
 /// Refunds - Create
 ///
@@ -405,7 +407,7 @@ pub async fn get_refunds_aggregates(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Query<payment_types::TimeRange>,
-) -> impl Responder {
+) -> HttpResponse {
     let flow = Flow::RefundsAggregate;
     let payload = payload.into_inner();
     Box::pin(api::server_wrap(
