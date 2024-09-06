@@ -776,7 +776,9 @@ pub async fn payouts_list_core(
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
 
-    let collected_futures = payouts.into_iter().map(|payout| async {
+    let mut pi_pa_tuple_vec = PayoutActionData::new();
+
+    for payout in payouts {
         match db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                 merchant_id,
@@ -784,97 +786,80 @@ pub async fn payouts_list_core(
                 storage_enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
         {
-            Ok(ref payout_attempt) => match payout.customer_id.clone() {
-                Some(ref customer_id) => {
+            Ok(payout_attempt) => {
+                let domain_customer = match payout.customer_id.clone() {
                     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-                    match db
+                    Some(customer_id) => db
                         .find_customer_by_customer_id_merchant_id(
                             &(&state).into(),
-                            customer_id,
+                            &customer_id,
                             merchant_id,
                             &key_store,
                             merchant_account.storage_scheme,
                         )
                         .await
-                    {
-                        Ok(customer) => {
-                            // We have to do this because the function that is being used to create / get address is from payments
-                            // which expects a payment_id
-                            let payout_id_as_payment_id_type =
-                                common_utils::id_type::PaymentId::wrap(payout.payout_id.clone())
-                                    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                                        message: "payout_id contains invalid data".to_string(),
-                                    })
-                                    .attach_printable(
-                                        "Error converting payout_id to PaymentId type",
-                                    )?;
-                            match payment_helpers::create_or_find_address_for_payment_by_request(
-                                &state,
-                                None,
-                                payout.address_id.as_deref(),
-                                merchant_id,
-                                payout.customer_id.as_ref(),
-                                &key_store,
-                                &payout_id_as_payment_id_type,
-                                merchant_account.storage_scheme,
-                            )
-                            .await
-                            {
-                                Ok(billing_address) => Ok((
-                                    payout,
-                                    payout_attempt.to_owned(),
-                                    Some(customer),
-                                    billing_address.map(payment_enums::Address::foreign_from),
-                                )),
-                                Err(err) => {
-                                    let err_msg = format!(
-                                        "billing_address missing for address_id : {:?}",
-                                        payout.address_id
-                                    );
-                                    logger::warn!(?err, err_msg);
-                                    Err(err.attach_printable(err_msg))
-                                }
-                            }
-                        }
-                        Err(err) => {
+                        .map_err(|err| {
                             let err_msg = format!(
                                 "failed while fetching customer for customer_id - {:?}",
                                 customer_id
                             );
                             logger::warn!(?err, err_msg);
-                            if err.current_context().is_db_not_found() {
-                                Ok((payout, payout_attempt.to_owned(), None, None))
-                            } else {
-                                Err(err
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable(err_msg))
-                            }
-                        }
-                    }
-                }
-                None => Ok((payout.to_owned(), payout_attempt.to_owned(), None, None)),
-            },
+                        })
+                        .ok(),
+                    _ => None,
+                };
+
+                let payout_id_as_payment_id_type =
+                    common_utils::id_type::PaymentId::wrap(payout.payout_id.clone())
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "payout_id contains invalid data".to_string(),
+                        })
+                        .attach_printable("Error converting payout_id to PaymentId type")?;
+
+                let payment_addr = payment_helpers::create_or_find_address_for_payment_by_request(
+                    &state,
+                    None,
+                    payout.address_id.as_deref(),
+                    merchant_id,
+                    payout.customer_id.as_ref(),
+                    &key_store,
+                    &payout_id_as_payment_id_type,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .transpose()
+                .and_then(|addr| {
+                    addr.map_err(|err| {
+                        let err_msg = format!(
+                            "billing_address missing for address_id : {:?}",
+                            payout.address_id
+                        );
+                        logger::warn!(?err, err_msg);
+                    })
+                    .ok()
+                    .map(payment_enums::Address::foreign_from)
+                });
+
+                pi_pa_tuple_vec.push((
+                    payout.to_owned(),
+                    payout_attempt.to_owned(),
+                    domain_customer,
+                    payment_addr,
+                ));
+            }
             Err(err) => {
                 let err_msg = format!(
-                    "failed while fetching payout_attempt for payout_id - {}",
-                    payout.payout_id.clone(),
+                    "failed while fetching payout_attempt for payout_id - {:?}",
+                    payout.payout_id
                 );
                 logger::warn!(?err, err_msg);
-                Err(err
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(err_msg))
             }
         }
-    });
-
-    let pi_pa_tuple_vec: Result<PayoutActionData, _> = join_all(collected_futures)
-        .await
-        .into_iter()
-        .collect::<Result<PayoutActionData, _>>();
+    }
 
     let data: Vec<api::PayoutCreateResponse> = pi_pa_tuple_vec
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
         .into_iter()
         .map(ForeignFrom::foreign_from)
         .collect();
@@ -915,48 +900,43 @@ pub async fn payouts_filtered_list_core(
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
     let data: Vec<api::PayoutCreateResponse> =
-        join_all(list.into_iter().map(|(p, pa, c, address)| async {
-            c.async_and_then(|cust| async {
-                match domain::Customer::convert_back(
-                    &(&state).into(),
-                    cust,
-                    &key_store.key,
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                {
-                    Ok(domain_customer) => match address {
-                        Some(addr) => {
-                            let payment_addr: Option<payment_enums::Address> =
-                                domain::Address::convert_back(
-                                    &(&state).into(),
-                                    addr,
-                                    &key_store.key,
-                                    key_store.merchant_id.clone().into(),
-                                )
-                                .await
-                                .map(ForeignFrom::foreign_from)
-                                .map_err(|err| {
-                                    let msg = format!(
-                                        "failed to convert address for id: {:?}",
-                                        p.address_id
-                                    );
-                                    logger::warn!(?err, msg);
-                                })
-                                .ok();
-
-                            Some((p, pa, Some(domain_customer), payment_addr))
-                        }
-                        None => Some((p, pa, Some(domain_customer), None)),
-                    },
-                    Err(err) => {
+        join_all(list.into_iter().map(|(p, pa, customer, address)| async {
+            let customer: Option<domain::Customer> = customer
+                .async_and_then(|cust| async {
+                    domain::Customer::convert_back(
+                        &(&state).into(),
+                        cust,
+                        &key_store.key,
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .map_err(|err| {
                         let msg = format!("failed to convert customer for id: {:?}", p.customer_id);
                         logger::warn!(?err, msg);
-                        None
-                    }
-                }
-            })
-            .await
+                    })
+                    .ok()
+                })
+                .await;
+
+            let payout_addr: Option<payment_enums::Address> = address
+                .async_and_then(|addr| async {
+                    domain::Address::convert_back(
+                        &(&state).into(),
+                        addr,
+                        &key_store.key,
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .map(ForeignFrom::foreign_from)
+                    .map_err(|err| {
+                        let msg = format!("failed to convert address for id: {:?}", p.address_id);
+                        logger::warn!(?err, msg);
+                    })
+                    .ok()
+                })
+                .await;
+
+            Some((p, pa, customer, payout_addr))
         }))
         .await
         .into_iter()
