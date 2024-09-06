@@ -359,16 +359,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                 let transaction_status = item
                     .response
                     .transaction
-                    .as_ref()
-                    .and_then(|data| {
-                        if data.status_code == 100 {
-                            // TODO: verify status_code
-                            data.status.clone()
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(NovalnetTransactionStatus::PENDING);
+                    .and_then(|x| x.status)
+                    .ok_or_else(missing_field_err("transaction status"))?;
+                    
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -740,15 +733,7 @@ impl<F>
                 let transaction_status = item
                     .response
                     .transaction
-                    .as_ref()
-                    .and_then(|data| {
-                        if data.status_code == 100 {
-                            // TODO: verify status_code
-                            Some(data.status.clone())
-                        } else {
-                            None
-                        }
-                    })
+                    .map(|x| x.status)
                     .unwrap_or(NovalnetTransactionStatus::PENDING);
 
                 Ok(Self {
@@ -833,16 +818,8 @@ impl<F>
                 let transaction_status = item
                     .response
                     .transaction
-                    .as_ref()
-                    .and_then(|data| {
-                        if data.status_code == Some(100) {
-                            // TODO: verify status_code
-                            data.status.clone()
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(NovalnetTransactionStatus::PENDING);
+                    .and_then(|x| x.status)
+                    .ok_or_else(missing_field_err("transaction status"))?;
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -1000,16 +977,8 @@ impl<F>
                 let transaction_status = item
                     .response
                     .transaction
-                    .as_ref()
-                    .and_then(|data| {
-                        if data.status_code == 100 {
-                            // TODO: verify status_code
-                            data.status.clone()
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(NovalnetTransactionStatus::PENDING);
+                    .and_then(|x| x.status)
+                    .ok_or_else(missing_field_err("transaction status"))?;
 
                 Ok(Self {
                     status: if transaction_status == NovalnetTransactionStatus::DEACTIVATED {

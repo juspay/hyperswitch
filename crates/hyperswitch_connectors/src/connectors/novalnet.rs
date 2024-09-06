@@ -101,10 +101,7 @@ impl ConnectorCommon for Novalnet {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+       api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -249,9 +246,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data: transformers::NovalnetRouterData<
-            &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-        > = novalnet::NovalnetRouterData::from((amount, req));
+        let connector_router_data = novalnet::NovalnetRouterData::from((amount, req));
         let connector_req = novalnet::NovalnetPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
