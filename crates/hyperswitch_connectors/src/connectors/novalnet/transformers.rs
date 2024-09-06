@@ -34,26 +34,18 @@ use crate::{
     },
 };
 
-//TODO: Fill the struct with respective fields
 pub struct NovalnetRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: StringMinorUnit,
     pub router_data: T,
 }
 
 impl<T> From<(StringMinorUnit, T)> for NovalnetRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo : use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
         }
     }
-}
-#[derive(Debug, Serialize, PartialEq, Clone)]
-pub enum PaymentType {
-    Card,
-    Applepay,
-    Googlepay,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -128,14 +120,6 @@ pub struct NovalnetPaymentsRequest {
     custom: NovalnetCustom,
 }
 
-type Error = error_stack::Report<errors::ConnectorError>;
-fn result_to_option(result: Result<String, Error>) -> Option<String> {
-    result.ok()
-}
-fn result_to_option_secret_string(result: Result<Secret<String>, Error>) -> Option<Secret<String>> {
-    result.ok()
-}
-
 impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -167,8 +151,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     Some(false) | None => 0,
                 };
 
-                let return_url = result_to_option(item.router_data.request.get_return_url());
-                let hook_url = result_to_option(item.router_data.request.get_webhook_url());
+                let return_url = item.router_data.request.get_return_url().ok();
+                let hook_url = item.router_data.request.get_webhook_url().ok();
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type: NovalNetPaymentTypes::CREDITCARD,
@@ -197,14 +181,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     .get_ip_address()?;
 
                 let customer = NovalnetPaymentsRequestCustomer {
-                    first_name: result_to_option_secret_string(
-                        item.router_data.get_billing_first_name(),
-                    ),
+                    first_name: item.router_data.get_billing_first_name().ok(),
                     last_name: item.router_data.get_optional_billing_last_name(),
                     email: item.router_data.get_optional_billing_email(),
-                    mobile: result_to_option_secret_string(
-                        item.router_data.get_billing_phone_number(),
-                    ),
+                    mobile: item.router_data.get_billing_phone_number().ok(),
                     billing,
                     customer_ip,
                 };
@@ -213,7 +193,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     .router_data
                     .request
                     .get_browser_info()?
-                    .get_language()?;
+                    .get_language()
+                    .ok()
+                    .unwrap_or("EN".to_string());
 
                 let custom = NovalnetCustom { lang };
 
@@ -361,7 +343,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     .transaction
                     .and_then(|x| x.status)
                     .ok_or_else(missing_field_err("transaction status"))?;
-                    
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -470,7 +451,8 @@ pub enum CaptureType {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Capture {
-    _type: CaptureType,
+    #[serde(rename = "type")]
+    cap_type: CaptureType,
     reference: String,
 }
 #[derive(Default, Debug, Serialize)]
@@ -505,7 +487,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
 
         let capture: Option<Capture> = reference.map(|reference| Capture {
-            _type: capture_type,
+            cap_type: capture_type,
             reference,
         });
 
@@ -520,7 +502,9 @@ impl TryFrom<&NovalnetRouterData<&PaymentsCaptureRouterData>> for NovalnetCaptur
                 .router_data
                 .request
                 .get_browser_info()?
-                .get_language()?,
+                .get_language()
+                .ok()
+                .unwrap_or("EN".to_string()),
         };
         Ok(Self {
             transaction,
@@ -555,26 +539,15 @@ impl<F> TryFrom<&NovalnetRouterData<&RefundsRouterData<F>>> for NovalnetRefundRe
                 .router_data
                 .request
                 .get_browser_info()?
-                .get_language()?,
+                .get_language()
+                .ok()
+                .unwrap_or("EN".to_string()),
         };
         Ok(Self {
             transaction,
             custom,
         })
     }
-}
-
-// Type definition for Refund Response
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[allow(non_camel_case_types)]
-pub enum NovalnetRefundStatus {
-    SUCCESS,
-    FAILURE,
-    CONFIRMED,
-    ON_HOLD,
-    PENDING,
-    #[default]
-    DEACTIVATED,
 }
 
 impl From<NovalnetTransactionStatus> for enums::RefundStatus {
@@ -584,7 +557,10 @@ impl From<NovalnetTransactionStatus> for enums::RefundStatus {
                 Self::Success
             }
             NovalnetTransactionStatus::PENDING => Self::Pending,
-            _ => Self::Failure,
+            NovalnetTransactionStatus::FAILURE
+            | NovalnetTransactionStatus::ON_HOLD
+            | NovalnetTransactionStatus::DEACTIVATED
+            | NovalnetTransactionStatus::PROGRESS => Self::Failure,
         }
     }
 }
@@ -870,7 +846,12 @@ impl TryFrom<&RefundSyncRouterData> for NovalnetSyncRequest {
         };
 
         let custom = NovalnetCustom {
-            lang: item.request.get_browser_info()?.get_language()?,
+            lang: item
+                .request
+                .get_browser_info()?
+                .get_language()
+                .ok()
+                .unwrap_or("EN".to_string()),
         };
         Ok(Self {
             transaction,
@@ -939,7 +920,12 @@ impl TryFrom<&PaymentsCancelRouterData> for NovalnetCancelRequest {
         };
 
         let custom = NovalnetCustom {
-            lang: item.request.get_browser_info()?.get_language()?,
+            lang: item
+                .request
+                .get_browser_info()?
+                .get_language()
+                .ok()
+                .unwrap_or("EN".to_string()),
         };
         Ok(Self {
             transaction,

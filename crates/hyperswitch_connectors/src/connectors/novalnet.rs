@@ -101,7 +101,7 @@ impl ConnectorCommon for Novalnet {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-       api::CurrencyUnit::Minor
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
