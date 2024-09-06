@@ -3457,7 +3457,6 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-// TODO(jarnura): This function has more early returns and mutates the payment_data inside early. It should be refactored.
 pub async fn decide_connector<F, D>(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -3749,8 +3748,6 @@ where
     .await
 }
 
-// TODO(jarnura): refactor this function in-way it doesn't mutate the payment_data or don't accept payment_data.
-// TODO(jarnura): Avoid using continue and break functions.
 pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone, D>(
     state: &SessionState,
     payment_data: &mut D,
@@ -4098,7 +4095,6 @@ where
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-// TODO(jarnura): Refactor this function to not mutate the payment_data or don't accept payment_data.
 pub async fn route_connector_v1_for_payments<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -4654,10 +4650,8 @@ pub trait PaymentDataSetters<F> {
     // Setter functions for PaymentData
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent);
     fn set_payment_attempt(&mut self, payment_attempt: storage::PaymentAttempt);
-    // TODO(jarnura) why this needs to option?
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>);
     fn set_email_if_not_present(&mut self, email: pii::Email);
-    // TODO(jarnura) why this needs to option?
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>);
     fn set_pm_token(&mut self, token: String);
     fn set_connector_customer_id(&mut self, customer_id: Option<String>);
@@ -4668,7 +4662,6 @@ pub trait PaymentDataSetters<F> {
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     );
     fn set_capture_method_in_attempt(&mut self, capture_method: enums::CaptureMethod);
-    // TODO(jarnura) why this needs to option?
     fn set_frm_message(&mut self, frm_message: FraudCheck);
     fn set_payment_intent_status(&mut self, status: storage_enums::IntentStatus);
     fn set_authentication_type_in_attempt(

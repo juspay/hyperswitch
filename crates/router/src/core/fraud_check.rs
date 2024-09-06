@@ -562,7 +562,6 @@ where
                     .await?;
                 let frm_fraud_check = frm_data.fraud_check.clone();
                 let mut frm_suggestion = None;
-                // TODO(jarnura): Check if we need to set frm_message here or just for this we don't mutate the payment_data
                 payment_data.set_frm_message(frm_fraud_check.clone());
                 if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
                     frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
