@@ -387,6 +387,3 @@ sdk_eligible_payment_methods = "card"
 
 [locker_based_open_banking_connectors]
 connector_list = ""
-
-[recipient_emails]
-recon = "recon@example.com"
