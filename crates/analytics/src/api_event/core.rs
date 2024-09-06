@@ -21,7 +21,6 @@ use super::{
     metrics::ApiEventMetricRow,
 };
 use crate::{
-    enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics,
     types::FiltersError,
@@ -52,7 +51,7 @@ pub async fn api_events_core(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetApiEventFiltersRequest,
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> AnalyticsResult<ApiEventFiltersResponse> {
     use api_models::analytics::{api_event::ApiEventDimensions, ApiEventFilterValue};
 
@@ -69,7 +68,7 @@ pub async fn get_filters(
             AnalyticsProvider::Clickhouse(ckh_pool)
             | AnalyticsProvider::CombinedSqlx(_, ckh_pool)
             | AnalyticsProvider::CombinedCkh(_, ckh_pool) => {
-                get_api_event_filter_for_dimension(dim, auth, &req.time_range, ckh_pool).await
+                get_api_event_filter_for_dimension(dim, merchant_id, &req.time_range, ckh_pool).await
             }
         }
         .switch()?
@@ -92,7 +91,7 @@ pub async fn get_filters(
 #[instrument(skip_all)]
 pub async fn get_api_event_metrics(
     pool: &AnalyticsProvider,
-    auth: &AuthInfo,
+    merchant_id: &common_utils::id_type::MerchantId,
     req: GetApiEventMetricRequest,
 ) -> AnalyticsResult<MetricsResponse<ApiMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<ApiEventMetricsBucketIdentifier, ApiEventMetricRow> =
@@ -109,14 +108,14 @@ pub async fn get_api_event_metrics(
 
         // TODO: lifetime issues with joinset,
         // can be optimized away if joinset lifetime requirements are relaxed
-        let auth_scoped = auth.to_owned();
+        let merchant_id_scoped = merchant_id.to_owned();
         set.spawn(
             async move {
                 let data = pool
                     .get_api_event_metrics(
                         &metric_type,
                         &req.group_by_names.clone(),
-                        &auth_scoped,
+                        &merchant_id_scoped,
                         &req.filters,
                         &req.time_series.map(|t| t.granularity),
                         &req.time_range,

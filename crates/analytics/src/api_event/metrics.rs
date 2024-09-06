@@ -7,7 +7,6 @@ use api_models::analytics::{
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::AuthInfo,
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, LoadRow, MetricsResult},
 };
@@ -44,7 +43,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[ApiEventDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -65,7 +64,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[ApiEventDimensions],
-        auth: &AuthInfo,
+        merchant_id: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -74,17 +73,17 @@ where
         match self {
             Self::Latency => {
                 MaxLatency
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(dimensions, merchant_id, filters, granularity, time_range, pool)
                     .await
             }
             Self::ApiCount => {
                 ApiCount
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(dimensions, merchant_id, filters, granularity, time_range, pool)
                     .await
             }
             Self::StatusCodeCount => {
                 StatusCodeCount
-                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .load_metrics(dimensions, merchant_id, filters, granularity, time_range, pool)
                     .await
             }
         }
