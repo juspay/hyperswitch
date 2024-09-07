@@ -34,7 +34,11 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
 
-use super::errors::{RouterResponse, StorageErrorExt};
+use super::{
+    errors::{RouterResponse, StorageErrorExt},
+    pm_auth,
+};
+
 use crate::{
     consts,
     core::{
@@ -576,7 +580,7 @@ pub async fn retrieve_payment_method_with_token(
         }
 
         storage::PaymentTokenData::AuthBankDebit(auth_token) => {
-            core_pm_auth::retrieve_payment_method_from_auth_service(
+            pm_auth::retrieve_payment_method_from_auth_service(
                 state,
                 merchant_key_store,
                 auth_token,

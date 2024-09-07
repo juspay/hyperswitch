@@ -143,10 +143,10 @@ where
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        _request: Option<super::CustomerDetails>,
+        _request: Option<CustomerDetails>,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> errors::CustomResult<
+    ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
             Option<domain::Customer>,

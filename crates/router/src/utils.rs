@@ -55,6 +55,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -1169,7 +1170,7 @@ where
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
-                        Box::pin(crate::webhooks::create_event_and_trigger_outgoing_webhook(
+                        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
                             merchant_account,
                             business_profile,

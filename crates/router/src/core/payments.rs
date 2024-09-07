@@ -52,6 +52,11 @@ use scheduler::utils as pt_utils;
 use strum::IntoEnumIterator;
 use time;
 
+pub use self::operations::{
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentIncrementalAuthorization, PaymentReject, PaymentSession, PaymentStatus, PaymentUpdate,
+};
+
 use self::{
     conditional_configs::perform_decision_management,
     flows::{ConstructFlowSpecificData, Feature},
@@ -69,6 +74,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::cards,
+        payments::operations::payment_complete_authorize,
         utils,
     },
     db::StorageInterface,
