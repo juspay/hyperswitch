@@ -1006,16 +1006,15 @@ pub async fn validate_and_vault_payment_method(
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.to_owned();
 
-    let customer = db
-        .find_customer_by_merchant_reference_id_merchant_id(
-            &(state.into()),
-            &customer_id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    db.find_customer_by_merchant_reference_id_merchant_id(
+        &(state.into()),
+        &customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let vaulting_resp = vault_payment_method(
         state,
@@ -1035,11 +1034,14 @@ pub async fn validate_and_vault_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt Payment method billing address")?;
 
-    let pmd: Encryptable<Secret<serde_json::Value>> =
-        create_encrypted_data(state, key_store, req.payment_method_data.clone())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt Payment method data")?;
+    let card = match req.payment_method_data.clone() {
+        api::PaymentMethodCreateData::Card(card) => PaymentMethodsData::Card(card.into()),
+    };
+
+    let pmd: Encryptable<Secret<serde_json::Value>> = create_encrypted_data(state, key_store, card)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt Payment method data")?;
 
     // create pm
     let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
@@ -1081,16 +1083,15 @@ pub async fn payment_method_intent_create(
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.to_owned();
 
-    let customer = db
-        .find_customer_by_merchant_reference_id_merchant_id(
-            &(state.into()),
-            &customer_id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    db.find_customer_by_merchant_reference_id_merchant_id(
+        &(state.into()),
+        &customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
@@ -1135,7 +1136,6 @@ pub async fn payment_method_intent_confirm(
     req.validate()?;
 
     let db = &*state.store;
-    let merchant_id = merchant_account.get_id();
     let client_secret = req.client_secret.clone();
 
     let payment_method = db
@@ -1151,16 +1151,15 @@ pub async fn payment_method_intent_confirm(
 
     let customer_id = payment_method.customer_id.to_owned();
 
-    let customer = db
-        .find_customer_by_merchant_reference_id_merchant_id(
-            &(state.into()),
-            &customer_id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    db.find_customer_by_merchant_reference_id_merchant_id(
+        &(state.into()),
+        &customer_id,
+        merchant_account.get_id(),
+        &key_store,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     if authenticate_pm_client_secret_and_check_expiry(&client_secret, &payment_method)? {
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
@@ -1184,8 +1183,12 @@ pub async fn payment_method_intent_confirm(
 
     match vaulting_result {
         Ok(resp) => {
+            let card = match req.payment_method_data {
+                api::PaymentMethodCreateData::Card(card) => PaymentMethodsData::Card(card.into()),
+            };
+
             let pmd: Encryptable<Secret<serde_json::Value>> =
-                create_encrypted_data(state, key_store, req.payment_method_data)
+                create_encrypted_data(state, key_store, card)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt Payment method data")?;
