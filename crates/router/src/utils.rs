@@ -48,6 +48,8 @@ use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::core::webhooks as webhooks_core;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::types::storage;
 use crate::{
@@ -61,9 +63,6 @@ use crate::{
     services,
     types::{self, domain, transformers::ForeignFrom},
 };
-
-#[cfg(feature = "v1")]
-use crate::core::webhooks as webhooks_core;
 
 pub mod error_parser {
     use std::fmt::Display;
