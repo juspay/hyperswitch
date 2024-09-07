@@ -614,14 +614,15 @@ pub fn generate_payment_method_response(
         .payment_method_data
         .clone()
         .map(|data| data.into_inner().expose())
-        .map(|decrypted_value| decrypted_value.parse_value("PaymentMethodCreateData"))
+        .map(|decrypted_value| decrypted_value.parse_value("PaymentMethodsData"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse PaymentMethodCreateData")?
-        .map(|data| match data {
-            api::PaymentMethodCreateData::Card(card) => {
-                api::PaymentMethodResponseData::Card(card.clone())
+        .attach_printable("unable to parse PaymentMethodsData")?
+        .and_then(|data| match data {
+            api::PaymentMethodsData::Card(card) => {
+                Some(api::PaymentMethodResponseData::Card(card.into()))
             }
+            _ => None,
         });
 
     let resp = api::PaymentMethodResponse {
