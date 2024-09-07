@@ -1019,9 +1019,11 @@ impl api::IncomingWebhook for Globalpay {
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let details = std::str::from_utf8(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(Box::new(serde_json::from_str(details).change_context(
-            errors::ConnectorError::WebhookResourceObjectNotFound,
-        )?))
+
+        Ok(Box::new(
+            serde_json::from_str::<GlobalpayPaymentsResponse>(details)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+        ))
     }
 }
 

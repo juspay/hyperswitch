@@ -145,7 +145,7 @@ where
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
+    tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
     let operations::GetTrackerResponse {
         operation,
