@@ -28,6 +28,8 @@ pub use api_models::payment_methods::{
 };
 use error_stack::report;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::core::payments::helpers::validate_payment_method_data_against_payment_method;
 use crate::core::{
     errors::{self, RouterResult},
     payments::helpers::validate_payment_method_type_against_payment_method,
@@ -69,6 +71,42 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
                 message: "Invalid 'payment_method_type' provided".to_string()
             })
             .attach_printable("Invalid payment method type"));
+        }
+
+        if !validate_payment_method_data_against_payment_method(
+            self.payment_method,
+            self.payment_method_data.clone(),
+        ) {
+            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid 'payment_method_data' provided".to_string()
+            })
+            .attach_printable("Invalid payment method data"));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
+    fn validate(&self) -> RouterResult<()> {
+        if !validate_payment_method_type_against_payment_method(
+            self.payment_method,
+            self.payment_method_type,
+        ) {
+            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid 'payment_method_type' provided".to_string()
+            })
+            .attach_printable("Invalid payment method type"));
+        }
+
+        if !validate_payment_method_data_against_payment_method(
+            self.payment_method,
+            self.payment_method_data.clone(),
+        ) {
+            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid 'payment_method_data' provided".to_string()
+            })
+            .attach_printable("Invalid payment method data"));
         }
         Ok(())
     }

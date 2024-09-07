@@ -160,6 +160,14 @@ pub struct PaymentMethodIntentConfirm {
 
     /// Payment method data to be passed
     pub payment_method_data: PaymentMethodCreateData,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = PaymentMethodType,example = "credit")]
+    pub payment_method_type: api_enums::PaymentMethodType,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -332,12 +340,6 @@ pub enum PaymentMethodUpdateData {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Bank)]
-    BankTransfer(payouts::Bank),
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Wallet)]
-    Wallet(payouts::Wallet),
 }
 
 #[cfg(all(
@@ -576,10 +578,7 @@ impl CardDetailUpdate {
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
-    Card(CardDetailFromLocker),
-    #[cfg(feature = "payouts")]
-    #[schema(value_type = Bank)]
-    Bank(payouts::Bank),
+    Card(CardDetail),
 }
 
 #[cfg(all(

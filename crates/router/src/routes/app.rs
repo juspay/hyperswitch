@@ -1059,6 +1059,28 @@ impl Payouts {
     }
 }
 
+#[cfg(all(
+    any(feature = "olap", feature = "oltp"),
+    feature = "v2",
+    feature = "payment_methods_v2",
+))]
+impl PaymentMethods {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/v2/payment_methods").app_data(web::Data::new(state));
+        route = route
+            .service(web::resource("").route(web::get().to(create_payment_method_api)))
+            .service(
+                web::resource("/create-intent")
+                    .route(web::get().to(create_payment_method_intent_api)),
+            )
+            .service(
+                web::resource("/{id}/confirm-intent")
+                    .route(web::get().to(confirm_payment_method_intent_api)),
+            );
+
+        route
+    }
+}
 pub struct PaymentMethods;
 
 #[cfg(all(
