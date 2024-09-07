@@ -50,10 +50,11 @@ use super::routing;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(all(feature = "oltp", feature = "v1"))]
 use super::webhooks::*;
-use super::{
-    admin, api_keys, apple_pay_certificates_migration, blocklist, connector_onboarding, disputes,
-    files, gsm, payment_link, user, user_role, webhook_events,
-};
+use super::{admin, api_keys, connector_onboarding, disputes, files, gsm, user, user_role};
+
+#[cfg(feature = "v1")]
+use super::{apple_pay_certificates_migration, blocklist, payment_link, webhook_events};
+
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, payments::*};

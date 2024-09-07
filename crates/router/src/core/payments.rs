@@ -52,6 +52,7 @@ use scheduler::utils as pt_utils;
 use strum::IntoEnumIterator;
 use time;
 
+#[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentReject, PaymentSession, PaymentStatus, PaymentUpdate,
@@ -74,7 +75,6 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::cards,
-        payments::operations::payment_complete_authorize,
         utils,
     },
     db::StorageInterface,
@@ -1041,7 +1041,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             merchant_account,
             None,
             merchant_key_store.clone(),
-            payment_complete_authorize::CompleteAuthorize,
+            operations::payment_complete_authorize::CompleteAuthorize,
             payment_confirm_req,
             services::api::AuthFlow::Merchant,
             connector_action,

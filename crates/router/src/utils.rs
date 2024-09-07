@@ -55,13 +55,15 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        webhooks as webhooks_core,
     },
     logger,
     routes::{metrics, SessionState},
     services,
     types::{self, domain, transformers::ForeignFrom},
 };
+
+#[cfg(feature = "v1")]
+use crate::core::webhooks as webhooks_core;
 
 pub mod error_parser {
     use std::fmt::Display;
