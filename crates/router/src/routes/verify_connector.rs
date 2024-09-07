@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::verify_connector::VerifyConnectorRequest;
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::AppState;
@@ -23,7 +24,10 @@ pub async fn payment_connector_verify(
         |state, auth: auth::AuthenticationData, req, _| {
             verify_connector::verify_connector_credentials(state, req, auth.profile_id)
         },
-        &auth::JWTAuth(Permission::MerchantConnectorAccountWrite),
+        &auth::JWTAuth {
+            permission: Permission::MerchantConnectorAccountWrite,
+            minimum_entity_level: EntityType::Merchant,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -54,8 +54,8 @@ use time;
 
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
-    PaymentUpdate,
+    PaymentIncrementalAuthorization, PaymentReject, PaymentResponse, PaymentSession,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -267,6 +267,20 @@ where
                 mandate_type,
             )
             .await?;
+
+        operation
+            .to_domain()?
+            .payments_dynamic_tax_calculation(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &business_profile,
+                &key_store,
+                &merchant_account,
+            )
+            .await?;
+
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -2753,6 +2767,13 @@ where
     pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
+    pub tax_data: Option<TaxData>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct TaxData {
+    pub shipping_details: api_models::payments::Address,
+    pub payment_method_type: enums::PaymentMethodType,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -2888,6 +2909,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentApprove" => true,
         "PaymentReject" => true,
         "PaymentSession" => true,
+        "PaymentSessionUpdate" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.payment_intent.status,
             storage_enums::IntentStatus::RequiresCapture

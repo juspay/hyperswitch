@@ -256,7 +256,6 @@ url = "http://localhost:5000" # URL of the encryption service
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
 admin_api_key = "test_admin"             # admin API key for admin authentication.
 jwt_secret = "secret"                    # JWT secret used for user authentication.
-recon_admin_api_key = "recon_test_admin" # recon_admin API key for recon authentication.
 
 # Server configuration
 [server]
@@ -300,3 +299,6 @@ public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "p
 
 [user_auth_methods]
 encryption_key = "user_auth_table_encryption_key" # Encryption key used for encrypting data in user_authentication_methods table
+
+[recipient_emails]
+recon = "recon@example.com"

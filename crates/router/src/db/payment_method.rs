@@ -47,6 +47,16 @@ pub trait PaymentMethodInterface {
         limit: Option<i64>,
     ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError>;
 
+    // Need to fix this once we start moving to v2 for payment method
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_list_by_global_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        id: &String,
+        limit: Option<i64>,
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError>;
+
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_customer_id_merchant_id_status(
         &self,
@@ -689,6 +699,22 @@ mod storage {
             Ok(domain_payment_methods)
         }
 
+        // Need to fix this once we start moving to v2 for payment method
+        #[cfg(all(
+            feature = "v2",
+            feature = "customer_v2",
+            feature = "payment_methods_v2"
+        ))]
+        async fn find_payment_method_list_by_global_id(
+            &self,
+            _state: &KeyManagerState,
+            _key_store: &domain::MerchantKeyStore,
+            _id: &String,
+            _limit: Option<i64>,
+        ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
+            todo!()
+        }
+
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
@@ -1090,6 +1116,22 @@ mod storage {
             Ok(domain_payment_methods)
         }
 
+        // Need to fix this once we move to payment method for customer
+        #[cfg(all(feature = "v2", feature = "customer_v2"))]
+        #[instrument(skip_all)]
+        async fn find_payment_method_list_by_global_id(
+            &self,
+            state: &KeyManagerState,
+            key_store: &domain::MerchantKeyStore,
+            id: &String,
+            limit: Option<i64>,
+        ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::PaymentMethod::find_by_global_id(&conn, id, limit)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[instrument(skip_all)]
         async fn find_payment_method_by_customer_id_merchant_id_status(
             &self,
@@ -1353,6 +1395,18 @@ impl PaymentMethodInterface for MockDb {
 
             Ok(domain_payment_methods)
         }
+    }
+
+    // Need to fix this once we complete v2 payment method
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn find_payment_method_list_by_global_id(
+        &self,
+        state: &KeyManagerState,
+        key_store: &domain::MerchantKeyStore,
+        _id: &String,
+        _limit: Option<i64>,
+    ) -> CustomResult<Vec<storage_types::PaymentMethod>, errors::StorageError> {
+        todo!()
     }
 
     async fn find_payment_method_by_customer_id_merchant_id_status(

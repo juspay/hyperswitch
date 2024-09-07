@@ -364,3 +364,6 @@ global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[recipient_emails]
+recon = "recon@example.com"
