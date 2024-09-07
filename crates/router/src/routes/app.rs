@@ -626,6 +626,10 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(retrieve_extended_card_info)),
                 )
+                .service(
+                web::resource("{payment_id}/calculate_tax")
+                    .route(web::post().to(payments_dynamic_tax_calculation)),
+                );
         }
         route
     }
@@ -703,13 +707,12 @@ impl Routing {
                         )
                     })),
             )
-            .service(web::resource("/list/{profile_id}").route(web::get().to(
-                |state, req, path, query: web::Query<RoutingRetrieveQuery>| {
+            .service(web::resource("/list/profile").route(web::get().to(
+                |state, req, query: web::Query<RoutingRetrieveQuery>| {
                     routing::list_routing_configs_for_profile(
                         state,
                         req,
                         query,
-                        path,
                         &TransactionType::Payment,
                     )
                 },
@@ -796,6 +799,16 @@ impl Routing {
                             )
                         })),
                 )
+                .service(web::resource("/payouts/list/profile").route(web::get().to(
+                    |state, req, query: web::Query<RoutingRetrieveQuery>| {
+                        routing::list_routing_configs_for_profile(
+                            state,
+                            req,
+                            query,
+                            &TransactionType::Payout,
+                        )
+                    },
+                )))
                 .service(web::resource("/payouts/active").route(web::get().to(
                     |state, req, query_params| {
                         routing::routing_retrieve_linked_config(
@@ -898,7 +911,8 @@ impl Customers {
                 .service(
                     web::resource("/{id}")
                         .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve)),
+                        .route(web::post().to(customers_retrieve))
+                        .route(web::delete().to(customers_delete)),
                 )
         }
         #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
@@ -1024,7 +1038,12 @@ impl Payouts {
                         .route(web::post().to(payouts_list_by_filter_profile)),
                 )
                 .service(
-                    web::resource("/filter").route(web::post().to(payouts_list_available_filters)),
+                    web::resource("/filter")
+                        .route(web::post().to(payouts_list_available_filters_for_merchant)),
+                )
+                .service(
+                    web::resource("/profile/filter")
+                        .route(web::post().to(payouts_list_available_filters_for_profile)),
                 );
         }
         route = route
@@ -1111,7 +1130,7 @@ impl Recon {
         web::scope("/recon")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/update_merchant")
+                web::resource("/{merchant_id}/update")
                     .route(web::post().to(recon_routes::update_merchant)),
             )
             .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
@@ -1259,10 +1278,6 @@ impl MerchantConnectorAccount {
                     web::resource("/{merchant_id}/connectors")
                         .route(web::post().to(connector_create))
                         .route(web::get().to(payment_connector_list)),
-                )
-                .service(
-                    web::resource("/{merchant_id}/profile/connectors")
-                        .route(web::get().to(payment_connector_list_profile)),
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors/{merchant_connector_id}")
@@ -1635,6 +1650,10 @@ impl BusinessProfileNew {
                 web::resource("")
                     .route(web::get().to(admin::business_profiles_list_at_profile_level)),
             )
+            .service(
+                web::resource("/connectors")
+                    .route(web::get().to(admin::payment_connector_list_profile)),
+            )
     }
 }
 
@@ -1852,6 +1871,7 @@ impl User {
         route = route.service(
             web::scope("/user")
                 .service(web::resource("").route(web::get().to(user::get_user_role_details)))
+                .service(web::resource("/v2").route(web::post().to(user::list_user_roles_details)))
                 .service(
                     web::resource("/list")
                         .route(web::get().to(user::list_users_for_merchant_account)),
@@ -1865,9 +1885,24 @@ impl User {
                         .route(web::post().to(user::invite_multiple_user)),
                 )
                 .service(
-                    web::resource("/invite/accept")
-                        .route(web::post().to(user_role::merchant_select))
-                        .route(web::put().to(user_role::accept_invitation)),
+                    web::scope("/invite/accept")
+                        .service(
+                            web::resource("")
+                                .route(web::post().to(user_role::merchant_select))
+                                .route(web::put().to(user_role::accept_invitation)),
+                        )
+                        .service(
+                            web::scope("/v2")
+                                .service(
+                                    web::resource("")
+                                        .route(web::post().to(user_role::accept_invitations_v2)),
+                                )
+                                .service(
+                                    web::resource("/pre_auth").route(
+                                        web::post().to(user_role::accept_invitations_pre_auth),
+                                    ),
+                                ),
+                        ),
                 )
                 .service(
                     web::resource("/update_role")

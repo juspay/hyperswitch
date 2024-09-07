@@ -421,9 +421,23 @@ impl UniqueConstraints for diesel_models::PayoutAttempt {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl UniqueConstraints for diesel_models::PaymentMethod {
     fn unique_constraints(&self) -> Vec<String> {
         vec![format!("paymentmethod_{}", self.payment_method_id)]
+    }
+    fn table_name(&self) -> &str {
+        "PaymentMethod"
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl UniqueConstraints for diesel_models::PaymentMethod {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!("paymentmethod_{}", self.id)]
     }
     fn table_name(&self) -> &str {
         "PaymentMethod"

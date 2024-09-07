@@ -2,7 +2,8 @@
 -- These migrations can be run as long as there's no v2 application running.
 ALTER TABLE customers DROP COLUMN IF EXISTS merchant_reference_id,
     DROP COLUMN IF EXISTS default_billing_address,
-    DROP COLUMN IF EXISTS default_shipping_address;
+    DROP COLUMN IF EXISTS default_shipping_address,
+    DROP COLUMN IF EXISTS status;
 
 ALTER TABLE business_profile DROP COLUMN routing_algorithm_id,
     DROP COLUMN order_fulfillment_time,

@@ -7,15 +7,13 @@ use api_models::{
 use async_trait::async_trait;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, ValueExt},
-    type_name,
-    types::{keymanager::Identifier, MinorUnit},
+    types::{keymanager::KeyManagerState, MinorUnit},
 };
-use diesel_models::{ephemeral_key, PaymentMethod};
+use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{payment_attempt::PaymentAttempt, payment_intent::CustomerData},
-    type_encryption::{crypto_operation, CryptoOperation},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
@@ -40,7 +38,8 @@ use crate::{
     },
     services,
     types::{
-        api::{self, PaymentIdTypeExt},
+        self,
+        api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
         storage::{
             self,
@@ -534,6 +533,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -575,6 +575,106 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             storage_scheme,
         )
         .await
+    }
+
+    async fn payments_dynamic_tax_calculation<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        business_profile: &domain::BusinessProfile,
+        key_store: &domain::MerchantKeyStore,
+        merchant_account: &domain::MerchantAccount,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        if business_profile.is_tax_connector_enabled {
+            let db = state.store.as_ref();
+
+            let key_manager_state: &KeyManagerState = &state.into();
+
+            let merchant_connector_id = business_profile
+                .tax_connector_id
+                .as_ref()
+                .get_required_value("business_profile.tax_connector_id")?;
+
+            #[cfg(feature = "v1")]
+            let mca = db
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    key_manager_state,
+                    &business_profile.merchant_id,
+                    merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.get_string_repr().to_string(),
+                    },
+                )?;
+
+            #[cfg(feature = "v2")]
+            let mca = db
+                .find_merchant_connector_account_by_id(
+                    key_manager_state,
+                    merchant_connector_id,
+                    key_store,
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.get_string_repr().to_string(),
+                    },
+                )?;
+
+            let connector_data =
+                api::TaxCalculateConnectorData::get_connector_by_name(&mca.connector_name)?;
+
+            let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
+                state,
+                merchant_account,
+                key_store,
+                payment_data,
+                &mca,
+            )
+            .await?;
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::CalculateTax,
+                types::PaymentsTaxCalculationData,
+                types::TaxCalculationResponseData,
+            > = connector_data.connector.get_connector_integration();
+
+            let response = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Tax connector Response Failed")?;
+
+            let tax_response = response.response.map_err(|err| {
+                errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.code,
+                    message: err.message,
+                    connector: connector_data.connector_name.clone().to_string(),
+                    status_code: err.status_code,
+                    reason: err.reason,
+                }
+            })?;
+
+            payment_data.payment_intent.tax_details = Some(diesel_models::TaxDetails {
+                default: Some(diesel_models::DefaultTax {
+                    order_tax_amount: tax_response.order_tax_amount,
+                }),
+                payment_method_type: None,
+            });
+
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     #[instrument(skip_all)]
@@ -877,8 +977,8 @@ impl PaymentCreate {
         browser_info: Option<serde_json::Value>,
         state: &SessionState,
         payment_method_billing_address_id: Option<String>,
-        payment_method_info: &Option<PaymentMethod>,
-        key_store: &domain::MerchantKeyStore,
+        payment_method_info: &Option<domain::PaymentMethod>,
+        _key_store: &domain::MerchantKeyStore,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<payments::CustomerAcceptance>,
     ) -> RouterResult<(
@@ -917,36 +1017,28 @@ impl PaymentCreate {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
             additional_pm_data = payment_method_info
                 .as_ref()
-                .async_and_then(|pm_info| async {
-                    crypto_operation::<serde_json::Value, masking::WithType>(
-                        &state.into(),
-                        type_name!(PaymentMethod),
-                        CryptoOperation::DecryptOptional(pm_info.payment_method_data.clone()),
-                        Identifier::Merchant(key_store.merchant_id.clone()),
-                        key_store.key.get_inner().peek(),
-                    )
-                    .await
-                    .and_then(|val| val.try_into_optionaloperation())
-                    .map_err(|err| logger::error!("Failed to decrypt card details: {:?}", err))
-                    .ok()
-                    .flatten()
-                    .map(|x| x.into_inner().expose())
-                    .and_then(|v| {
-                        serde_json::from_value::<PaymentMethodsData>(v)
-                            .map_err(|err| {
-                                logger::error!(
-                                    "Unable to deserialize payment methods data: {:?}",
-                                    err
-                                )
-                            })
-                            .ok()
-                    })
-                    .and_then(|pmd| match pmd {
-                        PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                        _ => None,
-                    })
+                .and_then(|pm_info| {
+                    pm_info
+                        .payment_method_data
+                        .clone()
+                        .map(|x| x.into_inner().expose())
+                        .and_then(|v| {
+                            serde_json::from_value::<PaymentMethodsData>(v)
+                                .map_err(|err| {
+                                    logger::error!(
+                                        "Unable to deserialize payment methods data: {:?}",
+                                        err
+                                    )
+                                })
+                                .ok()
+                        })
+                        .and_then(|pmd| match pmd {
+                            PaymentMethodsData::Card(crd) => {
+                                Some(api::CardDetailFromLocker::from(crd))
+                            }
+                            _ => None,
+                        })
                 })
-                .await
                 .map(|card| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(card.into()))
                 });
@@ -1032,7 +1124,7 @@ impl PaymentCreate {
                 offer_amount: None,
                 payment_method_id: payment_method_info
                     .as_ref()
-                    .map(|pm_info| pm_info.payment_method_id.clone()),
+                    .map(|pm_info| pm_info.get_id().clone()),
                 cancellation_reason: None,
                 error_code: None,
                 connector_metadata: None,
@@ -1244,6 +1336,8 @@ impl PaymentCreate {
             shipping_details,
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
+            shipping_cost: request.shipping_cost,
+            tax_details: None,
         })
     }
 

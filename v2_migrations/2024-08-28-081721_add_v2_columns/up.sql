@@ -3,8 +3,8 @@
 ALTER TABLE customers
 ADD COLUMN IF NOT EXISTS merchant_reference_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS default_billing_address BYTEA DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS default_shipping_address BYTEA DEFAULT NULL;
-
+    ADD COLUMN IF NOT EXISTS default_shipping_address BYTEA DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS status "DeleteStatus" NOT NULL DEFAULT 'active';
 CREATE TYPE "OrderFulfillmentTimeOrigin" AS ENUM ('create', 'confirm');
 
 ALTER TABLE business_profile

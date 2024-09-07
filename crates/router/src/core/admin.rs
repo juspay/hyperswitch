@@ -1317,6 +1317,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 fiservemea::transformers::FiservemeaAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Fiuu => {
+                fiuu::transformers::FiuuAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Forte => {
                 forte::transformers::ForteAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1449,6 +1453,7 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 stax::transformers::StaxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Taxjar => Ok(()),
             api_enums::Connector::Stripe => {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -1772,6 +1777,8 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
             api_enums::convert_pm_auth_connector(self.connector_name.to_string().as_str());
         let authentication_connector =
             api_enums::convert_authentication_connector(self.connector_name.to_string().as_str());
+        let tax_connector =
+            api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1784,6 +1791,13 @@ impl<'a> ConnectorTypeAndConnectorName<'a> {
             }
         } else if authentication_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::AuthenticationProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if tax_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::TaxProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }

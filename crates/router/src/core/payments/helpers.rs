@@ -380,7 +380,23 @@ pub async fn get_address_by_id(
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn get_token_pm_type_mandate_details(
+    _state: &SessionState,
+    _request: &api::PaymentsRequest,
+    _mandate_type: Option<api::MandateTransactionType>,
+    _merchant_account: &domain::MerchantAccount,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _payment_method_id: Option<String>,
+    _payment_intent_customer_id: Option<&id_type::CustomerId>,
+) -> RouterResult<MandateGenericData> {
+    todo!()
+}
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
@@ -480,6 +496,8 @@ pub async fn get_token_pm_type_mandate_details(
                             let payment_method_info = state
                                 .store
                                 .find_payment_method(
+                                    &(state.into()),
+                                    merchant_key_store,
                                     payment_method_id,
                                     merchant_account.storage_scheme,
                                 )
@@ -543,6 +561,8 @@ pub async fn get_token_pm_type_mandate_details(
                             let customer_saved_pm_option = match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
+                                    &(state.into()),
+                                    merchant_key_store,
                                     customer_id,
                                     merchant_account.get_id(),
                                     None,
@@ -597,6 +617,8 @@ pub async fn get_token_pm_type_mandate_details(
                                 state
                                     .store
                                     .find_payment_method(
+                                        &(state.into()),
+                                        merchant_key_store,
                                         &payment_method_id,
                                         merchant_account.storage_scheme,
                                     )
@@ -625,7 +647,12 @@ pub async fn get_token_pm_type_mandate_details(
                 .async_map(|payment_method_id| async move {
                     state
                         .store
-                        .find_payment_method(&payment_method_id, merchant_account.storage_scheme)
+                        .find_payment_method(
+                            &(state.into()),
+                            merchant_key_store,
+                            &payment_method_id,
+                            merchant_account.storage_scheme,
+                        )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                 })
@@ -718,7 +745,12 @@ pub async fn get_token_for_recurring_mandate(
     )?;
 
     let payment_method = db
-        .find_payment_method(payment_method_id.as_str(), merchant_account.storage_scheme)
+        .find_payment_method(
+            &(state.into()),
+            merchant_key_store,
+            payment_method_id.as_str(),
+            merchant_account.storage_scheme,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
@@ -1902,15 +1934,21 @@ pub async fn retrieve_card_with_permanent_token(
 
 pub async fn retrieve_payment_method_from_db_with_token_data(
     state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     storage_scheme: storage::enums::MerchantStorageScheme,
-) -> RouterResult<Option<storage::PaymentMethod>> {
+) -> RouterResult<Option<domain::PaymentMethod>> {
     match token_data {
         storage::PaymentTokenData::PermanentCard(data) => {
             if let Some(ref payment_method_id) = data.payment_method_id {
                 state
                     .store
-                    .find_payment_method(payment_method_id, storage_scheme)
+                    .find_payment_method(
+                        &(state.into()),
+                        merchant_key_store,
+                        payment_method_id,
+                        storage_scheme,
+                    )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("error retrieving payment method from DB")
@@ -1922,7 +1960,12 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 
         storage::PaymentTokenData::WalletToken(data) => state
             .store
-            .find_payment_method(&data.payment_method_id, storage_scheme)
+            .find_payment_method(
+                &(state.into()),
+                merchant_key_store,
+                &data.payment_method_id,
+                storage_scheme,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("error retrieveing payment method from DB")
@@ -2020,15 +2063,15 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             if payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card) {
                 payment_data.token_data =
                     Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
-                        payment_method_id: Some(payment_method_info.payment_method_id.clone()),
+                        payment_method_id: Some(payment_method_info.get_id().clone()),
                         locker_id: payment_method_info
                             .locker_id
                             .clone()
-                            .or(Some(payment_method_info.payment_method_id.clone())),
+                            .or(Some(payment_method_info.get_id().clone())),
                         token: payment_method_info
                             .locker_id
                             .clone()
-                            .unwrap_or(payment_method_info.payment_method_id.clone()),
+                            .unwrap_or(payment_method_info.get_id().clone()),
                     }));
             }
         }
@@ -3074,6 +3117,8 @@ mod tests {
             shipping_details: None,
             is_payment_processor_token_flow: None,
             organization_id: id_type::OrganizationId::default(),
+            shipping_cost: None,
+            tax_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3140,6 +3185,8 @@ mod tests {
             shipping_details: None,
             is_payment_processor_token_flow: None,
             organization_id: id_type::OrganizationId::default(),
+            shipping_cost: None,
+            tax_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3204,6 +3251,8 @@ mod tests {
             shipping_details: None,
             is_payment_processor_token_flow: None,
             organization_id: id_type::OrganizationId::default(),
+            shipping_cost: None,
+            tax_details: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())

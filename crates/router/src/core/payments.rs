@@ -55,7 +55,8 @@ use time;
 #[cfg(feature = "v1")]
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
-    PaymentIncrementalAuthorization, PaymentReject, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentIncrementalAuthorization, PaymentReject, PaymentSession, PaymentSessionUpdate,
+    PaymentStatus, PaymentUpdate,
 };
 
 use self::{
@@ -267,6 +268,20 @@ where
                 mandate_type,
             )
             .await?;
+
+        operation
+            .to_domain()?
+            .payments_dynamic_tax_calculation(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &business_profile,
+                &key_store,
+                &merchant_account,
+            )
+            .await?;
+
         if should_continue_transaction {
             #[cfg(feature = "frm")]
             match (
@@ -2744,7 +2759,7 @@ where
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
     pub payment_method_data: Option<domain::PaymentMethodData>,
-    pub payment_method_info: Option<storage::PaymentMethod>,
+    pub payment_method_info: Option<domain::PaymentMethod>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
@@ -2766,6 +2781,13 @@ where
     pub authentication: Option<storage::Authentication>,
     pub recurring_details: Option<RecurringDetails>,
     pub poll_config: Option<router_types::PollConfig>,
+    pub tax_data: Option<TaxData>,
+}
+
+#[derive(Clone, serde::Serialize, Debug)]
+pub struct TaxData {
+    pub shipping_details: api_models::payments::Address,
+    pub payment_method_type: enums::PaymentMethodType,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
@@ -2903,6 +2925,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentApprove" => true,
         "PaymentReject" => true,
         "PaymentSession" => true,
+        "PaymentSessionUpdate" => true,
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.payment_intent.status,
             storage_enums::IntentStatus::RequiresCapture
@@ -3777,7 +3800,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
                                             mandate_reference_record.connector_mandate_id.clone(),
                                         ),
                                         payment_method_id: Some(
-                                            payment_method_info.payment_method_id.clone(),
+                                            payment_method_info.get_id().clone(),
                                         ),
                                         update_history: None,
                                     },
@@ -3865,7 +3888,7 @@ pub fn is_network_transaction_id_flow(
     state: &SessionState,
     is_connector_agnostic_mit_enabled: Option<bool>,
     connector: enums::Connector,
-    payment_method_info: &storage::PaymentMethod,
+    payment_method_info: &domain::PaymentMethod,
 ) -> bool {
     let ntid_supported_connectors = &state
         .conf
