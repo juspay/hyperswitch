@@ -11,7 +11,7 @@ pub mod routing;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
-
+use external_services::grpc_client::SuccessBasedDynamicRouting;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
@@ -165,7 +165,6 @@ where
             &header_payload,
         )
         .await?;
-
     utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.payment_intent,
@@ -4103,6 +4102,7 @@ pub async fn route_connector_v1<F>(
 where
     F: Send + Clone,
 {
+    println!("ENTER HERE");
     let routing_algorithm_id = {
         let routing_algorithm = match &transaction_data {
             TransactionData::Payment(_) => business_profile.routing_algorithm.clone(),
@@ -4140,6 +4140,15 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
+    // Testing purpose
+    let dr = state
+        .grpc_client
+        .dynamic_routing
+        .calculate_success_rate(connectors.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    println!("<<<response{:?}", dr);
 
     #[cfg(feature = "payouts")]
     let first_connector_choice = connectors

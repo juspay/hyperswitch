@@ -30,14 +30,23 @@ hyper-proxy = "0.9.1"
 once_cell = "1.19.0"
 serde = { version = "1.0.197", features = ["derive"] }
 thiserror = "1.0.58"
-tokio = "1.37.0"
 vaultrs = { version = "0.7.2", optional = true }
+prost = "0.13"
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+tonic = "0.12.2"
+tonic-reflection = "0.12.2"
+tonic-types = "0.12.2"
+
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+
+
+[build-dependencies]
+tonic-build = "0.12"
 
 [lints]
 workspace = true
