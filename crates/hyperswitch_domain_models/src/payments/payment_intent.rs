@@ -897,7 +897,7 @@ where
                             .all(|profile_id| auth_profile_id_list.contains(profile_id));
 
                     if profile_id_from_request_body_is_available_in_auth_profile_id_list {
-                        pi_list_params.profile_id = Some(auth_profile_id_list)
+                        pi_list_params.profile_id = Some(profile_id_from_request_body)
                     } else {
                         // This scenario is very unlikely to happen
                         let inaccessible_profile_ids: Vec<_> = profile_id_from_request_body
