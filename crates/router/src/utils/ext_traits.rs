@@ -1,4 +1,4 @@
-use common_utils::ext_traits::{BytesExt, ValueExt};
+use common_utils::ext_traits::ValueExt;
 use error_stack::{Report, ResultExt};
 
 use crate::{
