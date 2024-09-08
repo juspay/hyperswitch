@@ -23,6 +23,7 @@ pub mod payment_status;
 pub mod payment_update;
 #[cfg(feature = "v1")]
 pub mod payments_incremental_authorization;
+#[cfg(feature = "v1")]
 pub mod tax_calculation;
 
 use api_models::enums::FrmSuggestion;

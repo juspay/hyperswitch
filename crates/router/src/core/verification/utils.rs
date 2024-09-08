@@ -1,4 +1,3 @@
-use api_models::payments::PaymentIdType;
 use common_utils::{errors::CustomResult, id_type::PaymentId};
 use error_stack::{Report, ResultExt};
 

@@ -880,6 +880,7 @@ diesel::table! {
         shipping_cost -> Nullable<Int8>,
         #[max_length = 32]
         organization_id -> Varchar,
+        tax_details -> Nullable<Jsonb>,
         #[max_length = 64]
         merchant_reference_id -> Varchar,
         billing_address -> Nullable<Bytea>,
@@ -892,7 +893,6 @@ diesel::table! {
         tax_on_surcharge -> Nullable<Int8>,
         #[max_length = 64]
         id -> Varchar,
-        tax_details -> Nullable<Jsonb>,
     }
 }
 

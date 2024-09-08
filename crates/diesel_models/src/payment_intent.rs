@@ -60,6 +60,7 @@ pub struct PaymentIntent {
     pub is_payment_processor_token_flow: Option<bool>,
     pub shipping_cost: Option<MinorUnit>,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub tax_details: Option<TaxDetails>,
     pub merchant_reference_id: String,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -71,7 +72,6 @@ pub struct PaymentIntent {
     pub tax_on_surcharge: Option<MinorUnit>,
     // TODO: change this to global id
     pub id: common_utils::id_type::PaymentId,
-    pub tax_details: Option<TaxDetails>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -205,7 +205,9 @@ pub struct PaymentIntentNew {
     pub customer_details: Option<Encryption>,
     pub merchant_order_reference_id: Option<String>,
     pub is_payment_processor_token_flow: Option<bool>,
+    pub shipping_cost: Option<MinorUnit>,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub tax_details: Option<TaxDetails>,
     pub merchant_reference_id: String,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,

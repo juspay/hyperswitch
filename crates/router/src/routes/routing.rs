@@ -309,6 +309,7 @@ pub async fn routing_unlink_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::RoutingWrite,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
