@@ -617,14 +617,14 @@ function renderDynamicMerchantDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
-  if (!(typeof paymentDetails.transaction_details === "string" && paymentDetails.transaction_details.length > 0)) {
+  if (!(typeof paymentDetails.transaction_details === "object" && paymentDetails.transaction_details.length > 0)) {
     return;
   }
 
   try {
-    let merchantDetailsObject = JSON.parse(paymentDetails.transaction_details);
+    let merchantDetailsObject = paymentDetails.transaction_details;
 
-    if (Object.keys(merchantDetailsObject).length > 0) {
+    if (merchantDetailsObject.length > 0) {
       // render a horizontal line above dynamic merchant details
       var horizontalLineContainer = document.getElementById("hyper-checkout-payment-horizontal-line-container");
       var horizontalLine = document.createElement("hr");
@@ -632,11 +632,13 @@ function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
       horizontalLineContainer.append(horizontalLine);
 
       // max number of items to show in the merchant details
-      let maxItemsInDetails = 5;
-      for (var key in merchantDetailsObject) {
+      let maxItemsInDetails = 50;
+      for (var item of merchantDetailsObject) {
         var merchantData = document.createElement("div");
         merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
-        merchantData.innerHTML = key+": "+merchantDetailsObject[key].bold();
+        var key = item.ui_configuration.is_key_bold ? item.key.bold() : item.key;
+        var value = item.ui_configuration.is_value_bold ? item.value.bold() : item.value;
+        merchantData.innerHTML = key+": "+value;
 
         merchantDynamicDetails.append(merchantData);
         if (--maxItemsInDetails === 0) {
