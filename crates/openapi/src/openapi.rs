@@ -138,10 +138,10 @@ Never share your secret api keys. Keep them guarded and secure.
 
         // Routes for Business Profile
         routes::business_profile::business_profile_create,
-        routes::business_profile::business_profiles_list,
-        routes::business_profile::business_profiles_retrieve,
-        routes::business_profile::business_profiles_update,
-        routes::business_profile::business_profiles_delete,
+        routes::business_profile::business_profile_list,
+        routes::business_profile::business_profile_retrieve,
+        routes::business_profile::business_profile_update,
+        routes::business_profile::business_profile_delete,
 
         // Routes for disputes
         routes::disputes::retrieve_dispute,
@@ -363,10 +363,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
-        api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
-        api_models::payments::PaymentIdType,
         api_models::payments::PaymentsCaptureRequest,
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,
@@ -572,6 +570,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetailsResponse,
         api_models::payments::OpenBankingData,
         api_models::payments::OpenBankingSessionToken,
+        api_models::payments::PaymentsDynamicTaxCalculationRequest,
     )),
     modifiers(&SecurityAddon)
 )]

@@ -69,6 +69,11 @@ Never share your secret api keys. Keep them guarded and secure.
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
+        // Routes for Organization
+        routes::organization::organization_create,
+        routes::organization::organization_retrieve,
+        routes::organization::organization_update,
+
         // Routes for merchant connector account
         routes::merchant_connector_account::connector_create,
         routes::merchant_connector_account::connector_retrieve,
@@ -79,6 +84,28 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_create,
         routes::merchant_account::merchant_account_retrieve,
         routes::merchant_account::merchant_account_update,
+
+        // Routes for business profile
+        routes::business_profile::business_profile_create,
+        routes::business_profile::business_profile_retrieve,
+        routes::business_profile::business_profile_update,
+
+        // Routes for routing under business profile
+        routes::business_profile::routing_link_config,
+        routes::business_profile::routing_unlink_config,
+        routes::business_profile::routing_update_default_config,
+        routes::business_profile::routing_retrieve_default_config,
+        routes::business_profile::routing_retrieve_linked_config,
+
+        // Routes for routing
+        routes::routing::routing_create_config,
+        routes::routing::routing_retrieve_config,
+
+        // Routes for api keys
+        routes::api_keys::api_key_create,
+        routes::api_keys::api_key_retrieve,
+        routes::api_keys::api_key_update,
+        routes::api_keys::api_key_revoke,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -154,6 +181,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ConnectorStatus,
         api_models::enums::AuthorizationStatus,
         api_models::enums::PaymentMethodStatus,
+        api_models::enums::OrderFulfillmentTimeOrigin,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::MerchantRecipientData,
@@ -253,10 +281,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
-        api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
-        api_models::payments::PaymentIdType,
         api_models::payments::PaymentsCaptureRequest,
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,
@@ -439,6 +465,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::ast::ValueType,
         api_models::routing::ast::MetadataValue,
         api_models::routing::ast::NumberComparison,
+        api_models::routing::RoutingAlgorithmId,
         api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::payments::PaymentLinkStatus,
         api_models::blocklist::BlocklistRequest,

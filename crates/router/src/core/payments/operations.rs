@@ -11,6 +11,7 @@ pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 pub mod payments_incremental_authorization;
+pub mod tax_calculation;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
@@ -24,6 +25,7 @@ pub use self::{
     payment_response::PaymentResponse, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
+    tax_calculation::PaymentSessionUpdate,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
@@ -166,6 +168,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         _state: &SessionState,
@@ -174,6 +177,21 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _merchant_account: &domain::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn payments_dynamic_tax_calculation<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _business_profile: &domain::BusinessProfile,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -192,7 +210,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &SessionState,
-        _payment_id: &str,
+        _payment_id: &common_utils::id_type::PaymentId,
         _business_profile: &domain::BusinessProfile,
         _payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -220,6 +238,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
 }
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
@@ -229,6 +248,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         response: types::RouterData<F, R, PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;
@@ -272,7 +292,7 @@ where
     > {
         Ok((
             Box::new(self),
-            helpers::get_customer_from_details(
+            helpers::get_customer_details_even_for_redacted_customer(
                 state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,

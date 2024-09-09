@@ -15,7 +15,6 @@ use crate::{
             self, helpers, operations, CustomerAcceptance, CustomerDetails, PaymentAddress,
             PaymentData,
         },
-        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -193,7 +192,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         let customer_id = payment_intent
             .customer_id
             .as_ref()
-            .or(request.get_customer_id())
+            .or(request.customer_id.as_ref())
             .cloned();
 
         helpers::validate_customer_id_mandatory_cases(
@@ -208,7 +207,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
-            payment_id.as_ref(),
+            &payment_id,
             storage_scheme,
         )
         .await?;
@@ -290,7 +289,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let payment_data = PaymentData {
@@ -339,6 +338,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             authentication: None,
             recurring_details,
             poll_config: None,
+            tax_data: None,
         };
 
         let customer_details = Some(CustomerDetails {
@@ -531,7 +531,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAutho
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: merchant_account.get_id().to_owned(),
-                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
+                payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
                     request.retry_action,

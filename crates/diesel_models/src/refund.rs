@@ -23,7 +23,7 @@ use crate::{enums as storage_enums, schema::refund};
 pub struct Refund {
     pub internal_reference_id: String,
     pub refund_id: String, //merchant_reference id
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_transaction_id: String,
     pub connector: String,
@@ -46,10 +46,11 @@ pub struct Refund {
     pub attempt_id: String,
     pub refund_reason: Option<String>,
     pub refund_error_code: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub charges: Option<ChargeRefunds>,
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(
@@ -66,7 +67,7 @@ pub struct Refund {
 #[diesel(table_name = refund)]
 pub struct RefundNew {
     pub refund_id: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub internal_reference_id: String,
     pub external_reference_id: Option<String>,
@@ -88,42 +89,11 @@ pub struct RefundNew {
     pub description: Option<String>,
     pub attempt_id: String,
     pub refund_reason: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub updated_by: String,
-    pub merchant_connector_id: Option<String>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub charges: Option<ChargeRefunds>,
-}
-
-impl Default for RefundNew {
-    fn default() -> Self {
-        Self {
-            refund_id: Default::default(),
-            payment_id: Default::default(),
-            merchant_id: Default::default(),
-            internal_reference_id: Default::default(),
-            external_reference_id: Default::default(),
-            connector_transaction_id: Default::default(),
-            connector: Default::default(),
-            connector_refund_id: Default::default(),
-            refund_type: Default::default(),
-            total_amount: Default::default(),
-            currency: Default::default(),
-            refund_amount: Default::default(),
-            refund_status: Default::default(),
-            sent_to_gateway: Default::default(),
-            metadata: Default::default(),
-            refund_arn: Default::default(),
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            description: Default::default(),
-            attempt_id: Default::default(),
-            refund_reason: Default::default(),
-            profile_id: Default::default(),
-            updated_by: Default::default(),
-            merchant_connector_id: Default::default(),
-            charges: Default::default(),
-        }
-    }
+    pub organization_id: common_utils::id_type::OrganizationId,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -324,7 +294,7 @@ pub struct RefundCoreWorkflow {
     pub refund_internal_reference_id: String,
     pub connector_transaction_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 impl common_utils::events::ApiEventMetric for Refund {

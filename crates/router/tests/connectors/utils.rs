@@ -47,7 +47,7 @@ pub fn construct_connector_data_old(
     connector: types::api::BoxedConnector,
     connector_name: types::Connector,
     get_token: types::api::GetToken,
-    merchant_connector_id: Option<String>,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> types::api::ConnectorData {
     types::api::ConnectorData {
         connector: ConnectorEnum::Old(connector),
@@ -565,6 +565,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
+            // Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -1075,6 +1076,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
+        // Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
         Err(_) => None,
     }
 }

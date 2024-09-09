@@ -11,8 +11,6 @@ use api_models::{
 use api_models::{payment_methods::PaymentMethodsData, payments::AdditionalPaymentData};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use common_utils::{type_name, types::keymanager::Identifier};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -27,7 +25,6 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::payment_methods::cards::create_encrypted_data,
     events::audit_events::{AuditEvent, AuditEventType},
-    types::domain::types::{crypto_operation, CryptoOperation},
 };
 use crate::{
     core::{
@@ -164,7 +161,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
                             errors::ApiErrorResponse::BusinessProfileNotFound {
-                                id: profile_id.to_string(),
+                                id: profile_id.get_string_repr().to_owned(),
                             },
                         )
                     })
@@ -182,7 +179,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             async move {
                 store
                     .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                        m_payment_id.as_str(),
+                        &m_payment_id,
                         &m_merchant_id,
                         attempt_id.as_str(),
                         storage_scheme,
@@ -213,7 +210,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
-                    m_payment_intent_payment_id.as_ref(),
+                    &m_payment_intent_payment_id,
                     storage_scheme,
                 )
                 .await
@@ -241,7 +238,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
-                    m_payment_intent_payment_id.as_ref(),
+                    &m_payment_intent_payment_id,
                     storage_scheme,
                 )
                 .await
@@ -476,7 +473,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         helpers::get_additional_payment_data(
                             &payment_method_data.into(),
                             store.as_ref(),
-                            profile_id.as_ref(),
+                            &profile_id,
                         )
                         .await
                     })
@@ -509,7 +506,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .as_ref()
                         .or(m_customer_details_customer_id.as_ref()),
                     &m_key_store,
-                    m_payment_intent_payment_id.as_ref(),
+                    &m_payment_intent_payment_id,
                     storage_scheme,
                 )
                 .await
@@ -529,7 +526,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         })?;
 
         let m_state = state.clone();
-        let m_mandate_type = mandate_type.clone();
+        let m_mandate_type = mandate_type;
         let m_merchant_account = merchant_account.clone();
         let m_request = request.clone();
         let m_key_store = key_store.clone();
@@ -600,6 +597,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
             let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
                 state,
+                key_store,
                 &token_data,
                 storage_scheme,
             )
@@ -724,6 +722,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             authentication: None,
             recurring_details,
             poll_config: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -853,6 +852,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         populate_surcharge_details(state, payment_data).await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         state: &SessionState,
@@ -861,6 +861,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         connector_call_type: &ConnectorCallType,
         business_profile: &domain::BusinessProfile,
         key_store: &domain::MerchantKeyStore,
+        mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let external_authentication_flow =
             helpers::get_payment_external_authentication_flow_during_confirm(
@@ -869,6 +870,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
                 business_profile,
                 payment_data,
                 connector_call_type,
+                mandate_type,
             )
             .await?;
         payment_data.authentication = match external_authentication_flow {
@@ -960,7 +962,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         state: &SessionState,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         business_profile: &domain::BusinessProfile,
         payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -1157,24 +1159,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
-        let key_manager_state = &state.into();
-        let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
-            let key = key_store.key.get_inner().peek();
 
-            let card_detail_from_locker: Option<api::CardDetailFromLocker> =
-                crypto_operation::<serde_json::Value, masking::WithType>(
-                    key_manager_state,
-                    type_name!(storage::PaymentMethod),
-                    CryptoOperation::DecryptOptional(pm.payment_method_data.clone()),
-                    Identifier::Merchant(key_store.merchant_id.clone()),
-                    key,
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-                .change_context(errors::StorageError::DecryptionError)
-                .attach_printable("unable to decrypt card details")
-                .ok()
-                .flatten()
+        let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
+                .payment_method_data
+                .clone()
                 .map(|x| x.into_inner().expose())
                 .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
                 .and_then(|pmd| match pmd {
@@ -1209,7 +1198,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 .clone(),
         );
 
-        let customer_id = customer.clone().map(|c| c.get_customer_id());
+        let customer_id = customer.clone().map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.take();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = payment_data.payment_intent.business_label.clone();
@@ -1394,6 +1383,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                         billing_details,
                         shipping_details,
                         is_payment_processor_token_flow,
+                        tax_details: None,
                     })),
                     &m_key_store,
                     storage_scheme,
@@ -1414,7 +1404,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 let key_manager_state = state.into();
                 tokio::spawn(
                     async move {
-                        let m_customer_customer_id = customer.get_customer_id().to_owned();
+                        let m_customer_customer_id = customer.customer_id.to_owned();
                         m_db.update_customer_by_customer_id_merchant_id(
                             &key_manager_state,
                             m_customer_customer_id,
@@ -1518,7 +1508,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: merchant_account.get_id().to_owned(),
-                payment_id: payment_id.and_then(|id| core_utils::validate_id(id, "payment_id"))?,
+                payment_id,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: matches!(
                     request.retry_action,

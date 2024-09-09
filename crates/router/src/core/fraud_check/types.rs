@@ -23,7 +23,7 @@ use crate::types::{
 
 #[derive(Clone, Default, Debug)]
 pub struct PaymentIntentCore {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Clone, Debug)]
@@ -69,7 +69,7 @@ pub struct FrmInfo<F> {
 #[derive(Clone, Debug)]
 pub struct ConnectorDetailsCore {
     pub connector_name: String,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
 }
 #[derive(Clone)]
 pub struct PaymentToFrmData {

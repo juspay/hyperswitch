@@ -49,3 +49,9 @@ pub struct IncrementalAuthorization;
 
 #[derive(Debug, Clone)]
 pub struct PostProcessing;
+
+#[derive(Debug, Clone)]
+pub struct CalculateTax;
+
+#[derive(Debug, Clone)]
+pub struct SdkSessionUpdate;

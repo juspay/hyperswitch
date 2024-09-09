@@ -9,7 +9,7 @@ use crate::consts;
 pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|| {
     let mut roles = HashMap::new();
     roles.insert(
-        consts::user_role::ROLE_ID_INTERNAL_ADMIN,
+        common_utils::consts::ROLE_ID_INTERNAL_ADMIN,
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
@@ -24,8 +24,9 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::OrganizationManage,
+                PermissionGroup::ReconOps,
             ],
-            role_id: consts::user_role::ROLE_ID_INTERNAL_ADMIN.to_string(),
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_ADMIN.to_string(),
             role_name: "internal_admin".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Internal,
@@ -36,7 +37,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
         },
     );
     roles.insert(
-        consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER,
+        common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER,
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
@@ -46,7 +47,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersView,
                 PermissionGroup::MerchantDetailsView,
             ],
-            role_id: consts::user_role::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
+            role_id: common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             role_name: "internal_view_only".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Internal,
@@ -58,7 +59,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
     );
 
     roles.insert(
-        consts::user_role::ROLE_ID_ORGANIZATION_ADMIN,
+        common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN,
         RoleInfo {
             groups: vec![
                 PermissionGroup::OperationsView,
@@ -73,8 +74,9 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::MerchantDetailsManage,
                 PermissionGroup::OrganizationManage,
+                PermissionGroup::ReconOps,
             ],
-            role_id: consts::user_role::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
+            role_id: common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             role_name: "organization_admin".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Organization,
@@ -101,6 +103,7 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
                 PermissionGroup::UsersManage,
                 PermissionGroup::MerchantDetailsView,
                 PermissionGroup::MerchantDetailsManage,
+                PermissionGroup::ReconOps,
             ],
             role_id: consts::user_role::ROLE_ID_MERCHANT_ADMIN.to_string(),
             role_name: "admin".to_string(),
@@ -209,6 +212,25 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
             role_name: "customer_support".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Merchant,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_PROFILE_CUSTOMER_SUPPORT,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::OperationsManage,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::WorkflowsView,
+            ],
+            role_id: consts::user_role::ROLE_ID_PROFILE_CUSTOMER_SUPPORT.to_string(),
+            role_name: "profile_support".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,

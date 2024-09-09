@@ -23,6 +23,12 @@ impl CustomerNew {
     }
 }
 
+pub struct CustomerListConstraints {
+    pub limit: i64,
+    pub offset: Option<i64>,
+}
+
+// #[cfg(all(feature = "v2", feature = "customer_v2"))]
 impl Customer {
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     pub async fn update_by_id(
@@ -48,20 +54,20 @@ impl Customer {
     }
 
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
-    pub async fn find_by_global_id(conn: &PgPooledConn, id: &String) -> StorageResult<Self> {
+    pub async fn find_by_global_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
+        constraints: CustomerListConstraints,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
-            None,
-            None,
+            Some(constraints.limit),
+            constraints.offset,
             Some(dsl::created_at),
         )
         .await

@@ -75,7 +75,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
@@ -159,7 +159,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                id: profile_id.to_string(),
+                id: profile_id.get_string_repr().to_owned(),
             })?;
 
         let payment_data = PaymentData {
@@ -205,6 +205,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            tax_data: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -378,7 +379,7 @@ where
 
         let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
             all_connector_accounts,
-            Some(&profile_id),
+            &profile_id,
             common_enums::ConnectorType::PaymentProcessor,
         );
 
@@ -449,10 +450,7 @@ where
             .inspect_err(|err| {
                 logger::error!(session_token_error=?err);
             }) {
-                #[cfg(all(
-                    any(feature = "v1", feature = "v2"),
-                    not(feature = "merchant_connector_account_v2")
-                ))]
+                #[cfg(feature = "v1")]
                 {
                     let new_session_connector_data = api::SessionConnectorData::new(
                         payment_method_type,
@@ -461,7 +459,7 @@ where
                     );
                     session_connector_data.push(new_session_connector_data)
                 }
-                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                #[cfg(feature = "v2")]
                 {
                     let new_session_connector_data =
                         api::SessionConnectorData::new(payment_method_type, connector_data, None);
