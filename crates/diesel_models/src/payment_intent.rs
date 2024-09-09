@@ -70,8 +70,7 @@ pub struct PaymentIntent {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    // TODO: change this to global id
-    pub id: common_utils::id_type::PaymentId,
+    pub id: common_utils::id_type::PaymentGlobalId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -217,8 +216,7 @@ pub struct PaymentIntentNew {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    // TODO: change this to global id
-    pub id: common_utils::id_type::PaymentId,
+    pub id: common_utils::id_type::PaymentGlobalId,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]

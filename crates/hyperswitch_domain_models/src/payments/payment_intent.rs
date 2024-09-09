@@ -46,7 +46,7 @@ pub trait PaymentIntentInterface {
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
-        id: &id_type::PaymentId,
+        id: &id_type::PaymentGlobalId,
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;

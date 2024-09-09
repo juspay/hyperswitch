@@ -1,7 +1,9 @@
 use crate::{
+    consts::{self, MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH},
     errors::{CustomResult, ValidationError},
     generate_id_with_default_len,
     id_type::{global_id, AlphaNumericId, LengthId},
+    impl_queryable_id_type,
 };
 
 crate::id_type!(
@@ -17,20 +19,6 @@ crate::impl_try_from_cow_str_id_type!(PaymentId, "payment_id");
 
 crate::impl_queryable_id_type!(PaymentId);
 crate::impl_to_sql_from_sql_id_type!(PaymentId);
-
-/// A global id that can be used to identify a payment
-#[derive(
-    Debug,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    diesel::expression::AsExpression,
-)]
-#[diesel(sql_type = diesel::sql_types::Text)]
-pub struct PaymentGlobalId(global_id::GlobalId);
 
 impl PaymentId {
     /// Get the hash key to be stored in redis
@@ -87,5 +75,56 @@ impl From<PaymentId> for router_env::opentelemetry::Value {
     fn from(val: PaymentId) -> Self {
         let string_value = val.0 .0 .0;
         Self::String(router_env::opentelemetry::StringValue::from(string_value))
+    }
+}
+
+/// A global id that can be used to identify a payment
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    diesel::expression::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Text)]
+pub struct PaymentGlobalId(global_id::GlobalId);
+
+impl_queryable_id_type!(PaymentGlobalId);
+
+impl PaymentGlobalId {
+    /// Get the hash key to be stored in redis
+    pub fn get_hash_key_for_kv_store(&self) -> String {
+        format!("pi_{}", self.0.get_string_repr())
+    }
+
+    /// Get the string representation of the global id
+    pub fn get_string_repr(&self) -> &str {
+        &self.0.get_string_repr()
+    }
+}
+
+impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for PaymentGlobalId
+where
+    DB: diesel::backend::Backend,
+    global_id::GlobalId: diesel::serialize::ToSql<diesel::sql_types::Text, DB>,
+{
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, DB>,
+    ) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for PaymentGlobalId
+where
+    DB: diesel::backend::Backend,
+    global_id::GlobalId: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        global_id::GlobalId::from_sql(value).map(Self)
     }
 }

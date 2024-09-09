@@ -166,7 +166,7 @@ impl PaymentIntentInterface for MockDb {
     async fn find_payment_intent_by_id(
         &self,
         _state: &KeyManagerState,
-        id: &common_utils::id_type::PaymentId,
+        id: &common_utils::id_type::PaymentGlobalId,
         _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {

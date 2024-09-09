@@ -16,6 +16,12 @@ use crate::{
 /// This id will have information about the entity and cell in a distributed system architecture
 pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>);
 
+impl GlobalId {
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0 .0
+    }
+}
+
 #[derive(Clone, Copy)]
 /// Entities that can be identified by a global id
 pub(crate) enum GlobalEntity {

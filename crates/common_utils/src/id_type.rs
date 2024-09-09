@@ -24,7 +24,7 @@ use diesel::{
 pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
-pub use payment::PaymentId;
+pub use payment::{PaymentGlobalId, PaymentId};
 pub use profile::ProfileId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};

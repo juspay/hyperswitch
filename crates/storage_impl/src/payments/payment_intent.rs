@@ -286,7 +286,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
-        id: &common_utils::id_type::PaymentId,
+        id: &common_utils::id_type::PaymentGlobalId,
         merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
@@ -546,7 +546,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
-        id: &common_utils::id_type::PaymentId,
+        id: &common_utils::id_type::PaymentGlobalId,
         merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {

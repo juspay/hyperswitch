@@ -118,7 +118,7 @@ pub trait PaymentAttemptInterface {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentAttempt {
-    pub payment_id: id_type::PaymentId,
+    pub payment_id: id_type::PaymentGlobalId,
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
@@ -210,7 +210,7 @@ pub struct PaymentListFilters {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PaymentAttemptNew {
-    pub payment_id: id_type::PaymentId,
+    pub payment_id: id_type::PaymentGlobalId,
     pub merchant_id: id_type::MerchantId,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,

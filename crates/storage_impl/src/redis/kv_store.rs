@@ -23,9 +23,15 @@ pub trait KvStorePartition {
 #[allow(unused)]
 #[derive(Clone)]
 pub enum PartitionKey<'a> {
+    #[cfg(feature = "v1")]
     MerchantIdPaymentId {
         merchant_id: &'a common_utils::id_type::MerchantId,
         payment_id: &'a common_utils::id_type::PaymentId,
+    },
+    #[cfg(feature = "v2")]
+    MerchantIdPaymentId {
+        merchant_id: &'a common_utils::id_type::MerchantId,
+        payment_id: &'a common_utils::id_type::PaymentGlobalId,
     },
     CombinationKey {
         combination: &'a str,

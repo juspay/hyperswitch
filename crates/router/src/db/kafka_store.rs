@@ -1598,7 +1598,7 @@ impl PaymentIntentInterface for KafkaStore {
     async fn find_payment_intent_by_id(
         &self,
         state: &KeyManagerState,
-        payment_id: &id_type::PaymentId,
+        payment_id: &id_type::PaymentGlobalId,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::PaymentIntent, errors::DataStorageError> {
