@@ -222,6 +222,8 @@ pub struct PaymentAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
+    pub shipping_cost: Option<i64>,
+    pub order_tax_amount: Option<i64>,
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
@@ -318,7 +320,26 @@ impl PaymentAttemptNew {
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v2", feature = "payment_v2"))]
+impl PaymentAttemptNew {
+    /// returns amount + surcharge_amount + tax_amount
+    pub fn calculate_net_amount(&self) -> i64 {
+        todo!();
+    }
+
+    pub fn get_or_calculate_net_amount(&self) -> i64 {
+        self.net_amount
+            .unwrap_or_else(|| self.calculate_net_amount())
+    }
+
+    pub fn populate_derived_fields(self) -> Self {
+        let mut payment_attempt_new = self;
+        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
+        payment_attempt_new
+    }
+}
+
+#[cfg(all(feature = "v1"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PaymentAttemptUpdate {
     Update {
