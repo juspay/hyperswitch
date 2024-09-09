@@ -341,8 +341,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                 let transaction_status = item
                     .response
                     .transaction
-                    .and_then(|x| x.status)
-                    .ok_or_else(missing_field_err("transaction status"))?;
+                    .and_then(|transaction_data| transaction_data.status)
+                    .unwrap_or(NovalnetTransactionStatus::PROGRESS);
+                //  NOTE: if result.status is success, this means we should always have a redirection url
+                // since Novalnet does not always send the transaction.status, so using default value as PROGRESS
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -709,7 +711,7 @@ impl<F>
                 let transaction_status = item
                     .response
                     .transaction
-                    .map(|x| x.status)
+                    .map(|transaction_data| transaction_data.status)
                     .unwrap_or(NovalnetTransactionStatus::PENDING);
 
                 Ok(Self {
@@ -794,7 +796,7 @@ impl<F>
                 let transaction_status = item
                     .response
                     .transaction
-                    .and_then(|x| x.status)
+                    .and_then(|transaction_data| transaction_data.status)
                     .ok_or_else(missing_field_err("transaction status"))?;
 
                 Ok(Self {
@@ -963,7 +965,7 @@ impl<F>
                 let transaction_status = item
                     .response
                     .transaction
-                    .and_then(|x| x.status)
+                    .and_then(|transaction_data| transaction_data.status)
                     .ok_or_else(missing_field_err("transaction status"))?;
 
                 Ok(Self {
