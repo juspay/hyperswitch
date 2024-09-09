@@ -11,7 +11,7 @@ use common_enums as storage_enums;
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaymentIntent {
     pub payment_id: id_type::PaymentId,
@@ -86,7 +86,7 @@ impl PaymentIntent {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PaymentIntent {
     pub merchant_id: id_type::MerchantId,

@@ -140,7 +140,7 @@ impl PaymentIntentInterface for MockDb {
         Ok(payment_intent.clone())
     }
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
     async fn find_payment_intent_by_payment_id_merchant_id(
@@ -162,7 +162,7 @@ impl PaymentIntentInterface for MockDb {
             .unwrap())
     }
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
         _state: &KeyManagerState,
