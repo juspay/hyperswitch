@@ -7339,6 +7339,11 @@
           "is_tax_connector_enabled": {
             "type": "boolean",
             "description": "Indicates if tax_calculator connector is enabled or not.\nIf set to `true` tax_connector_id will be checked."
+          },
+          "is_dynamic_routing_enabled": {
+            "type": "boolean",
+            "description": "Indicates if dynamic routing is enabled or not.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -20974,7 +20979,8 @@
           "single",
           "priority",
           "volume_split",
-          "advanced"
+          "advanced",
+          "dynamic"
         ]
       },
       "RoutingConfigRequest": {
