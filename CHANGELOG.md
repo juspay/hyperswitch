@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.09.06.0-hotfix1
+
+### Features
+
+- Enable payment and refund filter at DB query level ([#5839](https://github.com/juspay/hyperswitch/pull/5839)) ([`b75e864`](https://github.com/juspay/hyperswitch/commit/b75e864bdb503d1a86eb729cea7f2b7186de16c3))
+
+- - -
+
 ## 2024.09.06.0
 
 ### Features
