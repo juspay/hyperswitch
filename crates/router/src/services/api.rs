@@ -1320,12 +1320,12 @@ pub fn build_redirection_form(
                         input type="hidden" name=(field) value=(value);
                     }
                 }
-                (PreEscaped(format!(
-                    "<script type=\"text/javascript\"> {logging_template}
-                    var frm = document.getElementById(\"payment_form\"); 
-                    var formFields = frm.querySelectorAll(\"input\");
+                (PreEscaped(format!(r#"
+                    <script type="text/javascript"> {logging_template}
+                    var frm = document.getElementById("payment_form"); 
+                    var formFields = frm.querySelectorAll("input");
                 
-                    if (frm.method.toUpperCase() === \"GET\" && formFields.length === 0) {{
+                    if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
                         window.setTimeout(function () {{
                             window.location.href = frm.action;
                         }}, 300);
@@ -1334,8 +1334,8 @@ pub fn build_redirection_form(
                             frm.submit();
                         }}, 300);
                     }}
-                    </script>"
-                )))
+                    </script>
+                    "#)))
 
             }
         }
