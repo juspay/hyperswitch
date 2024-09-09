@@ -1332,7 +1332,7 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 Ok(())
             }
             api_enums::Connector::Esnekpos => {
-                esnekpos::transformers::EsnekposAuthType::try_from(val)?;
+                esnekpos::transformers::EsnekposAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Ebanx => {

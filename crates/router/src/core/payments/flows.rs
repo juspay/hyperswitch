@@ -360,7 +360,6 @@ impl<const T: u8>
 
 default_imp_for_create_customer!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -379,6 +378,7 @@ default_imp_for_create_customer!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -455,7 +455,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 
 default_imp_for_connector_redirect_response!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Bamboraapac,
@@ -469,6 +468,7 @@ default_imp_for_connector_redirect_response!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globepay,
     connector::Gocardless,
@@ -519,7 +519,6 @@ impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {
 
 default_imp_for_connector_request_id!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Zsl,
     connector::Aci,
     connector::Adyen,
@@ -541,6 +540,7 @@ default_imp_for_connector_request_id!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
@@ -620,7 +620,6 @@ impl<const T: u8>
 
 default_imp_for_accept_dispute!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -638,6 +637,7 @@ default_imp_for_accept_dispute!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -736,7 +736,6 @@ impl<const T: u8>
 
 default_imp_for_file_upload!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -754,6 +753,7 @@ default_imp_for_file_upload!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -829,7 +829,6 @@ impl<const T: u8>
 
 default_imp_for_submit_evidence!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -847,6 +846,7 @@ default_imp_for_submit_evidence!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -922,7 +922,6 @@ impl<const T: u8>
 
 default_imp_for_defend_dispute!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -940,6 +939,7 @@ default_imp_for_defend_dispute!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Globepay,
     connector::Forte,
     connector::Globalpay,
@@ -1378,6 +1378,7 @@ default_imp_for_payouts_retrieve!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -1933,6 +1934,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2008,7 +2010,6 @@ impl<const T: u8>
 
 default_imp_for_approve!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2027,6 +2028,7 @@ default_imp_for_approve!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2377,7 +2379,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2396,6 +2397,7 @@ default_imp_for_frm_checkout!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2472,7 +2474,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2491,6 +2492,7 @@ default_imp_for_frm_transaction!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2567,7 +2569,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2586,6 +2587,7 @@ default_imp_for_frm_fulfillment!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2662,7 +2664,6 @@ impl<const T: u8>
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2681,6 +2682,7 @@ default_imp_for_frm_record_return!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2755,7 +2757,6 @@ impl<const T: u8>
 
 default_imp_for_incremental_authorization!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2773,6 +2774,7 @@ default_imp_for_incremental_authorization!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2847,7 +2849,6 @@ impl<const T: u8>
 }
 default_imp_for_revoking_mandates!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -2865,6 +2866,7 @@ default_imp_for_revoking_mandates!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
@@ -2999,7 +3001,6 @@ impl<const T: u8>
 }
 default_imp_for_connector_authentication!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -3020,6 +3021,7 @@ default_imp_for_connector_authentication!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,

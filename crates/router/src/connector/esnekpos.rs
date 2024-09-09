@@ -1,14 +1,16 @@
 pub mod transformers;
 
-use std::fmt::Debug;
+use super::utils::{self as connector_utils, RefundsRequestData};
 
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use error_stack::{report, ResultExt};
+use hyperswitch_interfaces::consts;
+use masking::PeekInterface;
 use serde_json::json;
 use transformers as esnekpos;
 
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
     headers,
@@ -21,8 +23,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Esnekpos;
+#[derive(Clone)]
+pub struct Esnekpos {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Esnekpos {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Esnekpos {}
 impl api::PaymentSession for Esnekpos {}
@@ -44,7 +56,6 @@ impl
         types::PaymentsResponseData,
     > for Esnekpos
 {
-    // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Esnekpos
@@ -83,13 +94,6 @@ impl ConnectorCommon for Esnekpos {
         connectors.esnekpos.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
     fn build_error_response(
         &self,
         res: Response,
@@ -114,14 +118,11 @@ impl ConnectorCommon for Esnekpos {
     }
 }
 
-impl ConnectorValidation for Esnekpos {
-    //TODO: implement functions when support enabled
-}
+impl ConnectorValidation for Esnekpos {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Esnekpos
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -136,6 +137,17 @@ impl
         types::PaymentsResponseData,
     > for Esnekpos
 {
+    fn build_request(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "setup mandate".to_string(),
+            connector: "esnekpos".to_string(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
