@@ -1031,7 +1031,6 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Adyenplatform,
-    connector::Esnekpos,
     connector::Aci,
     connector::Authorizedotnet,
     connector::Bamboraapac,
@@ -1047,6 +1046,7 @@ default_imp_for_pre_processing_steps!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Iatapay,
     connector::Itaubank,
     connector::Forte,
@@ -1126,6 +1126,7 @@ default_imp_for_post_processing_steps!(
     connector::Datatrans,
     connector::Dlocal,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Iatapay,
     connector::Itaubank,
     connector::Forte,
