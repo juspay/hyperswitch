@@ -34,6 +34,14 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::{
+    configs::settings, core::payment_methods::transformers as pm_transforms, headers,
+    services::encryption, types::api,
+};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::{ext_traits::Encode, id_type, request::RequestContent};
+
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     consts,
@@ -52,6 +60,13 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
@@ -747,5 +762,105 @@ pub(crate) async fn get_payment_method_create_request(
             field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+pub trait VaultingInterface {
+    async fn create_vault_request(
+        &self,
+        jwekey: &settings::Jwekey,
+        locker: &settings::Locker,
+    ) -> errors::CustomResult<services::Request, errors::VaultError>;
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultFingerprintRequest {
+    pub data: String,
+    pub key: String,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultFingerprintResponse {
+    pub fingerprint_id: String,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultRequest {
+    pub entity_id: common_utils::id_type::MerchantId,
+    pub vault_id: String,
+    pub data: api::CardDetail,
+    pub ttl: i64,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultResponse {
+    pub entity_id: common_utils::id_type::MerchantId,
+    pub vault_id: String,
+    pub fingerprint_id: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+impl VaultingInterface for AddVaultRequest {
+    async fn create_vault_request(
+        &self,
+        jwekey: &settings::Jwekey,
+        locker: &settings::Locker,
+    ) -> errors::CustomResult<services::Request, errors::VaultError> {
+        let payload = self
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+        let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+        let jws =
+            encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+                .await
+                .change_context(errors::VaultError::RequestEncryptionFailed)?;
+
+        let jwe_payload = pm_transforms::create_jwe_body_for_vault(jwekey, &jws).await?;
+
+        let mut url = locker.host.to_owned();
+        url.push_str(ADD_VAULT_REQUEST_URL);
+        let mut request = services::Request::new(services::Method::Post, &url);
+        request.add_header(headers::CONTENT_TYPE, VAULT_HEADER_CONTENT_TYPE.into());
+        request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+        Ok(request)
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[async_trait::async_trait]
+impl VaultingInterface for VaultFingerprintRequest {
+    async fn create_vault_request(
+        &self,
+        jwekey: &settings::Jwekey,
+        locker: &settings::Locker,
+    ) -> errors::CustomResult<services::Request, errors::VaultError> {
+        let payload = self
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+        let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+        let jws =
+            encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+                .await
+                .change_context(errors::VaultError::RequestEncryptionFailed)?;
+
+        let jwe_payload = pm_transforms::create_jwe_body_for_vault(jwekey, &jws).await?;
+
+        let mut url = locker.host.to_owned();
+        url.push_str(VAULT_FINGERPRINT_REQUEST_URL);
+        let mut request = services::Request::new(services::Method::Post, &url);
+        request.add_header(headers::CONTENT_TYPE, VAULT_HEADER_CONTENT_TYPE.into());
+        request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+        Ok(request)
     }
 }
