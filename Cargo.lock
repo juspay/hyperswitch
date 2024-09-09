@@ -1449,7 +1449,6 @@ dependencies = [
  "rustversion",
  "serde",
  "sync_wrapper 0.1.2",
-<<<<<<< HEAD
  "tower",
  "tower-layer",
  "tower-service",
@@ -1477,8 +1476,6 @@ dependencies = [
  "rustversion",
  "serde",
  "sync_wrapper 1.0.1",
-=======
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
  "tower",
  "tower-layer",
  "tower-service",
