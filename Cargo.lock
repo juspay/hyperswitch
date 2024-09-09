@@ -1462,10 +1462,10 @@ checksum = "3a6c9af12842a67734c9a2e355436e5d03b22383ed60cf13cd0c18fbfe3dcbcf"
 dependencies = [
  "async-trait",
  "axum-core 0.4.3",
- "bytes 1.6.0",
+ "bytes 1.7.1",
  "futures-util",
  "http 1.1.0",
- "http-body 1.0.0",
+ "http-body 1.0.1",
  "http-body-util",
  "itoa",
  "matchit",
@@ -1505,10 +1505,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a15c63fd72d41492dc4f497196f5da1fb04fb7529e631d73630d1b491e47a2e3"
 dependencies = [
  "async-trait",
- "bytes 1.6.0",
+ "bytes 1.7.1",
  "futures-util",
  "http 1.1.0",
- "http-body 1.0.0",
+ "http-body 1.0.1",
  "http-body-util",
  "mime",
  "pin-project-lite",
@@ -3132,7 +3132,7 @@ dependencies = [
  "router_env",
  "serde",
  "thiserror",
- "tokio 1.37.0",
+ "tokio 1.40.0",
  "tonic 0.12.2",
  "tonic-build",
  "tonic-reflection",
@@ -3211,12 +3211,6 @@ name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
-
-[[package]]
-name = "finl_unicode"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fcfdc7a0362c9f4444381a9e697c79d435fe65b52a37466fc2c1184cee9edc6"
 
 [[package]]
 name = "fixedbitset"
@@ -3927,7 +3921,7 @@ dependencies = [
  "hyper 1.4.1",
  "hyper-util",
  "pin-project-lite",
- "tokio 1.37.0",
+ "tokio 1.40.0",
  "tower-service",
 ]
 
@@ -3945,20 +3939,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper-tls"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70206fc6890eaca9fde8a0bf71caa2ddfc9fe045ac9e5c70df101a7dbde866e0"
+dependencies = [
+ "bytes 1.7.1",
+ "http-body-util",
+ "hyper 1.4.1",
+ "hyper-util",
+ "native-tls",
+ "tokio 1.40.0",
+ "tokio-native-tls",
+ "tower-service",
+]
+
+[[package]]
 name = "hyper-util"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cde7055719c54e36e95e8719f95883f22072a48ede39db7fc17a4e1d5281e9b9"
 dependencies = [
- "bytes 1.6.0",
+ "bytes 1.7.1",
  "futures-channel",
  "futures-util",
  "http 1.1.0",
- "http-body 1.0.0",
+ "http-body 1.0.1",
  "hyper 1.4.1",
  "pin-project-lite",
  "socket2",
- "tokio 1.37.0",
+ "tokio 1.40.0",
  "tower",
  "tower-service",
  "tracing",
@@ -5179,7 +5189,7 @@ dependencies = [
  "opentelemetry-proto",
  "prost 0.11.9",
  "thiserror",
- "tokio 1.37.0",
+ "tokio 1.40.0",
  "tonic 0.8.3",
 ]
 
@@ -5459,7 +5469,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
- "indexmap 2.4.0",
+ "indexmap 2.5.0",
 ]
 
 [[package]]
@@ -5671,7 +5681,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f12335488a2f3b0a83b14edad48dca9879ce89b2edd10e80237e4e852dd645e"
 dependencies = [
  "proc-macro2",
- "syn 2.0.75",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -5761,7 +5771,7 @@ version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b82eaa1d779e9a4bc1c3217db8ffbeabaae1dca241bf70183242128d48681cd"
 dependencies = [
- "bytes 1.6.0",
+ "bytes 1.7.1",
  "prost-derive 0.11.9",
 ]
 
@@ -5771,7 +5781,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b2ecbe40f08db5c006b5764a2645f7f3f141ce756412ac9e1dd6087e6d32995"
 dependencies = [
- "bytes 1.6.0",
+ "bytes 1.7.1",
  "prost-derive 0.13.2",
 ]
 
@@ -5781,7 +5791,7 @@ version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8650aabb6c35b860610e9cff5dc1af886c9e25073b7b1712a68972af4281302"
 dependencies = [
- "bytes 1.6.0",
+ "bytes 1.7.1",
  "heck 0.5.0",
  "itertools 0.12.1",
  "log",
@@ -5792,7 +5802,7 @@ dependencies = [
  "prost 0.13.2",
  "prost-types",
  "regex",
- "syn 2.0.75",
+ "syn 2.0.77",
  "tempfile",
 ]
 
@@ -5819,7 +5829,7 @@ dependencies = [
  "itertools 0.12.1",
  "proc-macro2",
  "quote",
- "syn 2.0.75",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -7704,12 +7714,9 @@ name = "sync_wrapper"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7065abeca94b6a8a577f9bd45aa0867a2238b74e8eb67cf10d492bc39351394"
-<<<<<<< HEAD
-=======
 dependencies = [
  "futures-core",
 ]
->>>>>>> aa2f5d147561f6e996228d269e6a54c5d1f53a60
 
 [[package]]
 name = "synstructure"
@@ -8364,13 +8371,13 @@ dependencies = [
  "h2 0.3.26",
  "http 0.2.12",
  "http-body 0.4.6",
- "hyper 0.14.28",
+ "hyper 0.14.30",
  "hyper-timeout 0.4.1",
  "percent-encoding",
  "pin-project",
  "prost 0.11.9",
  "prost-derive 0.11.9",
- "tokio 1.37.0",
+ "tokio 1.40.0",
  "tokio-stream",
  "tokio-util",
  "tower",
@@ -8389,11 +8396,11 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum 0.7.5",
- "base64 0.22.0",
- "bytes 1.6.0",
- "h2 0.4.3",
+ "base64 0.22.1",
+ "bytes 1.7.1",
+ "h2 0.4.6",
  "http 1.1.0",
- "http-body 1.0.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.4.1",
  "hyper-timeout 0.5.1",
@@ -8402,7 +8409,7 @@ dependencies = [
  "pin-project",
  "prost 0.13.2",
  "socket2",
- "tokio 1.37.0",
+ "tokio 1.40.0",
  "tokio-stream",
  "tower",
  "tower-layer",
@@ -8420,7 +8427,7 @@ dependencies = [
  "proc-macro2",
  "prost-build",
  "quote",
- "syn 2.0.75",
+ "syn 2.0.77",
 ]
 
 [[package]]
@@ -8431,7 +8438,7 @@ checksum = "7b56b874eedb04f89907573b408eab1e87c1c1dce43aac6ad63742f57faa99ff"
 dependencies = [
  "prost 0.13.2",
  "prost-types",
- "tokio 1.37.0",
+ "tokio 1.40.0",
  "tokio-stream",
  "tonic 0.12.2",
 ]
