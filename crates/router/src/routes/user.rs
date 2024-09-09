@@ -177,7 +177,7 @@ pub async fn set_dashboard_metadata(
         user_core::dashboard_metadata::set_metadata,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -468,7 +468,7 @@ pub async fn invite_multiple_user(
         },
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -494,7 +494,7 @@ pub async fn resend_invite(
         },
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))

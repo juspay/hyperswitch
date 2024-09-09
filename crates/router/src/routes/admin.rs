@@ -226,14 +226,20 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_connector(state, req, auth_data.merchant_account, auth_data.key_store)
+            create_connector(
+                state,
+                req,
+                auth_data.merchant_account,
+                auth_data.profile_id,
+                auth_data.key_store,
+            )
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -265,7 +271,7 @@ pub async fn connector_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -526,7 +532,7 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -578,7 +584,7 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -889,7 +895,7 @@ pub async fn business_profile_update(
             &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
-                minimum_entity_level: EntityType::Merchant,
+                minimum_entity_level: EntityType::Profile,
                 required_permission: Permission::MerchantAccountWrite,
             },
             req.headers(),

@@ -160,7 +160,7 @@ pub async fn update_user_role(
         user_role_core::update_user_role,
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -261,7 +261,7 @@ pub async fn delete_user_role(
         user_role_core::delete_user_role,
         &auth::JWTAuth {
             permission: Permission::UsersWrite,
-            minimum_entity_level: EntityType::Merchant,
+            minimum_entity_level: EntityType::Profile,
         },
         api_locking::LockAction::NotApplicable,
     ))
