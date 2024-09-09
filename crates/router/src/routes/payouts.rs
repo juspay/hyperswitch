@@ -3,6 +3,7 @@ use actix_web::{
     http::header::HeaderMap,
     web, HttpRequest, HttpResponse, Responder,
 };
+use common_enums::EntityType;
 use common_utils::consts;
 use router_env::{instrument, tracing, Flow};
 
@@ -84,7 +85,10 @@ pub async fn payouts_retrieve(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -234,7 +238,10 @@ pub async fn payouts_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -271,7 +278,10 @@ pub async fn payouts_list_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -308,7 +318,10 @@ pub async fn payouts_list_by_filter(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -345,7 +358,10 @@ pub async fn payouts_list_by_filter_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -353,10 +369,10 @@ pub async fn payouts_list_by_filter_profile(
     .await
 }
 
-/// Payouts - Available filters
+/// Payouts - Available filters for Merchant
 #[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
-pub async fn payouts_list_available_filters(
+pub async fn payouts_list_available_filters_for_merchant(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<payment_types::TimeRange>,
@@ -371,11 +387,51 @@ pub async fn payouts_list_available_filters(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_list_available_filters_core(state, auth.merchant_account, req, &locale)
+            payouts_list_available_filters_core(state, auth.merchant_account, None, req, &locale)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::PayoutRead),
+            &auth::JWTAuth {
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Payouts - Available filters for Profile
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn payouts_list_available_filters_for_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payment_types::TimeRange>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsFilter;
+    let payload = json_payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            payouts_list_available_filters_core(
+                state,
+                auth.merchant_account,
+                auth.profile_id.map(|profile_id| vec![profile_id]),
+                req,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::PayoutRead,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
