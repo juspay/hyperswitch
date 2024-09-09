@@ -57,11 +57,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intent_by_constraints(
         &self,
         state: &KeyManagerState,
@@ -71,11 +67,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         state: &KeyManagerState,
@@ -85,22 +77,14 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_intent_status_with_count(
         &self,
         merchant_id: &id_type::MerchantId,
         constraints: &api_models::payments::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_payment_intents_attempt(
         &self,
         state: &KeyManagerState,
@@ -110,11 +94,7 @@ pub trait PaymentIntentInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "payment_v2"),
-        feature = "olap"
-    ))]
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &id_type::MerchantId,
