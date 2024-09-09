@@ -36,6 +36,8 @@ pub mod payout_link;
 pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
+#[cfg(feature = "recon")]
+pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
 pub mod routing;
