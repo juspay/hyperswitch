@@ -115,8 +115,8 @@ pub enum Connector {
     Netcetera,
     Nexinets,
     Nmi,
-    Novalnet,
     Noon,
+    Novalnet,
     Nuvei,
     // Opayo, added as template code for future usage
     Opennode,

@@ -981,6 +981,7 @@ impl PhoneDetailsData for PhoneDetails {
 }
 
 pub trait PaymentsAuthorizeRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
@@ -1022,6 +1023,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+        .clone()
+        .and_then(|browser_info| browser_info.language)
+    }
+
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
         self.order_details
             .clone()
@@ -1153,6 +1160,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 }
 
 pub trait PaymentsCaptureRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
@@ -1166,6 +1174,12 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+        .clone()
+        .and_then(|browser_info| browser_info.language)
+    }
+    
 }
 
 pub trait PaymentsSyncRequestData {
@@ -1196,6 +1210,7 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
 }
 
 pub trait PaymentsCancelRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
@@ -1219,9 +1234,15 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+        .clone()
+        .and_then(|browser_info| browser_info.language)
+    }
 }
 
 pub trait RefundsRequestData {
+    fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
@@ -1244,6 +1265,11 @@ impl RefundsRequestData for RefundsData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_optional_language_from_browser_info(&self) -> Option<String> {
+        self.browser_info
+        .clone()
+        .and_then(|browser_info| browser_info.language)
     }
 }
 
