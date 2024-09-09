@@ -23,6 +23,8 @@ use common_utils::ext_traits::Encode;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use common_utils::ext_traits::OptionExt;
 use common_utils::{consts::DEFAULT_LOCALE, id_type::CustomerId};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::{ext_traits::Encode, id_type, request::RequestContent};
 use diesel_models::{
     enums, GenericLinkNew, PaymentMethodCollectLink, PaymentMethodCollectLinkData,
 };
@@ -34,15 +36,12 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use time::Duration;
 
+use super::errors::{RouterResponse, StorageErrorExt};
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::{
     configs::settings, core::payment_methods::transformers as pm_transforms, headers,
     services::encryption, types::api,
 };
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use common_utils::{ext_traits::Encode, id_type, request::RequestContent};
-
-use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     consts,
     core::{

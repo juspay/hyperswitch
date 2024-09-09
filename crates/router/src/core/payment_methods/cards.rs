@@ -69,7 +69,6 @@ use crate::core::payment_methods as pm_core;
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
-use crate::utils;
 use crate::{
     configs::{
         defaults::{get_billing_required_fields, get_shipping_required_fields},
@@ -94,6 +93,7 @@ use crate::{
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::ForeignTryFrom,
     },
+    utils,
     utils::{ConnectorResponseExt, OptionExt},
 };
 #[cfg(all(
