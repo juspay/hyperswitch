@@ -26,3 +26,10 @@ ADD COLUMN merchant_reference_id VARCHAR(64) NOT NULL,
     ADD COLUMN surcharge_amount bigint,
     ADD COLUMN tax_on_surcharge bigint; -- tax_amount from payment_attempt
 
+ALTER TABLE payment_attempt
+    ADD COLUMN payment_method_type_v2 VARCHAR,
+    ADD COLUMN connector_payment_id VARCHAR(128),
+    ADD COLUMN payment_method_subtype VARCHAR(64),
+    ADD COLUMN routing_algorithm_applied JSONB,
+    ADD COLUMN authentication_applied "AuthenticationType",
+    ADD COLUMN external_reference_id VARCHAR(128);

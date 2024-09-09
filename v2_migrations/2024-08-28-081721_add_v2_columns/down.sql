@@ -24,3 +24,10 @@ ALTER TABLE payment_intent DROP COLUMN merchant_reference_id,
     DROP COLUMN prerouting_algorithm,
     DROP COLUMN surcharge_amount,
     DROP COLUMN tax_on_surcharge;
+
+ALTER TABLE payment_attempt DROP COLUMN payment_method_type_v2,
+    DROP COLUMN connector_payment_id,
+    DROP COLUMN payment_method_subtype,
+    DROP COLUMN routing_algorithm_applied,
+    DROP COLUMN authentication_applied,
+    DROP COLUMN external_reference_id;
