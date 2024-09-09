@@ -14,6 +14,7 @@ pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
+pub mod refunds;
 pub mod router_data;
 pub mod router_data_v2;
 pub mod router_flow_types;
