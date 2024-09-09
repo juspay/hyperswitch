@@ -28,8 +28,9 @@ use hyperswitch_domain_models::{
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
         payments::{
-            Approve, AuthorizeSessionToken, CompleteAuthorize, CreateConnectorCustomer,
-            IncrementalAuthorization, PostProcessing, PreProcessing, Reject,
+            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
+            CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PreProcessing,
+            Reject, SdkSessionUpdate,
         },
         webhooks::VerifyWebhookSource,
     },
@@ -37,13 +38,14 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
         PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsRejectData, RetrieveFileRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
-        VerifyWebhookSourceResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -63,8 +65,9 @@ use hyperswitch_interfaces::{
         files::{FileUpload, RetrieveFile, UploadFile},
         payments::{
             ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
-            PaymentIncrementalAuthorization, PaymentReject, PaymentsCompleteAuthorize,
-            PaymentsPostProcessing, PaymentsPreProcessing,
+            PaymentIncrementalAuthorization, PaymentReject, PaymentSessionUpdate,
+            PaymentTaxCalculation, PaymentsCompleteAuthorize, PaymentsPostProcessing,
+            PaymentsPreProcessing,
         },
         ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
     },
@@ -101,6 +104,69 @@ default_imp_for_authorize_session_token!(
     connectors::Taxjar,
     connectors::Tsys,
     connectors::Worldline
+);
+
+macro_rules! default_imp_for_calculate_tax {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentTaxCalculation for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                CalculateTax,
+                PaymentsTaxCalculationData,
+                TaxCalculationResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_calculate_tax!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Helcim,
+    connectors::Stax,
+    connectors::Novalnet,
+    connectors::Nexixpay,
+    connectors::Fiuu,
+    connectors::Globepay,
+    connectors::Worldline,
+    connectors::Powertranz,
+    connectors::Tsys,
+    connectors::Deutschebank
+);
+
+macro_rules! default_imp_for_session_update {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl PaymentSessionUpdate for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                SdkSessionUpdate,
+                SdkPaymentsSessionUpdateData,
+                PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_session_update!(
+    connectors::Bambora,
+    connectors::Bitpay,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Helcim,
+    connectors::Stax,
+    connectors::Taxjar,
+    connectors::Novalnet,
+    connectors::Nexixpay,
+    connectors::Fiuu,
+    connectors::Globepay,
+    connectors::Worldline,
+    connectors::Powertranz,
+    connectors::Tsys,
+    connectors::Deutschebank
 );
 
 use crate::connectors;

@@ -8155,6 +8155,7 @@
           "square",
           "stax",
           "stripe",
+          "taxjar",
           "threedsecureio",
           "trustpay",
           "tsys",
@@ -8269,7 +8270,8 @@
           "non_banking_finance",
           "payout_processor",
           "payment_method_auth",
-          "authentication_processor"
+          "authentication_processor",
+          "tax_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -13346,6 +13348,11 @@
               }
             ],
             "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
+            "nullable": true
           }
         }
       },
@@ -13410,6 +13417,11 @@
                 "$ref": "#/components/schemas/ProductType"
               }
             ],
+            "nullable": true
+          },
+          "product_tax_code": {
+            "type": "string",
+            "description": "The tax code for the product",
             "nullable": true
           }
         }
@@ -15583,6 +15595,13 @@
             "example": 6540,
             "nullable": true
           },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
+            "example": 6540,
+            "nullable": true
+          },
           "payment_id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. The value for this field can be specified in the request, it will be auto generated otherwise and returned in the API response.",
@@ -15925,6 +15944,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -16782,6 +16808,26 @@
           }
         }
       },
+      "PaymentsDynamicTaxCalculationRequest": {
+        "type": "object",
+        "required": [
+          "shipping",
+          "client_secret",
+          "payment_method_type"
+        ],
+        "properties": {
+          "shipping": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client Secret"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          }
+        }
+      },
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [
@@ -16898,6 +16944,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
@@ -17996,6 +18049,13 @@
             "type": "integer",
             "format": "int64",
             "description": "The Amount to be captured / debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, the default amount_to_capture will be the payment amount. Also, it must be less than or equal to the original payment account.",
+            "example": 6540,
+            "nullable": true
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment. This is required for tax calculation in some regions.",
             "example": 6540,
             "nullable": true
           },
