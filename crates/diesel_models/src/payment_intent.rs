@@ -1148,6 +1148,8 @@ mod tests {
         let serialized_payment_intent = r#"{
     "payment_id": "payment_12345",
     "merchant_id": "merchant_67890",
+    "profile_id": "PRO123456789",
+    "organization_id": "ORG123456789",
     "status": "succeeded",
     "amount": 10000,
     "currency": "USD",
@@ -1175,7 +1177,6 @@ mod tests {
     "connector_metadata": null,
     "feature_metadata": null,
     "attempt_count": 1,
-    "profile_id": null,
     "merchant_decision": null,
     "payment_link_id": null,
     "payment_confirm_source": null,

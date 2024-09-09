@@ -313,6 +313,8 @@ mod tests {
     "internal_reference_id": "internal_ref_123",
     "refund_id": "refund_456",
     "payment_id": "payment_789",
+    "profile_id": "PRO123456789",
+    "organization_id": "ORG123456789",
     "merchant_id": "merchant_123",
     "connector_transaction_id": "connector_txn_789",
     "connector": "stripe",
@@ -333,7 +335,6 @@ mod tests {
     "attempt_id": "attempt_123",
     "refund_reason": null,
     "refund_error_code": null,
-    "profile_id": null,
     "updated_by": "admin",
     "merchant_connector_id": null,
     "charges": null
