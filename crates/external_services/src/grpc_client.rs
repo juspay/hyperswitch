@@ -1,13 +1,14 @@
+use std::{fmt::Debug, sync::Arc};
+
 use common_utils::errors::CustomResult;
-pub use dynamic_routing::success_rate_calculator_client::SuccessRateCalculatorClient;
-use dynamic_routing::{CalSuccessRateConfig, UpdateSuccessRateWindowRequest};
 pub use dynamic_routing::{
-    CalSuccessRateRequest, CalSuccessRateResponse, UpdateSuccessRateWindowResponse,
+    success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateRequest,
+    CalSuccessRateResponse, UpdateSuccessRateWindowResponse,
 };
+use dynamic_routing::{CalSuccessRateConfig, UpdateSuccessRateWindowRequest};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::api::api_models::routing::RoutableConnectorChoice;
 use router_env::logger;
-use std::{fmt::Debug, sync::Arc};
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
 #[allow(missing_docs)]
