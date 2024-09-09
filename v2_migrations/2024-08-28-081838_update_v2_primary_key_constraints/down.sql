@@ -71,3 +71,12 @@ WHERE payment_id IS NULL;
 
 ALTER TABLE payment_intent
 ADD PRIMARY KEY (payment_id, merchant_id);
+
+ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;
+
+UPDATE payment_attempt
+SET attempt_id = id
+WHERE attempt_id IS NULL;
+
+ALTER TABLE payment_attempt
+ADD PRIMARY KEY (attempt_id, merchant_id);
