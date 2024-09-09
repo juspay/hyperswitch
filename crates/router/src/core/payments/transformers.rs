@@ -35,6 +35,121 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
+pub async fn construct_router_data_to_update_calculated_tax<'a, F, T>(
+    state: &'a SessionState,
+    payment_data: PaymentData<F>,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
+where
+    T: TryFrom<PaymentAdditionalData<'a, F>>,
+    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
+    F: Clone,
+    error_stack::Report<errors::ApiErrorResponse>:
+        From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
+{
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
+
+    let test_mode = merchant_connector_account.is_test_mode_on();
+
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    let resource_id = match payment_data
+        .payment_attempt
+        .connector_transaction_id
+        .clone()
+    {
+        Some(id) => types::ResponseId::ConnectorTransactionId(id),
+        None => types::ResponseId::NoResponseId,
+    };
+
+    // [#44]: why should response be filled during request
+    let response = Ok(types::PaymentsResponseData::TransactionResponse {
+        resource_id,
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
+        incremental_authorization_allowed: None,
+        charge_id: None,
+    });
+    let additional_data = PaymentAdditionalData {
+        router_base_url: state.base_url.clone(),
+        connector_name: connector_id.to_string(),
+        payment_data: payment_data.clone(),
+        state,
+        customer_data: customer,
+    };
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().clone(),
+        customer_id: None,
+        connector: connector_id.to_owned(),
+        payment_id: payment_data
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
+        attempt_id: payment_data.payment_attempt.attempt_id.clone(),
+        status: payment_data.payment_attempt.status,
+        payment_method: diesel_models::enums::PaymentMethod::default(),
+        connector_auth_type: auth_type,
+        description: None,
+        return_url: None,
+        address: payment_data.address.clone(),
+        auth_type: payment_data
+            .payment_attempt
+            .authentication_type
+            .unwrap_or_default(),
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        request: T::try_from(additional_data)?,
+        response,
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_status: None,
+        payment_method_token: None,
+        connector_customer: None,
+        recurring_mandate_payment_data: None,
+        connector_request_reference_id: core_utils::get_connector_request_reference_id(
+            &state.conf,
+            merchant_account.get_id(),
+            &payment_data.payment_attempt,
+        ),
+        preprocessing_id: None,
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode,
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+    };
+    Ok(router_data)
+}
+
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -345,6 +460,43 @@ where
                     .get_required_value("client_secret")?
                     .into(),
             },
+            vec![],
+        )))
+    }
+}
+
+impl<F, Op> ToResponse<PaymentData<F>, Op> for api::PaymentsDynamicTaxCalculationResponse
+where
+    F: Clone,
+    Op: Debug,
+{
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        payment_data: PaymentData<F>,
+        _customer: Option<domain::Customer>,
+        _auth_flow: services::AuthFlow,
+        _base_url: &str,
+        _operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+    ) -> RouterResponse<Self> {
+        let mut amount = payment_data.payment_intent.amount;
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|a| a.order_tax_amount));
+        if let Some(shipping_cost) = shipping_cost {
+            amount = amount + shipping_cost;
+        }
+        if let Some(order_tax_amount) = order_tax_amount {
+            amount = amount + order_tax_amount;
+        }
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self { net_amount: amount },
             vec![],
         )))
     }
@@ -1297,6 +1449,7 @@ pub fn change_order_details_to_new_type(
         sub_category: order_details.sub_category,
         brand: order_details.brand,
         product_type: order_details.product_type,
+        product_tax_code: order_details.product_tax_code,
     }])
 }
 
@@ -1717,6 +1870,28 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), //need to change after we move to connector module
             currency: Some(payment_data.currency),
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessionUpdateData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .clone()
+            .and_then(|tax| tax.payment_method_type.map(|pmt| pmt.order_tax_amount))
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "order_tax_amount",
+            })?;
+        let amount = payment_data.payment_intent.amount;
+
+        Ok(Self {
+            net_amount: amount + order_tax_amount, //need to change after we move to connector module
+            order_tax_amount,
         })
     }
 }

@@ -12,6 +12,7 @@ use diesel_models::{
     schema::refund::dsl,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::refunds;
 
 use crate::{connection::PgPooledConn, logger};
 
@@ -20,7 +21,7 @@ pub trait RefundDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        refund_list_details: &refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
@@ -34,7 +35,7 @@ pub trait RefundDbExt: Sized {
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
 }
 
@@ -43,7 +44,7 @@ impl RefundDbExt for Refund {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        refund_list_details: &refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -88,7 +89,7 @@ impl RefundDbExt for Refund {
         match &refund_list_details.profile_id {
             Some(profile_id) => {
                 filter = filter
-                    .filter(dsl::profile_id.eq(profile_id.to_owned()))
+                    .filter(dsl::profile_id.eq_any(profile_id.to_owned()))
                     .limit(limit)
                     .offset(offset);
             }
@@ -206,7 +207,7 @@ impl RefundDbExt for Refund {
     async fn get_refunds_count(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        refund_list_details: &api_models::refunds::RefundListRequest,
+        refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -237,7 +238,7 @@ impl RefundDbExt for Refund {
             }
         }
         if let Some(profile_id) = &refund_list_details.profile_id {
-            filter = filter.filter(dsl::profile_id.eq(profile_id.to_owned()));
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id.to_owned()));
         }
 
         if let Some(time_range) = refund_list_details.time_range {
