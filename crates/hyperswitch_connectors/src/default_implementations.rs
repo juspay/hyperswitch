@@ -134,6 +134,7 @@ default_imp_for_calculate_tax!(
     connectors::Globepay,
     connectors::Worldline,
     connectors::Powertranz,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Deutschebank
 );
@@ -166,6 +167,7 @@ default_imp_for_session_update!(
     connectors::Globepay,
     connectors::Worldline,
     connectors::Powertranz,
+    connectors::Thunes,
     connectors::Tsys,
     connectors::Deutschebank
 );
