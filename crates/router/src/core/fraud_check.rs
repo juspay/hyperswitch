@@ -50,7 +50,6 @@ pub mod types;
 #[instrument(skip_all)]
 pub async fn call_frm_service<D: Clone, F, Req, Da>(
     state: &SessionState,
-    // payment_data: &mut payments::PaymentData<D>,
     payment_data: &Da,
     frm_data: &mut FrmData,
     merchant_account: &domain::MerchantAccount,
@@ -123,9 +122,9 @@ where
 }
 
 #[cfg(feature = "v2")]
-pub async fn should_call_frm<F: Send + Clone>(
+pub async fn should_call_frm<F, D>(
     _merchant_account: &domain::MerchantAccount,
-    _payment_data: &payments::PaymentData<F>,
+    _payment_data: &D,
     _state: &SessionState,
     _key_store: domain::MerchantKeyStore,
 ) -> RouterResult<(
@@ -133,7 +132,11 @@ pub async fn should_call_frm<F: Send + Clone>(
     Option<FrmRoutingAlgorithm>,
     Option<common_utils::id_type::ProfileId>,
     Option<FrmConfigsObject>,
-)> {
+)>
+where
+    F: Send + Clone,
+    D: payments::PaymentDataGetters<F> + Send + Sync + Clone,
+{
     // Frm routing algorithm is not present in the merchant account
     // it has to be fetched from the business profile
     todo!()

@@ -4007,13 +4007,10 @@ impl BusinessProfileWrapper {
         Ok(())
     }
 
-    pub fn get_routing_algorithm_id<'a, F>(
+    pub fn get_routing_algorithm_id<'a>(
         &'a self,
-        transaction_data: &'a routing::TransactionData<'_, F>,
-    ) -> Option<id_type::RoutingId>
-    where
-        F: Send + Clone,
-    {
+        transaction_data: &'a routing::TransactionData<'_>,
+    ) -> Option<id_type::RoutingId> {
         match transaction_data {
             routing::TransactionData::Payment(_) => self.profile.routing_algorithm_id.clone(),
             #[cfg(feature = "payouts")]

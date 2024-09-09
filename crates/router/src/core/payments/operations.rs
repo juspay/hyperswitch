@@ -265,6 +265,7 @@ where
     D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
 {
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -301,6 +302,25 @@ where
         }
 
         Ok((Box::new(self), customer))
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut D,
+        _request: Option<CustomerDetails>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        todo!()
     }
 
     async fn get_connector<'a>(
@@ -351,6 +371,7 @@ where
     D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
 {
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -387,6 +408,26 @@ where
 
         Ok((Box::new(self), customer))
     }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut D,
+        _request: Option<CustomerDetails>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        todo!()
+    }
+
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -435,6 +476,7 @@ where
     D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send,
 {
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -470,6 +512,25 @@ where
         }
 
         Ok((Box::new(self), customer))
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut D,
+        _request: Option<CustomerDetails>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        todo!()
     }
 
     #[instrument(skip_all)]

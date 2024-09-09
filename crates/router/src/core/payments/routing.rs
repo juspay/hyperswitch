@@ -159,18 +159,8 @@ pub fn make_dsl_input_for_payouts(
 }
 
 pub fn make_dsl_input(
-    // payment_data: &D,
-    input: &routing::PaymentsDslInput<'_>, // setup_mandate: Option<&mandates::MandateData>,
-                                           // payment_attempt: &oss_storage::PaymentAttempt,
-                                           // payment_intent: &oss_storage::PaymentIntent,
-                                           // payment_method_data: &Option<api::PaymentMethodData>,
-                                           // address: &payment_address::PaymentAddress,
-                                           // currency: storage_enums::Currency,
-) -> RoutingResult<dsl_inputs::BackendInput>
-// where
-//     F: Clone,
-//     D: payments_oss::PaymentDataGetters<F>,
-{
+    input: &routing::PaymentsDslInput<'_>,
+) -> RoutingResult<dsl_inputs::BackendInput> {
     let mandate_data = dsl_inputs::MandateData {
         mandate_acceptance_type: input.setup_mandate.as_ref().and_then(|mandate_data| {
             mandate_data
@@ -1064,7 +1054,7 @@ async fn perform_session_routing_for_pm_type(
             &session_pm_input.state.clone(),
             merchant_id,
             algorithm_id,
-            session_pm_input.profile_id.clone(),
+            &session_pm_input.profile_id,
             transaction_type,
         )
         .await?;
@@ -1093,7 +1083,7 @@ async fn perform_session_routing_for_pm_type(
         chosen_connectors,
         session_pm_input.backend_input.clone(),
         None,
-        session_pm_input.profile_id.clone(),
+        &session_pm_input.profile_id,
         transaction_type,
     )
     .await?;
@@ -1109,7 +1099,7 @@ async fn perform_session_routing_for_pm_type(
             fallback,
             session_pm_input.backend_input.clone(),
             None,
-            session_pm_input.profile_id.clone(),
+            &session_pm_input.profile_id,
             transaction_type,
         )
         .await?;

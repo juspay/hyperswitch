@@ -587,7 +587,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<PaymentUpdateOperation<'b, F>>
+    ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {

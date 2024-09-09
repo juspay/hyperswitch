@@ -361,7 +361,7 @@ where
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
-        _data: PaymentData<F>,
+        _data: D,
         _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
@@ -437,8 +437,8 @@ where
 // try to use router data here so that already validated things , we don't want to repeat the validations.
 // Add internal value not found and external value not found so that we can give 500 / Internal server error for internal value not found
 #[allow(clippy::too_many_arguments)]
-pub fn payments_to_payments_response<Op, F: Clone>(
-    _payment_data: PaymentData<F>,
+pub fn payments_to_payments_response<Op, F: Clone, D>(
+    _payment_data: D,
     _captures: Option<Vec<storage::Capture>>,
     _customer: Option<domain::Customer>,
     _auth_flow: services::AuthFlow,
@@ -451,6 +451,7 @@ pub fn payments_to_payments_response<Op, F: Clone>(
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
+    D: PaymentDataGetters<F>,
 {
     todo!()
 }

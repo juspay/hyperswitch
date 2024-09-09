@@ -224,16 +224,11 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
 pub async fn perform_surcharge_decision_management_for_session_flow(
     state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    // payment_data: &mut D,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     billing_address: Option<payments::Address>,
     payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
-) -> ConditionalConfigResult<types::SurchargeMetadata>
-// where
-    // O: Send + Clone,
-    // D: PaymentDataGetters<O> + Send + Sync + Clone,
-{
+) -> ConditionalConfigResult<types::SurchargeMetadata> {
     let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
     let surcharge_source = match (
         payment_attempt.get_surcharge_details(),
@@ -254,13 +249,9 @@ pub async fn perform_surcharge_decision_management_for_session_flow(
         }
         (None, None) => return Ok(surcharge_metadata),
     };
-    let mut backend_input = make_dsl_input_for_surcharge(
-        payment_attempt,
-        payment_intent,
-        // payment_data.address.get_payment_method_billing().cloned(),
-        billing_address,
-    )
-    .change_context(ConfigError::InputConstructionError)?;
+    let mut backend_input =
+        make_dsl_input_for_surcharge(payment_attempt, payment_intent, billing_address)
+            .change_context(ConfigError::InputConstructionError)?;
     for payment_method_type in payment_method_type_list {
         backend_input.payment_method.payment_method_type = Some(*payment_method_type);
         // in case of session flow, payment_method will always be wallet

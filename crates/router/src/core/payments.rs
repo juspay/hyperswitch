@@ -630,6 +630,7 @@ where
 }
 
 #[instrument(skip_all)]
+#[cfg(feature = "v1")]
 pub async fn call_decision_manager<F, D>(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -660,10 +661,6 @@ where
         .attach_printable("Could not decode the routing algorithm")?
         .unwrap_or_default();
 
-    // TODO: Move to business profile surcharge column
-    #[cfg(feature = "v2")]
-    let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();
-
     let output = perform_decision_management(
         state,
         algorithm_ref,
@@ -678,6 +675,21 @@ where
         .authentication_type
         .or(output.override_3ds.map(ForeignInto::foreign_into))
         .or(Some(storage_enums::AuthenticationType::NoThreeDs)))
+}
+
+#[instrument(skip_all)]
+#[cfg(feature = "v2")]
+pub async fn call_decision_manager<F, D>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    _business_profile: &domain::BusinessProfile,
+    payment_data: &D,
+) -> RouterResult<Option<enums::AuthenticationType>>
+where
+    F: Clone,
+    D: PaymentDataGetters<F>,
+{
+    todo!()
 }
 
 #[instrument(skip_all)]
@@ -3457,6 +3469,27 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
+pub async fn decide_connector<F, D>(
+    state: SessionState,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::BusinessProfile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+    request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
+    routing_data: &mut storage::RoutingData,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<ConnectorCallType>
+where
+    F: Send + Clone,
+    D: PaymentDataGetters<F> + PaymentDataSetters<F> + Send + Sync + Clone,
+{
+    todo!()
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v1")]
 pub async fn decide_connector<F, D>(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -4169,6 +4202,22 @@ where
 }
 
 #[cfg(feature = "payouts")]
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn route_connector_v1_for_payouts(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::BusinessProfile,
+    key_store: &domain::MerchantKeyStore,
+    transaction_data: &payouts::PayoutData,
+    routing_data: &mut storage::RoutingData,
+    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+) -> RouterResult<ConnectorCallType> {
+    todo!()
+}
+
+#[cfg(feature = "payouts")]
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,

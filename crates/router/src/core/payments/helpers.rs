@@ -1469,15 +1469,15 @@ pub async fn get_connector_default(
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _state: &SessionState,
-    _operation: BoxedOperation<'a, F, R>,
+    _operation: BoxedOperation<'a, F, R, D>,
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _merchant_id: &id_type::MerchantId,
     _key_store: &domain::MerchantKeyStore,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
 

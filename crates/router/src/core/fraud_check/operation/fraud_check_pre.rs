@@ -153,7 +153,7 @@ where
         &'a self,
         _state: &'a SessionState,
         _req_state: ReqState,
-        _payment_data: &mut payments::PaymentData<F>,
+        _payment_data: &mut D,
         _frm_data: &mut FrmData,
         _merchant_account: &domain::MerchantAccount,
         _customer: &Option<domain::Customer>,

@@ -33,10 +33,7 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-pub enum TransactionData<'a>
-// where
-//     F: Clone,
-{
+pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
     #[cfg(feature = "payouts")]
     Payout(&'a payouts::PayoutData),
