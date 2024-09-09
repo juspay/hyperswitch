@@ -1,6 +1,11 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use common_utils::{errors::IntegrityCheckError, ext_traits::OptionExt, id_type, types::MinorUnit};
+use common_utils::{
+    errors::IntegrityCheckError,
+    ext_traits::{OptionExt, ValueExt},
+    id_type,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use masking::Secret;
 
@@ -13,6 +18,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub customer_id: Option<id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub connector: String,
+    // TODO: This should be a PaymentId type.
+    // Make this change after all the connector dependency has been removed from connectors
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::enums::AttemptStatus,
@@ -112,6 +119,16 @@ pub enum ConnectorAuthType {
 impl ConnectorAuthType {
     pub fn from_option_secret_value(
         value: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ParsingError> {
+        value
+            .parse_value::<Self>("ConnectorAuthType")
+            .change_context(common_utils::errors::ParsingError::StructParseFailure(
+                "ConnectorAuthType",
+            ))
+    }
+
+    pub fn from_secret_value(
+        value: common_utils::pii::SecretSerdeValue,
     ) -> common_utils::errors::CustomResult<Self, common_utils::errors::ParsingError> {
         value
             .parse_value::<Self>("ConnectorAuthType")

@@ -19,6 +19,7 @@ use crate::{
 pub async fn verify_connector_credentials(
     state: SessionState,
     req: VerifyConnectorRequest,
+    _profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> errors::RouterResponse<()> {
     let boxed_connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,

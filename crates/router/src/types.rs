@@ -30,9 +30,9 @@ use hyperswitch_domain_models::router_flow_types::{
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
     payments::{
-        Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
-        CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PostProcessing,
-        PreProcessing, Reject, Session, SetupMandate, Void,
+        Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
+        CompleteAuthorize, CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
+        PostProcessing, PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -58,15 +58,16 @@ pub use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, ResponseId, RetrieveFileRequestData, SetupMandateRequestData,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsTaxCalculationData, RefundsData, ResponseId, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        SyncRequestType, UploadFileRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
         MandateRevokeResponseData, PaymentsResponseData, PreprocessingResponseId,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, UploadFileResponse,
-        VerifyWebhookSourceResponseData, VerifyWebhookStatus,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+        VerifyWebhookStatus,
     },
 };
 #[cfg(feature = "payouts")]
@@ -126,6 +127,12 @@ pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
     PaymentsIncrementalAuthorizationData,
     PaymentsResponseData,
 >;
+pub type PaymentsTaxCalculationRouterData =
+    RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+
+pub type SdkSessionUpdateRouterData =
+    RouterData<SdkSessionUpdate, SdkPaymentsSessionUpdateData, PaymentsResponseData>;
+
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
 pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
@@ -362,6 +369,8 @@ impl Capturable for CompleteAuthorizeData {
     }
 }
 impl Capturable for SetupMandateRequestData {}
+impl Capturable for PaymentsTaxCalculationData {}
+impl Capturable for SdkPaymentsSessionUpdateData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -479,21 +488,21 @@ impl Default for PollConfig {
 #[derive(Clone, Debug)]
 pub struct RedirectPaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
-    pub business_profile: diesel_models::business_profile::BusinessProfile,
+    pub business_profile: domain::BusinessProfile,
 }
 
 #[derive(Clone, Debug)]
 pub struct AuthenticatePaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
     pub poll_config: PollConfig,
-    pub business_profile: diesel_models::business_profile::BusinessProfile,
+    pub business_profile: domain::BusinessProfile,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct ConnectorResponse {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector: String,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub amount: i64,
     pub connector_transaction_id: String,
     pub return_url: Option<String>,

@@ -2,7 +2,7 @@
   "childrenOrder": [
     "Signin",
     "Signin Wrong",
-    "Signin Token Only",
-    "Signin Token Only Wrong"
+    "Signin V2 - To be deprecated",
+    "Signin V2 Wrong"
   ]
 }

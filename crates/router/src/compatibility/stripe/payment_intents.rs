@@ -2,18 +2,25 @@ pub mod types;
 
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
-use router_env::{instrument, tracing, Flow, Tag};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use router_env::Tag;
+use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{api_locking::GetLockingInput, payments},
-    logger,
-    routes::{self, payments::get_or_generate_payment_id},
+    core::payments,
+    routes::{self},
     services::{api, authentication as auth},
+};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use crate::{
+    core::api_locking::GetLockingInput, logger, routes::payments::get_or_generate_payment_id,
     types::api as api_types,
 };
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate, payment_id))]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
@@ -29,7 +36,14 @@ pub async fn payment_intents_create(
         Err(err) => return api::log_and_return_error_response(err),
     };
 
-    tracing::Span::current().record("payment_id", payload.id.clone().unwrap_or_default());
+    tracing::Span::current().record(
+        "payment_id",
+        payload
+            .id
+            .as_ref()
+            .map(|payment_id| payment_id.get_string_repr())
+            .unwrap_or_default(),
+    );
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?payload);
 
@@ -78,15 +92,17 @@ pub async fn payment_intents_create(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
     query_payload: web::Query<types::StripePaymentRetrieveBody>,
 ) -> HttpResponse {
     let payload = payment_types::PaymentsRetrieveRequest {
-        resource_id: api_types::PaymentIdType::PaymentIntentId(path.to_string()),
+        resource_id: api_types::PaymentIdType::PaymentIntentId(path.into_inner()),
         merchant_id: None,
         force_sync: true,
         connector: None,
@@ -139,6 +155,8 @@ pub async fn payment_intents_retrieve(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow))]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
@@ -155,9 +173,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     };
 
     let payload = payment_types::PaymentsRetrieveRequest {
-        resource_id: payment_types::PaymentIdType::PaymentIntentId(
-            json_payload.payment_id.to_string(),
-        ),
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(json_payload.payment_id),
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
         merchant_connector_details: json_payload.merchant_connector_details.clone(),
@@ -210,13 +226,15 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn payment_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> HttpResponse {
     let payment_id = path.into_inner();
     let stripe_payload: types::StripePaymentIntentRequest = match qs_config
@@ -277,13 +295,15 @@ pub async fn payment_intents_update(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> HttpResponse {
     let payment_id = path.into_inner();
     let stripe_payload: types::StripePaymentIntentRequest = match qs_config
@@ -295,7 +315,10 @@ pub async fn payment_intents_confirm(
         }
     };
 
-    tracing::Span::current().record("payment_id", stripe_payload.id.as_ref());
+    tracing::Span::current().record(
+        "payment_id",
+        stripe_payload.id.as_ref().map(|id| id.get_string_repr()),
+    );
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
@@ -350,13 +373,15 @@ pub async fn payment_intents_confirm(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture, payment_id))]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> HttpResponse {
     let stripe_payload: payment_types::PaymentsCaptureRequest = match qs_config
         .deserialize_bytes(&form_payload)
@@ -367,7 +392,7 @@ pub async fn payment_intents_capture(
         }
     };
 
-    tracing::Span::current().record("payment_id", stripe_payload.payment_id.clone());
+    tracing::Span::current().record("payment_id", stripe_payload.payment_id.get_string_repr());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 
@@ -412,13 +437,15 @@ pub async fn payment_intents_capture(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel, payment_id))]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> HttpResponse {
     let payment_id = path.into_inner();
     let stripe_payload: types::StripePaymentCancelRequest = match qs_config
@@ -430,7 +457,7 @@ pub async fn payment_intents_cancel(
         }
     };
 
-    tracing::Span::current().record("payment_id", payment_id.clone());
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
     logger::info!(tag = ?Tag::CompatibilityLayerRequest, payload = ?stripe_payload);
 

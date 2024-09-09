@@ -763,6 +763,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card(&self) -> Result<domain::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
+    fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -843,6 +844,18 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 Some(payments::MandateReferenceId::NetworkMandateId(_)) | None => None,
             })
     }
+
+    fn get_optional_network_transaction_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                    Some(network_transaction_id.clone())
+                }
+                Some(payments::MandateReferenceId::ConnectorMandateId(_)) | None => None,
+            })
+    }
+
     fn is_mandate_payment(&self) -> bool {
         ((self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage.map_or(false, |setup_future_usage| {
@@ -2677,12 +2690,14 @@ pub enum PaymentMethodDataType {
     PromptPay,
     VietQr,
     OpenBanking,
+    NetworkToken,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
     fn from(pm_data: domain::payments::PaymentMethodData) -> Self {
         match pm_data {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
+            domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                     domain::CardRedirectData::Knet {} => Self::Knet,

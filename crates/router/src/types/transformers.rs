@@ -21,8 +21,8 @@ use super::domain;
 use crate::{
     core::errors,
     headers::{
-        BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION, X_MERCHANT_DOMAIN,
-        X_PAYMENT_CONFIRM_SOURCE,
+        ACCEPT_LANGUAGE, BROWSER_NAME, X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION,
+        X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE,
     },
     services::authentication::get_header_value_by_key,
     types::{
@@ -81,22 +81,26 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
-        diesel_models::PaymentMethod,
+        domain::PaymentMethod,
     )> for payment_methods::PaymentMethodResponse
 {
     fn foreign_from(
         (card_details, item): (
             Option<payment_methods::CardDetailFromLocker>,
-            diesel_models::PaymentMethod,
+            domain::PaymentMethod,
         ),
     ) -> Self {
         Self {
-            merchant_id: item.merchant_id,
-            customer_id: Some(item.customer_id),
-            payment_method_id: item.payment_method_id,
+            merchant_id: item.merchant_id.to_owned(),
+            customer_id: Some(item.customer_id.to_owned()),
+            payment_method_id: item.get_id().clone(),
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
             card: card_details,
@@ -107,6 +111,35 @@ impl
             created: Some(item.created_at),
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            last_used_at: None,
+            client_secret: item.client_secret,
+        }
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl
+    ForeignFrom<(
+        Option<payment_methods::CardDetailFromLocker>,
+        domain::PaymentMethod,
+    )> for payment_methods::PaymentMethodResponse
+{
+    fn foreign_from(
+        (card_details, item): (
+            Option<payment_methods::CardDetailFromLocker>,
+            domain::PaymentMethod,
+        ),
+    ) -> Self {
+        Self {
+            merchant_id: item.merchant_id.to_owned(),
+            customer_id: item.customer_id.to_owned(),
+            payment_method_id: item.get_id().clone(),
+            payment_method: item.payment_method,
+            payment_method_type: item.payment_method_type,
+            payment_method_data: card_details.map(payment_methods::PaymentMethodResponseData::Card),
+            recurring_enabled: false,
+            metadata: item.metadata,
+            created: Some(item.created_at),
             last_used_at: None,
             client_secret: item.client_secret,
         }
@@ -241,9 +274,12 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Cryptopay => Self::Cryptopay,
             api_enums::Connector::Cybersource => Self::Cybersource,
             api_enums::Connector::Datatrans => Self::Datatrans,
+            // api_enums::Connector::Deutschebank => Self::Deutschebank,
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
+            api_enums::Connector::Fiservemea => Self::Fiservemea,
+            api_enums::Connector::Fiuu => Self::Fiuu,
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
@@ -266,11 +302,13 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Nexinets => Self::Nexinets,
+            // api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
+            // api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,
             api_enums::Connector::Opennode => Self::Opennode,
-            // api_enums::Connector::Paybox => Self::Paybox, added for future usage
+            api_enums::Connector::Paybox => Self::Paybox,
             api_enums::Connector::Payme => Self::Payme,
             api_enums::Connector::Payone => Self::Payone,
             api_enums::Connector::Paypal => Self::Paypal,
@@ -298,7 +336,8 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
-            // api_enums::Connector::Wellsfargo => Self::Wellsfargo,
+            api_enums::Connector::Wellsfargo => Self::Wellsfargo,
+            // api_enums::Connector::Wellsfargopayout => Self::Wellsfargopayout,
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
@@ -324,6 +363,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Esnekpos => Self::Esnekpos,
+            api_enums::Connector::Taxjar => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Taxjar is not a routable connector".to_string(),
+                })?
+            }
         })
     }
 }
@@ -959,10 +1003,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             }
             None => None,
         };
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_connector_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let response = Self {
             connector_type: item.connector_type,
             connector_name: item.connector_name,
@@ -994,7 +1035,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
         };
-        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        #[cfg(feature = "v2")]
         let response = Self {
             id: item.id,
             connector_type: item.connector_type,
@@ -1061,7 +1102,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             }
             None => None,
         };
-        #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+        #[cfg(feature = "v2")]
         let response = Self {
             id: item.get_id(),
             connector_type: item.connector_type,
@@ -1101,10 +1142,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?
                 .map(api_models::admin::AdditionalMerchantData::foreign_from),
         };
-        #[cfg(all(
-            any(feature = "v1", feature = "v2"),
-            not(feature = "merchant_connector_account_v2")
-        ))]
+        #[cfg(feature = "v1")]
         let response = Self {
             connector_type: item.connector_type,
             connector_name: item.connector_name,
@@ -1285,6 +1323,8 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
                 }))
             },
         )?;
+        let locale =
+            get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)?.map(|val| val.to_string());
         let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
@@ -1325,6 +1365,7 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
             browser_name,
             x_client_platform,
             x_merchant_domain,
+            locale,
         })
     }
 }
@@ -1495,6 +1536,14 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
     }
 }
 
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
+    fn foreign_from(_customer: &domain::Customer) -> Self {
+        todo!()
+    }
+}
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
     fn foreign_from(customer: &domain::Customer) -> Self {
         Self {
@@ -1621,5 +1670,170 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventRetrieveRespons
             response,
             delivery_attempt: item.delivery_attempt,
         })
+    }
+}
+
+impl ForeignFrom<api_models::admin::AuthenticationConnectorDetails>
+    for diesel_models::business_profile::AuthenticationConnectorDetails
+{
+    fn foreign_from(item: api_models::admin::AuthenticationConnectorDetails) -> Self {
+        Self {
+            authentication_connectors: item.authentication_connectors,
+            three_ds_requestor_url: item.three_ds_requestor_url,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::AuthenticationConnectorDetails>
+    for api_models::admin::AuthenticationConnectorDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::AuthenticationConnectorDetails) -> Self {
+        Self {
+            authentication_connectors: item.authentication_connectors,
+            three_ds_requestor_url: item.three_ds_requestor_url,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::WebhookDetails>
+    for diesel_models::business_profile::WebhookDetails
+{
+    fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url: item.webhook_url,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
+    for api_models::admin::WebhookDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url: item.webhook_url,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
+    for diesel_models::business_profile::BusinessPaymentLinkConfig
+{
+    fn foreign_from(item: api_models::admin::BusinessPaymentLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            default_config: item.default_config.map(ForeignInto::foreign_into),
+            business_specific_configs: item.business_specific_configs.map(|map| {
+                map.into_iter()
+                    .map(|(k, v)| (k, v.foreign_into()))
+                    .collect()
+            }),
+            allowed_domains: item.allowed_domains,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
+    for api_models::admin::BusinessPaymentLinkConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::BusinessPaymentLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            default_config: item.default_config.map(ForeignInto::foreign_into),
+            business_specific_configs: item.business_specific_configs.map(|map| {
+                map.into_iter()
+                    .map(|(k, v)| (k, v.foreign_into()))
+                    .collect()
+            }),
+            allowed_domains: item.allowed_domains,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
+    for diesel_models::business_profile::PaymentLinkConfigRequest
+{
+    fn foreign_from(item: api_models::admin::PaymentLinkConfigRequest) -> Self {
+        Self {
+            theme: item.theme,
+            logo: item.logo,
+            seller_name: item.seller_name,
+            sdk_layout: item.sdk_layout,
+            display_sdk_only: item.display_sdk_only,
+            enabled_saved_payment_method: item.enabled_saved_payment_method,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
+    for api_models::admin::PaymentLinkConfigRequest
+{
+    fn foreign_from(item: diesel_models::business_profile::PaymentLinkConfigRequest) -> Self {
+        Self {
+            theme: item.theme,
+            logo: item.logo,
+            seller_name: item.seller_name,
+            sdk_layout: item.sdk_layout,
+            display_sdk_only: item.display_sdk_only,
+            enabled_saved_payment_method: item.enabled_saved_payment_method,
+            transaction_details: None,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::BusinessPayoutLinkConfig>
+    for diesel_models::business_profile::BusinessPayoutLinkConfig
+{
+    fn foreign_from(item: api_models::admin::BusinessPayoutLinkConfig) -> Self {
+        Self {
+            config: item.config.foreign_into(),
+            payout_test_mode: item.payout_test_mode,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::BusinessPayoutLinkConfig>
+    for api_models::admin::BusinessPayoutLinkConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::BusinessPayoutLinkConfig) -> Self {
+        Self {
+            config: item.config.foreign_into(),
+            payout_test_mode: item.payout_test_mode,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::BusinessGenericLinkConfig>
+    for diesel_models::business_profile::BusinessGenericLinkConfig
+{
+    fn foreign_from(item: api_models::admin::BusinessGenericLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            allowed_domains: item.allowed_domains,
+            ui_config: item.ui_config,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::BusinessGenericLinkConfig>
+    for api_models::admin::BusinessGenericLinkConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::BusinessGenericLinkConfig) -> Self {
+        Self {
+            domain_name: item.domain_name,
+            allowed_domains: item.allowed_domains,
+            ui_config: item.ui_config,
+        }
     }
 }

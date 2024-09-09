@@ -206,7 +206,9 @@ pub enum StripeErrorCode {
     PaymentIntentMandateInvalid { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
-    DuplicatePayment { payment_id: String },
+    DuplicatePayment {
+        payment_id: common_utils::id_type::PaymentId,
+    },
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
     ExternalConnectorError {

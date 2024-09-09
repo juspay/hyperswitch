@@ -24,6 +24,21 @@ use crate::{
 impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResponseData>
     for FrmData
 {
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    async fn construct_router_data<'a>(
+        &self,
+        _state: &SessionState,
+        _connector_id: &str,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_recipient_data: Option<MerchantRecipientData>,
+    ) -> RouterResult<RouterData<frm_api::Sale, FraudCheckSaleData, FraudCheckResponseData>> {
+        todo!()
+    }
+
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     async fn construct_router_data<'a>(
         &self,
         _state: &SessionState,
@@ -50,7 +65,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             merchant_id: merchant_account.get_id().clone(),
             customer_id,
             connector: connector_id.to_string(),
-            payment_id: self.payment_intent.payment_id.clone(),
+            payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
             attempt_id: self.payment_attempt.attempt_id.clone(),
             status,
             payment_method: self

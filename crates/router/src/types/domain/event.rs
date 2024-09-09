@@ -1,5 +1,6 @@
 use common_utils::{
     crypto::OptionalEncryptableSecretString,
+    type_name,
     types::keymanager::{KeyManagerState, ToEncryptable},
 };
 use diesel_models::{
@@ -25,7 +26,7 @@ pub struct Event {
     pub primary_object_type: EventObjectType,
     pub created_at: time::PrimitiveDateTime,
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
-    pub business_profile_id: Option<String>,
+    pub business_profile_id: Option<common_utils::id_type::ProfileId>,
     pub primary_object_created_at: Option<time::PrimitiveDateTime>,
     pub idempotent_event_id: Option<String>,
     pub initial_attempt_id: Option<String>,
@@ -92,16 +93,20 @@ impl super::behaviour::Conversion for Event {
     where
         Self: Sized,
     {
-        let decrypted = types::batch_decrypt(
+        let decrypted = types::crypto_operation(
             state,
-            EventWithEncryption::to_encryptable(EventWithEncryption {
-                request: item.request.clone(),
-                response: item.response.clone(),
-            }),
+            type_name!(Self::DstType),
+            types::CryptoOperation::BatchDecrypt(EventWithEncryption::to_encryptable(
+                EventWithEncryption {
+                    request: item.request.clone(),
+                    response: item.response.clone(),
+                },
+            )),
             key_manager_identifier,
             key.peek(),
         )
         .await
+        .and_then(|val| val.try_into_batchoperation())
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting event data".to_string(),
         })?;

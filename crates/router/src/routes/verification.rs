@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::verifications;
+use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -22,16 +23,20 @@ pub async fn apple_pay_merchant_registration(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, body, _| {
+        |state, auth, body, _| {
             verification::verify_merchant_creds_for_applepay(
                 state.clone(),
                 body,
                 merchant_id.clone(),
+                auth.profile_id,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountWrite,
+                minimum_entity_level: EntityType::Profile,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -58,12 +63,15 @@ pub async fn retrieve_apple_pay_verified_domains(
             verification::get_verified_apple_domains_with_mid_mca_id(
                 state,
                 merchant_id.to_owned(),
-                mca_id.to_string(),
+                mca_id.clone(),
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+                minimum_entity_level: EntityType::Merchant,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

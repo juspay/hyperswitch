@@ -314,7 +314,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
-                            //The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                            // The payment ID is included in the description because the connector requires unique description when creating a mandate.
                             description: item.payment_id.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
@@ -343,7 +343,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -522,7 +523,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
+                    | domain::PaymentMethodData::CardToken(_)
+                    | domain::PaymentMethodData::NetworkToken(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -581,7 +583,8 @@ impl
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::NetworkToken(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?

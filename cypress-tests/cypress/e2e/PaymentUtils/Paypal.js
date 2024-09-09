@@ -20,10 +20,6 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -266,7 +262,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -302,7 +298,7 @@ export const connectorDetails = {
         },
       },
     },
-    giropay: {
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -341,7 +337,7 @@ export const connectorDetails = {
         },
       },
     },
-    sofort: {
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -378,7 +374,7 @@ export const connectorDetails = {
         },
       },
     },
-    eps: {
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",

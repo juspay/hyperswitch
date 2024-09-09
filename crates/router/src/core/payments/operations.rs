@@ -11,6 +11,7 @@ pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 pub mod payments_incremental_authorization;
+pub mod tax_calculation;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
@@ -24,6 +25,7 @@ pub use self::{
     payment_response::PaymentResponse, payment_session::PaymentSession,
     payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
+    tax_calculation::PaymentSessionUpdate,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
@@ -92,7 +94,7 @@ pub struct GetTrackerResponse<'a, F: Clone, R> {
     pub operation: BoxedOperation<'a, F, R>,
     pub customer_details: Option<CustomerDetails>,
     pub payment_data: PaymentData<F>,
-    pub business_profile: storage::business_profile::BusinessProfile,
+    pub business_profile: domain::BusinessProfile,
     pub mandate_type: Option<api::MandateTransactionType>,
 }
 
@@ -107,7 +109,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        payment_confirm_source: Option<enums::PaymentSource>,
+        header_payload: &api::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R>>;
 }
 
@@ -131,10 +133,10 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         storage_scheme: enums::MerchantStorageScheme,
         merchant_key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, R>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )>;
 
@@ -166,14 +168,30 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         _state: &SessionState,
         _payment_data: &mut PaymentData<F>,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
-        _merchant_account: &storage::BusinessProfile,
+        _merchant_account: &domain::BusinessProfile,
         _key_store: &domain::MerchantKeyStore,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn payments_dynamic_tax_calculation<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _business_profile: &domain::BusinessProfile,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_account: &domain::MerchantAccount,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -192,9 +210,9 @@ pub trait Domain<F: Clone, R>: Send + Sync {
     async fn store_extended_card_info_temporarily<'a>(
         &'a self,
         _state: &SessionState,
-        _payment_id: &str,
-        _business_profile: &storage::BusinessProfile,
-        _payment_method_data: &Option<api::PaymentMethodData>,
+        _payment_id: &common_utils::id_type::PaymentId,
+        _business_profile: &domain::BusinessProfile,
+        _payment_method_data: &Option<domain::PaymentMethodData>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -220,6 +238,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
 }
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait PostUpdateTracker<F, D, R: Send>: Send {
     async fn update_tracker<'b>(
         &'b self,
@@ -229,6 +248,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         response: types::RouterData<F, R, PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;
@@ -240,7 +260,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _payment_data: &mut PaymentData<F>,
-        _business_profile: &storage::business_profile::BusinessProfile,
+        _business_profile: &domain::BusinessProfile,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
         F: 'b + Clone + Send + Sync,
@@ -272,7 +292,7 @@ where
     > {
         Ok((
             Box::new(self),
-            helpers::get_customer_from_details(
+            helpers::get_customer_details_even_for_redacted_customer(
                 state,
                 payment_data.payment_intent.customer_id.clone(),
                 &merchant_key_store.merchant_id,
@@ -303,10 +323,10 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))
@@ -366,10 +386,10 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))
@@ -441,10 +461,10 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))
@@ -505,10 +525,10 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&diesel_models::business_profile::BusinessProfile>,
+        _business_profile: Option<&domain::BusinessProfile>,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRejectRequest>,
-        Option<api::PaymentMethodData>,
+        Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
         Ok((Box::new(self), None, None))

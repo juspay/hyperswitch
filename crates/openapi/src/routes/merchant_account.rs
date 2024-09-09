@@ -1,3 +1,4 @@
+#[cfg(feature = "v1")]
 /// Merchant Account - Create
 ///
 /// Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.
@@ -41,6 +42,65 @@
 )]
 pub async fn merchant_account_create() {}
 
+#[cfg(feature = "v2")]
+/// Merchant Account - Create
+///
+/// Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.
+///
+/// Before creating the merchant account, it is mandatory to create an organization.
+#[utoipa::path(
+    post,
+    path = "/v2/accounts",
+    request_body(
+        content = MerchantAccountCreate,
+        examples(
+            (
+                "Create a merchant account with minimal fields" = (
+                    value = json!({
+                        "merchant_name": "Cloth Store",
+                        "organization_id": "org_abcdefghijklmnop"
+                    })
+                )
+            ),
+            (
+                "Create a merchant account with merchant details" = (
+                    value = json!({
+                        "merchant_name": "Cloth Store",
+                        "organization_id": "org_abcdefghijklmnop",
+                        "merchant_details": {
+                                "primary_contact_person": "John Doe",
+                                "primary_email": "example@company.com"
+                        }
+                    })
+                )
+            ),
+            (
+                "Create a merchant account with metadata" = (
+                    value = json!({
+                        "merchant_name": "Cloth Store",
+                        "organization_id": "org_abcdefghijklmnop",
+                        "metadata": {
+                                "key_1": "John Doe",
+                                "key_2": "Trends"
+                        }
+                    })
+                )
+            ),
+
+        )
+
+    ),
+    responses(
+        (status = 200, description = "Merchant Account Created", body = MerchantAccountResponse),
+        (status = 400, description = "Invalid data")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Create a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn merchant_account_create() {}
+
+#[cfg(feature = "v1")]
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a *merchant* account details.
@@ -58,6 +118,25 @@ pub async fn merchant_account_create() {}
 )]
 pub async fn retrieve_merchant_account() {}
 
+#[cfg(feature = "v2")]
+/// Merchant Account - Retrieve
+///
+/// Retrieve a *merchant* account details.
+#[utoipa::path(
+    get,
+    path = "/v2/accounts/{id}",
+    params (("id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
+        (status = 404, description = "Merchant account not found")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Retrieve a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn merchant_account_retrieve() {}
+
+#[cfg(feature = "v1")]
 /// Merchant Account - Update
 ///
 /// Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
@@ -75,12 +154,6 @@ pub async fn retrieve_merchant_account() {}
                 })
             )
             ),
-            ("Update merchant name" = (
-                value = json!({
-                    "merchant_id": "merchant_abc",
-                    "merchant_name": "merchant_name"
-                })
-            )),
             ("Update webhook url" = (
                     value = json!({
                         "merchant_id": "merchant_abc",
@@ -107,6 +180,46 @@ pub async fn retrieve_merchant_account() {}
 )]
 pub async fn update_merchant_account() {}
 
+#[cfg(feature = "v2")]
+/// Merchant Account - Update
+///
+/// Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
+#[utoipa::path(
+    put,
+    path = "/v2/accounts/{id}",
+    request_body (
+        content = MerchantAccountUpdate,
+        examples(
+            (
+            "Update merchant name" = (
+                value = json!({
+                    "merchant_id": "merchant_abc",
+                    "merchant_name": "merchant_name"
+                })
+            )
+            ),
+            ("Update Merchant Details" = (
+                    value = json!({
+                        "merchant_details": {
+                                "primary_contact_person": "John Doe",
+                                "primary_email": "example@company.com"
+                        }
+                    })
+                )
+            ),
+            )),
+    params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
+    responses(
+        (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
+        (status = 404, description = "Merchant account not found")
+    ),
+    tag = "Merchant Account",
+    operation_id = "Update a Merchant Account",
+    security(("admin_api_key" = []))
+)]
+pub async fn merchant_account_update() {}
+
+#[cfg(feature = "v1")]
 /// Merchant Account - Delete
 ///
 /// Delete a *merchant* account
@@ -124,6 +237,7 @@ pub async fn update_merchant_account() {}
 )]
 pub async fn delete_merchant_account() {}
 
+#[cfg(feature = "v1")]
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account

@@ -7,7 +7,7 @@ use time::OffsetDateTime;
 
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaPaymentIntent<'a> {
-    pub payment_id: &'a String,
+    pub payment_id: &'a id_type::PaymentId,
     pub merchant_id: &'a id_type::MerchantId,
     pub status: storage_enums::IntentStatus,
     pub amount: MinorUnit,
@@ -33,12 +33,14 @@ pub struct KafkaPaymentIntent<'a> {
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
     pub attempt_count: i16,
+    pub profile_id: Option<&'a id_type::ProfileId>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
     pub billing_details: Option<Encryptable<Secret<Value>>>,
     pub shipping_details: Option<Encryptable<Secret<Value>>>,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
+    pub organization_id: &'a id_type::OrganizationId,
 }
 
 impl<'a> KafkaPaymentIntent<'a> {
@@ -67,6 +69,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             business_country: intent.business_country,
             business_label: intent.business_label.as_ref(),
             attempt_count: intent.attempt_count,
+            profile_id: intent.profile_id.as_ref(),
             payment_confirm_source: intent.payment_confirm_source,
             // TODO: use typed information here to avoid PII logging
             billing_details: None,
@@ -80,13 +83,18 @@ impl<'a> KafkaPaymentIntent<'a> {
                 .map(|email| HashedString::from(Secret::new(email.to_string()))),
             feature_metadata: intent.feature_metadata.as_ref(),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
+            organization_id: &intent.organization_id,
         }
     }
 }
 
 impl<'a> super::KafkaMessage for KafkaPaymentIntent<'a> {
     fn key(&self) -> String {
-        format!("{}_{}", self.merchant_id.get_string_repr(), self.payment_id)
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.payment_id.get_string_repr(),
+        )
     }
 
     fn event_type(&self) -> crate::events::EventType {

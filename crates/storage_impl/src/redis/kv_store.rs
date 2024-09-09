@@ -25,14 +25,19 @@ pub trait KvStorePartition {
 pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
         merchant_id: &'a common_utils::id_type::MerchantId,
-        payment_id: &'a str,
+        payment_id: &'a common_utils::id_type::PaymentId,
     },
     CombinationKey {
         combination: &'a str,
     },
     MerchantIdCustomerId {
         merchant_id: &'a common_utils::id_type::MerchantId,
-        customer_id: &'a str,
+        customer_id: &'a common_utils::id_type::CustomerId,
+    },
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    MerchantIdMerchantReferenceId {
+        merchant_id: &'a common_utils::id_type::MerchantId,
+        merchant_reference_id: &'a str,
     },
     MerchantIdPayoutId {
         merchant_id: &'a common_utils::id_type::MerchantId,
@@ -46,6 +51,10 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
     },
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    GlobalId {
+        id: &'a str,
+    },
 }
 // PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
 impl<'a> std::fmt::Display for PartitionKey<'a> {
@@ -55,15 +64,25 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!(
-                "mid_{}_pid_{payment_id}",
-                merchant_id.get_string_repr()
+                "mid_{}_pid_{}",
+                merchant_id.get_string_repr(),
+                payment_id.get_string_repr()
             )),
             PartitionKey::CombinationKey { combination } => f.write_str(combination),
             PartitionKey::MerchantIdCustomerId {
                 merchant_id,
                 customer_id,
             } => f.write_str(&format!(
-                "mid_{}_cust_{customer_id}",
+                "mid_{}_cust_{}",
+                merchant_id.get_string_repr(),
+                customer_id.get_string_repr()
+            )),
+            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            PartitionKey::MerchantIdMerchantReferenceId {
+                merchant_id,
+                merchant_reference_id,
+            } => f.write_str(&format!(
+                "mid_{}_cust_{merchant_reference_id}",
                 merchant_id.get_string_repr()
             )),
             PartitionKey::MerchantIdPayoutId {
@@ -87,6 +106,9 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 "mid_{}_mandate_{mandate_id}",
                 merchant_id.get_string_repr()
             )),
+
+            #[cfg(all(feature = "v2", feature = "customer_v2"))]
+            PartitionKey::GlobalId { id } => f.write_str(&format!("cust_{id}",)),
         }
     }
 }
@@ -244,12 +266,11 @@ where
             metrics::KV_OPERATION_SUCCESSFUL.add(&metrics::CONTEXT, 1, &[keyvalue]);
             result
         })
-        .map_err(|err| {
+        .inspect_err(|err| {
             logger::error!(kv_operation = %operation, status="error", error = ?err);
             let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation);
 
             metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);
-            err
         })
 }
 

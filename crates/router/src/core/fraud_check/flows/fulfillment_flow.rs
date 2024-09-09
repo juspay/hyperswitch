@@ -1,4 +1,4 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use error_stack::ResultExt;
 use router_env::tracing::{self, instrument};
 
@@ -26,17 +26,13 @@ pub async fn construct_fulfillment_router_data<'a>(
     connector: String,
     fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
@@ -62,7 +58,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         flow: std::marker::PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector,
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,

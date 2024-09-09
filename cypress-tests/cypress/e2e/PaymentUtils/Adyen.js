@@ -54,13 +54,22 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -379,6 +388,74 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -561,7 +638,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -597,7 +674,7 @@ export const connectorDetails = {
         },
       },
     },
-    giropay: {
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -635,7 +712,7 @@ export const connectorDetails = {
         },
       },
     },
-    sofort: {
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -671,7 +748,7 @@ export const connectorDetails = {
         },
       },
     },
-    eps: {
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -707,7 +784,7 @@ export const connectorDetails = {
         },
       },
     },
-    blik: {
+    Blik: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
