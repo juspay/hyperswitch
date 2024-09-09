@@ -478,7 +478,7 @@ pub async fn routing_retrieve_default_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Profile,
+                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -486,7 +486,7 @@ pub async fn routing_retrieve_default_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::RoutingRead,
-            minimum_entity_level: EntityType::Profile,
+            minimum_entity_level: EntityType::Merchant,
         },
         api_locking::LockAction::NotApplicable,
     ))
