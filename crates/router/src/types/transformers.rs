@@ -88,19 +88,19 @@ impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType 
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
-        diesel_models::PaymentMethod,
+        domain::PaymentMethod,
     )> for payment_methods::PaymentMethodResponse
 {
     fn foreign_from(
         (card_details, item): (
             Option<payment_methods::CardDetailFromLocker>,
-            diesel_models::PaymentMethod,
+            domain::PaymentMethod,
         ),
     ) -> Self {
         Self {
-            merchant_id: item.merchant_id,
-            customer_id: Some(item.customer_id),
-            payment_method_id: item.payment_method_id,
+            merchant_id: item.merchant_id.to_owned(),
+            customer_id: Some(item.customer_id.to_owned()),
+            payment_method_id: item.get_id().clone(),
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
             card: card_details,
@@ -121,23 +121,22 @@ impl
 impl
     ForeignFrom<(
         Option<payment_methods::CardDetailFromLocker>,
-        diesel_models::PaymentMethod,
+        domain::PaymentMethod,
     )> for payment_methods::PaymentMethodResponse
 {
     fn foreign_from(
         (card_details, item): (
             Option<payment_methods::CardDetailFromLocker>,
-            diesel_models::PaymentMethod,
+            domain::PaymentMethod,
         ),
     ) -> Self {
         Self {
-            merchant_id: item.merchant_id,
-            customer_id: item.customer_id,
-            payment_method_id: item.payment_method_id,
+            merchant_id: item.merchant_id.to_owned(),
+            customer_id: item.customer_id.to_owned(),
+            payment_method_id: item.get_id().clone(),
             payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
-            payment_method_data: card_details
-                .map(|card| payment_methods::PaymentMethodResponseData::Card(card.clone())),
+            payment_method_data: card_details.map(payment_methods::PaymentMethodResponseData::Card),
             recurring_enabled: false,
             metadata: item.metadata,
             created: Some(item.created_at),
@@ -280,7 +279,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
-            // api_enums::Connector::Fiuu => Self::Fiuu,
+            api_enums::Connector::Fiuu => Self::Fiuu,
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
@@ -334,7 +333,6 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
-            // api_enums::Connector::Taxjar => Self::Taxjar,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Tsys => Self::Tsys,
             api_enums::Connector::Volt => Self::Volt,
@@ -362,6 +360,11 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Threedsecureio => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "threedsecureio is not a routable connector".to_string(),
+                })?
+            }
+            api_enums::Connector::Taxjar => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Taxjar is not a routable connector".to_string(),
                 })?
             }
         })

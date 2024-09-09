@@ -37,6 +37,7 @@ pub enum Permission {
     PayoutRead,
     WebhookEventWrite,
     GenerateReport,
+    ReconAdmin,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
@@ -50,6 +51,7 @@ pub enum ParentGroup {
     Merchant,
     #[serde(rename = "OrganizationAccess")]
     Organization,
+    Recon,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -67,6 +69,7 @@ pub enum PermissionModule {
     SurchargeDecisionManager,
     AccountCreate,
     Payouts,
+    Recon,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -146,4 +149,13 @@ pub struct ListInvitationForUserResponse {
     pub entity_type: common_enums::EntityType,
     pub entity_name: Option<Secret<String>>,
     pub role_id: String,
+}
+
+pub type AcceptInvitationsV2Request = Vec<Entity>;
+pub type AcceptInvitationsPreAuthRequest = Vec<Entity>;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct Entity {
+    pub entity_id: String,
+    pub entity_type: common_enums::EntityType,
 }

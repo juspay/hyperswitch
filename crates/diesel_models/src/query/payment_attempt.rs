@@ -322,6 +322,7 @@ impl PaymentAttempt {
         payment_method: Option<Vec<enums::PaymentMethod>>,
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
@@ -345,6 +346,9 @@ impl PaymentAttempt {
         }
         if let Some(merchant_connector_id) = merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
+        }
+        if let Some(profile_id_list) = profile_id_list {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id_list))
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
